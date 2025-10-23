@@ -1,0 +1,180 @@
+/* src/assets/main.css */
+@import './base.css';
+
+/* === Layout full-screen y sin corrimiento === */
+html, body, #app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* si base.css puso display:flex/centering, lo normalizamos */
+  display: block !important;
+  place-items: initial !important;
+  background: #0b1220; /* color de fondo de seguridad */
+}
+
+/* Elimina límites y paddings del scaffold */
+#app {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important; /* quita el grid del scaffold */
+}
+
+/* Puedes mantener tus estilos de enlaces */
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+/* Anula el comportamiento del scaffold en >=1024px */
+@media (min-width: 1024px) {
+  body {
+    display: block !important;
+    place-items: initial !important;
+  }
+  #app {
+    display: block !important;     /* en vez de grid */
+    grid-template-columns: none !important;
+    padding: 0 !important;
+  }
+}
+/* === THEME OVERRIDES (contenido) === */
+
+/* ==== TEMA CLARO (contenido) ==== */
+html.theme-light body {
+  background: #f6f7fb !important;
+  color: #0f172a !important; /* texto principal */
+}
+
+/* ==== TEMA OSCURO (contenido) ==== */
+html.theme-dark body {
+  background: #0f172a !important; /* slate-900 */
+  color: #e5e7eb !important;      /* zinc-200 */
+}
+
+/* Mantener rojo corporativo para barras */
+.bg-xtreme { background: #c62828 !important; }
+
+/* ===== Tarjetas ===== */
+html.theme-dark .card {
+  background-color: #111827 !important; /* gray-900 */
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+html.theme-light .card {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* ===== List Group ===== */
+html.theme-dark .list-group-item {
+  background-color: #0b1220 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+/* ===== Tablas ===== */
+html.theme-dark .table {
+  --bs-table-bg: #0b1220 !important;
+  --bs-table-color: #e5e7eb !important;
+  --bs-table-border-color: rgba(255,255,255,.08) !important;
+  background-color: var(--bs-table-bg) !important;
+  color: var(--bs-table-color) !important;
+}
+html.theme-dark .table-striped > tbody > tr:nth-of-type(odd) > * {
+  --bs-table-accent-bg: rgba(255,255,255,.04);
+  color: inherit;
+}
+
+/* ===== Dropdowns ===== */
+html.theme-dark .dropdown-menu {
+  background-color: #0b1220 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+html.theme-dark .dropdown-item { color: #e5e7eb !important; }
+html.theme-dark .dropdown-item:hover { background: rgba(255,255,255,.06) !important; }
+
+/* ===== Modals ===== */
+html.theme-dark .modal-content {
+  background-color: #0b1220 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+/* ===== Offcanvas ===== */
+html.theme-dark .offcanvas,
+html.theme-dark .offcanvas-header,
+html.theme-dark .offcanvas-body {
+  background-color: #0b1220 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,.08) !important;
+}
+
+/* ===== Formularios ===== */
+html.theme-dark .form-control,
+html.theme-dark .form-select,
+html.theme-dark .input-group-text {
+  background-color: #111827 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+html.theme-dark .form-control::placeholder { color: #9ca3af !important; }
+
+html.theme-dark .form-check-input {
+  background-color: #111827 !important;
+  border-color: rgba(255,255,255,.4) !important;
+}
+html.theme-dark .form-check-input:checked {
+  background-color: #c62828 !important; /* rojo corporativo para checks */
+  border-color: #c62828 !important;
+}
+
+/* ===== Badges “claras” en oscuro ===== */
+html.theme-dark .badge.bg-light {
+  background-color: rgba(255,255,255,.14) !important;
+  color: #fff !important;
+}
+
+/* ===== Texto secundario ===== */
+html.theme-dark .text-muted { color: #9ca3af !important; }
+html.theme-light .text-muted { color: #6b7280 !important; }
+
+/* ===== Enlaces ===== */
+html.theme-dark a { color: #93c5fd; } /* azul suave */
+html.theme-dark a:hover { color: #bfdbfe; }
+
+/* ===== Botones (opcional: mejorar outline en oscuro) ===== */
+html.theme-dark .btn-outline-secondary {
+  color: #e5e7eb; border-color: rgba(255,255,255,.4);
+}
+html.theme-dark .btn-outline-secondary:hover {
+  background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.5);
+}
+
+/* ===== Tab panes, nav pills (si usas) ===== */
+html.theme-dark .nav-pills .nav-link {
+  color: #e5e7eb;
+}
+html.theme-dark .nav-pills .nav-link.active {
+  background: #c62828; color: #fff;
+}
+
+/* ===== Hr ===== */
+html.theme-dark hr { border-color: rgba(255,255,255,.12); }
+
+/* ===== Toasts (si estás usando Bootstrap toasts) ===== */
+html.theme-dark .toast { background: #111827; color: #e5e7eb; border-color: rgba(255,255,255,.08); }
+
+/* ===== Mantener barras rojas ===== */
+.navbar.bg-xtreme,
+.app-sidebar,
+.sidebar-header,
+.sidebar-user { background-color: #c62828 !important; }
+
+
