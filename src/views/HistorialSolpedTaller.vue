@@ -755,7 +755,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { db } from "@/stores/firebase";
 import {
@@ -848,8 +848,58 @@ export default {
       goPage(1);
     };
 
-    const LS_SHOW_SIDEBAR = "hist_taller_show_sidebar";
+    // === Persistencia de filtros y UI ===
+    const LS_TALLER_FILTERS   = "hist_taller_filters_v2";  // todos los filtros juntos
+    const LS_SHOW_SIDEBAR     = "hist_taller_show_sidebar";
+
+    // Paginación UI (cliente)
+    const page = ref(1);
+    const pageSizeOptions = [10, 20, 30, 40, 50];
+    const pageSize = ref(10);
+
     const showSidebar = ref(true);
+
+    const persistFilters = () => {
+      const payload = {
+        filtroTexto: filtroTexto.value || "",
+        fechaDesde:  fechaDesde.value || "",
+        fechaHasta:  fechaHasta.value || "",
+        filtroEstatus: Array.isArray(filtroEstatus.value) ? filtroEstatus.value : [],
+        filtroSolicitante: Array.isArray(filtroSolicitante.value) ? filtroSolicitante.value : [],
+        selectedCC: Array.isArray(selectedCC.value) ? selectedCC.value : [],
+        onlyMine: !!onlyMine.value,
+        pageSize: Number(pageSize.value || 10),
+      };
+      try { localStorage.setItem(LS_TALLER_FILTERS, JSON.stringify(payload)); } catch(e){ console.error(e); }
+    };
+
+    const loadPersistedFilters = () => {
+      try {
+        const raw = localStorage.getItem(LS_TALLER_FILTERS);
+        if (!raw) return;
+        const f = JSON.parse(raw);
+
+        filtroTexto.value       = f.filtroTexto ?? "";
+        fechaDesde.value        = f.fechaDesde ?? "";
+        fechaHasta.value        = f.fechaHasta ?? "";
+        filtroEstatus.value     = Array.isArray(f.filtroEstatus) ? f.filtroEstatus : [];
+        filtroSolicitante.value = Array.isArray(f.filtroSolicitante) ? f.filtroSolicitante : [];
+        selectedCC.value        = Array.isArray(f.selectedCC) ? f.selectedCC : [];
+        tempSolicitanteSelSet.value = new Set(filtroSolicitante.value);
+        onlyMine.value          = !!f.onlyMine;
+        if ([10,20,30,40,50].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
+      } catch(e){ console.error(e); }
+    };
+
+    const syncFromStorageEvent = (e) => {
+      if (e.key === LS_TALLER_FILTERS && e.newValue) {
+        loadPersistedFilters();
+        // recalcula sin “saltos”
+        goPage(page.value);
+      } else if (e.key === LS_SHOW_SIDEBAR && e.newValue !== null) {
+        showSidebar.value = (e.newValue === "1");
+      }
+    };
 
     // Solicitantes (para filtro)
     const listaSolicitantes = ref([]);
@@ -922,27 +972,13 @@ export default {
       }
     };
 
-    // Persistencias
-    const LS_ONLY_MINE = "hist_taller_only_mine";
-    const LS_PAGE_SIZE = "hist_taller_pagesize";
-
-    const persistOnlyMine = () => {
-      try { localStorage.setItem(LS_ONLY_MINE, onlyMine.value ? "1" : "0"); } catch(e){console.error(e)}
-      goPage(1);
-    };
+    // Persistencias puntuales (compat con UI)
+    const persistOnlyMine = () => { persistFilters(); goPage(1); };
     const toggleSidebar = () => {
       showSidebar.value = !showSidebar.value;
-      try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? "1" : "0"); } catch (e) {console.error(e)}
+      try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? "1" : "0"); } catch (e) {console.error(e);}
     };
-
-    // Paginación UI (cliente)
-    const page = ref(1);
-    const pageSizeOptions = [10, 20, 30, 40, 50];
-    const pageSize = ref(10);
-    const persistPageSize = () => {
-      try { localStorage.setItem(LS_PAGE_SIZE, String(pageSize.value)); } catch(e){console.error(e)}
-      goPage(1);
-    };
+    const persistPageSize = () => { persistFilters(); goPage(1); };
 
     // Helpers
     const normalize = (v="") => v.toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").toUpperCase().trim();
@@ -1131,7 +1167,6 @@ export default {
       }
     };
 
-
     // Expand / marcar vistos + cargar OCs
     const onExpandCard = async (s) => {
       solpeExpandidaId.value = (solpeExpandidaId.value === s.id) ? null : s.id;
@@ -1170,6 +1205,7 @@ export default {
     const clearTempSolicitantes = () => { tempSolicitanteSelSet.value.clear(); };
     const applySolicitantesFiltro = () => {
       filtroSolicitante.value = Array.from(tempSolicitanteSelSet.value);
+      persistFilters();
       goPage(1);
     };
 
@@ -1295,51 +1331,73 @@ export default {
       selectedCC.value = [];
       ccSearch.value = "";
       onlyMine.value = false;
+      persistFilters();
       goPage(1);
     };
 
-    const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x!==s); goPage(1); };
-    const removeSolicitante = (u) => { filtroSolicitante.value = filtroSolicitante.value.filter(x => x!==u); goPage(1); };
+    const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x!==s); persistFilters(); goPage(1); };
+    const removeSolicitante = (u) => { filtroSolicitante.value = filtroSolicitante.value.filter(x => x!==u); tempSolicitanteSelSet.value.delete(u); persistFilters(); goPage(1); };
 
-    // Estado general (GUARD)
+    // ===== Evitar “saltos” al cambiar estatus (scroll suave) =====
+    const savedScrollY = ref(0);
+    const restoreScrollSoon = async () => {
+      await nextTick();
+      requestAnimationFrame(() => { window.scrollTo(0, savedScrollY.value || 0); });
+    };
+
+    // Estado general (SUAVE, sin reordenar ni recargar)
     const setStatus = async (s, estatus) => {
       if (!canChangeStatus.value) {
         error.value = "No tienes permisos para cambiar el estado.";
         return;
       }
       try {
+        savedScrollY.value = window.scrollY;
+
         const refd = doc(db, "solped_taller", s.id);
-        const usuario = myFullName.value || auth?.user?.displayName || auth?.user?.email || "Anónimo";
 
         if (estatus === "Completado") {
+          // 1) prepara items en memoria
           const itemsUpd = (s.items || []).map(it => ({ ...it, estado: "completado" }));
+          // 2) escribe en Firestore
           await updateDoc(refd, { estatus, items: itemsUpd });
+          // 3) actualiza objeto en sitio
+          s.estatus = estatus;
           s.items = itemsUpd;
         } else {
           await updateDoc(refd, { estatus });
+          s.estatus = estatus; // in-place
         }
 
+        // historial (no afecta render)
+        const usuario = myFullName.value || auth?.user?.displayName || auth?.user?.email || "Anónimo";
         await addDoc(collection(db, "solped_taller", s.id, "historialEstados"), { fecha: new Date(), estatus, usuario });
-        s.estatus = estatus;
+
+        restoreScrollSoon();
       } catch (e) {
         console.error(e);
         error.value = "Error al actualizar estatus.";
       }
     };
 
-    // Cambiar estado de ÍTEM (GUARD)
+    // Cambiar estado de ÍTEM (SUAVE)
     const setItemStatus = async (solpe, item, nuevo) => {
       if (!canChangeStatus.value) {
         error.value = "No tienes permisos para cambiar el estado del ítem.";
         return;
       }
       try {
+        savedScrollY.value = window.scrollY;
+
         const refd = doc(db, "solped_taller", solpe.id);
         const itemsUpd = (solpe.items || []).map(it =>
           (String(it.item) === String(item.item)) ? { ...it, estado: nuevo } : it
         );
         await updateDoc(refd, { items: itemsUpd });
+
         solpe.items = itemsUpd;
+
+        restoreScrollSoon();
       } catch (e) {
         console.error(e);
         error.value = "No se pudo cambiar el estado del ítem.";
@@ -1422,16 +1480,12 @@ export default {
     };
 
     // Preparar copia y abrir formulario (GUARD Generador Solped)
-    const DRAFT_KEY = "solped_taller_draft_v1";
-    const LS_LOCAL_CONSENT = "solped_taller_local_consent";
     const prepararCopiaYEditar = (s) => {
       if (!canCopySolped.value) {
         error.value = "No tienes permisos para copiar/editar SOLPED (sólo Generador Solped).";
         return;
       }
       try {
-        try { localStorage.setItem(LS_LOCAL_CONSENT, "1"); } catch (e){ console.error(e); }
-
         const draft = {
           ts: Date.now(),
           data: {
@@ -1457,7 +1511,8 @@ export default {
           }
         };
 
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        // lo dejas en session/local según tu creador
+        localStorage.setItem("solped_taller_draft_v1", JSON.stringify(draft));
 
         if (router.hasRoute("SolpedTaller")) {
           router.push({ name: "SolpedTaller" });
@@ -1764,18 +1819,14 @@ export default {
 
     // Init
     onMounted(async () => {
+      // Sidebar persistido
       try {
         const savedSidebar = localStorage.getItem(LS_SHOW_SIDEBAR);
         if (savedSidebar === "0") showSidebar.value = false;
-      } catch (e) {console.error(e)}
-      try {
-        const savedOnlyMine = localStorage.getItem(LS_ONLY_MINE);
-        onlyMine.value = (savedOnlyMine === "1");
-      } catch (e) { console.error(e); onlyMine.value = false; }
-      try {
-        const savedPs = parseInt(localStorage.getItem(LS_PAGE_SIZE)||"10",10);
-        if ([10,20,30,40,50].includes(savedPs)) pageSize.value = savedPs;
-      } catch(e){console.error(e)}
+      } catch (e) { console.error(e); }
+
+      // Filtros persistidos
+      loadPersistedFilters();
 
       // Cargar rol del usuario ANTES de datos
       await loadUserRole();
@@ -1789,10 +1840,25 @@ export default {
       await loadMyName();
       await cargarSolpes(true);
       goPage(1);
+
+      // sincroniza preferencias entre pestañas
+      window.addEventListener("storage", syncFromStorageEvent);
     });
 
-    // Recalcular cuando cambian filtros
-    watch([filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine], () => { goPage(1); });
+    onUnmounted(() => {
+      window.removeEventListener("storage", syncFromStorageEvent);
+    });
+
+    // Recalcular cuando cambian filtros (y persistir)
+    watch([filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine], () => {
+      persistFilters();
+      goPage(1);
+    }, { deep: true });
+
+    watch([pageSize], () => {
+      persistFilters();
+      goPage(1);
+    });
 
     // Constantes
     const listaEstatus = [
@@ -1976,7 +2042,6 @@ export default {
   width:60px; height:12px; background:#e2e8f0; border-radius:6px; filter:blur(2px);
 }
 .ghost-eyes{ position:absolute; top:45px; left:50%; transform:translateX(-50%); width:60px; height:14px; display:flex; justify-content:space-between; }
-.ghost-eyes:before, .ghost-eyes:after{ content:''; width:14px; height:14px; background:#111827; border-radius:50%; }
 .ghost-bottom{ position:absolute; bottom:-12px; left:0; right:0; display:flex; justify-content:space-between; padding:0 6px; }
 .ghost-text{ margin-top:1rem; font-weight:500; }
 

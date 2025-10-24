@@ -137,13 +137,29 @@
               </div>
             </div>
 
+            <!-- Centro de costo limitado por asignación -->
             <div class="col-12 col-md-6">
               <label class="form-label">Centro de costo</label>
-              <select class="form-select" v-model="form.numero_contrato" @change="onCentroCosto" required>
+
+              <!-- Aviso si no hay contratos asignados -->
+              <div v-if="!Object.keys(centrosDisponibles).length" class="alert alert-warning py-2 small">
+                No tienes contratos asignados. Solicita a un administrador que te asigne uno o más.
+              </div>
+
+              <select class="form-select"
+                      v-model="form.numero_contrato"
+                      @change="onCentroCosto"
+                      :disabled="!Object.keys(centrosDisponibles).length"
+                      required>
                 <option value="" disabled>Selecciona centro de costo</option>
-                <option v-for="(label, code) in centrosCosto" :key="code" :value="code">{{ label }}</option>
+                <option v-for="(label, code) in centrosDisponibles" :key="code" :value="code">
+                  {{ code }} — {{ label }}
+                </option>
               </select>
-              <div class="form-text">Actual: <strong>{{ form.nombre_centro_costo || '-' }}</strong></div>
+
+              <div class="form-text">
+                Guardado: <strong>{{ form.nombre_centro_costo || '-' }}</strong>
+              </div>
             </div>
 
             <!-- Autorización -->
@@ -328,10 +344,63 @@ export default {
     const irHistorial = () => router.push({ name: "historial-solped" });
     const auth = useAuthStore();
 
-    /* ===== Usuario (fullName) ===== */
+    /* ===== Usuario (fullName) + contratos asignados ===== */
     const userFullName = ref("");
     const usuarioNombre = computed(() => userFullName.value || "");
     const uid = computed(() => auth?.user?.uid || "");
+
+    // contratos asignados (códigos) para el usuario
+    const centrosAsignados = ref([]); // string[]
+
+    // catálogo completo de centros (código => nombre completo)
+    const centrosCosto = {
+      '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
+      'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
+      '20915': 'CONTRATO 20915 SUM. HORMIGON DAND',
+      '23302-CARPETAS': 'CONTRATO 23302 CARPETAS',
+      '23302-AMPL': 'CONTRATO 23302 AMPLIACION',
+      'OFANDES': 'OFICINA LOS ANDES',
+      'CASAMATRIZ': 'CASA MATRIZ',
+      'RRHH': 'RRHH',
+      'FINANZAS': 'FINANZAS',
+      'SUST': 'SUSTENTABILIDAD',
+      'SOPTI': 'SOPORTE TI',
+      'STRIPCENTER': 'STRIP CENTER',
+      'PLANIF': 'PLANIFICACION',
+      'PPSB': 'PLANTA PREDOSIFICADO SAN BERNARDO',
+      'PHUSB': 'PLANTA HORMIGON URB.SAN BERNARDO',
+      'ALTOMAIPO': 'ALTO MAIPO',
+      'PHURAN': 'PLANTA HORMIGON URB. RANCAGUA',
+      'PARAN': 'PLANTA ARIDOS RANCAGUA',
+      'PASB': 'PLANTA ARIDOS SAN BERNARDO',
+      '22368': 'CONTRATO 22368 SUM HORMIGON DET',
+      '28662': 'CONTRATO 28662 CARPETAS',
+      '29207': 'CONTRATO 29207 MINERIA',
+      'HROMIGONES DET': 'CONTRATO SUMINISTRO DE HORMIGONES DET',
+      'HORMIGONES DAMD': 'CONTRATO SUMINISTRO DE HORMIGONES DAND',
+      '23302': 'CONTRATO MANTENCIÓN Y REPARACIÓN DE INFRAESTRUCTURA DAND',
+      'DET': 'CONTRATO REPARACIÓN DE CARPETAS DE RODADO DET',
+      'SANJOAQUIN': 'SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN',
+      'URBANOS': 'SUMINISTRO DE HORMIGONES URBANOS SAN BERNARDO Y OLIVAR',
+      'CS': 'CONTRATO DE SUMINISTRO DE HORMIGONES CS',
+      'PREDOSIFICADO': 'CONTRATO HORMIGONES Y PREDOSIFICADO',
+      'CANECHE': 'CONTRATO TALLER CANECHE',
+      'INFRAESTRUCTURA': 'CONTRATO INFRAESTRUCTURA DET',
+      'CHUQUICAMATA': 'CONTRATO CHUQUICAMATA',
+      'CARPETASDET': 'CONTRATO CARPETAS DET',
+      '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM'
+    };
+
+    // opciones visibles en el <select>: solo asignados
+    const centrosDisponibles = computed(() => {
+      const out = {};
+      const asg = Array.isArray(centrosAsignados.value) ? centrosAsignados.value : [];
+      for (const code of asg) {
+        if (centrosCosto[code]) out[code] = centrosCosto[code];
+      }
+      return out;
+    });
+
     const loadUserFullName = async () => {
       try {
         const id = uid.value;
@@ -339,8 +408,12 @@ export default {
         const snap = await getDoc(doc(db, "Usuarios", id));
         const data = snap.exists() ? snap.data() : null;
         userFullName.value = (data?.fullName || data?.fullname || "").toString().trim();
+
+        // contratos asignados (normalizados a string)
+        const arr = Array.isArray(data?.centrosAsignados) ? data.centrosAsignados : [];
+        centrosAsignados.value = arr.map(x => String(x));
       } catch (e) {
-        console.warn("No se pudo obtener fullName de Usuarios:", e);
+        console.warn("No se pudo obtener fullName/contratos de Usuarios:", e);
       }
     };
 
@@ -410,53 +483,16 @@ export default {
       return [];
     });
 
-    /* ===== Centros de costo (resumido) ===== */
-    const centrosCosto = {
-      '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
-      'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
-      '20915': 'CONTRATO 20915 SUM. HORMIGON DAND',
-      '23302-CARPETAS': 'CONTRATO 23302 CARPETAS',
-      '23302-AMPL': 'CONTRATO 23302 AMPLIACION',
-      'OFANDES': 'OFICINA LOS ANDES',
-      'CASAMATRIZ': 'CASA MATRIZ',
-      'RRHH': 'RRHH',
-      'FINANZAS': 'FINANZAS',
-      'SUST': 'SUSTENTABILIDAD',
-      'SOPTI': 'SOPORTE TI',
-      'STRIPCENTER': 'STRIP CENTER',
-      'PLANIF': 'PLANIFICACION',
-      'PPSB': 'PLANTA PREDOSIFICADO SAN BERNARDO',
-      'PHUSB': 'PLANTA HORMIGON URB.SAN BERNARDO',
-      'ALTOMAIPO': 'ALTO MAIPO',
-      'PHURAN': 'PLANTA HORMIGON URB. RANCAGUA',
-      'PARAN': 'PLANTA ARIDOS RANCAGUA',
-      'PASB': 'PLANTA ARIDOS SAN BERNARDO',
-      '22368': 'CONTRATO 22368 SUM HORMIGON DET',
-      '28662': 'CONTRATO 28662 CARPETAS',
-      '29207': 'CONTRATO 29207 MINERIA',
-      'HROMIGONES DET': 'CONTRATO SUMINISTRO DE HORMIGONES DET',
-      'HORMIGONES DAMD': 'CONTRATO SUMINISTRO DE HORMIGONES DAND',
-      '23302': 'CONTRATO MANTENCIÓN Y REPARACIÓN DE INFRAESTRUCTURA DAND',
-      'DET': 'CONTRATO REPARACIÓN DE CARPETAS DE RODADO DET',
-      'SANJOAQUIN': 'SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN',
-      'URBANOS': 'SUMINISTRO DE HORMIGONES URBANOS SAN BERNARDO Y OLIVAR',
-      'CS': 'CONTRATO DE SUMINISTRO DE HORMIGONES CS',
-      'PREDOSIFICADO': 'CONTRATO HORMIGONES Y PREDOSIFICADO',
-      'CANECHE': 'CONTRATO TALLER CANECHE',
-      'INFRAESTRUCTURA': 'CONTRATO INFRAESTRUCTURA DET',
-      'CHUQUICAMATA': 'CONTRATO CHUQUICAMATA',
-      'CARPETASDET': 'CONTRATO CARPETAS DET',
-      '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM'
-    };
+    /* ===== Centro de costo (sincroniza nombre completo al seleccionar) ===== */
     const onCentroCosto = () => {
-      form.nombre_centro_costo = centrosCosto[form.numero_contrato] || "";
+      const code = form.numero_contrato || "";
+      form.nombre_centro_costo = centrosCosto[code] || "";
     };
 
     /* ===== Numeración por empresa (preview) ===== */
     const onEmpresaChange = async () => {
       if (!form.empresa) return;
       await actualizarNumeroSolpePorEmpresa();
-      // al cambiar empresa, forzamos re-cálculo de clave y guardado
       scheduleLocalSave();
     };
     const actualizarNumeroSolpePorEmpresa = async () => {
@@ -500,7 +536,9 @@ export default {
         if (!form.items.length) agregarFila();
         setNow();
         if (form.empresa) await actualizarNumeroSolpePorEmpresa();
-        addToast("success", "Borrador cargado desde SOLPED original.");
+
+        // garantizar que el contrato del draft esté permitido
+        asegurarContratoPermitido();
       } catch (e) {
         console.error("No se pudo aplicar el borrador:", e);
         addToast("danger", "No se pudo aplicar el borrador.");
@@ -565,6 +603,9 @@ export default {
           : [];
         if (!form.items.length) agregarFila();
         setNow();
+
+        // si el borrador tenía un contrato no permitido, límpialo
+        asegurarContratoPermitido();
       } catch (e) {
         console.error("No se pudo parsear borrador local:", e);
       }
@@ -593,13 +634,12 @@ export default {
 
     const scheduleLocalSave = () => {
       if (!localSaveEnabled.value || suppressLocalSave.value) return;
-      if (!formHasContent()) return; // evita guardar formularios “vacíos”
+      if (!formHasContent()) return;
 
       if (localTimer) clearTimeout(localTimer);
       localTimer = setTimeout(() => {
         try {
           const payload = serializeForm();
-          // guarda por empresa y como “último borrador” del usuario
           localStorage.setItem(perCompanyKey.value, payload);
           localStorage.setItem(lastKey.value, payload);
         } catch (e) { console.warn("No se pudo guardar local:", e); }
@@ -619,7 +659,6 @@ export default {
 
     const loadLocalNow = async () => {
       try {
-        // Prioriza por empresa; si no hay, usa el último del usuario
         const raw = localStorage.getItem(perCompanyKey.value) || localStorage.getItem(lastKey.value);
         if (!raw) { addToast("danger","No hay borrador local para recuperar."); return; }
         await runWithoutAutosave(async () => {
@@ -780,10 +819,24 @@ export default {
       return numero;
     };
 
-    /* ===== Validación y envío ===== */
+    /* ===== Validaciones ===== */
+    // asegura que el contrato actual esté en la lista permitida
+    const asegurarContratoPermitido = () => {
+      const code = String(form.numero_contrato || "");
+      const set = new Set(centrosAsignados.value || []);
+      if (!code || !set.has(code)) {
+        form.numero_contrato = "";
+        form.nombre_centro_costo = "";
+      }
+    };
+
     const validarAntesDeGuardar = () => {
+      if (!Array.isArray(centrosAsignados.value) || centrosAsignados.value.length === 0) {
+        return "Tu usuario no tiene contratos asignados. Contacta a un administrador.";
+      }
       if (!form.empresa) return "Debes seleccionar la Empresa.";
       if (!form.numero_contrato) return "Debes seleccionar un Centro de Costo.";
+      if (!form.nombre_centro_costo) return "Error interno: no se pudo resolver el nombre del Centro de Costo.";
       if (!form.nombre_solped?.trim()) return "Debes ingresar el nombre de la SOLPED.";
       if (!form.tipo_solped) return "Debes seleccionar el tipo de SOLPED.";
       if (!form.dirigidoA?.length) return "Debes seleccionar al menos un cotizador.";
@@ -796,6 +849,7 @@ export default {
       return "";
     };
 
+    /* ===== Envío ===== */
     const guardarSolped = async () => {
       error.value = ""; okMsg.value = "";
       const msg = validarAntesDeGuardar(); if (msg) { error.value = msg; addToast("danger", msg); return; }
@@ -803,10 +857,9 @@ export default {
       try {
         enviandoSolpe.value = true; setNow();
 
-        // 1) obtener número único transaccional (no confíes en el preview)
+        // número único transaccional
         const numeroAsignado = await getNextNumeroTransaccional(form.empresa);
 
-        // 2) si justo otro insertó antes, vuelve a pedir
         let numeroFinal = numeroAsignado;
         const dupCheck = async (num) => {
           const qDup = query(
@@ -821,7 +874,7 @@ export default {
         if (await dupCheck(numeroFinal)) {
           numeroFinal = await getNextNumeroTransaccional(form.empresa);
         }
-        form.numero_solpe = numeroFinal; // refleja en UI
+        form.numero_solpe = numeroFinal;
 
         const payload = {
           numero_solpe: numeroFinal,
@@ -831,8 +884,8 @@ export default {
           nombre_solped: (form.nombre_solped || "").toUpperCase(),
           tipo_solped: form.tipo_solped,
           dirigidoA: form.dirigidoA,
-          numero_contrato: form.numero_contrato,
-          nombre_centro_costo: form.nombre_centro_costo || "",
+          numero_contrato: form.numero_contrato,              // código
+          nombre_centro_costo: form.nombre_centro_costo || "",// nombre completo
           usuario: usuarioNombre.value || "",
           estatus: form.estatus || "Pendiente",
           autorizacion_url: form.autorizacion_url || null,
@@ -884,15 +937,12 @@ export default {
         addToast("success", "SOLPED enviada correctamente.");
 
         // ===== LIMPIEZA & RESET SIN AUTOGUARDADO =====
-        await clearLocalNow(); // borra perCompanyKey y lastKey
+        await clearLocalNow();
 
         await runWithoutAutosave(async () => {
-          await resetForm(true);                 // conserva empresa para preview
-          await actualizarNumeroSolpePorEmpresa(); // preview del siguiente correlativo
+          await resetForm(true);
+          await actualizarNumeroSolpePorEmpresa();
         });
-
-        // (Opcional) apaga el autosave tras enviar:
-        // localSaveEnabled.value = false; persistLocalSavePref();
 
       } catch (e) {
         console.error(e);
@@ -930,6 +980,8 @@ export default {
     onMounted(async () => {
       setNow();
       try { localSaveEnabled.value = localStorage.getItem(LOCAL_PREF_KEY) === "1"; } catch(e) {console.error(e)}
+
+      // primero obtener usuario + contratos asignados
       await loadUserFullName();
 
       // 1) ¿viene un borrador desde Historial?
@@ -961,13 +1013,16 @@ export default {
 
       // 4) al menos una fila
       if (!form.items.length) agregarFila();
+
+      // 5) si alguien tenía seleccionado un contrato no permitido, límpialo
+      asegurarContratoPermitido();
     });
 
     return {
       // state
       form, requiereAutorizacion, inputImagenRefs,
       error, okMsg, enviandoSolpe, loadingNumero,
-      usuarioNombre, cotizadoresFiltrados, centrosCosto,
+      usuarioNombre, cotizadoresFiltrados, centrosCosto, centrosDisponibles,
       suggests, focusRow,
       // local save
       localSaveEnabled, saveLocalNow, loadLocalNow, clearLocalNow, persistLocalSavePref,

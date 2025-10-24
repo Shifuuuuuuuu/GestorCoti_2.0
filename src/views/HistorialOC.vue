@@ -318,7 +318,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
@@ -335,24 +335,29 @@ const loading = ref(true);
 const loadingSearch = ref(false);
 const error = ref('');
 
+/* ===== Sidebar persistente ===== */
+const LS_SHOW_SIDEBAR = 'histOC:showSidebar';
 const showSidebar = ref(true);
-const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
+const toggleSidebar = () => {
+  showSidebar.value = !showSidebar.value;
+  try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? '1' : '0'); } catch(e){console.error('persist sidebar error', e);}
+};
 
-// Datos de la página actual (en vivo)
+/* ========= Datos de la página ========= */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-// Buscador exacto
+/* ========= Buscador exacto ========= */
 const numeroOC = ref(null);
 const ocEncontrada = ref(null);
 
-// Filtros base
+/* ========= Filtros base ========= */
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
 const empresaSegmento = ref('todas');
 
-// Centros de costo
+/* ========= Centros de costo ========= */
 const centrosCosto = {
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
   "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
@@ -392,9 +397,9 @@ const centrosCosto = {
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
-const centroSearch = ref('');
+const centroSearch = ref(''); // texto libre para nombre de centro (filtro cliente)
 
-/* ========= Paginación y conteo ========= */
+/* ========= Paginación ========= */
 const page = ref(1);
 const pageSize = ref(5);
 const totalCount = ref(0);
@@ -402,7 +407,7 @@ const pageFrom = computed(() => totalCount.value ? (page.value - 1) * pageSize.v
 const pageTo   = computed(() => Math.min(totalCount.value, page.value * pageSize.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
 
-// Cursores y scroll
+/* ========= Cursores y scroll ========= */
 const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
@@ -429,7 +434,7 @@ const fmtMoneda = (n, c='CLP') => {
 /* ======== Roles ======== */
 const isEditor = computed(() => {
   const r = (auth?.profile?.role || auth?.role || '').toLowerCase().trim();
-  return r === 'editor'; // ajusta si tu rol tiene otro nombre
+  return r === 'editor';
 });
 
 /* ======== Normalizador + clases por estado ======== */
@@ -440,23 +445,14 @@ function estadoKey(estatusRaw) {
     .replace(/\p{Diacritic}/gu,'')
     .trim();
 
-  // 1) primero "preaprobado" para no chocar con "aprobado"
   if (s.includes('preaprob')) return 'preaprobado';
-
-  // 2) luego todo lo pendiente (incluye "pendiente de aprobacion")
   if (s.includes('pend') || s.includes('aprobacion')) return 'pendiente';
-
-  // 3) ahora sí "aprobado"
   if (s.includes('aprob')) return 'aprobado';
-
-  // 4) resto
   if (s.includes('rechaz')) return 'rechazado';
   if (s.includes('proveedor') || s.includes('enviada')) return 'enviada';
   if (s.includes('revision')) return 'revision';
   return 'otro';
 }
-
-
 const estadoBadgeClass = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
@@ -506,18 +502,59 @@ const hasActiveFilters = computed(() =>
 const currentUserName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || '').trim());
 
 /* ========= Persistencia local ========= */
+/** Clave unificada de filtros */
+const LS_FILTERS = 'histOC:filters_v1';
+/** Compat legacy */
 const LS_SOLO_MIAS_KEY = 'histOC:soloMias';
 
-function loadSoloMiasFromLS() {
-  try {
-    const val = localStorage.getItem(LS_SOLO_MIAS_KEY);
-    if (val === '1') soloMias.value = true;
-    if (val === '0') soloMias.value = false;
-  } catch(e) {console.error(e)}
+function persistFilters(){
+  const payload = {
+    filtroFecha: filtroFecha.value || '',
+    filtroEstatus: Array.isArray(filtroEstatus.value) ? filtroEstatus.value : [],
+    selectedCentros: Array.isArray(selectedCentros.value) ? selectedCentros.value : [],
+    centroSearch: centroSearch.value || '',
+    empresaSegmento: empresaSegmento.value || 'todas',
+    soloMias: !!soloMias.value,
+    pageSize: Number(pageSize.value || 5)
+  };
+  try { localStorage.setItem(LS_FILTERS, JSON.stringify(payload)); } catch(e){console.error('persist filters error', e);}
 }
-watch(soloMias, (val) => {
-  try { localStorage.setItem(LS_SOLO_MIAS_KEY, val ? '1' : '0'); } catch(e) {console.error(e)}
-});
+
+function loadPersistedFilters(){
+  try {
+    // Sidebar
+    const sb = localStorage.getItem(LS_SHOW_SIDEBAR);
+    if (sb === '0') showSidebar.value = false;
+    if (sb === '1') showSidebar.value = true;
+
+    const raw = localStorage.getItem(LS_FILTERS);
+    if (raw) {
+      const f = JSON.parse(raw);
+      filtroFecha.value      = f.filtroFecha ?? '';
+      filtroEstatus.value    = Array.isArray(f.filtroEstatus) ? f.filtroEstatus : [];
+      selectedCentros.value  = Array.isArray(f.selectedCentros) ? f.selectedCentros : [];
+      centroSearch.value     = f.centroSearch ?? '';
+      empresaSegmento.value  = f.empresaSegmento ?? 'todas';
+      soloMias.value         = !!f.soloMias;
+      if ([5,10,20,30,40,50].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
+    } else {
+      // fallback compat para "Mis cotizaciones"
+      const legacy = localStorage.getItem(LS_SOLO_MIAS_KEY);
+      if (legacy === '1') soloMias.value = true;
+      if (legacy === '0') soloMias.value = false;
+    }
+  } catch(e){console.error('load persisted filters error', e);}
+}
+
+/** Sincroniza entre pestañas */
+function onStorageSync(e){
+  if (e.key === LS_FILTERS && e.newValue){
+    loadPersistedFilters();
+    applyFilters(); // reconsulta con nuevos filtros
+  } else if (e.key === LS_SHOW_SIDEBAR && e.newValue !== null){
+    showSidebar.value = (e.newValue === '1');
+  }
+}
 
 /* ========= Query builder ========= */
 const buildBaseWhere = () => {
@@ -539,7 +576,7 @@ const buildBaseWhere = () => {
       const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
       wh.push(where('fechaSubida','>=', start));
       wh.push(where('fechaSubida','<=', end));
-    } catch (e){console.error(e)}
+    } catch (e){console.error('fecha filtro error', e);}
   }
 
   if (soloMias.value) {
@@ -648,6 +685,7 @@ const listaEstatus = [
 ];
 
 const applyFilters = () => {
+  persistFilters();        // <=== guarda al aplicar
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
@@ -706,15 +744,27 @@ const buscarOCExacta = async () => {
 
 /* ========= Init ========= */
 onMounted(async () => {
-  loadSoloMiasFromLS();
+  // carga filtros + sidebar persistidos
+  loadPersistedFilters();
+
+  // suscribe y cuenta
   subscribePage();
   await refreshCount();
+
+  // sincroniza entre pestañas
+  window.addEventListener('storage', onStorageSync);
 });
 onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
+onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 
-watch([empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize], () => {
-  applyFilters();
-});
+/* ========= Observadores =========
+   Guardan cambios de forma “reactiva” y re-aplican.
+*/
+watch(
+  [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
+  () => { applyFilters(); },
+  { deep: true }
+);
 </script>
 
 <style scoped>
@@ -774,25 +824,17 @@ watch([empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice()
 /* Switch header */
 .form-check.form-switch .form-check-input{ cursor: pointer; }
 
-/* ========= PALETA PERSONALIZADA POR ESTADO =========
-   - preaprobado: azul-cian
-   - aprobado:    verde
-   - pendiente:   ámbar
-   - rechzado:    rojo
-   - enviada:     azul
-   - revision:    gris/violeta leve
-   - otro:        gris
-*/
+/* ========= PALETA PERSONALIZADA POR ESTADO ========= */
 
 /* BADGES */
 .badge-status{ font-weight:600; border:0; }
-.badge-aprobado{    background:#e7f6e9; color:#166534; }   /* green */
-.badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }   /* teal/sky */
-.badge-pendiente{   background:#fff1db; color:#92400e; }   /* amber */
-.badge-rechazado{   background:#fee2e2; color:#991b1b; }   /* red */
-.badge-enviada{     background:#e8edff; color:#1e3a8a; }   /* blue */
-.badge-revision{    background:#efe9ff; color:#5b21b6; }   /* indigo */
-.badge-otro{        background:#f1f5f9; color:#334155; }   /* slate */
+.badge-aprobado{    background:#e7f6e9; color:#166534; }
+.badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }
+.badge-pendiente{   background:#fff1db; color:#92400e; }
+.badge-rechazado{   background:#fee2e2; color:#991b1b; }
+.badge-enviada{     background:#e8edff; color:#1e3a8a; }
+.badge-revision{    background:#efe9ff; color:#5b21b6; }
+.badge-otro{        background:#f1f5f9; color:#334155; }
 
 /* HEADERS (SOLO EDITOR) */
 .hdr-aprobado{

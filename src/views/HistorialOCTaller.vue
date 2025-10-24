@@ -287,7 +287,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
@@ -299,15 +299,22 @@ const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
 
-const LS_SOLO_MIAS_KEY = 'histOCTaller:soloMias';
+/* ========= Claves de persistencia ========= */
+const LS_FILTERS       = 'histOCTaller:filters_v1';
+const LS_SHOW_SIDEBAR  = 'histOCTaller:showSidebar';
+const LS_SOLO_MIAS_KEY = 'histOCTaller:soloMias'; // compat backward
 
 /* ========= Estado ========= */
 const loading = ref(true);
 const loadingSearch = ref(false);
 const error = ref('');
 
+/* ===== Sidebar persistente ===== */
 const showSidebar = ref(true);
-const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
+const toggleSidebar = () => {
+  showSidebar.value = !showSidebar.value;
+  try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? '1' : '0'); } catch(e){console.error('persist sidebar error', e);}
+};
 
 // Datos de la página actual (en vivo)
 const pageDocs = ref([]);
@@ -331,9 +338,9 @@ const centrosCosto = {
   "CANECHE": "Contrato Taller Caneche",
   "CHUQUICAMATA": "Contrato Chuquicamata"
 };
-const selectedCentros = ref([]);
-const centroPickerSearch = ref('');
-const centroSearch = ref(''); // client-side contains
+const selectedCentros = ref([]);           // si los manejas por otra UI, quedan guardados igual
+const centroPickerSearch = ref('');        // reservado si luego agregas selector de centros
+const centroSearch = ref('');              // client-side contains
 
 /* ========= Identidad del usuario ========= */
 const myName = computed(() =>
@@ -347,7 +354,6 @@ const totalCount = ref(0);
 const pageFrom = computed(() => totalCount.value ? (page.value - 1) * pageSize.value + 1 : 0);
 const pageTo   = computed(() => Math.min(totalCount.value, page.value * pageSize.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
-
 
 // Cursores y scroll
 const cursors = ref({});
@@ -385,22 +391,14 @@ function estadoKey(estatusRaw) {
     .replace(/\p{Diacritic}/gu,'')
     .trim();
 
-  // 1) primero preaprobado (evita colisión con "aprobado")
   if (s.includes('preaprob')) return 'preaprobado';
-
-  // 2) pendiente / aprobacion -> ámbar
   if (s.includes('pend') || s.includes('aprobacion')) return 'pendiente';
-
-  // 3) aprobado -> verde
   if (s.includes('aprob')) return 'aprobado';
-
-  // 4) resto
   if (s.includes('rechaz')) return 'rechazado';
   if (s.includes('proveedor') || s.includes('enviada')) return 'enviada';
   if (s.includes('revision')) return 'revision';
   return 'otro';
 }
-
 const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
@@ -422,6 +420,56 @@ const hasActiveFilters = computed(() =>
   !!centroSearch.value ||
   selectedCentros.value.length > 0
 );
+
+/* ========= Persistencia de filtros ========= */
+function persistFilters(){
+  const payload = {
+    filtroFecha: filtroFecha.value || '',
+    filtroEstatus: Array.isArray(filtroEstatus.value) ? filtroEstatus.value : [],
+    selectedCentros: Array.isArray(selectedCentros.value) ? selectedCentros.value : [],
+    centroSearch: centroSearch.value || '',
+    empresaSegmento: empresaSegmento.value || 'todas',
+    soloMias: !!soloMias.value,
+    pageSize: Number(pageSize.value || 5)
+  };
+  try { localStorage.setItem(LS_FILTERS, JSON.stringify(payload)); } catch(e){console.error('persist filters error', e);}
+}
+
+function loadPersistedFilters(){
+  try {
+    // Sidebar
+    const sb = localStorage.getItem(LS_SHOW_SIDEBAR);
+    if (sb === '0') showSidebar.value = false;
+    if (sb === '1') showSidebar.value = true;
+
+    const raw = localStorage.getItem(LS_FILTERS);
+    if (raw) {
+      const f = JSON.parse(raw);
+      filtroFecha.value      = f.filtroFecha ?? '';
+      filtroEstatus.value    = Array.isArray(f.filtroEstatus) ? f.filtroEstatus : [];
+      selectedCentros.value  = Array.isArray(f.selectedCentros) ? f.selectedCentros : [];
+      centroSearch.value     = f.centroSearch ?? '';
+      empresaSegmento.value  = f.empresaSegmento ?? 'todas';
+      soloMias.value         = !!f.soloMias;
+      if ([5,10,20,30,40,50].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
+    } else {
+      // compat anterior: sólo "Mis cotizaciones"
+      const legacy = localStorage.getItem(LS_SOLO_MIAS_KEY);
+      if (legacy === '1') soloMias.value = true;
+      if (legacy === '0') soloMias.value = false;
+    }
+  } catch(e){console.error('load persisted filters error', e);}
+}
+
+/** Sincroniza entre pestañas */
+function onStorageSync(e){
+  if (e.key === LS_FILTERS && e.newValue){
+    loadPersistedFilters();
+    applyFilters();
+  } else if (e.key === LS_SHOW_SIDEBAR && e.newValue !== null){
+    showSidebar.value = (e.newValue === '1');
+  }
+}
 
 /* ========= Query builder (server-side) ========= */
 const buildBaseWhere = () => {
@@ -558,6 +606,7 @@ const listaEstatus = [
 ];
 
 const applyFilters = () => {
+  persistFilters();            // guarda cada vez que aplicas
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
@@ -577,6 +626,7 @@ const limpiarFiltros = () => {
 };
 const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x !== s); applyFilters(); };
 const removeCentroChip = () => { centroSearch.value = ''; applyFilters(); };
+const removeCentro = (code) => { selectedCentros.value = selectedCentros.value.filter(c => c !== code); applyFilters(); };
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
 const goPage = (p) => {
@@ -611,29 +661,26 @@ const buscarOCExacta = async () => {
   }
 };
 
-/* ========= Persistencia de “Mis cotizaciones” ========= */
-function loadSoloMiasFromLS() {
-  try {
-    const val = localStorage.getItem(LS_SOLO_MIAS_KEY);
-    if (val === '1') soloMias.value = true;
-    if (val === '0') soloMias.value = false;
-  } catch(e) { console.error(e); }
-}
-watch(soloMias, (val) => {
-  try { localStorage.setItem(LS_SOLO_MIAS_KEY, val ? '1' : '0'); } catch(e) { console.error(e); }
-});
-
 /* ========= Init / watchers ========= */
 onMounted(async () => {
-  loadSoloMiasFromLS();
+  // Cargar filtros + sidebar persistidos
+  loadPersistedFilters();
+
+  // Suscripción + conteo
   subscribePage();
   await refreshCount();
+
+  // Sincroniza entre pestañas
+  window.addEventListener('storage', onStorageSync);
 });
 onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
+onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 
-watch([empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize], () => {
-  applyFilters();
-});
+watch(
+  [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
+  () => { applyFilters(); },
+  { deep: true }
+);
 </script>
 
 <style scoped>
@@ -707,25 +754,15 @@ watch([empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice()
 /* Badge close */
 .badge .btn-close{ width:.6rem; height:.6rem; filter: invert(1) grayscale(100%) brightness(0.4); }
 
-/* ========= PALETA PERSONALIZADA POR ESTADO =========
-   - preaprobado: azul-cian
-   - aprobado:    verde
-   - pendiente:   ámbar
-   - rechazado:   rojo
-   - enviada:     azul
-   - revision:    indigo/gris
-   - otro:        gris
-*/
-
-/* BADGES */
+/* ========= PALETA PERSONALIZADA POR ESTADO ========= */
 .badge-status{ font-weight:600; border:0; }
-.badge-aprobado{    background:#e7f6e9; color:#166534; }   /* green */
-.badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }   /* teal/sky */
-.badge-pendiente{   background:#fff1db; color:#92400e; }   /* amber */
-.badge-rechazado{   background:#fee2e2; color:#991b1b; }   /* red */
-.badge-enviada{     background:#e8edff; color:#1e3a8a; }   /* blue */
-.badge-revision{    background:#efe9ff; color:#5b21b6; }   /* indigo */
-.badge-otro{        background:#f1f5f9; color:#334155; }   /* slate */
+.badge-aprobado{    background:#e7f6e9; color:#166534; }
+.badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }
+.badge-pendiente{   background:#fff1db; color:#92400e; }
+.badge-rechazado{   background:#fee2e2; color:#991b1b; }
+.badge-enviada{     background:#e8edff; color:#1e3a8a; }
+.badge-revision{    background:#efe9ff; color:#5b21b6; }
+.badge-otro{        background:#f1f5f9; color:#334155; }
 
 /* HEADERS (SOLO EDITOR) */
 .hdr-aprobado{

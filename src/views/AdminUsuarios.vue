@@ -74,8 +74,9 @@
                     <th>Rol</th>
                     <th>Teléfono</th>
                     <th>RUT</th>
+                    <th>Contratos</th>
                     <th>Creado</th>
-                    <th style="width: 160px;">Acciones</th>
+                    <th style="width: 170px;">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -90,6 +91,23 @@
                     </td>
                     <td>{{ u.phone || '—' }}</td>
                     <td>{{ u.rut || '—' }}</td>
+
+                    <!-- Columna Contratos -->
+                    <td>
+                      <div v-if="(u.centrosAsignados||[]).length===0" class="text-secondary small">—</div>
+                      <div v-else class="d-flex flex-wrap gap-1">
+                        <span
+                          v-for="k in u.centrosAsignados.slice(0,3)"
+                          :key="u.uid+'-'+k"
+                          class="badge rounded-pill bg-info-subtle text-info-emphasis">
+                          {{ nombreContrato(k) }}
+                        </span>
+                        <span v-if="u.centrosAsignados.length>3" class="badge rounded-pill bg-dark-subtle text-dark-emphasis">
+                          +{{ u.centrosAsignados.length-3 }}
+                        </span>
+                      </div>
+                    </td>
+
                     <td class="small text-secondary">{{ fmtFecha(u.createdAt) }}</td>
                     <td>
                       <div class="btn-group btn-group-sm">
@@ -139,6 +157,7 @@
             <h5 class="mb-0">{{ esEdicion ? 'Editar usuario' : 'Crear usuario' }}</h5>
             <button class="btn-close" @click="cerrarOff"></button>
           </div>
+
           <div class="offcanvas-body">
             <div class="row g-3">
               <div class="col-12">
@@ -174,11 +193,77 @@
                   <option v-for="r in rolesDisponibles" :key="'role-'+r" :value="r">{{ r }}</option>
                 </select>
               </div>
+
+              <!-- ======= Asignación de contratos ======= -->
+              <div class="col-12">
+                <div class="d-flex align-items-center justify-content-between">
+                  <label class="form-label mb-0">Contratos asignados</label>
+                  <small class="text-secondary">
+                    {{ form.centrosAsignados.length }} seleccionado(s)
+                  </small>
+                </div>
+
+                <!-- Chips de seleccionados -->
+                <div v-if="form.centrosAsignados.length" class="d-flex flex-wrap gap-1 mb-2">
+                  <span
+                    v-for="k in form.centrosAsignados"
+                    :key="'sel-'+k"
+                    class="badge rounded-pill bg-primary-subtle text-primary-emphasis">
+                    {{ nombreContrato(k) }}
+                    <button class="btn btn-sm btn-link text-primary ms-1 p-0 align-baseline"
+                            @click="quitarContrato(k)">×</button>
+                  </span>
+                </div>
+
+                <!-- Buscador + acciones -->
+                <div class="input-group input-group-sm mb-2">
+                  <span class="input-group-text"><i class="bi bi-search"></i></span>
+                  <input class="form-control" v-model="ccSearch" placeholder="Buscar contrato por nombre o código..." />
+                  <button class="btn btn-outline-secondary" @click="seleccionarTodosVisibles">Todos</button>
+                  <button class="btn btn-outline-secondary" @click="limpiarSeleccion">Limpiar</button>
+                </div>
+
+                <!-- Lista scrolleable de checkboxes -->
+                <div class="contratos-box">
+                  <label
+                    v-for="cc in ccFiltrados"
+                    :key="cc.key"
+                    class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      :value="cc.key"
+                      :checked="form.centrosAsignados.includes(cc.key)"
+                      @change="toggleContrato(cc.key, $event.target.checked)" />
+                    <span class="small">
+                      <strong>{{ cc.key }}</strong> — {{ cc.label }}
+                    </span>
+                  </label>
+                  <div v-if="ccFiltrados.length===0" class="text-secondary small py-2">Sin resultados.</div>
+                </div>
+
+                <div class="form-text">
+                  Si no asignas contratos, el usuario verá <em>todos</em> (no recomendado).
+                </div>
+              </div>
+              <!-- ======= /Asignación de contratos ======= -->
             </div>
           </div>
+
           <div class="offcanvas-footer">
-            <div class="d-flex gap-2 justify-content-end">
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
               <button class="btn btn-secondary" @click="cerrarOff">Cancelar</button>
+
+              <!-- NUEVO: guardar solo contratos (Firestore) -->
+              <button
+                v-if="esEdicion"
+                class="btn btn-outline-primary"
+                :disabled="accionandoContratos"
+                @click="guardarContratos">
+                <span v-if="accionandoContratos" class="spinner-border spinner-border-sm me-2"></span>
+                Guardar contratos (solo Firestore)
+              </button>
+
               <button class="btn btn-primary" :disabled="accionando" @click="guardar">
                 <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
                 {{ esEdicion ? 'Guardar cambios' : 'Crear usuario' }}
@@ -251,8 +336,49 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
+/* ================== Contratos (centros de costo) ================== */
+const centrosCosto = {
+  '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
+  'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
+  '20915': 'CONTRATO 20915 SUM. HORMIGON DAND',
+  '23302-CARPETAS': 'CONTRATO 23302 CARPETAS',
+  '23302-AMPL': 'CONTRATO 23302 AMPLIACION',
+  'OFANDES': 'OFICINA LOS ANDES',
+  'CASAMATRIZ': 'CASA MATRIZ',
+  'RRHH': 'RRHH',
+  'FINANZAS': 'FINANZAS',
+  'SUST': 'SUSTENTABILIDAD',
+  'SOPTI': 'SOPORTE TI',
+  'STRIPCENTER': 'STRIP CENTER',
+  'PLANIF': 'PLANIFICACION',
+  'PPSB': 'PLANTA PREDOSIFICADO SAN BERNARDO',
+  'PHUSB': 'PLANTA HORMIGON URB.SAN BERNARDO',
+  'ALTOMAIPO': 'ALTO MAIPO',
+  'PHURAN': 'PLANTA HORMIGON URB. RANCAGUA',
+  'PARAN': 'PLANTA ARIDOS RANCAGUA',
+  'PASB': 'PLANTA ARIDOS SAN BERNARDO',
+  '22368': 'CONTRATO 22368 SUM HORMIGON DET',
+  '28662': 'CONTRATO 28662 CARPETAS',
+  '29207': 'CONTRATO 29207 INFRAESTRUCTURA DET',
+  'HROMIGONES DET': 'CONTRATO SUMINISTRO DE HORMIGONES DET',
+  'HORMIGONES DAMD': 'CONTRATO SUMINISTRO DE HORMIGONES DAND',
+  '23302': 'CONTRATO MANTENCIÓN Y REPARACIÓN DE INFRAESTRUCTURA DAND',
+  'DET': 'CONTRATO REPARACIÓN DE CARPETAS DE RODADO DET',
+  'SANJOAQUIN': 'SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN',
+  'URBANOS': 'SUMINISTRO DE HORMIGONES URBANOS SAN BERNARDO Y OLIVAR',
+  'CS': 'CONTRATO DE SUMINISTRO DE HORMIGONES CS',
+  'PREDOSIFICADO': 'CONTRATO HORMIGONES Y PREDOSIFICADO',
+  'CANECHE': 'CONTRATO TALLER CANECHE',
+  'INFRAESTRUCTURA': 'CONTRATO INFRAESTRUCTURA DET',
+  'CHUQUICAMATA': 'CONTRATO CHUQUICAMATA',
+  'CARPETASDET': 'CONTRATO CARPETAS DET',
+  '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM'
+};
+const ccLista = Object.entries(centrosCosto).map(([key, label]) => ({ key, label }));
+const nombreContrato = (k) => centrosCosto[k] || k;
+
 /* ================== Constantes ================== */
-const FUNCTIONS_REGION = 'southamerica-west1'; // misma región del deploy
+const FUNCTIONS_REGION = 'southamerica-west1';
 const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor'];
 
 /* ================== Estado base ================== */
@@ -266,10 +392,41 @@ const paginaActual = ref(1);
 
 const offOpen = ref(false);
 const esEdicion = ref(false);
-const form = ref({}); // { uid, email, fullName, phone, rut, role, password? }
+const form = ref({
+  uid:'', email:'', fullName:'', phone:'', rut:'', role:'', password:'',
+  centrosAsignados: []
+});
 
 const accionando = ref(false);
+const accionandoContratos = ref(false); // <— NUEVO: loading para guardar contratos
 const uidEnAccion = ref(null);
+
+/* ================== UI: contratos en offcanvas ================== */
+const ccSearch = ref('');
+const normalizar = (s) => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+const ccFiltrados = computed(() => {
+  const q = normalizar(ccSearch.value);
+  if (!q) return ccLista;
+  return ccLista.filter(c =>
+    normalizar(c.key).includes(q) || normalizar(c.label).includes(q)
+  );
+});
+const toggleContrato = (key, checked) => {
+  const arr = [...form.value.centrosAsignados];
+  const i = arr.indexOf(key);
+  if (checked && i<0) arr.push(key);
+  if (!checked && i>=0) arr.splice(i,1);
+  form.value.centrosAsignados = arr;
+};
+const quitarContrato = (key) => {
+  form.value.centrosAsignados = form.value.centrosAsignados.filter(k => k !== key);
+};
+const limpiarSeleccion = () => { form.value.centrosAsignados = []; };
+const seleccionarTodosVisibles = () => {
+  const visibles = ccFiltrados.value.map(c => c.key);
+  const set = new Set([...form.value.centrosAsignados, ...visibles]);
+  form.value.centrosAsignados = Array.from(set);
+};
 
 /* ================== Toasts ================== */
 const toasts = ref([]);
@@ -291,16 +448,12 @@ const fmtFecha = (f) => {
 const mapFunctionsError = (e) => {
   const code = e?.code || '';
   const msg  = e?.message || '';
-
-  // mensajes cortos devueltos por la CF (err.message)
   if (msg === 'TOO_SHORT') return 'La contraseña debe tener al menos 6 caracteres.';
   if (msg === 'INVALID_EMAIL') return 'Email inválido.';
   if (msg === 'MISSING_NAME') return 'Falta el nombre.';
   if (msg === 'EMAIL_IN_USE') return 'El email ya está en uso.';
   if (msg === 'USER_NOT_FOUND') return 'El usuario no existe.';
   if (msg === 'INVALID_PHONE') return 'Teléfono inválido.';
-
-  // por si no vino "message", usar "code"
   if (code.includes('already-exists')) return 'El email ya está en uso.';
   if (code.includes('invalid-argument')) return 'Datos inválidos. Revisa email/contraseña.';
   if (code.includes('not-found')) return 'No se encontró el recurso.';
@@ -325,7 +478,8 @@ const cargarUsuarios = async () => {
         rut: data.rut || '',
         role: data.role || '',
         createdAt: data.createdAt || null,
-        token: data.token || ''
+        token: data.token || '',
+        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
       });
     });
     arr.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||''));
@@ -370,12 +524,14 @@ const limpiarFiltros = () => { busqueda.value=''; rolFiltro.value=''; paginaActu
 /* ================== Offcanvas ================== */
 const abrirCrear = () => {
   esEdicion.value = false;
-  form.value = { email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'' };
+  form.value = { email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'', centrosAsignados: [] };
+  ccSearch.value = '';
   offOpen.value = true;
 };
 const abrirEditar = (u) => {
   esEdicion.value = true;
-  form.value = { ...u, password:'' };
+  form.value = { ...u, password:'' , centrosAsignados: Array.isArray(u.centrosAsignados)? [...u.centrosAsignados] : []};
+  ccSearch.value = '';
   offOpen.value = true;
 };
 const cerrarOff = () => { offOpen.value = false; };
@@ -406,7 +562,7 @@ const guardar = async () => {
 
   try {
     if (!esEdicion.value) {
-      // 1) Crear en Authentication (CF)
+      // Crear en Auth (CF) + guardar en Firestore (incluye contratos)
       const resp = await cfCreate({
         email: data.email,
         password: data.password,
@@ -416,7 +572,6 @@ const guardar = async () => {
       const uid = resp?.data?.uid;
       if (!uid) { addToast('danger','No llegó UID desde la función.'); return; }
 
-      // 2) Guardar en Firestore
       await setDoc(doc(db, 'Usuarios', uid), {
         uid,
         email: data.email,
@@ -424,13 +579,15 @@ const guardar = async () => {
         phone: data.phone || '',
         rut: data.rut || '',
         role: data.role || '',
+        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
         createdAt: serverTimestamp()
       });
 
       addToast('success','Usuario creado.');
     } else {
+      // Editar TODO (Auth + Firestore). Úsalo cuando cambies email/nombre/teléfono/rol.
       const uid = data.uid;
-      // 1) Actualizar en Authentication (CF)
+
       await cfUpdate({
         uid,
         email: data.email,
@@ -438,13 +595,13 @@ const guardar = async () => {
         phone: (data.phone || '').trim()
       });
 
-      // 2) Actualizar Firestore
       await updateDoc(doc(db, 'Usuarios', uid), {
         email: data.email,
         fullName: data.fullName,
         phone: data.phone || '',
         rut: data.rut || '',
-        role: data.role || ''
+        role: data.role || '',
+        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
       });
 
       addToast('success','Cambios guardados.');
@@ -458,6 +615,36 @@ const guardar = async () => {
     addToast('danger', mapFunctionsError(e));
   } finally {
     accionando.value = false;
+  }
+};
+
+/* ======= NUEVO: Guardar contratos SIN tocar Auth (solo Firestore) ======= */
+const guardarContratos = async () => {
+  if (!esEdicion.value) {
+    addToast('warning','Primero crea el usuario para poder asignar contratos.');
+    return;
+  }
+  const uid = form.value.uid;
+  if (!uid) {
+    addToast('danger','Falta UID del usuario.');
+    return;
+  }
+
+  try {
+    accionandoContratos.value = true;
+    await updateDoc(doc(db, 'Usuarios', uid), {
+      centrosAsignados: Array.isArray(form.value.centrosAsignados) ? form.value.centrosAsignados : []
+    });
+    // refleja en la tabla
+    const idx = usuarios.value.findIndex(x => x.uid === uid);
+    if (idx >= 0) usuarios.value[idx].centrosAsignados = [...form.value.centrosAsignados];
+
+    addToast('success','Contratos guardados en Firestore.');
+  } catch (e) {
+    console.error(e);
+    addToast('danger','No se pudieron guardar los contratos.');
+  } finally {
+    accionandoContratos.value = false;
   }
 };
 
@@ -482,10 +669,7 @@ async function confirmarEliminar(){
   uidEnAccion.value = confirmRow.value.uid;
 
   try {
-    // 1) Auth (CF)
     await cfDelete({ uid: confirmRow.value.uid });
-
-    // 2) Firestore
     await deleteDoc(doc(db, 'Usuarios', confirmRow.value.uid));
 
     usuarios.value = usuarios.value.filter(x => x.uid !== confirmRow.value.uid);
@@ -494,8 +678,8 @@ async function confirmarEliminar(){
 
   } catch (e) {
     console.error(e);
+    // si no existe en Auth, limpia Firestore igual
     const msg = mapFunctionsError(e);
-    // Si ya no existe en Auth, limpiamos Firestore igual
     if (msg.toLowerCase().includes('no se encontró') || (e?.code||'').includes('not-found')) {
       try {
         await deleteDoc(doc(db, 'Usuarios', confirmRow.value.uid));
@@ -515,8 +699,6 @@ async function confirmarEliminar(){
     uidEnAccion.value = null;
   }
 }
-
-
 </script>
 
 <style scoped>
@@ -531,7 +713,7 @@ async function confirmarEliminar(){
 }
 .offcanvas-panel{
   position: fixed; right: 0; top: 0; bottom: 0;
-  width: 520px; max-width: 95vw;
+  width: 620px; max-width: 95vw;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
   display: flex; flex-direction: column;
@@ -543,6 +725,16 @@ async function confirmarEliminar(){
 .offcanvas-header, .offcanvas-footer{ padding: .9rem 1rem; border-bottom: 1px solid #eee; }
 .offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
+
+/* Lista de contratos scrolleable */
+.contratos-box{
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  padding: .35rem .5rem;
+  background: var(--bs-secondary-bg);
+}
 
 /* Modal */
 .vmodal-backdrop{
