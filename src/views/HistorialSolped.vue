@@ -79,7 +79,7 @@
 
         <span v-if="filtroFecha" class="badge bg-light text-dark border">
           Fecha: {{ filtroFecha }}
-          <button class="btn-close btn-close-white ms-2 small" @click="ui.fecha=''; applyFilters()"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; applyFilters()"></button>
         </span>
 
         <span v-for="s in filtroEstatus" :key="'es-'+s" class="badge bg-light text-dark border">
@@ -114,10 +114,10 @@
       <!-- Segmento por empresa -->
       <div class="mb-3">
         <div class="btn-group flex-wrap">
-          <button class="btn btn-sm" :class="ui.empresa==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
-          <button class="btn btn-sm" :class="ui.empresa==='Xtreme Mining' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Mining')">⛏ Mining</button>
-          <button class="btn btn-sm" :class="ui.empresa==='Xtreme Servicio' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Servicio')">🛠 Servicios</button>
-          <button class="btn btn-sm" :class="ui.empresa==='Xtreme Hormigones' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Hormigones')">🧱 Hormigones</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Mining' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Mining')">⛏ Mining</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Servicio' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Servicio')">🛠 Servicios</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Hormigones' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Hormigones')">🧱 Hormigones</button>
         </div>
       </div>
 
@@ -199,7 +199,7 @@
                         Cambiar estado
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end">
-                        <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
+                      <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Parcial')">Parcial</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
                         <li><hr class="dropdown-divider"></li>
@@ -332,54 +332,6 @@
                     </div>
                   </div>
 
-                  <!-- 📎 Adjuntos -->
-                  <div class="mt-4">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                      <label class="form-label mb-0">📎 Adjuntos</label>
-                      <button
-                        class="btn btn-sm btn-outline-primary"
-                        @click="fetchAdjuntos(s.id, s)"
-                        :disabled="isLoadingAdj(s.id)">
-                        <span v-if="isLoadingAdj(s.id)" class="spinner-border spinner-border-sm me-1"></span>
-                        {{ adjuntosListFor(s.id).length ? 'Actualizar' : 'Cargar' }}
-                      </button>
-                    </div>
-
-                    <div v-if="isLoadingAdj(s.id)" class="text-secondary small">Buscando…</div>
-                    <div v-else-if="adjuntosListFor(s.id).length === 0" class="text-secondary small">
-                      No hay adjuntos para esta SOLPED.
-                    </div>
-
-                    <ul v-else class="list-group">
-                      <li v-for="a in adjuntosListFor(s.id)" :key="a.__id"
-                          class="list-group-item d-flex align-items-center">
-                        <i class="bi me-2" :class="fileIcon(a.tipo)"></i>
-                        <div class="me-auto">
-                          <div class="fw-semibold text-truncate">
-                            {{ a.nombre || 'Archivo' }}
-                          </div>
-                          <div class="small text-secondary">
-                            <span v-if="a.pesoBytes">{{ fmtBytes(a.pesoBytes) }} · </span>
-                            <span v-if="a.subidoPor">Subido por: {{ a.subidoPor }}</span>
-                            <span v-if="a.fechaSubida" class="ms-1">({{ formatDateTime(a.fechaSubida) }})</span>
-                          </div>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                          <button
-                            v-if="isImageMime(a.tipo)"
-                            class="btn btn-sm btn-outline-secondary"
-                            @click.stop="previewAdjunto(a)">
-                            Previsualizar
-                          </button>
-                          <a class="btn btn-sm btn-primary" :href="a.url" target="_blank" rel="noopener">
-                            Abrir
-                          </a>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-
                   <!-- Cotizaciones vinculadas -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -444,15 +396,14 @@
             <div class="card-body">
               <div class="mb-3">
                 <label class="form-label">Fecha</label>
-                <input type="date" class="form-control" v-model="ui.fecha">
+                <input type="date" class="form-control" v-model="filtroFecha">
               </div>
 
               <div class="mb-3">
                 <label class="form-label">Estado</label>
-                <select class="form-select" multiple v-model="ui.estatus">
+                <select class="form-select" multiple v-model="filtroEstatus">
                   <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
                 </select>
-                <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
               </div>
 
               <!-- Centros -->
@@ -463,8 +414,8 @@
                   <div class="form-check" v-for="code in centrosFiltrados" :key="code">
                     <input class="form-check-input" type="checkbox"
                            :id="'cc_'+code"
-                           :checked="ui.centros.has(code)"
-                           @change="ui.centros.has(code) ? ui.centros.delete(code) : ui.centros.add(code)">
+                           :checked="selectedCentrosSet.has(code)"
+                           @change="toggleCentro(code)">
                     <label class="form-check-label" :for="'cc_'+code">
                       <strong>{{ code }}</strong> — {{ centrosMap[code] }}
                     </label>
@@ -476,7 +427,7 @@
               <!-- Usuario (generador) -->
               <div class="mb-1 d-flex align-items-center justify-content-between">
                 <label class="form-label mb-0">Usuario (Generador)</label>
-                <small v-if="ui.usuarios.size" class="text-secondary">{{ ui.usuarios.size }} seleccionado(s)</small>
+                <small v-if="tempUsuarioSelSet.size" class="text-secondary">{{ tempUsuarioSelSet.size }} seleccionados</small>
               </div>
               <div class="input-group mb-2">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -486,8 +437,8 @@
                 <div class="form-check" v-for="u in usuariosOrdenadosFiltrados" :key="u.id">
                   <input class="form-check-input" type="checkbox"
                          :id="'u_'+u.id"
-                         :checked="ui.usuarios.has(u.fullName)"
-                         @change="ui.usuarios.has(u.fullName) ? ui.usuarios.delete(u.fullName) : ui.usuarios.add(u.fullName)">
+                         :checked="tempUsuarioSelSet.has(u.fullName)"
+                         @change="toggleTempUsuario(u.fullName)">
                   <label class="form-check-label" :for="'u_'+u.id">{{ u.fullName }}</label>
                 </div>
               </div>
@@ -495,19 +446,23 @@
               <!-- Flags -->
               <div class="mb-3">
                 <div class="form-check">
-                  <input class="form-check-input" type="checkbox" id="chkOnlyMine" v-model="ui.onlyMine">
+                  <input class="form-check-input" type="checkbox" id="chkOnlyMine"
+                         :checked="onlyMine"
+                         @change="toggleOnlyMine($event.target.checked)">
                   <label class="form-check-label" for="chkOnlyMine">Ver sólo mis SOLPED</label>
                 </div>
                 <div class="form-check mt-2">
-                  <input class="form-check-input" type="checkbox" id="chkOnlyDirected" v-model="ui.onlyDirected">
+                  <input class="form-check-input" type="checkbox" id="chkOnlyDirected"
+                         :checked="onlyDirectedToMe"
+                         @change="toggleOnlyDirected($event.target.checked)">
                   <label class="form-check-label" for="chkOnlyDirected">Ver sólo dirigidas a mí</label>
                 </div>
-                <small class="text-secondary d-block mt-1">Estas opciones se guardan sólo si presionas “Aplicar”.</small>
+                <small class="text-secondary d-block mt-1">Estas opciones se guardan sólo si las marcas.</small>
               </div>
 
               <div class="mb-0">
                 <label class="form-label">Tamaño de página</label>
-                <select class="form-select" v-model.number="ui.pageSize">
+                <select class="form-select" v-model.number="pageSize" @change="applyFilters">
                   <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
@@ -535,7 +490,7 @@
       </div>
     </div>
 
-    <!-- Modal imagen (reutilizado para items y adjuntos de imagen) -->
+    <!-- Modal imagen -->
     <div v-if="showImgModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.6);">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
@@ -690,7 +645,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
@@ -699,9 +654,14 @@ import {
 import { useAuthStore } from '../stores/authService';
 import * as XLSX from 'xlsx-js-style';
 
-const showSidebar = ref(true);
-const LS_SIDEBAR = 'historial_sidebar_v1';
+const LS_SIDEBAR   = 'historial_solped__sidebar_open';
+const LS_FILTERS   = 'historial_solped__filters_v1';
 
+
+const saveJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {console.error(e)} };
+const loadJSON = (k, def=null) => {
+  try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : def; } catch { return def; }
+};
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -719,21 +679,53 @@ const error = ref('');
 const loading = ref(true);
 const loadingSearch = ref(false);
 
-function loadSidebarPref() {
-  try {
-    const raw = localStorage.getItem(LS_SIDEBAR);
-    if (raw !== null) showSidebar.value = raw === '1';
-  } catch (e) {console.error(e);}
+function saveFiltersToLS() {
+  // Guardamos SIEMPRE lo que el usuario tiene marcado
+  const payload = {
+    filtroFecha: filtroFecha.value || '',
+    filtroEstatus: Array.from(filtroEstatus.value || []),
+    // Usuarios: lo que se aplicará (filtroUsuario) o lo que está “tildado” temporalmente
+    filtroUsuario: (filtroUsuario.value?.length ? filtroUsuario.value : Array.from(tempUsuarioSelSet.value || new Set())),
+    selectedCentros: Array.from(selectedCentros.value || []),
+    onlyDirectedToMe: !!onlyDirectedToMe.value,
+    onlyMine: !!onlyMine.value,
+    empresaSegmento: empresaSegmento.value || 'todas',
+    pageSize: Number(pageSize.value || 10),
+    // opcional: recordamos búsqueda en el picker de usuarios
+    busquedaUsuario: busquedaUsuario.value || ''
+  };
+  saveJSON(LS_FILTERS, payload);
 }
-function persistSidebarPref() {
-  try {
-    localStorage.setItem(LS_SIDEBAR, showSidebar.value ? '1' : '0');
-  } catch (e) { console.error(e);}
+
+function loadFiltersFromLS() {
+  const f = loadJSON(LS_FILTERS, null);
+  if (!f) return;
+
+  filtroFecha.value     = f.filtroFecha || '';
+  filtroEstatus.value   = Array.isArray(f.filtroEstatus) ? f.filtroEstatus : [];
+  selectedCentros.value = Array.isArray(f.selectedCentros) ? f.selectedCentros : [];
+  onlyDirectedToMe.value= !!f.onlyDirectedToMe;
+  onlyMine.value        = !!f.onlyMine;
+  empresaSegmento.value = f.empresaSegmento || 'todas';
+  pageSize.value        = Number(f.pageSize || 10);
+
+  // Usuarios (por si también quieres restaurarlos)
+  const usuariosSet = new Set(Array.isArray(f.filtroUsuario) ? f.filtroUsuario : []);
+  tempUsuarioSelSet.value = usuariosSet;
+  filtroUsuario.value     = Array.from(usuariosSet);
+
+  // (opcional) restaurar búsqueda de usuarios
+  busquedaUsuario.value = f.busquedaUsuario || '';
 }
+
+
+// Sidebar visible (persistente)
+const showSidebar = ref(loadJSON(LS_SIDEBAR, true));
 const toggleSidebar = () => {
   showSidebar.value = !showSidebar.value;
-  persistSidebarPref();
-}
+  saveJSON(LS_SIDEBAR, showSidebar.value);
+};
+
 
 /* ========= Buscador exacto ========= */
 const numeroBusquedaExacta = ref(null);
@@ -781,29 +773,29 @@ const myUid = computed(() => (auth?.user?.uid || '').toString());
 const myEmail = computed(() => (auth?.user?.email || '').toLowerCase());
 const myFullName = ref('');
 
-/* ========= Filtros (activos y UI temporal) ========= */
+/* ========= Filtros ========= */
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const filtroUsuario = ref([]);
-const selectedCentros = ref([]);
 const onlyDirectedToMe = ref(false);
 const onlyMine = ref(false);
 const empresaSegmento = ref('todas');
-const pageSize = ref(10);
 
-const LS_FILTERS = 'historial_filters_v1';
+const LS_ONLY_DIRECTED = 'historial_only_directed';
+const LS_ONLY_MINE = 'historial_only_mine';
 
-// UI temporal (se guarda sólo al presionar "Aplicar")
-const ui = reactive({
-  fecha: '',
-  estatus: [],
-  usuarios: new Set(),
-  centros: new Set(),
-  onlyDirected: false,
-  onlyMine: false,
-  empresa: 'todas',
-  pageSize: 10
-});
+const toggleOnlyDirected = (val) => {
+  onlyDirectedToMe.value = !!val;
+  try { localStorage.setItem(LS_ONLY_DIRECTED, onlyDirectedToMe.value ? '1' : '0'); } catch(e){console.error(e)}
+  saveFiltersToLS();
+  applyFilters();
+};
+const toggleOnlyMine = (val) => {
+  onlyMine.value = !!val;
+  try { localStorage.setItem(LS_ONLY_MINE, onlyMine.value ? '1' : '0'); } catch(e){console.error(e)}
+  saveFiltersToLS();
+  applyFilters();
+};
 
 const hasActiveFilters = computed(() =>
   !!filtroFecha.value || filtroEstatus.value.length || filtroUsuario.value.length ||
@@ -850,7 +842,7 @@ const centrosLocalFallback = {
 };
 async function loadCentrosCosto() {
   try {
-    const qy = query(collection(db,'centros_costo'));
+    const qy = query(collection(db,'centros_costo')); // espera campos: codigo, nombre
     const snap = await getDocs(qy);
     if (!snap.empty) {
       const map = {};
@@ -867,30 +859,13 @@ async function loadCentrosCosto() {
   }
 }
 
-/* ========= Contratos asignados del usuario ========= */
-const myCentrosAsignados = ref([]);
-
-async function loadMisContratos() {
-  try {
-    const meRef = doc(db,'Usuarios', myUid.value);
-    const snap = await getDoc(meRef);
-    const arr = Array.isArray(snap.data()?.centrosAsignados) ? snap.data().centrosAsignados : [];
-    myCentrosAsignados.value = arr.map(String);
-  } catch (e) {
-    console.error(e);
-    myCentrosAsignados.value = [];
-  }
-}
-
 /* ========= Centros selección UI ========= */
+const selectedCentros = ref([]);
+const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
-const centrosListaOrdenada = computed(() => {
-  const base = Object.keys(centrosMap.value);
-  const list = myCentrosAsignados.value.length
-    ? base.filter(code => myCentrosAsignados.value.includes(code))
-    : base;
-  return list.sort((a,b)=> (centrosMap.value[a]||'').localeCompare(centrosMap.value[b]||'es',{sensitivity:'base'}));
-});
+const centrosListaOrdenada = computed(() =>
+  Object.keys(centrosMap.value).sort((a,b)=> (centrosMap.value[a]||'').localeCompare(centrosMap.value[b]||'es',{sensitivity:'base'}))
+);
 const centrosFiltrados = computed(() => {
   const q = centroPickerSearch.value.trim().toLowerCase();
   if (!q) return centrosListaOrdenada.value;
@@ -898,12 +873,21 @@ const centrosFiltrados = computed(() => {
     code.toLowerCase().includes(q) || String(centrosMap.value[code]||'').toLowerCase().includes(q)
   );
 });
+const toggleCentro = (code) => {
+  const set = new Set(selectedCentros.value);
+  set.has(code) ? set.delete(code) : set.add(code);
+  selectedCentros.value = Array.from(set);
+  saveFiltersToLS();
+  applyFilters();
+};
+const removeContrato = (code) => { selectedCentros.value = selectedCentros.value.filter(x => x!==code); applyFilters(); };
 const clientCentrosOverflow = computed(()=> selectedCentros.value.length > 10);
 
 /* ========= Usuarios (generadores) ========= */
 const listaUsuarios = ref([]);
 const busquedaUsuario = ref('');
-const clientUsuariosOverflow = computed(()=> filtroUsuario.value.length > 10);
+const tempUsuarioSelSet = ref(new Set());
+const clientUsuariosOverflow = computed(()=> tempUsuarioSelSet.value.size > 10 || filtroUsuario.value.length > 10);
 
 const normalizeText = (v='') => v.toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 const usuariosOrdenadosFiltrados = computed(() => {
@@ -913,41 +897,11 @@ const usuariosOrdenadosFiltrados = computed(() => {
     .sort((a,b)=>a.fullName.localeCompare(b.fullName,'es',{sensitivity:'base'}))
     .filter(u => !q || normalizeText(u.fullName).includes(q));
 });
-
-// Solo nombres de usuario que han creado al menos una SOLPED
-async function loadAutoresSolped() {
-  const autores = new Set();
-  try {
-    const snap = await getDocs(query(collection(db,'solpes'), orderBy('usuario'), limit(5000)));
-    snap.forEach(d => {
-      const u = (d.data()?.usuario || '').toString().trim();
-      if (u) autores.add(u);
-    });
-  } catch (e) { console.error(e); }
-  return autores;
-}
-
-const loadUsuarios = async () => {
-  try {
-    const [snapUsers, autoresSet] = await Promise.all([
-      getDocs(query(collection(db,'Usuarios'))),
-      loadAutoresSolped()
-    ]);
-
-    const raw = snapUsers.docs.map(d => ({ id: d.id, ...(d.data()||{}) }));
-    listaUsuarios.value = raw
-      .filter(u => u.fullName && autoresSet.has(u.fullName))
-      .map(u => ({ id: u.id, fullName: u.fullName }));
-
-    const me = snapUsers.docs.find(d => d.id === myUid.value);
-    myFullName.value = me?.data()?.fullName || auth?.user?.displayName || '';
-  } catch {
-    myFullName.value = auth?.user?.displayName || '';
-  }
-};
+const toggleTempUsuario = (fullName) => { const s = tempUsuarioSelSet.value; s.has(fullName) ? s.delete(fullName) : s.add(fullName); saveFiltersToLS(); };
 
 /* ========= Paginación ========= */
 const page = ref(1);
+const pageSize = ref(10);
 const totalCount = ref(0);
 const pageFrom = computed(() => totalCount.value ? (page.value-1)*pageSize.value + 1 : 0);
 const pageTo = computed(() => Math.min(totalCount.value, page.value*pageSize.value));
@@ -973,8 +927,7 @@ const savedScrollY = ref(0);
 
 /* ========= Listas auxiliares ========= */
 const listaEstatus = [
-  'Completado','Rechazado','Solicitado','Pendiente','Preaprobado',
-  'OC enviada a proveedor','Parcial'
+  'Completado','Rechazado','Pendiente','Preaprobado','Parcial'
 ];
 
 /* ========= Helpers ========= */
@@ -1074,30 +1027,26 @@ const buildWhere = () => {
   else if (filtroEstatus.value.length > 1) wh.push(where('estatus','in', filtroEstatus.value.slice(0,10)));
 
   if (filtroFecha.value) {
-    try {
-      const start = new Date(`${filtroFecha.value}T00:00:00`);
-      const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
-      wh.push(where('fecha','>=',start));
-      wh.push(where('fecha','<=',end));
-    } catch(e) {console.error(e)}
+    // rango [día, siguiente día)
+    const start = `${filtroFecha.value}T00:00:00.000Z`;
+    const next  = new Date(`${filtroFecha.value}T00:00:00.000Z`);
+    next.setDate(next.getDate()+1);
+    const endExclusive = next.toISOString().slice(0,23) + 'Z';
+
+    wh.push(where('fecha','>=', start));
+    wh.push(where('fecha','<',  endExclusive));
   }
+
 
   if (onlyMine.value && myFullName.value) {
     wh.push(where('usuario','==', myFullName.value));
   }
 
-  // Centros seleccionados (server 1..10; client >10)
+  // Centros (server 1..10; client >10)
   if (selectedCentros.value.length === 1) {
     wh.push(where('numero_contrato','==', selectedCentros.value[0]));
   } else if (selectedCentros.value.length >=2 && selectedCentros.value.length <=10) {
     wh.push(where('numero_contrato','in', selectedCentros.value));
-  }
-
-  // Si el usuario tiene contratos asignados y no seleccionó centros manualmente, restringir por defecto
-  if (!selectedCentros.value.length && myCentrosAsignados.value.length) {
-    const m = myCentrosAsignados.value;
-    if (m.length === 1) wh.push(where('numero_contrato','==', m[0]));
-    else wh.push(where('numero_contrato','in', m.slice(0,10)));
   }
 
   // Usuarios (server hasta 10)
@@ -1109,20 +1058,6 @@ const buildWhere = () => {
 
   // onlyDirectedToMe -> filtro en cliente
   return wh;
-};
-// Intenta deducir el mime por extensión
-const guessMimeFromName = (nameOrUrl = '') => {
-  const n = String(nameOrUrl).toLowerCase();
-  if (n.endsWith('.pdf')) return 'application/pdf';
-  if (n.endsWith('.png')) return 'image/png';
-  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
-  if (n.endsWith('.gif')) return 'image/gif';
-  if (n.endsWith('.webp')) return 'image/webp';
-  if (n.endsWith('.xlsx') || n.endsWith('.xls')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-  if (n.endsWith('.doc') || n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (n.endsWith('.ppt') || n.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-  if (n.endsWith('.zip')) return 'application/zip';
-  return 'application/octet-stream';
 };
 
 const makePageQuery = (pageNumber=1) => {
@@ -1166,14 +1101,8 @@ const subscribePage = () => {
       docs = docs.filter(s => set.has(s.numero_contrato));
     }
     if (clientUsuariosOverflow.value) {
-      const setU = new Set(filtroUsuario.value);
+      const setU = new Set(filtroUsuario.value.length ? filtroUsuario.value : Array.from(tempUsuarioSelSet.value));
       if (setU.size) docs = docs.filter(s => setU.has(s.usuario));
-    }
-
-    // Reforzar contratos asignados (por seguridad) si no se seleccionaron centros manualmente
-    if (!selectedCentros.value.length && myCentrosAsignados.value.length > 0) {
-      const setM = new Set(myCentrosAsignados.value);
-      docs = docs.filter(s => setM.has(s.numero_contrato));
     }
 
     pageDocs.value = docs;
@@ -1191,7 +1120,8 @@ const subscribePage = () => {
     loading.value = false;
   });
 };
-
+const dt = new Date();
+const fecha_dia = dt.toISOString().slice(0,10);
 const refreshCount = async () => {
   try {
     const wh = buildWhere();
@@ -1207,71 +1137,56 @@ const refreshCount = async () => {
 /* ========= Filtros cliente adicionales ========= */
 function applyClientFilters(arr){
   let out = Array.isArray(arr) ? arr : [];
-
-  // Reforzar contratos asignados si no hay selección manual:
-  if (!selectedCentros.value.length && myCentrosAsignados.value.length > 0) {
-    const set = new Set(myCentrosAsignados.value);
-    out = out.filter(s => set.has(s.numero_contrato));
-  }
-
   return out;
 }
 
-/* ========= Acciones filtros ========= */
-const applyFilters = () => {
-  // Copiar UI → activos
-  filtroFecha.value       = ui.fecha || '';
-  filtroEstatus.value     = Array.isArray(ui.estatus) ? ui.estatus.slice(0,10) : [];
-  filtroUsuario.value     = Array.from(ui.usuarios).slice(0,10);
-  selectedCentros.value   = Array.from(ui.centros).slice(0,10);
-  onlyDirectedToMe.value  = !!ui.onlyDirected;
-  onlyMine.value          = !!ui.onlyMine;
-  empresaSegmento.value   = ui.empresa || 'todas';
-  pageSize.value          = Number(ui.pageSize || 10);
-
-  // Persistir
+/* ========= Usuarios (carga) ========= */
+const loadUsuarios = async () => {
   try {
-    localStorage.setItem(LS_FILTERS, JSON.stringify({
-      fecha: filtroFecha.value,
-      estatus: filtroEstatus.value,
-      usuarios: filtroUsuario.value,
-      centros: selectedCentros.value,
-      onlyDirected: onlyDirectedToMe.value,
-      onlyMine: onlyMine.value,
-      empresa: empresaSegmento.value,
-      pageSize: pageSize.value
-    }));
-  } catch (e) { console.error(e); }
+    const snap = await getDocs(query(collection(db,'Usuarios')));
+    const raw = snap.docs.map(d => ({ id: d.id, ...(d.data()||{}) }));
+    const isGenerator = (u) =>
+      (u.role && String(u.role).toLowerCase() === 'generador solped') ||
+      (Array.isArray(u.roles) && u.roles.map(r=>String(r).toLowerCase()).includes('generador solped'));
+    listaUsuarios.value = raw.filter(u => u.fullName && isGenerator(u))
+      .map(u => ({ id: u.id, fullName: u.fullName }));
 
-  // Ejecutar consulta
+    const me = snap.docs.find(d => d.id === myUid.value);
+    myFullName.value = me?.data()?.fullName || auth?.user?.displayName || '';
+  } catch {
+    myFullName.value = auth?.user?.displayName || '';
+  }
+};
+
+/* ========= Acciones ========= */
+const applyFilters = () => {
+  filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
   subscribePage();
   refreshCount();
 };
-
 const limpiarFiltros = () => {
-  ui.fecha = '';
-  ui.estatus = [];
-  ui.usuarios = new Set();
-  ui.centros = new Set();
-  ui.onlyDirected = false;
-  ui.onlyMine = false;
-  ui.empresa = 'todas';
-  ui.pageSize = 10;
-
-  try { localStorage.removeItem(LS_FILTERS); } catch(e) {console.error(e);}
+  filtroFecha.value = '';
+  filtroEstatus.value = [];
+  filtroUsuario.value = [];
+  tempUsuarioSelSet.value.clear();
+  selectedCentros.value = [];
+  centroPickerSearch.value = '';
+  onlyDirectedToMe.value = false;
+  onlyMine.value = false;
+  empresaSegmento.value = 'todas';
+  pageSize.value = 10;
+  try {
+    localStorage.setItem(LS_ONLY_DIRECTED, '0');
+    localStorage.setItem(LS_ONLY_MINE, '0');
+  } catch(e){console.error(e)}
   applyFilters();
 };
-
-/* Chips helpers (quitan del activo y también de la UI) */
-const removeEstatus = (s) => { ui.estatus = ui.estatus.filter(x=>x!==s); applyFilters(); };
-const removeUsuario = (u) => { ui.usuarios.delete(u); applyFilters(); };
-const removeContrato = (code) => { ui.centros.delete(code); applyFilters(); };
-const setEmpresaSeg = (v) => { ui.empresa = v; applyFilters(); };
-const toggleOnlyMine = (val) => { ui.onlyMine = !!val; applyFilters(); };
-const toggleOnlyDirected = (val) => { ui.onlyDirected = !!val; applyFilters(); };
+const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x=>x!==s); applyFilters(); };
+const removeUsuario = (u) => { filtroUsuario.value = filtroUsuario.value.filter(x=>x!==u); tempUsuarioSelSet.value.delete(u); applyFilters(); };
+const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
 /* ========= Paginación ========= */
 const goPage = (p) => {
@@ -1342,7 +1257,7 @@ const agregarComentario = async (s) => {
     const data = snap.data() || {};
     const curr = Array.isArray(data.comentarios) ? data.comentarios : [];
     curr.push({ texto, fecha: new Date(), usuario, vistoPor: [myUid.value].filter(Boolean) });
-    await setDoc(refd, { comentarios: curr }, { merge: true });
+    await setDoc(refd, { comentarios: curr }, fecha_dia, { merge: true });
     s.comentarios = curr;
     s.nuevoComentario = '';
     addToast('success','Comentario agregado');
@@ -1350,53 +1265,30 @@ const agregarComentario = async (s) => {
     console.error(e); addToast('danger','Error al guardar el comentario.');
   }
 };
-
-/* ——— UI: subir una SOLPED/Ítem al tope cuando cambia estado ——— */
-function bumpSolpedToTop(updated) {
-  const arr = pageDocs.value.slice();
-  const i = arr.findIndex(x => x.id === updated.id);
-  if (i >= 0) arr.splice(i, 1);
-  pageDocs.value = [updated, ...arr];
-}
-
 const setStatus = async (s, estatus) => {
   if (!canChangeStatus.value) return;
   try {
     const refd = doc(db, 'solpes', s.id);
-    let nuevo = { ...s };
-
     if (estatus === 'Completado') {
       const itemsUpd = (s.items || []).map(it => ({ ...it, estado: 'completado' }));
       await updateDoc(refd, { estatus, items: itemsUpd });
-      nuevo.items = itemsUpd;
+      s.items = itemsUpd;
     } else {
       await updateDoc(refd, { estatus });
     }
-
-    await addDoc(collection(db, 'solpes', s.id, 'historialEstados'), {
-      fecha: new Date(), estatus, usuario: myFullName.value || '—'
-    });
-
-    nuevo.estatus = estatus;
-    bumpSolpedToTop(nuevo);
+    await addDoc(collection(db, 'solpes', s.id, 'historialEstados'), { fecha: new Date(), estatus, usuario: myFullName.value || '—' });
+    s.estatus = estatus;
     addToast('success', `SOLPED #${s.numero_solpe} → "${estatus}"`);
-  } catch (e) {
-    console.error(e); addToast('danger','Error al actualizar estatus.');
-  }
+  } catch (e) { console.error(e); addToast('danger','Error al actualizar estatus.'); }
 };
-
-const setItemStatus = async (solpe, item, nuevoEstado) => {
+const setItemStatus = async (solpe, item, nuevo) => {
   if (!canChangeStatus.value) return;
   try {
     const refd = doc(db, 'solpes', solpe.id);
-    const itemsUpd = (solpe.items || []).map(it =>
-      (String(it.item)===String(item.item)) ? { ...it, estado: nuevoEstado } : it
-    );
+    const itemsUpd = (solpe.items || []).map(it => (String(it.item)===String(item.item)) ? { ...it, estado: nuevo } : it);
     await updateDoc(refd, { items: itemsUpd });
-
-    const actualizado = { ...solpe, items: itemsUpd };
-    bumpSolpedToTop(actualizado);
-    addToast('success', `Ítem ${item.item} → ${nuevoEstado}`);
+    solpe.items = itemsUpd;
+    addToast('success', `Ítem ${item.item} → ${nuevo}`);
   } catch (e) { console.error(e); addToast('danger','No se pudo cambiar el estado del ítem.'); }
 };
 
@@ -1440,105 +1332,6 @@ const estadoChipOC = (estatus) => {
   if (s.includes('proveedor') || s.includes('enviada')) return 'bg-primary-subtle text-primary-emphasis';
   if (s.includes('revisión') || s.includes('revision')) return 'bg-warning-subtle text-warning-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
-};
-
-/* ========= Adjuntos (subcolección y/o array en el doc) ========= */
-const adjuntosBySolped = ref({});
-const adjLoadingSet = ref(new Set());
-const isLoadingAdj = (id) => adjLoadingSet.value.has(id);
-const adjuntosListFor = (id) => adjuntosBySolped.value[id] || [];
-
-const fileIcon = (mime = '') => {
-  const t = String(mime).toLowerCase();
-  if (t.startsWith('image/')) return 'bi-file-image';
-  if (t === 'application/pdf' || t.includes('pdf')) return 'bi-file-pdf';
-  if (t.includes('excel') || t.includes('spreadsheet') || t.endsWith('/vnd.ms-excel') || t.includes('sheet')) return 'bi-file-earmark-excel';
-  if (t.includes('word') || t.includes('msword') || t.includes('officedocument.word')) return 'bi-file-earmark-word';
-  if (t.includes('powerpoint') || t.includes('presentation')) return 'bi-file-earmark-ppt';
-  if (t.includes('zip') || t.includes('compressed')) return 'bi-file-zip';
-  return 'bi-file-earmark';
-};
-const isImageMime = (mime = '') => String(mime).toLowerCase().startsWith('image/');
-const fmtBytes = (b) => {
-  const n = Number(b || 0);
-  if (!n) return '';
-  const units = ['B','KB','MB','GB','TB'];
-  const i = Math.floor(Math.log(n) / Math.log(1024));
-  return `${(n / Math.pow(1024, i)).toFixed(i ? 1 : 0)} ${units[i]}`;
-};
-const previewAdjunto = (a) => {
-  if (!a?.url) return;
-  previewImgSrc.value = a.url;
-  showImgModal.value = true;
-};
-const fetchAdjuntos = async (solpedId, solpeObj) => {
-  if (!solpedId) return;
-  adjLoadingSet.value.add(solpedId);
-  try {
-    const collected = [];
-
-    // Subcolección (si existe)
-    try {
-      const qy = query(collection(db, 'solpes', solpedId, 'adjuntos'), orderBy('fechaSubida','desc'));
-      const snap = await getDocs(qy);
-      snap.forEach(d => {
-        const x = d.data() || {};
-        collected.push({
-          __id: d.id,
-          nombre: x.nombre || x.fileName || 'archivo',
-          url: x.url || x.link || '',
-          tipo: x.tipo || x.mime || guessMimeFromName(x.nombre || x.url || ''),
-          pesoBytes: x.pesoBytes || x.size || 0,
-          subidoPor: x.subidoPor || x.usuario || '',
-          fechaSubida: x.fechaSubida?.toDate ? x.fechaSubida.toDate() : (x.fechaSubida || null),
-        });
-      });
-    } catch (e) {
-      console.warn('adjuntos subcolección:', e);
-    }
-
-    // Array en doc principal (fallback)
-    const arrDoc = Array.isArray(solpeObj?.adjuntos) ? solpeObj.adjuntos : [];
-    arrDoc.forEach((x, idx) => {
-      collected.push({
-        __id: `doc_${idx}`,
-        nombre: x.nombre || x.fileName || 'archivo',
-        url: x.url || x.link || '',
-        tipo: x.tipo || x.mime || guessMimeFromName(x.nombre || x.url || ''),
-        pesoBytes: x.pesoBytes || x.size || 0,
-        subidoPor: x.subidoPor || x.usuario || '',
-        fechaSubida: x.fechaSubida?.toDate ? x.fechaSubida.toDate() : (x.fechaSubida || null),
-      });
-    });
-
-    // 🔴 NUEVO: campos raíz en el documento (autorización)
-    if (solpeObj?.autorizacion_url) {
-      collected.push({
-        __id: 'autorizacion_root',
-        nombre: solpeObj.autorizacion_nombre || 'Autorización',
-        url: solpeObj.autorizacion_url,
-        tipo: guessMimeFromName(solpeObj.autorizacion_nombre || solpeObj.autorizacion_url),
-        // Estos pueden no estar en tu doc. Los dejamos vacíos/derivados.
-        pesoBytes: 0,
-        subidoPor: solpeObj.autorizacion_subidoPor || '',
-        fechaSubida: solpeObj.autorizacion_fechaSubida?.toDate
-          ? solpeObj.autorizacion_fechaSubida.toDate()
-          : (solpeObj.autorizacion_fechaSubida || null),
-      });
-    }
-
-    // Unificar por URL/nombre
-    const seen = new Set();
-    const unique = collected.filter(a => {
-      const key = `${a.url}|${a.nombre}`;
-      if (seen.has(key)) return false;
-      seen.add(key); return !!a.url;
-    });
-
-    adjuntosBySolped.value = { ...adjuntosBySolped.value, [solpedId]: unique };
-  } finally {
-    adjLoadingSet.value.delete(solpedId);
-  }
 };
 
 /* ========= Imagen: modal / pestaña nueva ========= */
@@ -1615,31 +1408,34 @@ const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id
 
 /* ========= Init / watchers ========= */
 onMounted(async () => {
-  // restaurar filtros si existen
   try {
-    const raw = localStorage.getItem(LS_FILTERS);
-    if (raw) {
-      const f = JSON.parse(raw);
-      ui.fecha        = f.fecha || '';
-      ui.estatus      = Array.isArray(f.estatus) ? f.estatus : [];
-      ui.usuarios     = new Set(Array.isArray(f.usuarios) ? f.usuarios : []);
-      ui.centros      = new Set(Array.isArray(f.centros) ? f.centros : []);
-      ui.onlyDirected = !!f.onlyDirected;
-      ui.onlyMine     = !!f.onlyMine;
-      ui.empresa      = f.empresa || 'todas';
-      ui.pageSize     = Number(f.pageSize || 10);
-    }
-  } catch(e){ console.error(e); }
+    const savedOnlyDirected = localStorage.getItem(LS_ONLY_DIRECTED);
+    const savedOnlyMine = localStorage.getItem(LS_ONLY_MINE);
+    onlyDirectedToMe.value = (savedOnlyDirected === '1');
+    onlyMine.value = (savedOnlyMine === '1');
+  } catch(e) {console.error(e)}
 
-  // 👇 restaura si el sidebar estaba abierto/cerrado
-  loadSidebarPref();
+  // ← NUEVO: carga de filtros persistidos
+  loadFiltersFromLS();
 
-  await Promise.all([loadUsuarios(), loadCentrosCosto(), loadMisContratos()]);
-  applyFilters(); // aplica lo restaurado y suscribe
+  await Promise.all([loadUsuarios(), loadCentrosCosto()]);
+  subscribePage();
+  await refreshCount();
 });
 
+// Guarda apenas cambie el ESTADO (multiselect)
+watch(() => filtroEstatus.value.slice(), () => {
+  saveFiltersToLS();
+}, { deep: false });
+
+// Guarda cuando cambian los CENTROS seleccionados (checkboxes)
+watch(selectedCentros, () => {
+  saveFiltersToLS();
+}, { deep: true });
 
 onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
+
+watch([empresaSegmento, filtroFecha, () => filtroEstatus.value.slice(), pageSize], () => { applyFilters(); });
 
 /* ========= Expand / ver comentario ========= */
 const solpeExpandidaId = ref(null);
@@ -1650,7 +1446,7 @@ const marcarComentariosVistos = async (s) => {
       ...c,
       vistoPor: Array.isArray(c?.vistoPor) ? (c.vistoPor.includes(uid) ? c.vistoPor : [...c.vistoPor, uid]) : [uid]
     }));
-    await setDoc(doc(db,'solpes', s.id), { comentarios }, { merge:true });
+    await setDoc(doc(db,'solpes', s.id), { comentarios },fecha_dia, { merge:true });
     s.comentarios = comentarios;
   } catch (e) { console.error(e); }
 };
@@ -1659,7 +1455,6 @@ const onExpandCard = async (s) => {
   if (solpeExpandidaId.value === s.id) {
     await marcarComentariosVistos(s);
     if (!ocBySolped.value[s.id]) await fetchOCs(s.id);
-    if (!adjuntosBySolped.value[s.id]) await fetchAdjuntos(s.id, s);
   }
 };
 
@@ -1825,6 +1620,7 @@ async function guardarEdicion(){
       tipo_solped: editForm.value.tipo_solped || '',
       nombre_solped: editForm.value.nombre_solped || '',
       dirigidoA: Array.from(new Set(dirigidoASelected.value || [])),
+      // Numero SOLPED NO se toca
       items: editItems.value.map(it => ({
         item: it.item,
         descripcion: it.descripcion || '',
@@ -1841,7 +1637,7 @@ async function guardarEdicion(){
     // Guardar SOLPED
     await updateDoc(refd, payload);
 
-    // Actualizar items_catalog (simple)
+    // Actualizar items_catalog por cada ítem (para predicción/autocomplete)
     const now = new Date();
     for (const it of payload.items) {
       const descOrig = (it.descripcion || '').trim();
@@ -1865,6 +1661,7 @@ async function guardarEdicion(){
 
     addToast('success','SOLPED actualizada');
     cerrarEditar();
+    // refresca página visible
     subscribePage();
   }catch(e){
     console.error(e);
@@ -1873,6 +1670,7 @@ async function guardarEdicion(){
     savingEdit.value = false;
   }
 }
+
 </script>
 
 <style scoped>
@@ -2008,10 +1806,6 @@ async function guardarEdicion(){
 
 /* Tabla / imágenes */
 .thumb{ width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #e2e8f0; }
-
-/* 📎 Adjuntos */
-.list-group-item i.bi { font-size: 1.1rem; }
-.list-group-item .btn { white-space: nowrap; }
 
 /* Responsivo menor: compactar tipografía en xs */
 @media (max-width: 420px){

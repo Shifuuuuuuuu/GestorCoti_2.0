@@ -2,20 +2,22 @@
 <template>
   <div class="admin-solpes-page">
     <div class="container py-4">
-      <!-- Header -->
+     <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3">
         <h1 class="h4 fw-semibold mb-0">Admin · SOLPED Taller</h1>
 
-        <div class="d-flex gap-2">
-          <div class="input-group" style="width: 260px;">
-            <span class="input-group-text">#</span>
+        <!-- Toolbar en una línea -->
+        <div class="toolbar d-flex align-items-stretch gap-2 flex-wrap">
+
+          <!-- Buscar numero_solpe -->
+          <div class="input-group toolbar-item" style="width: 240px;">
             <input
               class="form-control"
               placeholder="Buscar numero_solpe"
               v-model="buscarNumero"
               @keyup.enter="onBuscarNumero"
             />
-            <button class="btn btn-outline-secondary" @click="onBuscarNumero">
+            <button class="btn btn-outline-secondary" @click="onBuscarNumero" title="Buscar">
               <i class="bi bi-search"></i>
             </button>
             <button
@@ -27,16 +29,76 @@
             </button>
           </div>
 
-          <button class="btn btn-primary" @click="abrirModalNueva">
+          <!-- Estatus (rápido) -->
+          <div class="input-group toolbar-item" style="width: 220px;">
+            <span class="input-group-text">Estatus</span>
+            <select class="form-select" v-model="filtroEstatusHeader" @change="onChangeEstatusHeader">
+              <option value="">Todos</option>
+              <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
+            </select>
+          </div>
+
+          <!-- Fecha -->
+          <div class="input-group toolbar-item" style="width: 200px;">
+            <span class="input-group-text">Fecha</span>
+            <input class="form-control" type="date" v-model="filtroFecha" @change="aplicarFiltros">
+          </div>
+
+          <!-- Solicitante -->
+          <div class="input-group toolbar-item" style="width: 320px;">
+            <span class="input-group-text">Solicitante</span>
+            <input
+              class="form-control"
+              v-model.trim="filtroSolicitante"
+              placeholder="Ej: FRANK PINTO"
+              @keyup.enter="aplicarFiltros"
+            >
+            <button
+              v-if="filtroSolicitante"
+              class="btn btn-outline-secondary"
+              @click="filtroSolicitante=''; aplicarFiltros()"
+              title="Limpiar solicitante">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <!-- Acciones filtros -->
+          <button class="btn btn-success toolbar-item" @click="aplicarFiltros" title="Aplicar filtros">
+            <i class="bi bi-funnel me-1"></i> Aplicar
+          </button>
+
+          <!-- Nueva -->
+          <button class="btn btn-primary toolbar-item" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED (Taller)
           </button>
         </div>
       </div>
 
+      <!-- Chips de filtros activos -->
+      <div v-if="hasActiveFilters" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <small class="text-secondary">Filtros activos:</small>
+        <span v-if="filtroFecha" class="badge bg-light text-dark border">
+          Fecha: {{ filtroFecha }}
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; aplicarFiltros()"></button>
+        </span>
+        <span v-if="filtroSolicitante" class="badge bg-light text-dark border">
+          Solicitante: {{ filtroSolicitante }} <span class="text-secondary">({{ filtroSolicExacto ? 'exacto' : 'contiene' }})</span>
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroSolicitante=''; aplicarFiltros()"></button>
+        </span>
+        <span v-for="es in filtroEstatus" :key="es" class="badge bg-light text-dark border">
+          {{ es }}
+          <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(es)"></button>
+        </span>
+        <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
+      </div>
+
       <!-- Tabla -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">Listado ({{ rows.length }} / pág.)</div>
+          <div class="fw-semibold">
+            Listado ({{ rows.length }} / pág.)
+            <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">paginación desactivada</span>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -81,7 +143,6 @@
                     <button class="btn btn-outline-primary" @click="abrirEditor(r)">
                       <i class="bi bi-pencil-square"></i>
                     </button>
-                    <!-- AHORA abre modal de confirmación -->
                     <button class="btn btn-outline-danger" @click="abrirConfirm(r)">
                       <i class="bi bi-trash3"></i>
                     </button>
@@ -96,7 +157,7 @@
         </div>
 
         <!-- Paginación -->
-        <div class="card-footer" v-if="!busquedaActiva">
+        <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0">
               <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -510,7 +571,7 @@
       </div>
     </div>
 
-    <!-- Modal CONFIRMAR ELIMINACIÓN (NUEVO) -->
+    <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -565,6 +626,9 @@ import { useRouter } from "vue-router";
 
 /* ---------- Constantes ---------- */
 const PAGE_SIZE = 10;
+const ESTATUS_OPC = [
+  "Solicitado","Cotizando","Revisión","Completado","Rechazado","Pendiente","Parcial","OC enviada a proveedor"
+];
 const COTIZADORES_OPCIONES = [
   "Luis Orellana",
   "Guillermo Manzor",
@@ -628,6 +692,20 @@ const buscarNumero = ref("");
 const busquedaActiva = ref(false);
 let unsubSearch = null;
 
+/* ---------- Filtros ---------- */
+const filtroFecha = ref("");
+const filtroSolicitante = ref("");
+const filtroSolicExacto = ref(false);
+const filtroEstatus = ref([]);           // multi
+const filtroEstatusHeader = ref("");     // select rápido (uno)
+const filtrosActivos = ref(false);
+let unsubFilter = null;
+
+const hasActiveFilters = computed(() =>
+  !!filtroFecha.value || !!filtroSolicitante.value || (filtroEstatus.value?.length || 0) > 0
+);
+
+
 /* ---------- Toasts ---------- */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2600) => {
@@ -647,6 +725,7 @@ const badgeClass = (estatus) => {
   if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
   return "bg-secondary-subtle text-secondary-emphasis";
 };
+const normalize = (v) => (v||"").toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 
 /* ---------- Paginación (tiempo real) ---------- */
 const visiblePageButtons = computed(() => {
@@ -657,12 +736,17 @@ const visiblePageButtons = computed(() => {
   return pages;
 });
 
-function subscribePage(page){
-  if (unsubList) { unsubList(); unsubList = null; }
-  if (unsubSearch) { unsubSearch(); unsubSearch = null; }
+function cleanupSubs(){
+  if (unsubList){ unsubList(); unsubList=null; }
+  if (unsubSearch){ unsubSearch(); unsubSearch=null; }
+  if (unsubFilter){ unsubFilter(); unsubFilter=null; }
+}
 
+function subscribePage(page){
+  cleanupSubs();
   cargando.value = true;
   busquedaActiva.value = false;
+  filtrosActivos.value = false;
 
   let qy;
   if (page === 1) {
@@ -702,6 +786,7 @@ function subscribePage(page){
 }
 
 function goToPage(n){
+  if (hasActiveFilters.value || busquedaActiva.value) return;
   if (n < 1) return;
   if (n > currentPage.value + 1 && !hasNextPage.value) return;
   currentPage.value = n;
@@ -715,8 +800,7 @@ function onBuscarNumero(){
   const n = parseInt(qstr, 10);
   if (isNaN(n)) { addToast("warning", "Ingresa un número válido."); return; }
 
-  if (unsubList) { unsubList(); unsubList = null; }
-  if (unsubSearch) { unsubSearch(); unsubSearch = null; }
+  cleanupSubs();
   cargando.value = true;
   busquedaActiva.value = true;
 
@@ -745,6 +829,95 @@ function limpiarBusqueda(){
   busquedaActiva.value = false;
   currentPage.value = 1;
   subscribePage(1);
+}
+
+/* ---------- FILTRO RÁPIDO (header) ---------- */
+function onChangeEstatusHeader(){
+  // sincroniza el select rápido con el filtro multi
+  filtroEstatus.value = filtroEstatusHeader.value ? [filtroEstatusHeader.value] : [];
+  aplicarFiltros();
+}
+
+/* ---------- FILTROS: aplicar / limpiar ---------- */
+function buildFilterQuery(){
+  const wh = [];
+
+  if (filtroFecha.value) {
+    wh.push(where("fecha","==", filtroFecha.value));
+  }
+
+  if (filtroEstatus.value.length === 1) {
+    wh.push(where("estatus","==", filtroEstatus.value[0]));
+  } else if (filtroEstatus.value.length >= 2 && filtroEstatus.value.length <= 10) {
+    wh.push(where("estatus","in", filtroEstatus.value));
+  }
+
+  if (filtroSolicExacto.value && filtroSolicitante.value) {
+    wh.push(where("nombre_solicitante","==", filtroSolicitante.value));
+  }
+
+  const base = query(
+    collection(db, "solped_taller"),
+    ...wh,
+    orderBy("numero_solpe","desc"),
+    limit(80)
+  );
+  return base;
+}
+
+function aplicarFiltros(){
+  if (!hasActiveFilters.value){
+    filtrosActivos.value = false;
+    currentPage.value = 1;
+    subscribePage(1);
+    return;
+  }
+
+  cleanupSubs();
+  cargando.value = true;
+  filtrosActivos.value = true;
+  busquedaActiva.value = false;
+
+  const qy = buildFilterQuery();
+
+  unsubFilter = onSnapshot(qy, (snap) => {
+    let arr = [];
+    snap.forEach(d => arr.push({ __id: d.id, ...d.data() }));
+
+    if (!filtroSolicExacto.value && filtroSolicitante.value) {
+      const q = normalize(filtroSolicitante.value);
+      arr = arr.filter(r => normalize(r?.nombre_solicitante||'').includes(q));
+    }
+    if (filtroEstatus.value.length > 10) {
+      const set = new Set(filtroEstatus.value);
+      arr = arr.filter(r => set.has(r.estatus));
+    }
+
+    rows.value = arr;
+    cargando.value = false;
+    hasNextPage.value = false;
+  }, (err) => {
+    console.error("onSnapshot filter:", err);
+    addToast("danger", "Error aplicando filtros.");
+    cargando.value = false;
+  });
+}
+
+function limpiarFiltros(){
+  filtroFecha.value = "";
+  filtroSolicitante.value = "";
+  filtroSolicExacto.value = false;
+  filtroEstatus.value = [];
+  filtroEstatusHeader.value = ""; // limpia el quick-select también
+  aplicarFiltros();
+}
+
+function removeEstatus(es){
+  filtroEstatus.value = filtroEstatus.value.filter(x => x!==es);
+  // si quitaste el único seleccionado desde chips, limpia el header
+  if (filtroEstatus.value.length !== 1) filtroEstatusHeader.value = "";
+  else filtroEstatusHeader.value = filtroEstatus.value[0];
+  aplicarFiltros();
 }
 
 /* ---------- Navegar a detalle ---------- */
@@ -832,36 +1005,6 @@ function cerrarEditor(){
   seleccion.value = null;
   edit.value = {};
   selectedCentroEdit.value = "";
-}
-
-
-/* Estado del modal de confirmación */
-const confirmOpen = ref(false);
-const confirmRow  = ref(null);
-const eliminando  = ref(false);
-
-function abrirConfirm(row){
-  confirmRow.value = row;
-  confirmOpen.value = true;
-}
-function cerrarConfirm(){
-  if (eliminando.value) return;
-  confirmOpen.value = false;
-  confirmRow.value = null;
-}
-async function confirmarEliminar(){
-  if (!confirmRow.value?.__id) return;
-  try {
-    eliminando.value = true;
-    await deleteDoc(doc(db, "solped_taller", confirmRow.value.__id));
-    addToast("success", "SOLPED Taller eliminada.");
-    cerrarConfirm();
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo eliminar.");
-  } finally {
-    eliminando.value = false;
-  }
 }
 
 /* ---------- Historial ---------- */
@@ -1037,9 +1180,38 @@ async function crearNueva(){
   }
 }
 
+/* ---------- Confirmación de eliminación ---------- */
+const confirmOpen = ref(false);
+const confirmRow  = ref(null);
+const eliminando  = ref(false);
+
+function abrirConfirm(row){
+  confirmRow.value = row;
+  confirmOpen.value = true;
+}
+function cerrarConfirm(){
+  if (eliminando.value) return;
+  confirmOpen.value = false;
+  confirmRow.value = null;
+}
+async function confirmarEliminar(){
+  if (!confirmRow.value?.__id) return;
+  try {
+    eliminando.value = true;
+    await deleteDoc(doc(db, "solped_taller", confirmRow.value.__id));
+    addToast("success", "SOLPED Taller eliminada.");
+    cerrarConfirm();
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo eliminar.");
+  } finally {
+    eliminando.value = false;
+  }
+}
+
 /* ---------- Lifecycle ---------- */
 onMounted(() => { subscribePage(1); });
-onBeforeUnmount(() => { if (unsubList) unsubList(); if (unsubSearch) unsubSearch(); });
+onBeforeUnmount(() => { cleanupSubs(); });
 </script>
 
 <style scoped>
@@ -1075,6 +1247,25 @@ onBeforeUnmount(() => { if (unsubList) unsubList(); if (unsubSearch) unsubSearch
 @keyframes slideIn{
   from{ transform: translateX(20px); opacity:.0; }
   to{ transform: translateX(0); opacity:1; }
+}
+/* Toolbar: que todo quede de la misma altura y alineado */
+.toolbar .toolbar-item .form-control,
+.toolbar .toolbar-item .form-select,
+.toolbar .toolbar-item .btn,
+.toolbar .toolbar-item .input-group-text {
+  height: 38px;
+}
+
+.toolbar .input-group-text {
+  min-width: 64px;            /* etiquetas más legibles */
+  justify-content: center;
+}
+
+@media (max-width: 992px){
+  /* En pantallas chicas, que puedan envolver bonito */
+  .toolbar .toolbar-item{
+    flex: 1 1 auto;
+  }
 }
 
 /* Modal */

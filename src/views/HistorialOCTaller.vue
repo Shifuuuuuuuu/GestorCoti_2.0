@@ -219,9 +219,8 @@
             <!-- Vacío -->
             <div v-if="displayList.length===0" class="ghost-wrap">
               <div class="ghost">
-                <div class="ghost-eyes">
-                  <span></span><span></span>
-                </div>
+                <div class="ghost-eyes"></div>
+                <div class="ghost-bottom"><div></div><div></div><div></div><div></div></div>
               </div>
               <p class="ghost-text">No hay cotizaciones con los filtros aplicados.</p>
             </div>
@@ -733,21 +732,19 @@ watch(
   padding:2rem; border:1px dashed #e5e7eb; border-radius:.75rem;
 }
 
-/* Fantasma vacío */
 .ghost-wrap{ text-align:center; padding:2rem 0; color:#64748b; }
 .ghost{
   width:120px; height:140px; margin:0 auto; background:#fff; border-radius:60px 60px 20px 20px;
   position:relative; box-shadow:0 10px 20px rgba(0,0,0,.08);
   animation: floaty 3s ease-in-out infinite;
 }
-.ghost-eyes{
-  position:absolute; top:45px; left:50%; transform:translateX(-50%);
-  width:60px; height:14px; display:flex; justify-content:space-between; align-items:center;
+.ghost:before{
+  content:''; position:absolute; top:-12px; left:50%; transform:translateX(-50%);
+  width:60px; height:12px; background:#e2e8f0; border-radius:6px; filter:blur(2px);
 }
-.ghost-eyes span{
-  width:14px; height:14px; background:#111827; border-radius:50%;
-  display:inline-block;
-}
+.ghost-eyes{ position:absolute; top:45px; left:50%; transform:translateX(-50%); width:60px; height:14px; display:flex; justify-content:space-between; }
+.ghost-eyes:before, .ghost-eyes:after{ content:''; width:14px; height:14px; background:#111827; border-radius:50%; }
+.ghost-bottom{ position:absolute; bottom:-12px; left:0; right:0; display:flex; justify-content:space-between; padding:0 6px; }
 .ghost-text{ margin-top:1rem; font-weight:500; }
 @keyframes floaty{ 0%{transform:translateY(0)} 50%{transform:translateY(-8px)} 100%{transform:translateY(0)} }
 
