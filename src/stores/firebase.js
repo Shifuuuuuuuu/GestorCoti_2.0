@@ -19,6 +19,6 @@ const firebaseConfig = {
 export const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
 initializeFirestore(app, { ignoreUndefinedProperties: true })
 
-export const db = getFirestore(app)
-export const auth = getAuth(app)
-export const storage = getStorage(app)
+export const db = getFirestore(app, 'rollback-2025-10-25')
+export const auth = getAuth(app, 'rollback-2025-10-25')
+export const storage = getStorage(app, 'rollback-2025-10-25')

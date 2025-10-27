@@ -404,6 +404,7 @@
                 <select class="form-select" multiple v-model="filtroEstatus">
                   <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
                 </select>
+                <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
               </div>
 
               <!-- Centros -->
@@ -654,15 +655,6 @@ import {
 import { useAuthStore } from '../stores/authService';
 import * as XLSX from 'xlsx-js-style';
 
-const LS_SIDEBAR   = 'historial_solped__sidebar_open';
-const LS_FILTERS   = 'historial_solped__filters_v1';
-
-
-const saveJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {console.error(e)} };
-const loadJSON = (k, def=null) => {
-  try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : def; } catch { return def; }
-};
-
 const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
@@ -679,53 +671,8 @@ const error = ref('');
 const loading = ref(true);
 const loadingSearch = ref(false);
 
-function saveFiltersToLS() {
-  // Guardamos SIEMPRE lo que el usuario tiene marcado
-  const payload = {
-    filtroFecha: filtroFecha.value || '',
-    filtroEstatus: Array.from(filtroEstatus.value || []),
-    // Usuarios: lo que se aplicará (filtroUsuario) o lo que está “tildado” temporalmente
-    filtroUsuario: (filtroUsuario.value?.length ? filtroUsuario.value : Array.from(tempUsuarioSelSet.value || new Set())),
-    selectedCentros: Array.from(selectedCentros.value || []),
-    onlyDirectedToMe: !!onlyDirectedToMe.value,
-    onlyMine: !!onlyMine.value,
-    empresaSegmento: empresaSegmento.value || 'todas',
-    pageSize: Number(pageSize.value || 10),
-    // opcional: recordamos búsqueda en el picker de usuarios
-    busquedaUsuario: busquedaUsuario.value || ''
-  };
-  saveJSON(LS_FILTERS, payload);
-}
-
-function loadFiltersFromLS() {
-  const f = loadJSON(LS_FILTERS, null);
-  if (!f) return;
-
-  filtroFecha.value     = f.filtroFecha || '';
-  filtroEstatus.value   = Array.isArray(f.filtroEstatus) ? f.filtroEstatus : [];
-  selectedCentros.value = Array.isArray(f.selectedCentros) ? f.selectedCentros : [];
-  onlyDirectedToMe.value= !!f.onlyDirectedToMe;
-  onlyMine.value        = !!f.onlyMine;
-  empresaSegmento.value = f.empresaSegmento || 'todas';
-  pageSize.value        = Number(f.pageSize || 10);
-
-  // Usuarios (por si también quieres restaurarlos)
-  const usuariosSet = new Set(Array.isArray(f.filtroUsuario) ? f.filtroUsuario : []);
-  tempUsuarioSelSet.value = usuariosSet;
-  filtroUsuario.value     = Array.from(usuariosSet);
-
-  // (opcional) restaurar búsqueda de usuarios
-  busquedaUsuario.value = f.busquedaUsuario || '';
-}
-
-
-// Sidebar visible (persistente)
-const showSidebar = ref(loadJSON(LS_SIDEBAR, true));
-const toggleSidebar = () => {
-  showSidebar.value = !showSidebar.value;
-  saveJSON(LS_SIDEBAR, showSidebar.value);
-};
-
+const showSidebar = ref(true);
+const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
 
 /* ========= Buscador exacto ========= */
 const numeroBusquedaExacta = ref(null);
@@ -787,13 +734,11 @@ const LS_ONLY_MINE = 'historial_only_mine';
 const toggleOnlyDirected = (val) => {
   onlyDirectedToMe.value = !!val;
   try { localStorage.setItem(LS_ONLY_DIRECTED, onlyDirectedToMe.value ? '1' : '0'); } catch(e){console.error(e)}
-  saveFiltersToLS();
   applyFilters();
 };
 const toggleOnlyMine = (val) => {
   onlyMine.value = !!val;
   try { localStorage.setItem(LS_ONLY_MINE, onlyMine.value ? '1' : '0'); } catch(e){console.error(e)}
-  saveFiltersToLS();
   applyFilters();
 };
 
@@ -877,7 +822,6 @@ const toggleCentro = (code) => {
   const set = new Set(selectedCentros.value);
   set.has(code) ? set.delete(code) : set.add(code);
   selectedCentros.value = Array.from(set);
-  saveFiltersToLS();
   applyFilters();
 };
 const removeContrato = (code) => { selectedCentros.value = selectedCentros.value.filter(x => x!==code); applyFilters(); };
@@ -897,7 +841,7 @@ const usuariosOrdenadosFiltrados = computed(() => {
     .sort((a,b)=>a.fullName.localeCompare(b.fullName,'es',{sensitivity:'base'}))
     .filter(u => !q || normalizeText(u.fullName).includes(q));
 });
-const toggleTempUsuario = (fullName) => { const s = tempUsuarioSelSet.value; s.has(fullName) ? s.delete(fullName) : s.add(fullName); saveFiltersToLS(); };
+const toggleTempUsuario = (fullName) => { const s = tempUsuarioSelSet.value; s.has(fullName) ? s.delete(fullName) : s.add(fullName); };
 
 /* ========= Paginación ========= */
 const page = ref(1);
@@ -927,7 +871,8 @@ const savedScrollY = ref(0);
 
 /* ========= Listas auxiliares ========= */
 const listaEstatus = [
-  'Completado','Rechazado','Pendiente','Preaprobado','Parcial'
+  'Completado','Rechazado','Solicitado','Pendiente','Preaprobado',
+  'OC enviada a proveedor','Parcial'
 ];
 
 /* ========= Helpers ========= */
@@ -1027,16 +972,13 @@ const buildWhere = () => {
   else if (filtroEstatus.value.length > 1) wh.push(where('estatus','in', filtroEstatus.value.slice(0,10)));
 
   if (filtroFecha.value) {
-    // rango [día, siguiente día)
-    const start = `${filtroFecha.value}T00:00:00.000Z`;
-    const next  = new Date(`${filtroFecha.value}T00:00:00.000Z`);
-    next.setDate(next.getDate()+1);
-    const endExclusive = next.toISOString().slice(0,23) + 'Z';
-
-    wh.push(where('fecha','>=', start));
-    wh.push(where('fecha','<',  endExclusive));
+    try {
+      const start = new Date(`${filtroFecha.value}T00:00:00`);
+      const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
+      wh.push(where('fecha','>=',start));
+      wh.push(where('fecha','<=',end));
+    } catch(e) {console.error(e)}
   }
-
 
   if (onlyMine.value && myFullName.value) {
     wh.push(where('usuario','==', myFullName.value));
@@ -1120,8 +1062,7 @@ const subscribePage = () => {
     loading.value = false;
   });
 };
-const dt = new Date();
-const fecha_dia = dt.toISOString().slice(0,10);
+
 const refreshCount = async () => {
   try {
     const wh = buildWhere();
@@ -1257,7 +1198,7 @@ const agregarComentario = async (s) => {
     const data = snap.data() || {};
     const curr = Array.isArray(data.comentarios) ? data.comentarios : [];
     curr.push({ texto, fecha: new Date(), usuario, vistoPor: [myUid.value].filter(Boolean) });
-    await setDoc(refd, { comentarios: curr }, fecha_dia, { merge: true });
+    await setDoc(refd, { comentarios: curr }, { merge: true });
     s.comentarios = curr;
     s.nuevoComentario = '';
     addToast('success','Comentario agregado');
@@ -1414,24 +1355,10 @@ onMounted(async () => {
     onlyDirectedToMe.value = (savedOnlyDirected === '1');
     onlyMine.value = (savedOnlyMine === '1');
   } catch(e) {console.error(e)}
-
-  // ← NUEVO: carga de filtros persistidos
-  loadFiltersFromLS();
-
   await Promise.all([loadUsuarios(), loadCentrosCosto()]);
   subscribePage();
   await refreshCount();
 });
-
-// Guarda apenas cambie el ESTADO (multiselect)
-watch(() => filtroEstatus.value.slice(), () => {
-  saveFiltersToLS();
-}, { deep: false });
-
-// Guarda cuando cambian los CENTROS seleccionados (checkboxes)
-watch(selectedCentros, () => {
-  saveFiltersToLS();
-}, { deep: true });
 
 onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
 
@@ -1446,7 +1373,7 @@ const marcarComentariosVistos = async (s) => {
       ...c,
       vistoPor: Array.isArray(c?.vistoPor) ? (c.vistoPor.includes(uid) ? c.vistoPor : [...c.vistoPor, uid]) : [uid]
     }));
-    await setDoc(doc(db,'solpes', s.id), { comentarios },fecha_dia, { merge:true });
+    await setDoc(doc(db,'solpes', s.id), { comentarios }, { merge:true });
     s.comentarios = comentarios;
   } catch (e) { console.error(e); }
 };
