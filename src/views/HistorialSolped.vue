@@ -199,7 +199,7 @@
                         Cambiar estado
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end">
-                      <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
+                        <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Parcial')">Parcial</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
                         <li><hr class="dropdown-divider"></li>
@@ -463,7 +463,7 @@
 
               <div class="mb-0">
                 <label class="form-label">Tamaño de página</label>
-                <select class="form-select" v-model.number="pageSize" @change="applyFilters">
+                <select class="form-select" v-model.number="pageSize">
                   <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
@@ -659,6 +659,32 @@ const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
 
+/* ========= Persistencia (localStorage) ========= */
+const LS = {
+  SHOW_SIDEBAR:      'historial_show_sidebar',
+  FILTRO_FECHA:      'historial_filtro_fecha',
+  FILTRO_ESTATUS:    'historial_filtro_estatus',
+  SELECTED_CENTROS:  'historial_cc_sel',
+  USUARIOS_TEMP:     'historial_usuarios_temp',
+  EMPRESA_SEG:       'historial_empresa_seg',
+  PAGE_SIZE:         'historial_page_size',
+  ONLY_DIRECTED:     'historial_only_directed',
+  ONLY_MINE:         'historial_only_mine',
+};
+const safeRead = (k, def=null) => {
+  try {
+    const v = localStorage.getItem(k);
+    if (v === null || v === undefined) return def;
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+    try { return JSON.parse(v); } catch { return v; }
+  } catch { return def; }
+};
+const safeWrite = (k, v) => {
+  try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch(e) {console.error(e);}
+};
+const safeRemove = (k) => { try { localStorage.removeItem(k); } catch(e) {console.error(e);} };
+
 /* ========= Rol / permisos ========= */
 const rawRole = computed(() => String(auth?.profile?.role || auth?.profile?.rol || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,''));
 const isAdmin = computed(() => rawRole.value.includes('admin'));
@@ -671,6 +697,7 @@ const error = ref('');
 const loading = ref(true);
 const loadingSearch = ref(false);
 
+/* ========= Sidebar (persistente) ========= */
 const showSidebar = ref(true);
 const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
 
@@ -720,7 +747,7 @@ const myUid = computed(() => (auth?.user?.uid || '').toString());
 const myEmail = computed(() => (auth?.user?.email || '').toLowerCase());
 const myFullName = ref('');
 
-/* ========= Filtros ========= */
+/* ========= Filtros (persistentes) ========= */
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const filtroUsuario = ref([]);
@@ -728,17 +755,14 @@ const onlyDirectedToMe = ref(false);
 const onlyMine = ref(false);
 const empresaSegmento = ref('todas');
 
-const LS_ONLY_DIRECTED = 'historial_only_directed';
-const LS_ONLY_MINE = 'historial_only_mine';
-
 const toggleOnlyDirected = (val) => {
   onlyDirectedToMe.value = !!val;
-  try { localStorage.setItem(LS_ONLY_DIRECTED, onlyDirectedToMe.value ? '1' : '0'); } catch(e){console.error(e)}
+  safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value);
   applyFilters();
 };
 const toggleOnlyMine = (val) => {
   onlyMine.value = !!val;
-  try { localStorage.setItem(LS_ONLY_MINE, onlyMine.value ? '1' : '0'); } catch(e){console.error(e)}
+  safeWrite(LS.ONLY_MINE, onlyMine.value);
   applyFilters();
 };
 
@@ -748,7 +772,7 @@ const hasActiveFilters = computed(() =>
 );
 
 /* ========= Centros de costo: DB + fallback ========= */
-const centrosMap = ref({}); // codigo -> nombre
+const centrosMap = ref({});
 const centrosLocalFallback = {
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
   "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
@@ -787,7 +811,7 @@ const centrosLocalFallback = {
 };
 async function loadCentrosCosto() {
   try {
-    const qy = query(collection(db,'centros_costo')); // espera campos: codigo, nombre
+    const qy = query(collection(db,'centros_costo'));
     const snap = await getDocs(qy);
     if (!snap.empty) {
       const map = {};
@@ -804,7 +828,7 @@ async function loadCentrosCosto() {
   }
 }
 
-/* ========= Centros selección UI ========= */
+/* ========= Centros selección UI (persistentes) ========= */
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
@@ -827,7 +851,7 @@ const toggleCentro = (code) => {
 const removeContrato = (code) => { selectedCentros.value = selectedCentros.value.filter(x => x!==code); applyFilters(); };
 const clientCentrosOverflow = computed(()=> selectedCentros.value.length > 10);
 
-/* ========= Usuarios (generadores) ========= */
+/* ========= Usuarios (generadores, persistencia de selección) ========= */
 const listaUsuarios = ref([]);
 const busquedaUsuario = ref('');
 const tempUsuarioSelSet = ref(new Set());
@@ -843,7 +867,7 @@ const usuariosOrdenadosFiltrados = computed(() => {
 });
 const toggleTempUsuario = (fullName) => { const s = tempUsuarioSelSet.value; s.has(fullName) ? s.delete(fullName) : s.add(fullName); };
 
-/* ========= Paginación ========= */
+/* ========= Paginación (persistente pageSize) ========= */
 const page = ref(1);
 const pageSize = ref(10);
 const totalCount = ref(0);
@@ -984,21 +1008,18 @@ const buildWhere = () => {
     wh.push(where('usuario','==', myFullName.value));
   }
 
-  // Centros (server 1..10; client >10)
   if (selectedCentros.value.length === 1) {
     wh.push(where('numero_contrato','==', selectedCentros.value[0]));
   } else if (selectedCentros.value.length >=2 && selectedCentros.value.length <=10) {
     wh.push(where('numero_contrato','in', selectedCentros.value));
   }
 
-  // Usuarios (server hasta 10)
   if (filtroUsuario.value.length === 1) {
     wh.push(where('usuario','==', filtroUsuario.value[0]));
   } else if (filtroUsuario.value.length >=2 && filtroUsuario.value.length <=10) {
     wh.push(where('usuario','in', filtroUsuario.value));
   }
 
-  // onlyDirectedToMe -> filtro en cliente
   return wh;
 };
 
@@ -1101,13 +1122,24 @@ const loadUsuarios = async () => {
 
 /* ========= Acciones ========= */
 const applyFilters = () => {
+  // sincroniza selección temporal a filtro efectivo
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
+
+  // persistir filtros clave
+  safeWrite(LS.FILTRO_FECHA, filtroFecha.value || '');
+  safeWrite(LS.FILTRO_ESTATUS, filtroEstatus.value || []);
+  safeWrite(LS.SELECTED_CENTROS, selectedCentros.value || []);
+  safeWrite(LS.USUARIOS_TEMP, Array.from(tempUsuarioSelSet.value || new Set()));
+  safeWrite(LS.EMPRESA_SEG, empresaSegmento.value);
+  safeWrite(LS.PAGE_SIZE, pageSize.value);
+
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
   subscribePage();
   refreshCount();
 };
+
 const limpiarFiltros = () => {
   filtroFecha.value = '';
   filtroEstatus.value = [];
@@ -1119,12 +1151,14 @@ const limpiarFiltros = () => {
   onlyMine.value = false;
   empresaSegmento.value = 'todas';
   pageSize.value = 10;
-  try {
-    localStorage.setItem(LS_ONLY_DIRECTED, '0');
-    localStorage.setItem(LS_ONLY_MINE, '0');
-  } catch(e){console.error(e)}
+
+  // limpiar LS
+  [LS.FILTRO_FECHA, LS.FILTRO_ESTATUS, LS.SELECTED_CENTROS, LS.USUARIOS_TEMP,
+   LS.EMPRESA_SEG, LS.PAGE_SIZE, LS.ONLY_DIRECTED, LS.ONLY_MINE].forEach(safeRemove);
+
   applyFilters();
 };
+
 const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x=>x!==s); applyFilters(); };
 const removeUsuario = (u) => { filtroUsuario.value = filtroUsuario.value.filter(x=>x!==u); tempUsuarioSelSet.value.delete(u); applyFilters(); };
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
@@ -1349,20 +1383,51 @@ const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id
 
 /* ========= Init / watchers ========= */
 onMounted(async () => {
-  try {
-    const savedOnlyDirected = localStorage.getItem(LS_ONLY_DIRECTED);
-    const savedOnlyMine = localStorage.getItem(LS_ONLY_MINE);
-    onlyDirectedToMe.value = (savedOnlyDirected === '1');
-    onlyMine.value = (savedOnlyMine === '1');
-  } catch(e) {console.error(e)}
+  // Restaurar persistencia
+  const savedSidebar = safeRead(LS.SHOW_SIDEBAR, true);
+  const savedFecha   = safeRead(LS.FILTRO_FECHA, '');
+  const savedEstatus = safeRead(LS.FILTRO_ESTATUS, []);
+  const savedCC      = safeRead(LS.SELECTED_CENTROS, []);
+  const savedUsers   = safeRead(LS.USUARIOS_TEMP, []);
+  const savedEmpSeg  = safeRead(LS.EMPRESA_SEG, 'todas');
+  const savedPgSize  = Number(safeRead(LS.PAGE_SIZE, 10)) || 10;
+  const savedOnlyDir = !!safeRead(LS.ONLY_DIRECTED, false);
+  const savedOnlyMine= !!safeRead(LS.ONLY_MINE, false);
+
+  showSidebar.value      = Boolean(savedSidebar);
+  filtroFecha.value      = typeof savedFecha === 'string' ? savedFecha : '';
+  filtroEstatus.value    = Array.isArray(savedEstatus) ? savedEstatus : [];
+  selectedCentros.value  = Array.isArray(savedCC) ? savedCC : [];
+  tempUsuarioSelSet.value= new Set(Array.isArray(savedUsers) ? savedUsers : []);
+  empresaSegmento.value  = typeof savedEmpSeg === 'string' ? savedEmpSeg : 'todas';
+  pageSize.value         = savedPgSize;
+  onlyDirectedToMe.value = savedOnlyDir;
+  onlyMine.value         = savedOnlyMine;
+
+  // Guarda inmediatamente (por consistencia entre tabs)
+  safeWrite(LS.SHOW_SIDEBAR, showSidebar.value);
+  safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value);
+  safeWrite(LS.ONLY_MINE, onlyMine.value);
+
   await Promise.all([loadUsuarios(), loadCentrosCosto()]);
+  // sincroniza lista de usuarios seleccionados a filtro efectivo
+  filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
   subscribePage();
   await refreshCount();
 });
 
 onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
 
+/* watchers de aplicación de filtros y persistencia */
 watch([empresaSegmento, filtroFecha, () => filtroEstatus.value.slice(), pageSize], () => { applyFilters(); });
+
+/* watchers de persistencia granular */
+watch(showSidebar, (v)=> safeWrite(LS.SHOW_SIDEBAR, !!v));
+watch(selectedCentros, (v)=> safeWrite(LS.SELECTED_CENTROS, v || []), { deep:true });
+watch(tempUsuarioSelSet, (s)=> safeWrite(LS.USUARIOS_TEMP, Array.from(s || new Set())), { deep:true });
+watch(filtroUsuario, (v)=> safeWrite(LS.USUARIOS_TEMP, v || []), { deep:true }); // espejo
+watch(filtroEstatus, (v)=> safeWrite(LS.FILTRO_ESTATUS, v || []), { deep:true });
+watch(()=>filtroFecha.value, (v)=> safeWrite(LS.FILTRO_FECHA, v || ''));
 
 /* ========= Expand / ver comentario ========= */
 const solpeExpandidaId = ref(null);
@@ -1394,19 +1459,16 @@ const tiposSolped = [
   "NEUMÁTICOS","EDP","MATERIAS PRIMA","INSUMOS DE MINERÍA"
 ];
 
-/* Listas de cotizadores por empresa */
 const cotizadoresServicios = ["Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
 const cotizadoresMining    = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
 const cotizadoresHorm      = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
 
-/* Estado modal */
 const showEditModal = ref(false);
 const savingEdit = ref(false);
 const editForm = ref({});
 const editItems = ref([]);
 const dirigidoASelected = ref([]);
 
-/* ===== Reglas de edición: generador, mismo día, dentro 24h ===== */
 const sameLocalDay = (a, b) => {
   const ax = new Date(a.getFullYear(), a.getMonth(), a.getDate());
   const bx = new Date(b.getFullYear(), b.getMonth(), b.getDate());
@@ -1414,7 +1476,7 @@ const sameLocalDay = (a, b) => {
 };
 
 const puedeEditarSolped = (s) => {
-  if (!isGenerador.value) return false; // sólo generadores
+  if (!isGenerador.value) return false;
   const esDueno = myFullName.value && (String(s.usuario || '').trim() === myFullName.value);
   if (!esDueno) return false;
 
@@ -1479,31 +1541,26 @@ const cerrarEditar = () => {
   dirigidoASelected.value = [];
 };
 
-/* Autocompletar nombre centro costo cuando cambia el código */
 watch(() => editForm.value.numero_contrato, (codigo) => {
   editForm.value.nombre_centro_costo = centrosMap.value?.[codigo] || '';
 });
 
-/* Cargar imagen de ítem (base64 en el documento) */
 function onPickImg(ev, it){
   const f = ev?.target?.files?.[0];
   if (!f) return;
   const reader = new FileReader();
   reader.onload = () => {
-    const dataUrl = reader.result; // data:image/..;base64,xxxx
+    const dataUrl = reader.result;
     const base64 = String(dataUrl).split(',')[1] || '';
     it.imagen_referencia_base64 = base64;
     delete it.imagen_url;
   };
   reader.readAsDataURL(f);
 }
-
 function borrarImg(it){
   delete it.imagen_url;
   delete it.imagen_referencia_base64;
 }
-
-/* CRUD items en modal */
 function agregarItem(){
   editItems.value.push({
     __k: Math.random().toString(36).slice(2),
@@ -1519,13 +1576,10 @@ function agregarItem(){
 function eliminarItem(idx){
   editItems.value.splice(idx,1);
 }
-
-/* Guardar edición */
 async function guardarEdicion(){
   if (!editForm.value?.id) return;
   if (savingEdit.value) return;
 
-  // Revalidación estricta antes de escribir en Firestore
   const refCheck = doc(db, 'solpes', editForm.value.id);
   const snapCheck = await getDoc(refCheck);
   const dataCheck = snapCheck.data() || {};
@@ -1538,7 +1592,6 @@ async function guardarEdicion(){
   savingEdit.value = true;
 
   try{
-    // Ensamble payload
     const refd = doc(db, 'solpes', editForm.value.id);
     const payload = {
       empresa: editForm.value.empresa || '',
@@ -1547,7 +1600,6 @@ async function guardarEdicion(){
       tipo_solped: editForm.value.tipo_solped || '',
       nombre_solped: editForm.value.nombre_solped || '',
       dirigidoA: Array.from(new Set(dirigidoASelected.value || [])),
-      // Numero SOLPED NO se toca
       items: editItems.value.map(it => ({
         item: it.item,
         descripcion: it.descripcion || '',
@@ -1561,10 +1613,8 @@ async function guardarEdicion(){
       }))
     };
 
-    // Guardar SOLPED
     await updateDoc(refd, payload);
 
-    // Actualizar items_catalog por cada ítem (para predicción/autocomplete)
     const now = new Date();
     for (const it of payload.items) {
       const descOrig = (it.descripcion || '').trim();
@@ -1588,7 +1638,6 @@ async function guardarEdicion(){
 
     addToast('success','SOLPED actualizada');
     cerrarEditar();
-    // refresca página visible
     subscribePage();
   }catch(e){
     console.error(e);
@@ -1597,7 +1646,6 @@ async function guardarEdicion(){
     savingEdit.value = false;
   }
 }
-
 </script>
 
 <style scoped>
