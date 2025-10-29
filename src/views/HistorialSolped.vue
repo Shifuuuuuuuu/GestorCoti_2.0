@@ -331,7 +331,40 @@
                       <button class="btn btn-primary" :disabled="!(s.nuevoComentario && s.nuevoComentario.trim())" @click="agregarComentario(s)">Enviar</button>
                     </div>
                   </div>
+                  <!-- Documento adjunto de autorización -->
+                  <div class="mt-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <label class="form-label mb-0">📎 Documento adjunto de autorización</label>
+                      <span v-if="s.autorizacion_nombre"
+                            class="badge bg-secondary-subtle text-secondary-emphasis">
+                        {{ extFromName(s.autorizacion_nombre).toUpperCase() }}
+                      </span>
+                    </div>
 
+                    <template v-if="s.autorizacion_url">
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi"
+                          :class="iconFromExt(extFromName(s.autorizacion_nombre))"></i>
+
+                        <a class="link-primary"
+                          :href="s.autorizacion_url"
+                          target="_blank" rel="noopener">
+                          {{ s.autorizacion_nombre || 'Ver documento' }}
+                        </a>
+
+                        <a class="btn btn-sm btn-outline-secondary"
+                          :href="s.autorizacion_url"
+                          target="_blank" rel="noopener"
+                          download>
+                          ver
+                        </a>
+                      </div>
+                    </template>
+
+                    <div v-else class="text-secondary small">
+                      No hay documento adjunto.
+                    </div>
+                  </div>
                   <!-- Cotizaciones vinculadas -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1158,6 +1191,17 @@ const limpiarFiltros = () => {
 
   applyFilters();
 };
+const extFromName = (name = '') => {
+  const m = String(name).match(/\.([a-z0-9]+)$/i);
+  return m ? m[1].toLowerCase() : '';
+};
+
+const iconFromExt = (ext) => {
+  if (ext === 'pdf') return 'bi-file-earmark-pdf-fill text-danger';
+  if (ext === 'xls' || ext === 'xlsx') return 'bi-file-earmark-excel-fill text-success';
+  if (['png','jpg','jpeg','webp','gif'].includes(ext)) return 'bi-file-earmark-image-fill';
+  return 'bi-paperclip';
+};
 
 const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x=>x!==s); applyFilters(); };
 const removeUsuario = (u) => { filtroUsuario.value = filtroUsuario.value.filter(x=>x!==u); tempUsuarioSelSet.value.delete(u); applyFilters(); };
@@ -1687,6 +1731,12 @@ async function guardarEdicion(){
     0 3px  6px rgba(0,0,0,.06) !important;
   border-radius: .9rem !important;
   background:#fff;
+}
+/* opcional; ya hay estilos similares para thumbs */
+.autorizacion-thumb {
+  max-width: 260px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
 }
 
 /* Paginación superior pegajosa */

@@ -212,7 +212,6 @@
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="edit.estatus">
                 <option>Solicitado</option>
-                <option>Pendiente</option>
                 <option>Cotizando</option>
                 <option>Revisión</option>
                 <option>Completado</option>
@@ -271,11 +270,15 @@
             <div class="col-12">
               <label class="form-label">Documento adjunto de autorización</label>
               <div class="d-flex gap-2">
-                <input id="inputAutorizacionEdit" type="file"
+                <input
+                  ref="inputAutorizacionEditEl"
+                  id="inputAutorizacionEdit"
+                  type="file"
                   class="d-none"
                   accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivoAutorizacionEdit">
-                <button class="btn btn-outline-secondary" @click="() => document.getElementById('inputAutorizacionEdit')?.click()">
+                  @change="onArchivoAutorizacionEdit"
+                >
+                <button class="btn btn-outline-secondary" @click="abrirSelectorAutorizacionEdit">
                   <i class="bi bi-paperclip me-1"></i> Seleccionar archivo
                 </button>
                 <div class="small text-secondary" v-if="edit.autorizacion_nombre">
@@ -457,11 +460,15 @@
             <div class="col-12">
               <label class="form-label">Autorización (PDF / imagen / Excel)</label>
               <div class="d-flex gap-2">
-                <input id="inputAutorizacionNuevo" type="file"
+                <input
+                  ref="inputAutorizacionNuevoEl"
+                  id="inputAutorizacionNuevo"
+                  type="file"
                   class="d-none"
                   accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivoAutorizacionNuevo">
-                <button class="btn btn-secondary" @click="() => document.getElementById('inputAutorizacionNuevo')?.click()">
+                  @change="onArchivoAutorizacionNuevo"
+                >
+                <button class="btn btn-secondary" @click="abrirSelectorAutorizacionNuevo">
                   <i class="bi bi-paperclip me-1"></i> Seleccionar archivo
                 </button>
                 <div class="small text-secondary" v-if="nuevo.autorizacion_nombre">
@@ -515,10 +522,10 @@
             <div class="col-md-3">
               <label class="form-label">Estado</label>
               <select class="form-select" v-model="itemForm.estado">
-                <option>pendiente</option>
-                <option>parcial</option>
-                <option>completado</option>
-                <option>revisión</option>
+                <option>Pendiente</option>
+                <option>Parcial</option>
+                <option>Completado</option>
+                <option>Revisión</option>
               </select>
             </div>
 
@@ -528,8 +535,14 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Subir imagen (opcional)</label>
-              <input id="inputImagenItem" type="file" class="form-control"
-                accept="image/*" @change="onImagenItem">
+              <input
+                ref="inputImagenItemEl"
+                id="inputImagenItem"
+                type="file"
+                class="form-control"
+                accept="image/*"
+                @change="onImagenItem"
+              >
               <div class="form-text">Se guarda en Storage.</div>
               <div v-if="itemForm.imagen_url" class="small mt-1">
                 <a :href="itemForm.imagen_url" target="_blank">Ver imagen</a>
@@ -608,7 +621,7 @@ const DIRIGIDO_OPCIONES = [
 ];
 
 /* Centros de Costo */
-const centrosCosto = { /* ... (tus claves y nombres, igual que antes) ... */ };
+const centrosCosto = { /* ... tus claves/nombres aquí ... */ };
 const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}));
 const router = useRouter();
 
@@ -627,7 +640,7 @@ let unsubSearch = null;
 
 /* ---------- Filtros ---------- */
 const filtroFecha = ref("");
-const filtroUsuario = ref("");           // <--- NUEVO: usuario seleccionado
+const filtroUsuario = ref("");           // usuario seleccionado
 const filtroEstatus = ref([]);           // multi
 const filtroEstatusHeader = ref("");     // select rápido (uno)
 let unsubFilter = null;
@@ -789,6 +802,11 @@ function onChangeEstatusHeader(){
   filtroEstatus.value = filtroEstatusHeader.value ? [filtroEstatusHeader.value] : [];
   aplicarFiltros();
 }
+function removeEstatus(es){
+  filtroEstatus.value = filtroEstatus.value.filter(x => x !== es);
+  if (filtroEstatusHeader.value === es) filtroEstatusHeader.value = "";
+  aplicarFiltros();
+}
 
 function buildFilterQuery(){
   const wh = [];
@@ -857,7 +875,19 @@ function limpiarFiltros(){
   aplicarFiltros();
 }
 
-/* ---------- Editor (offcanvas) y resto de lógica (igual que antes) ---------- */
+/* ---------- Refs para inputs de archivos ---------- */
+const inputAutorizacionEditEl = ref(null);
+const inputAutorizacionNuevoEl = ref(null);
+const inputImagenItemEl = ref(null);
+
+function abrirSelectorAutorizacionEdit(){
+  inputAutorizacionEditEl.value?.click();
+}
+function abrirSelectorAutorizacionNuevo(){
+  inputAutorizacionNuevoEl.value?.click();
+}
+
+/* ---------- Editor (offcanvas) y resto de lógica ---------- */
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
@@ -922,10 +952,9 @@ const archivoAutorizacionNuevo = ref(null);
 function resetUploadUI(){
   archivoAutorizacionEdit.value = null;
   archivoAutorizacionNuevo.value = null;
-  const a = document.getElementById("inputAutorizacionEdit");
-  if (a) a.value = "";
-  const b = document.getElementById("inputAutorizacionNuevo");
-  if (b) b.value = "";
+  if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
+  if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
+  if (inputImagenItemEl.value) inputImagenItemEl.value.value = "";
 }
 function onArchivoAutorizacionEdit(e){
   const f = (e.target.files || [])[0];
@@ -1015,15 +1044,18 @@ function abrirModalItem(it=null, idx=-1){
   if (!it) {
     const arr = Array.isArray(edit.value.items) ? edit.value.items : [];
     const maxIt = arr.reduce((m, a) => Math.max(m, Number(a?.item ?? 0)), 0);
-    itemForm.value = { ...itemForm.value, item: maxIt + 1, descripcion:"", cantidad:0, cantidad_cotizada:0, codigo_referencial:"", estado:"Pendiente", numero_interno:"", imagen_url:null };
+    itemForm.value = {
+      ...itemForm.value,
+      item: maxIt + 1, descripcion:"", cantidad:0, cantidad_cotizada:0,
+      codigo_referencial:"", estado:"Pendiente", numero_interno:"", imagen_url:null
+    };
     isEditItem.value = false; itemIndex.value = -1;
   } else {
     itemForm.value = deepClone(it);
     isEditItem.value = true; itemIndex.value = idx;
   }
   imagenItemFile.value = null;
-  const el = document.getElementById("inputImagenItem");
-  if (el) el.value = "";
+  if (inputImagenItemEl.value) inputImagenItemEl.value.value = "";
   modalItem.value = true;
 }
 function cerrarModalItem(){ modalItem.value = false; }
@@ -1044,7 +1076,7 @@ async function guardarItemForm(){
       ...itemForm.value,
       item: Number(itemForm.value.item ?? 0),
       cantidad: Number(itemForm.value.cantidad ?? 0),
-      cantidad_cotizada: Number(itemForm.value.cantidad_cotizada ?? 0)
+      cantidad_cotizada: Number(itemForm.value.cantidad ?? 0) < 0 ? 0 : Number(itemForm.value.cantidad_cotizada ?? 0)
     };
     if (!Array.isArray(edit.value.items)) edit.value.items = [];
     if (isEditItem.value && itemIndex.value >= 0) edit.value.items.splice(itemIndex.value, 1, normalized);
@@ -1107,6 +1139,16 @@ async function crearNueva(){
   } finally {
     creando.value = false;
   }
+}
+
+/* ---------- Historial helpers (faltaban en tu snippet visible) ---------- */
+function agregarHistorial(){
+  if (!Array.isArray(edit.value.historialEstados)) edit.value.historialEstados = [];
+  edit.value.historialEstados.push({ fecha: "", estatus: "", usuario: "" });
+}
+function eliminarHistorial(ix){
+  if (!Array.isArray(edit.value.historialEstados)) return;
+  edit.value.historialEstados.splice(ix,1);
 }
 
 /* ---------- Lifecycle ---------- */
