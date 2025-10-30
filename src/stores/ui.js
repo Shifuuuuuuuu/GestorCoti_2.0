@@ -12,21 +12,23 @@ export const useUIStore = defineStore("ui", {
     menuStyle: localStorage.getItem(LOCAL_KEY_STYLE) || "navbar",
     theme: localStorage.getItem(LOCAL_KEY_THEME) || "light", // por defecto claro
     saving: false,
+
+    // 🔹 Nuevo: estado del drawer en móvil
+    sidebarOpen: false,
   }),
   getters: {
     isNavbar: (s) => s.menuStyle === "navbar",
     isSidebar: (s) => s.menuStyle === "sidebar",
-    isDark: (s) => s.theme === "dark",
-    isLight: (s) => s.theme === "light",
+    isDark:    (s) => s.theme === "dark",
+    isLight:   (s) => s.theme === "light",
+
+    isSidebarOpen: (s) => s.sidebarOpen,
   },
   actions: {
     /** Llamar una sola vez al arrancar la app */
     initUI() {
-      // si hay tema guardado en localStorage, aplícalo
       const t = localStorage.getItem(LOCAL_KEY_THEME);
       if (t === "dark" || t === "light") this.theme = t;
-
-      // añade la clase al <html>
       this.applyTheme(this.theme);
     },
 
@@ -40,6 +42,9 @@ export const useUIStore = defineStore("ui", {
       if (style !== "navbar" && style !== "sidebar") return;
       this.menuStyle = style;
       localStorage.setItem(LOCAL_KEY_STYLE, style);
+
+      // al cambiar a sidebar, por defecto cerrado en móvil
+      if (style === "sidebar") this.closeSidebar();
 
       const auth = useAuthStore();
       if (auth?.user?.uid) {
@@ -93,6 +98,31 @@ export const useUIStore = defineStore("ui", {
         localStorage.setItem(LOCAL_KEY_THEME, theme);
         this.applyTheme(theme);
       }
+    },
+
+    /* ====== NUEVO: control del drawer en móvil ====== */
+    lockScroll(lock = true) {
+      const body = document.body;
+      if (lock) {
+        body.style.overflow = "hidden";
+        body.style.touchAction = "none";
+      } else {
+        body.style.overflow = "";
+        body.style.touchAction = "";
+      }
+    },
+    openSidebar() {
+      this.sidebarOpen = true;
+      // solo bloquear scroll en pantallas chicas
+      if (window.matchMedia("(max-width: 991px)").matches) this.lockScroll(true);
+    },
+    closeSidebar() {
+      this.sidebarOpen = false;
+      this.lockScroll(false);
+    },
+    toggleSidebar() {
+      if (this.sidebarOpen) this.closeSidebar();
+      else this.openSidebar();
     },
   },
 });
