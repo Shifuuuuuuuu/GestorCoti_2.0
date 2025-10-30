@@ -14,6 +14,27 @@
           <button class="btn btn-outline-secondary" @click="cargarEquipos">
             <i class="bi bi-arrow-clockwise me-1"></i> Recargar
           </button>
+
+          <!-- Importar Excel/CSV -->
+          <input ref="fileInput" type="file" class="d-none"
+                 accept=".xlsx,.xls,.csv" @change="onFilePicked">
+          <button class="btn btn-success" @click="pedirArchivo" :disabled="importando">
+            <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+            {{ importando ? 'Importando…' : 'Importar Excel' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Progreso importación -->
+      <div v-if="importando" class="alert alert-info d-flex align-items-center mb-3">
+        <div class="me-3 spinner-border spinner-border-sm" role="status"></div>
+        <div class="flex-grow-1">
+          {{ importMsg }}
+          <div class="progress mt-2" style="height: 6px;">
+            <div class="progress-bar" role="progressbar"
+                 :style="{ width: importPct + '%' }"></div>
+          </div>
         </div>
       </div>
 
@@ -92,7 +113,6 @@
                     <td>
                       <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-primary" @click="abrirEditar(e)">Editar</button>
-                        <!-- ahora abre modal -->
                         <button class="btn btn-outline-danger"
                                 :disabled="accionando && idEnAccion===e.__id"
                                 @click="abrirConfirm(e)">
@@ -263,14 +283,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { db } from '../stores/firebase';
+import * as XLSX from 'xlsx';
 import {
-  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy
+  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, writeBatch
 } from 'firebase/firestore';
 
 type Equipo = {
   __id: string;
   actualizado?: any;
-  ano?: number;
+  ano?: number | null;
   clasificacion1?: string;
   codigo?: string;
   creado?: any;
@@ -282,6 +303,7 @@ type Equipo = {
   tipo_equipo?: string;
 };
 
+/* ===== Estado general ===== */
 const cargando = ref(true);
 const equipos = ref<Equipo[]>([]);
 
@@ -297,6 +319,7 @@ const form = ref<Partial<Equipo>>({});
 const accionando = ref(false);
 const idEnAccion = ref<string | null>(null);
 
+/* ===== Toasts ===== */
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) => {
   const id = Date.now()+Math.random();
@@ -305,6 +328,7 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
+/* ===== Formateos ===== */
 const fmtFecha = (f:any) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : (f ? new Date(f) : null));
@@ -313,6 +337,7 @@ const fmtFecha = (f:any) => {
   } catch { return '—'; }
 };
 
+/* ===== Carga de equipos ===== */
 const cargarEquipos = async () => {
   cargando.value = true;
   try {
@@ -324,7 +349,7 @@ const cargarEquipos = async () => {
       arr.push({
         __id: d.id,
         actualizado: data.actualizado || null,
-        ano: typeof data.ano === 'number' ? data.ano : Number(data.ano) || undefined,
+        ano: typeof data.ano === 'number' ? data.ano : Number(data.ano) || null,
         clasificacion1: data.clasificacion1 || '',
         codigo: data.codigo || '',
         creado: data.creado || null,
@@ -351,9 +376,9 @@ const cargarEquipos = async () => {
     cargando.value = false;
   }
 };
-
 onMounted(cargarEquipos);
 
+/* ===== Filtros y paginado ===== */
 const clasificaciones = computed(() => {
   const set = new Set<string>();
   equipos.value.forEach(e => { if (e.clasificacion1) set.add(e.clasificacion1); });
@@ -387,10 +412,10 @@ const visiblePages = computed(() => {
   for (let i=start; i<=end; i++) pages.push(i);
   return pages;
 });
-
 const goToPage = (n:number) => { if (n>=1 && n<=totalPaginas.value) paginaActual.value = n; };
 const limpiarFiltros = () => { busqueda.value=''; filtroClasificacion.value=''; paginaActual.value=1; };
 
+/* ===== CRUD manual ===== */
 const abrirCrear = () => {
   esEdicion.value = false;
   form.value = {
@@ -398,7 +423,7 @@ const abrirCrear = () => {
     equipo: '',
     marca: '',
     modelo: '',
-    ano: undefined,
+    ano: null,
     numero_chasis: '',
     tipo_equipo: '',
     clasificacion1: '',
@@ -428,14 +453,14 @@ const guardar = async () => {
   try {
     const payload:any = {
       codigo: (form.value.codigo || '').trim(),
-      equipo: (form.value.equipo || '').trim(),
-      marca: (form.value.marca || '').trim(),
-      modelo: (form.value.modelo || '').trim(),
+      equipo: (form.value.equipo || 'No hay información').trim() || 'No hay información',
+      marca: (form.value.marca || 'No hay información').trim() || 'No hay información',
+      modelo: (form.value.modelo || 'No hay información').trim() || 'No hay información',
       ano: typeof form.value.ano === 'number' ? form.value.ano : (form.value.ano ? Number(form.value.ano) : null),
-      numero_chasis: (form.value.numero_chasis || '').trim(),
-      tipo_equipo: (form.value.tipo_equipo || '').trim(),
-      clasificacion1: (form.value.clasificacion1 || '').trim(),
-      localizacion: (form.value.localizacion || '').trim()
+      numero_chasis: (form.value.numero_chasis || 'No hay información').trim() || 'No hay información',
+      tipo_equipo: (form.value.tipo_equipo || 'No hay información').trim() || 'No hay información',
+      clasificacion1: (form.value.clasificacion1 || 'No hay información').trim() || 'No hay información',
+      localizacion: (form.value.localizacion || 'No hay información').trim() || 'No hay información'
     };
 
     if (!esEdicion.value) {
@@ -464,20 +489,12 @@ const guardar = async () => {
   }
 };
 
-/* ======= Modal de confirmación de borrado ======= */
+/* ===== Modal de confirmación de borrado ===== */
 const confirmOpen = ref(false);
 const confirmRow  = ref<Equipo | null>(null);
 const eliminando  = ref(false);
-
-function abrirConfirm(e:Equipo){
-  confirmRow.value = e;
-  confirmOpen.value = true;
-}
-function cerrarConfirm(){
-  if (eliminando.value) return;
-  confirmOpen.value = false;
-  confirmRow.value = null;
-}
+function abrirConfirm(e:Equipo){ confirmRow.value = e; confirmOpen.value = true; }
+function cerrarConfirm(){ if (!eliminando.value){ confirmOpen.value = false; confirmRow.value = null; } }
 async function confirmarEliminar(){
   if (!confirmRow.value) return;
   accionando.value = true;
@@ -498,23 +515,197 @@ async function confirmarEliminar(){
   }
 }
 
-/* ======= (Legacy) eliminar directo con confirm() por si lo llamas desde otro lado ======= */
-const eliminar = async (e:Equipo) => {
-  if (!confirm(`Eliminar el equipo ${e.codigo || e.equipo}? Esta acción es permanente.`)) return;
-  accionando.value = true;
-  idEnAccion.value = e.__id;
-  try {
-    await deleteDoc(doc(db, 'equipos', e.__id));
-    equipos.value = equipos.value.filter(x => x.__id !== e.__id);
-    addToast('success','Equipo eliminado.');
-  } catch (err) {
-    console.error(err);
-    addToast('danger','No se pudo eliminar el equipo.');
-  } finally {
-    accionando.value = false;
-    idEnAccion.value = null;
-  }
+/* ====== IMPORTADOR MASIVO (Excel/CSV) ====== */
+const fileInput = ref<HTMLInputElement|null>(null);
+const importando = ref(false);
+const importMsg = ref('');
+const importPct = ref(0);
+
+function pedirArchivo(){ fileInput.value?.click(); }
+function onFilePicked(e: Event){
+  const input = e.target as HTMLInputElement;
+  const file = input?.files?.[0];
+  if (!file) return;
+  importarExcel(file).finally(()=>{ if (input) input.value = ''; });
+}
+
+/* Normalizadores y utilidades */
+const normTxt = (s:any) => String(s ?? '')
+  .toString()
+  .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+  .trim();
+const toStr = (s:any) => normTxt(s);
+const toInt = (v:any) => {
+  const n = Number(String(v).replace(/[^\d-]/g,''));
+  return Number.isFinite(n) ? n : undefined;
 };
+function buildKeywords(e:any){
+  const base = [
+    e.codigo, e.equipo, e.marca, e.modelo, e.numero_chasis,
+    e.localizacion, e.clasificacion1, e.tipo_equipo
+  ].map(normTxt).filter(Boolean);
+
+  const tokens = new Set<string>();
+  for (const p of base){
+    for (const w of p.split(/[^a-z0-9]+/).filter(Boolean)){
+      tokens.add(w);
+      for (let i=1;i<=Math.min(10,w.length);i++){
+        tokens.add(w.slice(0,i));
+      }
+    }
+  }
+  return Array.from(tokens);
+}
+
+/* Lee y mapea una fila del Excel */
+function mapRow(raw:any){
+  const get = (k: string, alt: string[] = []) => {
+    const keys = [k, ...alt];
+    for (const cand of keys){
+      const found = Object.keys(raw).find(h => normTxt(h).toLowerCase() === normTxt(cand).toLowerCase());
+      if (found) return raw[found];
+    }
+    return undefined;
+  };
+
+  const equipo          = toStr(get('Equipo'));
+  const codigo          = toStr(get('Código', ['Codigo','CODIGO']));
+  const ano             = toInt(get('AÑO', ['ANO','Año','Anio']));
+  const marca           = toStr(get('MARCA'));
+  const modelo          = toStr(get('MODELO'));
+  const clasificacion1  = toStr(get('Clasificación 1', ['Clasificacion 1','CLASIFICACION 1']));
+  const tipo_equipo     = toStr(get('Tipo de equipo', ['Tipo equipo','Tipo']));
+  const numero_chasis   = toStr(get('NUMERO DE CHASIS', ['N° Chasis','N CHASIS','Numero chasis']));
+  const localizacion    = toStr(get('Localización', ['Localizacion','Ubicacion']));
+
+  return {
+    codigo: codigo || '',
+    equipo,
+    ano,
+    marca,
+    modelo,
+    clasificacion1,
+    tipo_equipo,
+    numero_chasis,
+    localizacion
+  };
+}
+
+/* Upsert con relleno "No hay información" en vacíos */
+async function importarExcel(file: File){
+  try{
+    importando.value = true;
+    importMsg.value = 'Leyendo archivo…';
+    importPct.value = 3;
+
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+
+    if (!rows.length){ addToast('warning','El archivo está vacío.'); return; }
+
+    const parsed = rows.map(mapRow)
+      .filter(r => (r.codigo || r.numero_chasis || r.equipo));
+    if (!parsed.length){ addToast('warning','No se encontraron filas válidas.'); return; }
+
+    // Índices de existentes
+    importMsg.value = 'Cargando datos existentes…';
+    importPct.value = 10;
+    const snap = await getDocs(collection(db,'equipos'));
+    const byCodigo = new Map<string, any>();
+    const byChasis = new Map<string, any>();
+    snap.forEach(d => {
+      const x:any = { __id: d.id, ...d.data() };
+      const c = String(x.codigo || '').trim().toLowerCase();
+      const ch = String(x.numero_chasis || '').trim().toLowerCase();
+      if (c) byCodigo.set(c, x);
+      if (ch) byChasis.set(ch, x);
+    });
+
+    // Procesar por lotes
+    const total = parsed.length;
+    let done = 0;
+    const chunkSize = 400;
+
+    for (let i=0; i<parsed.length; i+=chunkSize){
+      const slice = parsed.slice(i, i+chunkSize);
+      const batch = writeBatch(db);
+
+      for (const r of slice){
+        // Valores entrantes (sin forzar "No hay información" aún)
+        const incoming:any = {
+          codigo: r.codigo || '',
+          equipo: r.equipo || '',
+          marca: r.marca || '',
+          modelo: r.modelo || '',
+          ano: r.ano ?? null,
+          numero_chasis: r.numero_chasis || '',
+          tipo_equipo: r.tipo_equipo || '',
+          clasificacion1: r.clasificacion1 || '',
+          localizacion: r.localizacion || ''
+        };
+
+        // Encontrar existente por código o chasis
+        const keyCodigo = (incoming.codigo || '').toLowerCase();
+        const keyChasis = (incoming.numero_chasis || '').toLowerCase();
+        const found = (keyCodigo && byCodigo.get(keyCodigo)) || (keyChasis && byChasis.get(keyChasis));
+
+        if (found){
+          // UPDATE: si incoming está vacío, mantenemos existente; si existente también está vacío, rellenamos con "No hay información"
+          const merged:any = {
+            codigo: incoming.codigo || (found.codigo || ''),
+            equipo: incoming.equipo || (found.equipo || 'No hay información'),
+            marca: incoming.marca || (found.marca || 'No hay información'),
+            modelo: incoming.modelo || (found.modelo || 'No hay información'),
+            ano: (incoming.ano ?? found.ano ?? null),
+            numero_chasis: incoming.numero_chasis || (found.numero_chasis || 'No hay información'),
+            tipo_equipo: incoming.tipo_equipo || (found.tipo_equipo || 'No hay información'),
+            clasificacion1: incoming.clasificacion1 || (found.clasificacion1 || 'No hay información'),
+            localizacion: incoming.localizacion || (found.localizacion || 'No hay información'),
+          };
+          merged.keywords = buildKeywords(merged);
+          const refDoc = doc(db, 'equipos', found.__id);
+          batch.update(refDoc, { ...merged, actualizado: serverTimestamp() });
+        } else {
+          // CREATE: cualquier vacío -> "No hay información" (salvo ano)
+          const payload:any = {
+            codigo: incoming.codigo, // puede venir vacío
+            equipo: incoming.equipo || 'No hay información',
+            marca: incoming.marca || 'No hay información',
+            modelo: incoming.modelo || 'No hay información',
+            ano: incoming.ano ?? null,
+            numero_chasis: incoming.numero_chasis || 'No hay información',
+            tipo_equipo: incoming.tipo_equipo || 'No hay información',
+            clasificacion1: incoming.clasificacion1 || 'No hay información',
+            localizacion: incoming.localizacion || 'No hay información',
+          };
+          payload.keywords = buildKeywords(payload);
+          const refCol = collection(db, 'equipos');
+          const refDoc = doc(refCol);
+          batch.set(refDoc, { ...payload, creado: serverTimestamp(), actualizado: serverTimestamp() });
+        }
+      }
+
+      await batch.commit();
+      done += slice.length;
+      importMsg.value = `Sincronizando… ${done} / ${total}`;
+      importPct.value = Math.min(98, Math.round(10 + (done/total)*88));
+    }
+
+    importMsg.value = 'Actualizando vista…';
+    importPct.value = 100;
+    await cargarEquipos();
+    addToast('success', `Importación completada: ${total} fila(s) procesadas.`);
+  } catch (e){
+    console.error(e);
+    addToast('danger','Error al importar. Revisa el archivo y los encabezados.');
+  } finally {
+    importando.value = false;
+    setTimeout(()=>{ importMsg.value = ''; importPct.value = 0; }, 800);
+  }
+}
 </script>
 
 <style scoped>
@@ -593,4 +784,8 @@ const eliminar = async (e:Equipo) => {
   color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
+
+/* Progreso import */
+.progress { background: #f1f5f9; }
+.progress-bar { background: #16a34a; }
 </style>
