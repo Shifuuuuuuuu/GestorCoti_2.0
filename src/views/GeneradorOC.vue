@@ -944,6 +944,9 @@ const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);
 const pageSize = 5;
 const currentPage = ref(1);
+let debounce = null;
+let lastSearchToken = 0;
+const cacheResultados = new Map(); // key = query normalizada -> array resultados
 const totalPages = computed(() => Math.max(1, Math.ceil(resultadosEquipos.value.length / pageSize)));
 const visiblePageButtons = computed(() => {
   const maxButtons = 7;
@@ -960,7 +963,42 @@ const pagedEquipos = computed(() => {
 });
 const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
 
-const camposBusqueda = ["equipo", "clasificacion1", "codigo", "tipo_equipo", "marca"];
+const camposBusqueda = [
+  "codigo",
+  "equipo",
+  "clasificacion1",
+  "tipo_equipo",
+  "marca",
+  "modelo",
+  "descripcion",
+  "patente",
+  "numero_chasis",
+  "localizacion"
+];
+// Normalización fuerte
+const norm = (s) => String(s||'')
+  .normalize('NFD')
+  .replace(/\p{Diacritic}/gu,'')
+  .toLowerCase()
+  .trim();
+
+// Levenshtein light (recorta a 64 chars para no matar la UI)
+function lev(a, b){
+  a = (a||'').slice(0,64); b = (b||'').slice(0,64);
+  const m = Array.from({length: a.length+1}, (_,i)=>[i]);
+  for(let j=0;j<=b.length;j++){ m[0][j]=j; }
+  for(let i=1;i<=a.length;i++){
+    for(let j=1;j<=b.length;j++){
+      const cost = a[i-1]===b[j-1]?0:1;
+      m[i][j] = Math.min(
+        m[i-1][j]+1,     // borrado
+        m[i][j-1]+1,     // inserción
+        m[i-1][j-1]+cost // sustitución
+      );
+    }
+  }
+  return m[a.length][b.length];
+}
 const aplicarFiltrosEquiposDebounced = () => {
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
@@ -971,67 +1009,144 @@ const aplicarFiltrosEquiposDebounced = () => {
       resultadosEquipos.value = [];
       currentPage.value = 1;
     }
-  }, 250);
+  }, 450);
 };
-let debounce = null;
 
 const variantesDe = (s) => {
   const t = (s || "").trim();
-  const arr = [ t, t.toLowerCase(), t.toUpperCase(), t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() ].filter(Boolean);
-  return [...new Set(arr)];
+  const v = norm(t);
+  const start = v.charAt(0).toUpperCase() + v.slice(1);
+  return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
 };
+// Ranking: exacto > empieza-con > incluye > parecido
+function scoreEquipo(e, qNorm){
+  const vals = [
+    e.codigo, e.patente, e.descripcion, e.equipo,
+    e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+  ].filter(Boolean).map(v => norm(v));
 
+  // Bonos por exacto
+  if (vals.includes(qNorm)) return 1000;
+
+  // Bonos por empieza-con en campos críticos
+  const crit = ['codigo','patente','modelo','numero_chasis','equipo'].map(k => norm(e[k]||''));
+  if (crit.some(v => v.startsWith(qNorm))) return 700;
+
+  // Incluye
+  if (vals.some(v => v.includes(qNorm))) return 400;
+
+  // Cercanía (levenshtein) en campos clave
+  const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
+  if (near <= 2) return 300 - (near * 50);
+
+  return 0;
+}
 const buscarEquipos = async (q) => {
-  cargandoEquipos.value = true;
+  const qNorm = norm(q);
   currentPage.value = 1;
+
+  // ⬇️ Cache local
+  if (cacheResultados.has(qNorm)) {
+    resultadosEquipos.value = cacheResultados.get(qNorm);
+    return;
+  }
+
+  // Si podemos reutilizar resultados de un prefijo, filtra local y evita hits
+  const pref = [...cacheResultados.keys()].find(k => qNorm.startsWith(k) && k.length >= 2);
+  if (pref) {
+    const base = cacheResultados.get(pref) || [];
+    const filtradosLocal = base.filter(e => {
+      const vals = [
+        e.codigo, e.patente, e.descripcion, e.equipo,
+        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+      ].filter(Boolean).map(v => norm(v));
+      return vals.some(v => v.includes(qNorm));
+    });
+    if (filtradosLocal.length >= 10) {
+      resultadosEquipos.value = filtradosLocal
+        .map(r => ({ r, s: scoreEquipo(r, qNorm)}))
+        .sort((a,b)=>b.s-a.s)
+        .map(x=>x.r);
+      cacheResultados.set(qNorm, resultadosEquipos.value);
+      return;
+    }
+    // si es poco, seguimos a Firestore para completar
+  }
+
+  // ⬇️ Cancelación de búsqueda anterior
+  const token = ++lastSearchToken;
+  cargandoEquipos.value = true;
+
   try {
+    // Ejecuta en paralelo, cada campo limitado (reduce lecturas)
     const variantes = variantesDe(q);
     const vistos = new Set();
-    const resultados = [];
+    const acumulado = [];
 
-    for (const campo of camposBusqueda) {
-      for (const v of variantes) {
+    const perCampo = async (campo) => {
+      // Para prefix search eficiente, usamos orderBy + startAt/endAt.
+      // Si tu colección no tiene índices compuestos, Firestore puede pedirlos.
+      const promesas = variantes.map(async (v) => {
         try {
           const qref = query(
             collection(db, "equipos"),
             orderBy(campo),
             startAt(v),
             endAt(v + "\uf8ff"),
-            limit(100)
+            limit(25) // ⬅️ más chico que antes
           );
           const snap = await getDocs(qref);
           for (const d of snap.docs) {
             const item = { id: d.id, ...d.data() };
             if (!vistos.has(item.id)) {
               vistos.add(item.id);
-              resultados.push(item);
+              acumulado.push(item);
             }
           }
-        } catch (e) {
-          console.warn(`Query por campo "${campo}" falló o requiere índice:`, e?.message || e);
+        } catch (e) { console.error(`[equipos] error campo "${campo}":`, e);
         }
-      }
+      });
+      await Promise.all(promesas);
+    };
+
+    // Primer pase: campos críticos (código/patente/modelo)
+    const criticos = ["codigo","patente","modelo","numero_chasis","equipo"];
+    const secundarios = camposBusqueda.filter(c => !criticos.includes(c));
+    await Promise.all(criticos.map(perCampo));
+
+    // Si aún hay poco, complementa con secundarios
+    if (acumulado.length < 60) {
+      await Promise.all(secundarios.map(perCampo));
     }
 
-    const qlow = q.toLowerCase();
-    const filtrados = resultados.filter(e => {
-      const valores = [ e.equipo, e.clasificacion1, e.codigo, e.tipo_equipo, e.marca ].filter(Boolean).map(v => String(v).toLowerCase());
-      return valores.some(v => v.includes(qlow));
+    if (token !== lastSearchToken) return; // petición vieja, se descarta
+
+    // Ranking local y corte
+    const rankeados = acumulado
+      .map(r => ({ r, s: scoreEquipo(r, qNorm) }))
+      .filter(x => x.s > 0)
+      .sort((a,b)=>b.s - a.s)
+      .map(x => x.r);
+
+    // Si nada puntúa, aplica filtro includes simple como fallback
+    const finales = rankeados.length ? rankeados : acumulado.filter(e => {
+      const vals = [
+        e.codigo, e.patente, e.descripcion, e.equipo,
+        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+      ].filter(Boolean).map(v => norm(v));
+      return vals.some(v => v.includes(qNorm));
     });
 
-    filtrados.sort((a, b) => {
-      if (a.creado && b.creado) return (b.creado?.seconds || b.creado) - (a.creado?.seconds || a.creado);
-      if (a.codigo && b.codigo && a.codigo !== b.codigo) return String(a.codigo).localeCompare(String(b.codigo));
-      return String(a.equipo || "").localeCompare(String(b.equipo || ""));
-    });
+    // Limita memoria y cachea
+    resultadosEquipos.value = finales.slice(0, 200);
+    cacheResultados.set(qNorm, resultadosEquipos.value);
 
-    resultadosEquipos.value = filtrados;
   } catch (e) {
     console.error("Error en búsqueda de equipos:", e);
     addToast("danger", "Error al buscar equipos.");
     resultadosEquipos.value = [];
   } finally {
-    cargandoEquipos.value = false;
+    if (token === lastSearchToken) cargandoEquipos.value = false;
   }
 };
 

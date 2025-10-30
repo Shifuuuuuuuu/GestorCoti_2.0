@@ -1043,7 +1043,7 @@ function resetFormulario() {
   monedaSeleccionada.value = "CLP";
 }
 
-/* ===== Panel Equipos (sencillo) ===== */
+/* ===== Panel Equipos (optimizado) ===== */
 const busquedaEquipo = ref("");
 const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);
@@ -1064,12 +1064,76 @@ const pagedEquipos = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return resultadosEquipos.value.slice(start, start + pageSize);
 });
-const goToPage = (n) => {
-  if (n < 1 || n > totalPages.value) return;
-  currentPage.value = n;
+const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
+
+/* Campos a cubrir (más amplio) */
+const camposBusqueda = [
+  "codigo",
+  "equipo",
+  "clasificacion1",
+  "tipo_equipo",
+  "marca",
+  "modelo",
+  "descripcion",
+  "patente",
+  "numero_chasis",
+  "localizacion"
+];
+
+/* Normalización */
+const norm = (s) => String(s||'')
+  .normalize('NFD')
+  .replace(/\p{Diacritic}/gu,'')
+  .toLowerCase()
+  .trim();
+
+/* Variantes de entrada (para prefix-search) */
+const variantesDe = (s) => {
+  const t = (s || "").trim();
+  const v = norm(t);
+  const start = v.charAt(0).toUpperCase() + v.slice(1);
+  return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
 };
 
-const camposBusqueda = ["equipo", "clasificacion1", "codigo", "tipo_equipo", "marca"];
+/* Levenshtein light (recortado) */
+function lev(a, b){
+  a = (a||'').slice(0,64); b = (b||'').slice(0,64);
+  const m = Array.from({length: a.length+1}, (_,i)=>[i]);
+  for(let j=0;j<=b.length;j++){ m[0][j]=j; }
+  for(let i=1;i<=a.length;i++){
+    for(let j=1;j<=b.length;j++){
+      const cost = a[i-1]===b[j-1]?0:1;
+      m[i][j] = Math.min(m[i-1][j]+1, m[i][j-1]+1, m[i-1][j-1]+cost);
+    }
+  }
+  return m[a.length][b.length];
+}
+
+/* Ranking: exacto > empieza-con > incluye > parecido */
+function scoreEquipo(e, qNorm){
+  const vals = [
+    e.codigo, e.patente, e.descripcion, e.equipo,
+    e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+  ].filter(Boolean).map(v => norm(v));
+
+  if (vals.includes(qNorm)) return 1000;
+
+  const crit = ['codigo','patente','modelo','numero_chasis','equipo'].map(k => norm(e[k]||''));
+  if (crit.some(v => v.startsWith(qNorm))) return 700;
+
+  if (vals.some(v => v.includes(qNorm))) return 400;
+
+  const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
+  if (near <= 2) return 300 - (near * 50);
+
+  return 0;
+}
+
+/* Debounce + cancelación + caché */
+let debounce = null;
+let lastSearchToken = 0;
+const cacheResultados = new Map(); // key = query normalizada -> array
+
 const aplicarFiltrosEquiposDebounced = () => {
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
@@ -1080,75 +1144,113 @@ const aplicarFiltrosEquiposDebounced = () => {
       resultadosEquipos.value = [];
       currentPage.value = 1;
     }
-  }, 250);
+  }, 450); // un poco más largo mejora UX y reduce lecturas
 };
-let debounce = null;
 
-const variantesDe = (s) => {
-  const t = (s || "").trim();
-  const arr = [
-    t,
-    t.toLowerCase(),
-    t.toUpperCase(),
-    t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
-  ].filter(Boolean);
-  return [...new Set(arr)];
-};
 
 const buscarEquipos = async (q) => {
-  cargandoEquipos.value = true;
+  const qNorm = norm(q);
   currentPage.value = 1;
+
+  // Caché
+  if (cacheResultados.has(qNorm)) {
+    resultadosEquipos.value = cacheResultados.get(qNorm);
+    return;
+  }
+
+  // Reutiliza resultados de un prefijo ya cacheado si existe (filtrado local)
+  const pref = [...cacheResultados.keys()].find(k => qNorm.startsWith(k) && k.length >= 2);
+  if (pref) {
+    const base = cacheResultados.get(pref) || [];
+    const filtradosLocal = base.filter(e => {
+      const vals = [
+        e.codigo, e.patente, e.descripcion, e.equipo,
+        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+      ].filter(Boolean).map(v => norm(v));
+      return vals.some(v => v.includes(qNorm));
+    });
+    if (filtradosLocal.length >= 10) {
+      resultadosEquipos.value = filtradosLocal
+        .map(r => ({ r, s: scoreEquipo(r, qNorm)}))
+        .sort((a,b)=>b.s-a.s)
+        .map(x=>x.r);
+      cacheResultados.set(qNorm, resultadosEquipos.value);
+      return;
+    }
+  }
+
+  // Cancelación
+  const token = ++lastSearchToken;
+  cargandoEquipos.value = true;
+
   try {
     const variantes = variantesDe(q);
     const vistos = new Set();
-    const resultados = [];
+    const acumulado = [];
 
-    for (const campo of camposBusqueda) {
-      for (const v of variantes) {
+    const perCampo = async (campo) => {
+      const promesas = variantes.map(async (v) => {
         try {
           const qref = query(
             collection(db, "equipos"),
             orderBy(campo),
             startAt(v),
             endAt(v + "\uf8ff"),
-            limit(100)
+            limit(25) // más pequeño que antes
           );
           const snap = await getDocs(qref);
           for (const d of snap.docs) {
             const item = { id: d.id, ...d.data() };
             if (!vistos.has(item.id)) {
               vistos.add(item.id);
-              resultados.push(item);
+              acumulado.push(item);
             }
           }
         } catch (e) {
-          console.warn(`Query por campo "${campo}" falló o requiere índice:`, e?.message || e);
+          console.error(`Error buscando equipos por campo ${campo} y variante ${v}:`, e);
         }
-      }
+      });
+      await Promise.all(promesas);
+    };
+
+    // Campos críticos primero
+    const criticos = ["codigo","patente","modelo","numero_chasis","equipo"];
+    const secundarios = camposBusqueda.filter(c => !criticos.includes(c));
+    await Promise.all(criticos.map(perCampo));
+
+    // Complementa si quedó corto
+    if (acumulado.length < 60) {
+      await Promise.all(secundarios.map(perCampo));
     }
 
-    const qlow = q.toLowerCase();
-    const filtrados = resultados.filter(e => {
-      const valores = [
-        e.equipo, e.clasificacion1, e.codigo, e.tipo_equipo, e.marca
-      ].filter(Boolean).map(v => String(v).toLowerCase());
-      return valores.some(v => v.includes(qlow));
+    if (token !== lastSearchToken) return; // petición obsoleta
+
+    // Ranking y recorte
+    const rankeados = acumulado
+      .map(r => ({ r, s: scoreEquipo(r, qNorm) }))
+      .filter(x => x.s > 0)
+      .sort((a,b)=>b.s - a.s)
+      .map(x => x.r);
+
+    const finales = rankeados.length ? rankeados : acumulado.filter(e => {
+      const vals = [
+        e.codigo, e.patente, e.descripcion, e.equipo,
+        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+      ].filter(Boolean).map(v => norm(v));
+      return vals.some(v => v.includes(qNorm));
     });
 
-    filtrados.sort((a, b) => {
-      if (a.codigo && b.codigo && a.codigo !== b.codigo) return String(a.codigo).localeCompare(String(b.codigo));
-      return String(a.equipo || "").localeCompare(String(b.equipo || ""));
-    });
-
-    resultadosEquipos.value = filtrados;
+    resultadosEquipos.value = finales.slice(0, 200);
+    cacheResultados.set(qNorm, resultadosEquipos.value);
   } catch (e) {
     console.error("Error en búsqueda de equipos:", e);
     addToast("danger", "Error al buscar equipos.");
     resultadosEquipos.value = [];
   } finally {
-    cargandoEquipos.value = false;
+    if (token === lastSearchToken) cargandoEquipos.value = false;
   }
 };
+
 
 const cargarSolpedSolicitadas = async () => {
   try {
