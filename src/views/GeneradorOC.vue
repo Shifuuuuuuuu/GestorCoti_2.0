@@ -4,19 +4,33 @@
   <div class="generador-oc-page">
     <div class="container py-4 py-md-5">
       <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
-          <i class="bi bi-arrow-left"></i> Volver
+          <i class="bi bi-arrow-left"></i>
+          <span class="d-none d-sm-inline ms-1">Volver</span>
         </button>
 
-        <h1 class="h4 fw-semibold mb-0">Generador OC</h1>
+        <h1 class="h5 fw-semibold mb-0 text-truncate text-center flex-grow-1 d-none d-sm-block">
+          Generador de Cotización (OC)
+        </h1>
+        <h1 class="h6 fw-semibold mb-0 text-truncate d-sm-none">Generar OC</h1>
 
         <!-- Toggle Equipos -->
         <button
-          class="btn btn-secondary btn-sm"
-          @click="toggleEquiposPanel"
+          class="btn btn-secondary btn-sm d-none d-lg-inline-flex"
+          @click="toggleEquiposResponsive"
           :aria-pressed="mostrarEquipos.toString()">
-          <i class="bi bi-search me-1"></i> {{ mostrarEquipos ? 'Ocultar' : 'Buscar' }} equipos
+          <i class="bi bi-search me-1"></i>
+          {{ mostrarEquipos ? 'Ocultar' : 'Buscar' }} equipos
+        </button>
+
+        <!-- Switch Mis OC (sólo md+) -->
+        <button
+          class="btn btn-outline-dark btn-sm d-none d-md-inline-flex"
+          @click="toggleMisOC"
+          :aria-pressed="mostrarMisOC.toString()">
+          <i class="bi bi-receipt-cutoff me-1"></i>
+          {{ mostrarMisOC ? 'Ocultar mis OC' : 'Mis OC' }}
         </button>
       </div>
 
@@ -24,22 +38,10 @@
       <div class="row g-3">
         <!-- Columna izquierda -->
         <div class="col-12" :class="mostrarEquipos ? 'col-lg-8' : 'col-lg-12'">
-
-          <!-- Mis OC (toggle) -->
-          <div class="d-flex justify-content-end mb-2">
-            <button
-              class="btn btn-secondary  btn-sm"
-              @click="toggleMisOC"
-              :aria-pressed="mostrarMisOC.toString()">
-              <i class="bi bi-receipt-cutoff me-1"></i>
-              {{ mostrarMisOC ? 'Ocultar mis OC' : 'Mostrar mis OC' }}
-            </button>
-          </div>
-
           <!-- Mis OC enviadas -->
-          <div v-if="mostrarMisOC" class="card mb-3">
+          <div v-if="mostrarMisOC" class="card mb-3 card-elevated">
             <div class="card-header d-flex align-items-center justify-content-between">
-              <div class="fw-semibold">🧾 Mis OC enviadas (mes actual y mes pasado)</div>
+              <div class="fw-semibold">🧾 Mis OC enviadas (mes actual)</div>
               <span class="badge bg-dark-subtle text-dark-emphasis">
                 {{ misOC.length }} en total
               </span>
@@ -52,17 +54,17 @@
               </div>
 
               <div v-else-if="misOC.length === 0" class="p-3 text-secondary text-center">
-                No hay órdenes en los últimos 2 meses.
+                No hay órdenes este mes.
               </div>
 
               <div v-else class="list-group list-group-flush">
                 <div
-                  class="list-group-item d-flex align-items-start"
+                  class="list-group-item d-flex align-items-start flex-wrap gap-2"
                   v-for="oc in misOCPaged"
                   :key="oc.__docId"
                 >
                   <div class="me-auto">
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                       <span class="fw-semibold">N° {{ oc.id ?? '—' }}</span>
                       <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus || '—' }}</span>
                     </div>
@@ -75,7 +77,7 @@
                       <strong>Fecha:</strong> {{ fmtFecha(oc.fechaSubida) }}
                     </div>
                   </div>
-                  <div class="ms-2">
+                  <div class="ms-auto">
                     <button class="btn btn-sm btn-outline-primary" @click="irADetalleOC(oc)">Ver detalle</button>
                   </div>
                 </div>
@@ -87,7 +89,7 @@
               <nav aria-label="Paginación OC">
                 <ul class="pagination justify-content-center mb-0">
                   <li class="page-item" :class="{ disabled: misOCCurrentPage === 1 }">
-                    <button class="page-link" @click="misOCGoTo(misOCCurrentPage - 1)" :disabled="misOCCurrentPage === 1">«</button>
+                    <button class="page-link" @click="misOCGoTo(misOCCurrentPage - 1)" :disabled="misOCCurrentPage === 1" aria-label="Anterior">«</button>
                   </li>
                   <li
                     class="page-item"
@@ -97,7 +99,7 @@
                     <button class="page-link" @click="misOCGoTo(n)">{{ n }}</button>
                   </li>
                   <li class="page-item" :class="{ disabled: misOCCurrentPage === misOCTotalPages }">
-                    <button class="page-link" @click="misOCGoTo(misOCCurrentPage + 1)" :disabled="misOCCurrentPage === misOCTotalPages">»</button>
+                    <button class="page-link" @click="misOCGoTo(misOCCurrentPage + 1)" :disabled="misOCCurrentPage === misOCTotalPages" aria-label="Siguiente">»</button>
                   </li>
                 </ul>
               </nav>
@@ -109,6 +111,22 @@
           <div class="card card-elevated position-relative overflow-hidden">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">Subir Cotización</div>
+
+              <!-- Accesos rápidos (xs-sm) -->
+              <div class="d-flex gap-2 d-lg-none">
+                <button
+                  class="btn btn-outline-dark btn-sm"
+                  @click="toggleMisOC"
+                  :aria-pressed="mostrarMisOC.toString()">
+                  <i class="bi bi-receipt-cutoff"></i>
+                </button>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  @click="toggleEquiposResponsive"
+                  :aria-pressed="mostrarEquipos.toString()">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
             </div>
 
             <div class="card-body">
@@ -124,7 +142,7 @@
                     :value="(nuevoIdVisual ?? '—').toString()"
                     readonly>
                 </div>
-                <div>Se asigna automáticamente y es de solo lectura.</div>
+                <div class="form-text">Se asigna automáticamente y es de solo lectura.</div>
               </div>
 
               <!-- Asociar SOLPED -->
@@ -176,28 +194,31 @@
 
               <!-- Ítems de SOLPED -->
               <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex align-items-center justify-content-between">
                   <span class="fw-semibold">📦 Ítems de la SOLPED</span>
+                  <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
                 </div>
+
                 <div class="card-body">
-                  <div class="table-responsive">
+                  <!-- Tabla normal + stacked en xs -->
+                  <div class="table-responsive table-stacked-sm">
                     <table class="table table-sm align-middle">
                       <thead class="table-light">
                         <tr>
-                          <th style="width: 48px;">Ítem</th>
+                          <th style="width: 60px;">Ítem</th>
                           <th>Descripción</th>
                           <th class="text-center">Cant. total</th>
                           <th class="text-center">Cotizado antes</th>
-                          <th style="width: 160px;">Cant. a cotizar</th>
+                          <th style="width: 180px;">Cant. a cotizar</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="it in itemsSolped" :key="it.__tempId">
-                          <td>{{ it.item }}</td>
-                          <td class="w-50">{{ it.descripcion }}</td>
-                          <td class="text-center">{{ it.cantidad }}</td>
-                          <td class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
-                          <td>
+                          <td data-label="Ítem">{{ it.item }}</td>
+                          <td data-label="Descripción" class="w-50">{{ it.descripcion }}</td>
+                          <td data-label="Cant. total" class="text-center">{{ it.cantidad }}</td>
+                          <td data-label="Cotizado antes" class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
+                          <td data-label="Cant. a cotizar">
                             <input
                               type="number"
                               class="form-control form-control-sm"
@@ -214,9 +235,9 @@
                   </div>
 
                   <!-- Autorización adjunta -->
-                  <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3">
-                    <i class="bi bi-paperclip me-2"></i>
-                    <div class="me-auto">
+                  <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
+                    <i class="bi bi-paperclip"></i>
+                    <div class="me-auto ms-2">
                       <div class="fw-semibold mb-0">Autorización adjunta</div>
                       <div class="small">{{ autorizacionNombre || 'Archivo' }}</div>
                     </div>
@@ -242,7 +263,7 @@
                 <label class="form-label">Centro de Costo</label>
                 <div class="input-group">
                   <input class="form-control" :value="nombreCentroCosto || ''" placeholder="Selecciona un centro…" readonly>
-                  <button class="btn btn-outline-primary" @click="modalCentroAbierto = true">
+                  <button class="btn btn-outline-primary" @click="modalCentroAbierto = true" aria-label="Seleccionar Centro de Costo">
                     <i class="bi bi-search"></i>
                   </button>
                 </div>
@@ -276,10 +297,8 @@
                 </div>
                 <div class="col-12 col-md-8">
                   <label class="form-label">Precio Total con IVA</label>
-                  <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0">
-                  <div>
-                    Se formatea automáticamente según moneda seleccionada.
-                  </div>
+                  <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0" inputmode="numeric">
+                  <div class="form-text">Se formatea automáticamente según moneda seleccionada.</div>
                 </div>
               </div>
 
@@ -298,20 +317,20 @@
               <!-- Archivos -->
               <div class="mb-3">
                 <label class="form-label">Archivos PDF o Imagen</label>
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
                   <input id="inputArchivo" type="file" multiple accept="application/pdf,image/*" class="d-none" @change="onMultipleFilesSelected">
                   <button class="btn btn-outline-primary" @click="abrirSelectorArchivos">
                     <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
                   </button>
-                  <small>Puedes subir más de uno.</small>
+                  <small class="text-secondary">Puedes subir más de uno.</small>
                 </div>
               </div>
 
               <!-- Previews -->
               <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
                 <div class="card-header d-flex align-items-center">
-                  <div class="fw-semibold me-auto">{{ archivo.name }}</div>
-                  <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)">
+                  <div class="fw-semibold me-auto text-truncate">{{ archivo.name }}</div>
+                  <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)" aria-label="Eliminar archivo">
                     <i class="bi bi-trash"></i>
                   </button>
                 </div>
@@ -336,12 +355,12 @@
           </div>
         </div>
 
-        <!-- Panel Equipos -->
-        <div class="col-12 col-lg-4" v-if="mostrarEquipos">
-          <div class="card h-100">
+        <!-- Panel Equipos (sticky en desktop) -->
+        <aside class="col-12 col-lg-4 d-none d-lg-block" v-if="mostrarEquipos">
+          <div class="card h-100 card-elevated sticky-panel">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">🔎 Buscar equipos</div>
-              <button class="btn btn-sm btn-outline-secondary d-lg-none" @click="mostrarEquipos=false">
+              <button class="btn btn-sm btn-outline-secondary d-lg-none" @click="cerrarEquiposMobile">
                 Cerrar
               </button>
             </div>
@@ -355,7 +374,7 @@
                   @input="aplicarFiltrosEquiposDebounced" />
               </div>
 
-              <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3">
+              <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3 small">
                 Escribe para buscar. No se muestran datos hasta que ingreses al menos 2 caracteres.
               </div>
 
@@ -367,16 +386,13 @@
               <div v-if="!cargandoEquipos && (busquedaEquipo||'').trim().length >= 2 && resultadosEquipos.length === 0" class="text-center text-secondary py-3">
                 No se encontraron resultados.
               </div>
-              <div
-                class="list-group equipos-list flex-grow-1"
-                v-if="pagedEquipos.length"
-                style="max-height:72vh"
-              >
+
+              <div class="list-group equipos-list flex-grow-1" v-if="pagedEquipos.length">
                 <div class="list-group-item p-3" v-for="e in pagedEquipos" :key="e.id || e.codigo">
                   <div class="d-flex align-items-start">
                     <div class="flex-grow-1">
-                      <div class="d-flex align-items-center mb-2">
-                        <h6 class="mb-0 me-2">
+                      <div class="d-flex align-items-center mb-2 flex-wrap gap-2">
+                        <h6 class="mb-0">
                           <strong>{{ e.codigo || 'SIN CÓDIGO' }}</strong>
                         </h6>
                         <span class="badge bg-secondary-subtle text-secondary-emphasis">
@@ -385,7 +401,7 @@
                       </div>
 
                       <div class="row g-2 text-secondary small">
-                        <div class="col-12 col-md-12">
+                        <div class="col-12">
                           <div><strong>Año:</strong> {{ e.ano || '—' }}</div>
                           <div><strong>Clasificación:</strong> {{ e.clasificacion1 || '—' }}</div>
                           <div><strong>Equipo:</strong> {{ e.equipo || '—' }}</div>
@@ -405,6 +421,7 @@
                   </div>
                 </div>
               </div>
+
               <!-- Paginación -->
               <nav v-if="totalPages > 1" class="mt-3">
                 <ul class="pagination justify-content-center mb-0">
@@ -421,9 +438,110 @@
               </nav>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
+
+    <!-- Offcanvas Equipos (móvil / tablet) -->
+    <transition name="oc">
+      <div v-if="showEquiposMobile" class="oc-wrap d-lg-none" @keydown.esc="cerrarEquiposMobile">
+        <div class="oc-backdrop" @click="cerrarEquiposMobile"></div>
+
+        <div class="oc-panel" role="dialog" aria-modal="true" aria-label="Buscar equipos">
+          <div class="oc-header">
+            <h2 class="h6 mb-0 fw-semibold">🔎 Buscar equipos</h2>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-dark" @click="cerrarEquiposMobile" aria-label="Cerrar">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="oc-body">
+            <div class="input-group mb-3">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input
+                class="form-control"
+                placeholder="Escribe al menos 2 caracteres (ej: 'jumbo')"
+                v-model="busquedaEquipo"
+                @input="aplicarFiltrosEquiposDebounced" />
+            </div>
+
+            <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3 small">
+              Escribe para buscar. No se muestran datos hasta que ingreses al menos 2 caracteres.
+            </div>
+
+            <div v-if="cargandoEquipos" class="text-center py-3">
+              <div class="spinner-border" role="status"></div>
+              <div class="mt-2">Buscando…</div>
+            </div>
+
+            <div v-if="!cargandoEquipos && (busquedaEquipo||'').trim().length >= 2 && resultadosEquipos.length === 0" class="text-center text-secondary py-3">
+              No se encontraron resultados.
+            </div>
+
+            <div class="list-group equipos-list" v-if="pagedEquipos.length">
+              <div class="list-group-item p-3" v-for="e in pagedEquipos" :key="e.id || e.codigo">
+                <div class="d-flex align-items-start">
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-2 flex-wrap gap-2">
+                      <h6 class="mb-0"><strong>{{ e.codigo || 'SIN CÓDIGO' }}</strong></h6>
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                        {{ e.tipo_equipo || 'Tipo?' }}
+                      </span>
+                    </div>
+
+                    <div class="text-secondary small">
+                      <div><strong>Año:</strong> {{ e.ano || '—' }}</div>
+                      <div><strong>Clasificación:</strong> {{ e.clasificacion1 || '—' }}</div>
+                      <div><strong>Equipo:</strong> {{ e.equipo || '—' }}</div>
+                      <div><strong>Localización:</strong> {{ e.localizacion || '—' }}</div>
+                      <div><strong>Marca:</strong> {{ e.marca || '—' }}</div>
+                      <div><strong>Modelo:</strong> {{ e.modelo || '—' }}</div>
+                      <div><strong>N° Chasis:</strong> {{ e.numero_chasis || '—' }}</div>
+                    </div>
+                  </div>
+
+                  <div class="ms-3">
+                    <button class="btn btn-sm btn-outline-primary" @click="copiarEquipo(e)">
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <nav v-if="totalPages > 1" class="mt-3">
+              <ul class="pagination justify-content-center mb-0">
+                <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                  <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" aria-label="Anterior">«</button>
+                </li>
+                <li class="page-item" v-for="n in visiblePageButtons" :key="n" :class="{ active: currentPage === n }">
+                  <button class="page-link" @click="goToPage(n)">{{ n }}</button>
+                </li>
+                <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                  <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" aria-label="Siguiente">»</button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+
+          <div class="oc-footer">
+            <button class="btn btn-outline-secondary" @click="cerrarEquiposMobile">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Botón flotante Equipos (móvil) -->
+    <button
+      class="btn btn-primary floating-equipos-btn d-lg-none"
+      @click="toggleEquiposResponsive"
+      :title="showEquiposMobile ? 'Ocultar búsqueda de equipos' : 'Buscar equipos'"
+      aria-label="Abrir buscador de equipos"
+    >
+      <i class="bi bi-search"></i>
+    </button>
 
     <!-- Modal Centro de Costo -->
     <div v-if="modalCentroAbierto" class="vmodal-backdrop" @click.self="modalCentroAbierto=false">
@@ -468,7 +586,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
-import { useRouter, useRoute } from "vue-router"; /* ⬅️ leemos query fromSolpedId */
+import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
@@ -478,7 +596,7 @@ import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/s
 import { useAuthStore } from "../stores/authService";
 
 const router = useRouter();
-const route = useRoute();          /* ⬅️ */
+const route = useRoute();
 const volver = () => router.back();
 const auth = useAuthStore();
 
@@ -488,22 +606,223 @@ const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
 const comentario = ref("");
 
-/* Equipos */
-const mostrarEquipos = ref(false);
-const toggleEquiposPanel = () => { mostrarEquipos.value = !mostrarEquipos.value; };
+/* Responsive helpers */
+const isDesktop = ref(false);
+const showEquiposMobile = ref(false);
+const mostrarEquipos = ref(false); // desktop sidebar (lg)
 
+const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
+const openEquiposMobile = () => {
+  showEquiposMobile.value = true;
+  document.documentElement.style.overflow = 'hidden';
+};
+const cerrarEquiposMobile = () => {
+  showEquiposMobile.value = false;
+  document.documentElement.style.overflow = '';
+};
+const toggleEquiposResponsive = () => {
+  computeIsDesktop();
+  if (isDesktop.value) {
+    mostrarEquipos.value = !mostrarEquipos.value;
+  } else {
+    showEquiposMobile.value ? cerrarEquiposMobile() : openEquiposMobile();
+  }
+};
+const onResize = () => {
+  const wasOpen = showEquiposMobile.value;
+  computeIsDesktop();
+  if (isDesktop.value && wasOpen) cerrarEquiposMobile();
+};
+
+/* Equipos */
+const busquedaEquipo = ref("");
+const cargandoEquipos = ref(false);
+const resultadosEquipos = ref([]);
+const pageSize = 5;
+const currentPage = ref(1);
+let debounceTimer = null;
+let lastSearchToken = 0;
+const cacheResultados = new Map();
+
+const totalPages = computed(() => Math.max(1, Math.ceil(resultadosEquipos.value.length / pageSize)));
+const visiblePageButtons = computed(() => {
+  const maxButtons = 7;
+  const pages = [];
+  let start = Math.max(1, currentPage.value - Math.floor(maxButtons / 2));
+  let end = Math.min(totalPages.value, start + maxButtons - 1);
+  start = Math.max(1, end - maxButtons + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+  return pages;
+});
+const pagedEquipos = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return resultadosEquipos.value.slice(start, start + pageSize);
+});
+const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
+
+const aplicarFiltrosEquiposDebounced = () => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    const q = (busquedaEquipo.value || "").trim();
+    if (q.length >= 2) buscarEquipos(q);
+    else { resultadosEquipos.value = []; currentPage.value = 1; }
+  }, 450);
+};
+
+const camposBusqueda = [
+  "codigo","equipo","clasificacion1","tipo_equipo","marca","modelo","descripcion","patente","numero_chasis","localizacion"
+];
+const norm = (s) => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+function lev(a, b){
+  a = (a||'').slice(0,64); b = (b||'').slice(0,64);
+  const m = Array.from({length: a.length+1}, (_,i)=>[i]);
+  for(let j=0;j<=b.length;j++){ m[0][j]=j; }
+  for(let i=1;i<=a.length;i++){
+    for(let j=1;j<=b.length;j++){
+      const cost = a[i-1]===b[j-1]?0:1;
+      m[i][j] = Math.min(m[i-1][j]+1, m[i][j-1]+1, m[i-1][j-1]+cost);
+    }
+  }
+  return m[a.length][b.length];
+}
+const variantesDe = (s) => {
+  const t = (s || "").trim();
+  const v = norm(t);
+  const start = v.charAt(0).toUpperCase() + v.slice(1);
+  return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
+};
+function scoreEquipo(e, qNorm){
+  const vals = [
+    e.codigo, e.patente, e.descripcion, e.equipo,
+    e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+  ].filter(Boolean).map(v => norm(v));
+  if (vals.includes(qNorm)) return 1000;
+  const crit = ['codigo','patente','modelo','numero_chasis','equipo'].map(k => norm(e[k]||''));
+  if (crit.some(v => v.startsWith(qNorm))) return 700;
+  if (vals.some(v => v.includes(qNorm))) return 400;
+  const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
+  if (near <= 2) return 300 - (near * 50);
+  return 0;
+}
+const buscarEquipos = async (q) => {
+  const qNorm = norm(q);
+  currentPage.value = 1;
+
+  if (cacheResultados.has(qNorm)) { resultadosEquipos.value = cacheResultados.get(qNorm); return; }
+
+  const pref = [...cacheResultados.keys()].find(k => qNorm.startsWith(k) && k.length >= 2);
+  if (pref) {
+    const base = cacheResultados.get(pref) || [];
+    const filtradosLocal = base.filter(e => {
+      const vals = [
+        e.codigo, e.patente, e.descripcion, e.equipo,
+        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+      ].filter(Boolean).map(v => norm(v));
+      return vals.some(v => v.includes(qNorm));
+    });
+    if (filtradosLocal.length >= 10) {
+      resultadosEquipos.value = filtradosLocal
+        .map(r => ({ r, s: scoreEquipo(r, qNorm)}))
+        .sort((a,b)=>b.s-a.s)
+        .map(x=>x.r);
+      cacheResultados.set(qNorm, resultadosEquipos.value);
+      return;
+    }
+  }
+
+  const token = ++lastSearchToken;
+  cargandoEquipos.value = true;
+
+  try {
+    const variantes = variantesDe(q);
+    const vistos = new Set();
+    const acumulado = [];
+
+    const perCampo = async (campo) => {
+      const promesas = variantes.map(async (v) => {
+        try {
+          const qref = query(
+            collection(db, "equipos"),
+            orderBy(campo),
+            startAt(v),
+            endAt(v + "\uf8ff"),
+            limit(25)
+          );
+          const snap = await getDocs(qref);
+          for (const d of snap.docs) {
+            const item = { id: d.id, ...d.data() };
+            if (!vistos.has(item.id)) {
+              vistos.add(item.id);
+              acumulado.push(item);
+            }
+          }
+        } catch (e) { console.error(`[equipos] error campo "${campo}":`, e); }
+      });
+      await Promise.all(promesas);
+    };
+
+    const criticos = ["codigo","patente","modelo","numero_chasis","equipo"];
+    const secundarios = camposBusqueda.filter(c => !criticos.includes(c));
+    await Promise.all(criticos.map(perCampo));
+    if (acumulado.length < 60) await Promise.all(secundarios.map(perCampo));
+
+    if (token !== lastSearchToken) return;
+
+    const rankeados = acumulado
+      .map(r => ({ r, s: scoreEquipo(r, qNorm) }))
+      .filter(x => x.s > 0)
+      .sort((a,b)=>b.s - a.s)
+      .map(x => x.r);
+
+    const finales = rankeados.length ? rankeados : acumulado.filter(e => {
+      const vals = [
+        e.codigo, e.patente, e.descripcion, e.equipo,
+        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
+      ].filter(Boolean).map(v => norm(v));
+      return vals.some(v => v.includes(qNorm));
+    });
+
+    resultadosEquipos.value = finales.slice(0, 200);
+    cacheResultados.set(qNorm, resultadosEquipos.value);
+
+  } catch (e) {
+    console.error("Error en búsqueda de equipos:", e);
+    addToast("danger", "Error al buscar equipos.");
+    resultadosEquipos.value = [];
+  } finally {
+    if (token === lastSearchToken) cargandoEquipos.value = false;
+  }
+};
+
+const copiarEquipo = async (e) => {
+  const texto =
+`Código: ${e.codigo || '—'}
+Equipo: ${e.equipo || '—'}
+Marca/Modelo: ${e.marca || '—'} / ${e.modelo || '—'}
+N° Chasis: ${e.numero_chasis || '—'}
+Localización: ${e.localizacion || '—'}
+Año: ${e.ano || '—'}
+Tipo: ${e.tipo_equipo || '—'}
+Clasificación: ${e.clasificacion1 || '—'}`;
+  try {
+    await navigator?.clipboard?.writeText(texto);
+    addToast("success","Datos copiados al portapapeles.");
+  } catch {
+    addToast("warning","No se pudo copiar. Selecciona y copia manualmente.");
+  }
+};
+
+/* ====== SOLPED & Centro de costo ====== */
 const solpedDisponibles = ref([]);
 const solpedSeleccionadaId = ref("");
 const solpedSeleccionada = ref(null);
 const itemsSolped = ref([]);
 
-/* Autorización (SOLPED) */
 const autorizacionNombre = ref(null);
 const autorizacionUrlRaw = ref(null);
 const autorizacionEsPDF = ref(false);
 const autorizacionEsImagen = ref(false);
 
-/* Centro de costo (modal) */
 const modalCentroAbierto = ref(false);
 const centroCosto = ref("");
 const filtroCentro = ref("");
@@ -559,11 +878,9 @@ const nombreCentroCosto = computed(() => {
 });
 const seleccionarCentro = (c) => { centroCosto.value = c.key; };
 
-/* Tipo compra / destino */
 const tipoCompra = ref("stock");
 const destinoCompra = ref("");
 
-/* Moneda / precio / aprobador */
 const monedaSeleccionada = ref("CLP");
 const precioTotalConIVA = ref(0);
 const precioFormateado = ref("");
@@ -614,15 +931,17 @@ const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id
 
 /* ====== Carga inicial ====== */
 onMounted(async () => {
+  computeIsDesktop();
+  window.addEventListener('resize', onResize);
+
   await obtenerNombreUsuario();
   await cargarSolpedSolicitadas();
   await cargarSiguienteNumero();
 
-  /* ⬇️ Auto-preseleccionar SOLPED si venimos desde Historial (fromSolpedId) */
+  // Autoselección desde query
   const pre = route?.query?.fromSolpedId ? String(route.query.fromSolpedId) : "";
   if (pre) {
     usarSolped.value = true;
-    // Si la lista ya la trae, basta con setear el id; si no, hacemos fetch directo.
     const yaEsta = solpedDisponibles.value.some(s => s.id === pre);
     if (!yaEsta) {
       try {
@@ -637,7 +956,12 @@ onMounted(async () => {
     await onChangeSolped();
     addToast("success","SOLPED preseleccionada desde el historial.");
   }
-  // Mis OC: carga diferida (no suscribimos aquí)
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize);
+  document.documentElement.style.overflow = '';
+  if (_unsubMisOC) _unsubMisOC();
 });
 
 const obtenerNombreUsuario = async () => {
@@ -844,7 +1168,6 @@ const enviarOC = async () => {
     // Estatus inicial
     const estatusInicial = "Revisión Guillermo";
 
-    // Comentario
     const comentarioFinal = (comentario.value || "").trim();
 
     // Ítems desde SOLPED (si aplica)
@@ -938,237 +1261,7 @@ const enviarOC = async () => {
   }
 };
 
-/* ===== Panel Equipos… (sin cambios funcionales relevantes) ===== */
-const busquedaEquipo = ref("");
-const cargandoEquipos = ref(false);
-const resultadosEquipos = ref([]);
-const pageSize = 5;
-const currentPage = ref(1);
-let debounce = null;
-let lastSearchToken = 0;
-const cacheResultados = new Map(); // key = query normalizada -> array resultados
-const totalPages = computed(() => Math.max(1, Math.ceil(resultadosEquipos.value.length / pageSize)));
-const visiblePageButtons = computed(() => {
-  const maxButtons = 7;
-  const pages = [];
-  let start = Math.max(1, currentPage.value - Math.floor(maxButtons / 2));
-  let end = Math.min(totalPages.value, start + maxButtons - 1);
-  start = Math.max(1, end - maxButtons + 1);
-  for (let i = start; i <= end; i++) pages.push(i);
-  return pages;
-});
-const pagedEquipos = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return resultadosEquipos.value.slice(start, start + pageSize);
-});
-const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
-
-const camposBusqueda = [
-  "codigo",
-  "equipo",
-  "clasificacion1",
-  "tipo_equipo",
-  "marca",
-  "modelo",
-  "descripcion",
-  "patente",
-  "numero_chasis",
-  "localizacion"
-];
-// Normalización fuerte
-const norm = (s) => String(s||'')
-  .normalize('NFD')
-  .replace(/\p{Diacritic}/gu,'')
-  .toLowerCase()
-  .trim();
-
-// Levenshtein light (recorta a 64 chars para no matar la UI)
-function lev(a, b){
-  a = (a||'').slice(0,64); b = (b||'').slice(0,64);
-  const m = Array.from({length: a.length+1}, (_,i)=>[i]);
-  for(let j=0;j<=b.length;j++){ m[0][j]=j; }
-  for(let i=1;i<=a.length;i++){
-    for(let j=1;j<=b.length;j++){
-      const cost = a[i-1]===b[j-1]?0:1;
-      m[i][j] = Math.min(
-        m[i-1][j]+1,     // borrado
-        m[i][j-1]+1,     // inserción
-        m[i-1][j-1]+cost // sustitución
-      );
-    }
-  }
-  return m[a.length][b.length];
-}
-const aplicarFiltrosEquiposDebounced = () => {
-  if (debounce) clearTimeout(debounce);
-  debounce = setTimeout(() => {
-    const q = (busquedaEquipo.value || "").trim();
-    if (q.length >= 2) {
-      buscarEquipos(q);
-    } else {
-      resultadosEquipos.value = [];
-      currentPage.value = 1;
-    }
-  }, 450);
-};
-
-const variantesDe = (s) => {
-  const t = (s || "").trim();
-  const v = norm(t);
-  const start = v.charAt(0).toUpperCase() + v.slice(1);
-  return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
-};
-// Ranking: exacto > empieza-con > incluye > parecido
-function scoreEquipo(e, qNorm){
-  const vals = [
-    e.codigo, e.patente, e.descripcion, e.equipo,
-    e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
-  ].filter(Boolean).map(v => norm(v));
-
-  // Bonos por exacto
-  if (vals.includes(qNorm)) return 1000;
-
-  // Bonos por empieza-con en campos críticos
-  const crit = ['codigo','patente','modelo','numero_chasis','equipo'].map(k => norm(e[k]||''));
-  if (crit.some(v => v.startsWith(qNorm))) return 700;
-
-  // Incluye
-  if (vals.some(v => v.includes(qNorm))) return 400;
-
-  // Cercanía (levenshtein) en campos clave
-  const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
-  if (near <= 2) return 300 - (near * 50);
-
-  return 0;
-}
-const buscarEquipos = async (q) => {
-  const qNorm = norm(q);
-  currentPage.value = 1;
-
-  // ⬇️ Cache local
-  if (cacheResultados.has(qNorm)) {
-    resultadosEquipos.value = cacheResultados.get(qNorm);
-    return;
-  }
-
-  // Si podemos reutilizar resultados de un prefijo, filtra local y evita hits
-  const pref = [...cacheResultados.keys()].find(k => qNorm.startsWith(k) && k.length >= 2);
-  if (pref) {
-    const base = cacheResultados.get(pref) || [];
-    const filtradosLocal = base.filter(e => {
-      const vals = [
-        e.codigo, e.patente, e.descripcion, e.equipo,
-        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
-      ].filter(Boolean).map(v => norm(v));
-      return vals.some(v => v.includes(qNorm));
-    });
-    if (filtradosLocal.length >= 10) {
-      resultadosEquipos.value = filtradosLocal
-        .map(r => ({ r, s: scoreEquipo(r, qNorm)}))
-        .sort((a,b)=>b.s-a.s)
-        .map(x=>x.r);
-      cacheResultados.set(qNorm, resultadosEquipos.value);
-      return;
-    }
-    // si es poco, seguimos a Firestore para completar
-  }
-
-  // ⬇️ Cancelación de búsqueda anterior
-  const token = ++lastSearchToken;
-  cargandoEquipos.value = true;
-
-  try {
-    // Ejecuta en paralelo, cada campo limitado (reduce lecturas)
-    const variantes = variantesDe(q);
-    const vistos = new Set();
-    const acumulado = [];
-
-    const perCampo = async (campo) => {
-      // Para prefix search eficiente, usamos orderBy + startAt/endAt.
-      // Si tu colección no tiene índices compuestos, Firestore puede pedirlos.
-      const promesas = variantes.map(async (v) => {
-        try {
-          const qref = query(
-            collection(db, "equipos"),
-            orderBy(campo),
-            startAt(v),
-            endAt(v + "\uf8ff"),
-            limit(25) // ⬅️ más chico que antes
-          );
-          const snap = await getDocs(qref);
-          for (const d of snap.docs) {
-            const item = { id: d.id, ...d.data() };
-            if (!vistos.has(item.id)) {
-              vistos.add(item.id);
-              acumulado.push(item);
-            }
-          }
-        } catch (e) { console.error(`[equipos] error campo "${campo}":`, e);
-        }
-      });
-      await Promise.all(promesas);
-    };
-
-    // Primer pase: campos críticos (código/patente/modelo)
-    const criticos = ["codigo","patente","modelo","numero_chasis","equipo"];
-    const secundarios = camposBusqueda.filter(c => !criticos.includes(c));
-    await Promise.all(criticos.map(perCampo));
-
-    // Si aún hay poco, complementa con secundarios
-    if (acumulado.length < 60) {
-      await Promise.all(secundarios.map(perCampo));
-    }
-
-    if (token !== lastSearchToken) return; // petición vieja, se descarta
-
-    // Ranking local y corte
-    const rankeados = acumulado
-      .map(r => ({ r, s: scoreEquipo(r, qNorm) }))
-      .filter(x => x.s > 0)
-      .sort((a,b)=>b.s - a.s)
-      .map(x => x.r);
-
-    // Si nada puntúa, aplica filtro includes simple como fallback
-    const finales = rankeados.length ? rankeados : acumulado.filter(e => {
-      const vals = [
-        e.codigo, e.patente, e.descripcion, e.equipo,
-        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
-      ].filter(Boolean).map(v => norm(v));
-      return vals.some(v => v.includes(qNorm));
-    });
-
-    // Limita memoria y cachea
-    resultadosEquipos.value = finales.slice(0, 200);
-    cacheResultados.set(qNorm, resultadosEquipos.value);
-
-  } catch (e) {
-    console.error("Error en búsqueda de equipos:", e);
-    addToast("danger", "Error al buscar equipos.");
-    resultadosEquipos.value = [];
-  } finally {
-    if (token === lastSearchToken) cargandoEquipos.value = false;
-  }
-};
-
-const copiarEquipo = async (e) => {
-  const texto =
-`Código: ${e.codigo || '—'}
-Equipo: ${e.equipo || '—'}
-Marca/Modelo: ${e.marca || '—'} / ${e.modelo || '—'}
-N° Chasis: ${e.numero_chasis || '—'}
-Localización: ${e.localizacion || '—'}
-Año: ${e.ano || '—'}
-Tipo: ${e.tipo_equipo || '—'}
-Clasificación: ${e.clasificacion1 || '—'}`;
-  try {
-    await navigator?.clipboard?.writeText(texto);
-    addToast("success","Datos copiados al portapapeles.");
-  } catch {
-    addToast("warning","No se pudo copiar. Selecciona y copia manualmente.");
-  }
-};
-
-/* ====== Mis OC enviadas (diferido) ====== */
+/* ====== Mis OC enviadas ====== */
 const mostrarMisOC = ref(false);
 const cargandoMisOC = ref(false);
 const misOC = ref([]);
@@ -1199,13 +1292,13 @@ const estadoBadgeClass = (estatus) => {
   if (s.includes("aprob")) return "bg-success-subtle text-success-emphasis";
   if (s.includes("preaprob")) return "bg-info-subtle text-info-emphasis";
   if (s.includes("escala") || s.includes("rechaz")) return "bg-danger-subtle text-danger-emphasis";
-  if (s.includes("revisión")) return "bg-warning-subtle text-warning-emphasis";
+  if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
   return "bg-secondary-subtle text-secondary-emphasis";
 };
 const irADetalleOC = (oc) => { router.push(`/oc/${oc.__docId}`); };
 
 let _unsubMisOC = null;
-const rangeUltimos2Meses = () => {
+const rangeMesActual = () => {
   const now = new Date();
   const from = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0));
   const to   = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0));
@@ -1214,7 +1307,7 @@ const rangeUltimos2Meses = () => {
 const suscribirMisOC = () => {
   if (_unsubMisOC) { _unsubMisOC(); _unsubMisOC = null; }
   const nombre = usuarioActual.value; if (!nombre) return;
-  const { from, to } = rangeUltimos2Meses();
+  const { from, to } = rangeMesActual();
   const qy = query(
     collection(db, "ordenes_oc"),
     where("responsable", "==", nombre),
@@ -1304,8 +1397,6 @@ const mapearItemsSegunRegla = (itemsFuente) => {
 
   return salida;
 };
-
-onBeforeUnmount(() => { if (_unsubMisOC) _unsubMisOC(); });
 </script>
 
 <style scoped>
@@ -1315,10 +1406,45 @@ onBeforeUnmount(() => { if (_unsubMisOC) _unsubMisOC(); });
 
 .card-elevated{
   border:1px solid #e5e7eb !important;
-  box-shadow:
-    0 10px 20px rgba(0,0,0,.08),
-    0 3px  6px rgba(0,0,0,.06) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06) !important;
   border-radius: .9rem !important;
+}
+
+/* Sidebar/Panel sticky en desktop */
+.sticky-panel{ position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: hidden; }
+.sticky-panel .card-body{ overflow: auto; }
+
+/* Lista de equipos scrollable */
+.equipos-list{
+  max-height: 55vh;
+  overflow: auto;
+}
+
+/* Tabla stacked en pantallas pequeñas */
+.table-stacked-sm table{ width: 100%; }
+@media (max-width: 576px){
+  .table-stacked-sm thead{ display:none; }
+  .table-stacked-sm tbody tr{
+    display:block;
+    border:1px solid #e5e7eb;
+    border-radius: .5rem;
+    margin-bottom:.75rem;
+    padding:.5rem .5rem .25rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,.04);
+  }
+  .table-stacked-sm tbody td{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    padding:.35rem .25rem;
+    border:0 !important;
+  }
+  .table-stacked-sm tbody td::before{
+    content: attr(data-label);
+    font-weight: 600;
+    margin-right: .75rem;
+    color:#475569;
+  }
 }
 
 /* Modal 100% Vue */
@@ -1337,6 +1463,7 @@ onBeforeUnmount(() => { if (_unsubMisOC) _unsubMisOC(); });
   border-radius: .75rem;
   box-shadow: 0 20px 50px rgba(0,0,0,.25);
   overflow: hidden;
+  background: #fff;
 }
 .vmodal-header, .vmodal-footer{
   padding: .9rem 1rem;
@@ -1345,12 +1472,6 @@ onBeforeUnmount(() => { if (_unsubMisOC) _unsubMisOC(); });
 .vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 .vmodal-list{ max-height: 55vh; overflow: auto; }
-
-/* Lista de equipos scrollable */
-.equipos-list{
-  max-height: 50vh;
-  overflow: auto;
-}
 
 /* Toasts abajo-derecha */
 .toast-stack{
@@ -1376,4 +1497,36 @@ onBeforeUnmount(() => { if (_unsubMisOC) _unsubMisOC(); });
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
 .toast-danger{ background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
+
+/* ===== Offcanvas móvil (equipos) ===== */
+.oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
+.oc-enter-from, .oc-leave-to { opacity: 0; }
+.oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
+.oc-backdrop{ position: absolute; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(1px); }
+.oc-panel{
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(92vw, 420px);
+  background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.2);
+  display: flex; flex-direction: column;
+  transform: translateX(0); animation: ocSlideIn .22s ease-out;
+}
+@keyframes ocSlideIn { from { transform: translateX(100%); opacity: .6; } to { transform: translateX(0); opacity: 1; } }
+.oc-header{ padding: .9rem .9rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.oc-body{ padding: .9rem; overflow: auto; }
+.oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
+
+/* Botón flotante (móvil) */
+.floating-equipos-btn{
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 1200;
+  border-radius: 12px; width: 50px; height: 50px; display: grid; place-items: center;
+  box-shadow: 0 10px 20px rgba(0,0,0,.2);
+}
+
+/* Pequeños ajustes en xs */
+@media (max-width: 420px){
+  .card-header .small{ font-size: .8rem; }
+}
 </style>

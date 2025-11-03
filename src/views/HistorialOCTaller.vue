@@ -1,25 +1,47 @@
+<!-- src/views/HistorialOCTaller.vue -->
 <template>
   <div class="hist-oc-page">
     <div class="container py-4 py-md-5">
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <!-- Top bar -->
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
-          <i class="bi bi-arrow-left"></i> Volver
+          <i class="bi bi-arrow-left"></i>
+          <span class="d-none d-sm-inline ms-1">Volver</span>
         </button>
 
-        <h1 class="h4 fw-semibold mb-0">Historial de Cotizaciones · Taller</h1>
+        <h1 class="h5 fw-semibold mb-0 text-truncate flex-grow-1 text-center d-none d-sm-block">
+          Historial de Cotizaciones · Taller
+        </h1>
+        <h1 class="h6 fw-semibold mb-0 text-truncate d-sm-none">Historial OC</h1>
 
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-primary btn-sm" @click="toggleSidebar">
-            <i class="bi" :class="showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset'"></i>
-            <span class="d-none d-sm-inline ms-1">{{ showSidebar ? 'Ocultar filtros' : 'Mostrar filtros' }}</span>
+          <button class="btn btn-outline-primary btn-sm" @click="toggleFiltersResponsive">
+            <i
+              class="bi"
+              :class="(isDesktop
+                       ? (showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset')
+                       : (showFiltersMobile ? 'bi-x-lg' : 'bi-funnel'))"
+            ></i>
+            <span class="d-none d-sm-inline ms-1">
+              {{ isDesktop ? (showSidebar ? 'Ocultar filtros' : 'Mostrar filtros')
+                           : (showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros') }}
+            </span>
           </button>
         </div>
       </div>
 
       <!-- Error global -->
-      <div v-if="error" class="alert alert-danger d-flex align-items-center mb-3">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        <div>{{ error }}</div>
+      <div
+        v-if="error"
+        class="alert-pro alert-dismissible fade show d-flex align-items-start gap-2 mb-3"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-octagon-fill fs-5 flex-shrink-0"></i>
+        <div class="flex-grow-1">
+          <strong>Ups, algo salió mal.</strong>
+          <div class="small opacity-85">{{ error }}</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Close"></button>
       </div>
 
       <!-- Buscador exacto por N° OC -->
@@ -40,12 +62,12 @@
               </button>
             </div>
           </div>
-          <div v-if="ocEncontrada" class="alert d-flex align-items-center mt-3">
+
+          <div v-if="ocEncontrada" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
             <div class="me-auto">
               <div class="fw-semibold">Resultado: N° {{ ocEncontrada.id ?? '—' }}</div>
-              <div class="small ">
-                {{ ocEncontrada.empresa }} · {{ ocEncontrada.centroCostoTexto || '—' }}
-                · {{ fmtFecha(ocEncontrada.fechaSubida) }}
+              <div class="small text-secondary">
+                {{ ocEncontrada.empresa }} · {{ ocEncontrada.centroCostoTexto || '—' }} · {{ fmtFecha(ocEncontrada.fechaSubida) }}
               </div>
             </div>
             <button class="btn btn-sm btn-outline-primary" @click="goOC(ocEncontrada)">Ver detalle</button>
@@ -67,7 +89,6 @@
           <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(s)"></button>
         </span>
 
-        <!-- Chips de centros -->
         <span v-for="code in selectedCentros" :key="'cc-'+code" class="badge bg-light text-dark border">
           {{ centrosCosto[code] || code }}
           <button class="btn-close btn-close-white ms-2 small" @click="removeCentro(code)"></button>
@@ -86,10 +107,10 @@
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
       </div>
 
-      <!-- Segmento por empresa (solo “todas” en esta vista) -->
+      <!-- Segmento (placeholder para futuras empresas) -->
       <div class="mb-3">
-        <div class="btn-group">
-          <button class="btn" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
+        <div class="btn-group flex-wrap">
+          <button class="btn btn-sm" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
         </div>
       </div>
 
@@ -135,7 +156,7 @@
                 :class="{'oc-clickable': isClickableToDetail(oc)}"
                 @click="onCardClick(oc)"
               >
-                <!-- ⬇️ CABECERA con color por estado SOLO si es editor -->
+                <!-- Header con colores por estado (solo editores) -->
                 <div
                   class="card-header d-flex justify-content-between align-items-center"
                   :class="isEditor ? estadoHeaderClass(oc.estatus) : ''"
@@ -147,7 +168,7 @@
                     <span class="badge badge-status" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus || '—' }}</span>
                   </div>
 
-                  <div class="small ">
+                  <div class="small text-secondary">
                     Subida: <strong>{{ fmtFecha(oc.fechaSubida) }}</strong>
                     <span v-if="oc.fechaAprobacion"> · Aprobada: <strong>{{ fmtFecha(oc.fechaAprobacion) }}</strong></span>
                   </div>
@@ -156,32 +177,30 @@
                 <div class="card-body">
                   <div class="row g-3">
                     <div class="col-12 col-md-6">
-                      <div class="small">Centro de Costo</div>
-                      <div class="fw-semibold">
-                        {{ oc.centroCostoTexto || '—' }}
-                      </div>
+                      <div class="small text-secondary">Centro de Costo</div>
+                      <div class="fw-semibold">{{ oc.centroCostoTexto || '—' }}</div>
                     </div>
                     <div class="col-12 col-md-6">
-                      <div class="small">Responsable</div>
+                      <div class="small text-secondary">Responsable</div>
                       <div class="fw-semibold">{{ oc.responsable || '—' }}</div>
                     </div>
 
                     <div class="col-12 col-md-4">
-                      <div class="small">Moneda</div>
+                      <div class="small text-secondary">Moneda</div>
                       <div class="fw-semibold">{{ oc.moneda || '—' }}</div>
                     </div>
                     <div class="col-12 col-md-4">
-                      <div class="small ">Total con IVA</div>
+                      <div class="small text-secondary">Total con IVA</div>
                       <div class="fw-semibold">{{ fmtMoneda(oc.precioTotalConIVA, oc.moneda) }}</div>
                     </div>
                     <div class="col-12 col-md-4">
-                      <div class="small ">Aprobador sugerido</div>
+                      <div class="small text-secondary">Aprobador sugerido</div>
                       <div class="fw-semibold">{{ oc.aprobadorSugerido || '—' }}</div>
                     </div>
 
                     <div class="col-12">
-                      <div class="small ">Comentario</div>
-                      <div class="border rounded p-2 ">{{ oc.comentario || '—' }}</div>
+                      <div class="small text-secondary">Comentario</div>
+                      <div class="border rounded p-2">{{ oc.comentario || '—' }}</div>
                     </div>
                   </div>
 
@@ -189,7 +208,7 @@
                   <div class="mt-3 d-flex align-items-center gap-2"
                        v-if="oc.solpedId || oc.numero_solped != null">
                     <i class="bi bi-link-45deg"></i>
-                    <span class="small">Vinculado a SOLPED</span>
+                    <span class="small text-secondary">Vinculado a SOLPED</span>
 
                     <span class="badge bg-secondary-subtle text-secondary-emphasis">
                       N° {{ oc.numero_solped ?? '—' }}
@@ -203,8 +222,8 @@
                   </div>
                 </div>
 
-                <div class="card-footer  d-flex align-items-center justify-content-between">
-                  <div class="small">
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                  <div class="small text-secondary">
                     Empresa: <strong>{{ oc.empresa }}</strong> · Ítems: <strong>{{ (oc.items?.length||0) }}</strong>
                   </div>
                   <div class="d-flex align-items-center gap-2">
@@ -230,7 +249,7 @@
         <!-- Sidebar filtros (sticky en desktop) -->
         <aside v-if="showSidebar" class="col-12 col-lg-3 d-none d-lg-block">
           <div class="card card-elevated sticky-sidebar">
-            <div class="card-header  d-flex align-items-center justify-content-between">
+            <div class="card-header d-flex align-items-center justify-content-between">
               <h2 class="h6 mb-0 fw-semibold">Filtros</h2>
               <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-success" @click="applyFilters">Aplicar</button>
@@ -274,11 +293,78 @@
       </div>
     </div>
 
+    <!-- Offcanvas filtros (móvil / tablet) -->
+    <transition name="oc">
+      <div v-if="showFiltersMobile" class="oc-wrap d-lg-none">
+        <!-- backdrop -->
+        <div class="oc-backdrop" @click="closeFiltersMobile"></div>
+
+        <!-- panel -->
+        <div
+          class="oc-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filtros historial OC Taller"
+          @keydown.esc="closeFiltersMobile"
+        >
+          <div class="oc-header">
+            <h2 class="h6 mb-0 fw-semibold">Filtros</h2>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-sm btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
+              <button class="btn btn-sm btn-outline-dark" @click="closeFiltersMobile" aria-label="Cerrar filtros">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="oc-body">
+            <div class="mb-3">
+              <label class="form-label">Fecha (subida)</label>
+              <input type="date" class="form-control" v-model="filtroFecha">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Estado</label>
+              <select class="form-select" multiple v-model="filtroEstatus">
+                <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
+              </select>
+              <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Centro (texto contiene)</label>
+              <input class="form-control" v-model="centroSearch" placeholder="Ej: THPV / CAREN">
+              <small class="text-secondary">Se aplica en la página.</small>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="m_chkMine" v-model="soloMias">
+              <label class="form-check-label" for="m_chkMine">Ver sólo mis cotizaciones</label>
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label">Tamaño de página</label>
+              <select class="form-select" v-model.number="pageSize">
+                <option v-for="n in [5,10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="oc-footer">
+            <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+            <button class="btn btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- Botón flotante filtros (móvil) -->
     <button
       class="btn btn-primary floating-filters-btn d-lg-none"
-      @click="toggleSidebar"
-      :title="showSidebar ? 'Ocultar filtros' : 'Mostrar filtros'"
+      @click="toggleFiltersResponsive"
+      :title="showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros'"
+      aria-label="Abrir filtros"
     >
       <i class="bi bi-funnel"></i>
     </button>
@@ -308,28 +394,51 @@ const loading = ref(true);
 const loadingSearch = ref(false);
 const error = ref('');
 
-/* ===== Sidebar persistente ===== */
+/* ========= Responsive / Offcanvas ========= */
+const isDesktop = ref(false);
+const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
+
 const showSidebar = ref(true);
-const toggleSidebar = () => {
+const showFiltersMobile = ref(false);
+
+const openFiltersMobile = () => {
+  showFiltersMobile.value = true;
+  document.documentElement.style.overflow = 'hidden';
+};
+const closeFiltersMobile = () => {
+  showFiltersMobile.value = false;
+  document.documentElement.style.overflow = '';
+};
+const toggleSidebarOnly = () => {
   showSidebar.value = !showSidebar.value;
   try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? '1' : '0'); } catch(e){console.error('persist sidebar error', e);}
 };
+const toggleFiltersResponsive = () => {
+  computeIsDesktop();
+  if (isDesktop.value) toggleSidebarOnly();
+  else (showFiltersMobile.value ? closeFiltersMobile() : openFiltersMobile());
+};
+const handleResize = () => {
+  const wasMobileOpen = showFiltersMobile.value;
+  computeIsDesktop();
+  if (isDesktop.value && wasMobileOpen) closeFiltersMobile();
+};
 
-// Datos de la página actual (en vivo)
+/* ========= Datos de la página ========= */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-// Buscador exacto
+/* ========= Buscador exacto ========= */
 const numeroOC = ref(null);
 const ocEncontrada = ref(null);
 
-// Filtros base
+/* ========= Filtros base ========= */
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
 const empresaSegmento = ref('todas');
 
-// Centros (referenciales que muestras como chips arriba)
+/* ========= Centros (chips de ejemplo) ========= */
 const centrosCosto = {
   "THPV-31": "Taller HP Vulcanización 31",
   "CASAMATRIZ": "Casa Matriz",
@@ -337,14 +446,12 @@ const centrosCosto = {
   "CANECHE": "Contrato Taller Caneche",
   "CHUQUICAMATA": "Contrato Chuquicamata"
 };
-const selectedCentros = ref([]);           // si los manejas por otra UI, quedan guardados igual
-const centroPickerSearch = ref('');        // reservado si luego agregas selector de centros
-const centroSearch = ref('');              // client-side contains
+const selectedCentros = ref([]);
+const centroPickerSearch = ref('');
+const centroSearch = ref('');
 
-/* ========= Identidad del usuario ========= */
-const myName = computed(() =>
-  (auth?.profile?.fullName || auth?.user?.displayName || '').trim()
-);
+/* ========= Identidad ========= */
+const myName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || '').trim());
 
 /* ========= Paginación y conteo ========= */
 const page = ref(1);
@@ -354,7 +461,6 @@ const pageFrom = computed(() => totalCount.value ? (page.value - 1) * pageSize.v
 const pageTo   = computed(() => Math.min(totalCount.value, page.value * pageSize.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
 
-// Cursores y scroll
 const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
@@ -433,10 +539,8 @@ function persistFilters(){
   };
   try { localStorage.setItem(LS_FILTERS, JSON.stringify(payload)); } catch(e){console.error('persist filters error', e);}
 }
-
 function loadPersistedFilters(){
   try {
-    // Sidebar
     const sb = localStorage.getItem(LS_SHOW_SIDEBAR);
     if (sb === '0') showSidebar.value = false;
     if (sb === '1') showSidebar.value = true;
@@ -452,15 +556,12 @@ function loadPersistedFilters(){
       soloMias.value         = !!f.soloMias;
       if ([5,10,20,30,40,50].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
     } else {
-      // compat anterior: sólo "Mis cotizaciones"
       const legacy = localStorage.getItem(LS_SOLO_MIAS_KEY);
       if (legacy === '1') soloMias.value = true;
       if (legacy === '0') soloMias.value = false;
     }
   } catch(e){console.error('load persisted filters error', e);}
 }
-
-/** Sincroniza entre pestañas */
 function onStorageSync(e){
   if (e.key === LS_FILTERS && e.newValue){
     loadPersistedFilters();
@@ -503,11 +604,9 @@ const buildBaseWhere = () => {
   } else if (selectedCentros.value.length >= 2 && selectedCentros.value.length <= 10) {
     wh.push(where('centroCostoTexto', 'in', selectedCentros.value));
   }
-  // >10 -> filtro en cliente
 
   return wh;
 };
-
 const makePageQuery = (pageNumber=1) => {
   const wh = buildBaseWhere();
   const base = query(
@@ -522,7 +621,7 @@ const makePageQuery = (pageNumber=1) => {
   return base;
 };
 
-/* ========= Suscripción y scroll persistente ========= */
+/* ========= Suscripción / Conteo ========= */
 const subscribePage = () => {
   if (typeof unsubscribe === 'function') { unsubscribe(); unsubscribe = null; }
 
@@ -532,7 +631,6 @@ const subscribePage = () => {
   unsubscribe = onSnapshot(q, async (snap) => {
     let docs = snap.docs.map(d => ({ __docId: d.id, ...d.data() }));
 
-    // Si centros seleccionados >10, aplica filtro por texto en cliente
     if (clientCentrosOverflow.value) {
       const set = new Set(selectedCentros.value.map(x => (x||'').toLowerCase()));
       docs = docs.filter(oc => set.has(String(oc.centroCostoTexto||'').toLowerCase()));
@@ -553,8 +651,6 @@ const subscribePage = () => {
     loading.value = false;
   });
 };
-
-/* ========= Conteo exacto ========= */
 const refreshCount = async () => {
   try {
     const wh = buildBaseWhere();
@@ -571,13 +667,11 @@ const refreshCount = async () => {
 function applyClientFilters(arr) {
   let out = Array.isArray(arr) ? arr : [];
 
-  // Fallback “Mis cotizaciones” por si en server no calzó (tildes/caso)
   if (soloMias.value) {
     const me = (myName.value || '').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
     out = out.filter(oc => (String(oc.responsable||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim()) === me);
   }
 
-  // Texto contiene en centroCostoTexto
   if (centroNombreFiltroActivo.value) {
     const q = centroSearch.value.trim().toLowerCase();
     out = out.filter(oc => String(oc.centroCostoTexto||'').toLowerCase().includes(q));
@@ -605,7 +699,7 @@ const listaEstatus = [
 ];
 
 const applyFilters = () => {
-  persistFilters();            // guarda cada vez que aplicas
+  persistFilters();
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
@@ -662,17 +756,20 @@ const buscarOCExacta = async () => {
 
 /* ========= Init / watchers ========= */
 onMounted(async () => {
-  // Cargar filtros + sidebar persistidos
-  loadPersistedFilters();
+  computeIsDesktop();
+  window.addEventListener('resize', handleResize);
 
-  // Suscripción + conteo
+  loadPersistedFilters();
   subscribePage();
   await refreshCount();
 
-  // Sincroniza entre pestañas
   window.addEventListener('storage', onStorageSync);
 });
-onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
+onBeforeUnmount(() => {
+  if (typeof unsubscribe === 'function') unsubscribe();
+  window.removeEventListener('resize', handleResize);
+  document.documentElement.style.overflow = '';
+});
 onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 
 watch(
@@ -686,10 +783,32 @@ watch(
 .hist-oc-page{
   min-height:100vh;
 }
+
+/* ===== Alertas “pro” ===== */
+.alert-pro{
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 8px 24px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.05);
+  position: relative;
+  overflow: hidden;
+  animation: fadeSlideIn .25s ease-out;
+}
+.alert-pro i{ font-size: 1.05rem; line-height: 1; }
+.alert-pro::before{
+  content:"";
+  position:absolute; inset:0 0 0 auto; width:6px;
+  background: linear-gradient(180deg,#ef4444,#dc2626);
+}
+@keyframes fadeSlideIn{ from{opacity:0; transform: translateY(-4px);} to{opacity:1; transform: translateY(0);} }
+
+/* ===== Cards elevadas ===== */
 .card-elevated{
   border:1px solid #e5e7eb !important;
   box-shadow: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06) !important;
   border-radius:.9rem !important;
+  background:#fff;
 }
 
 /* Paginación superior pegajosa */
@@ -697,15 +816,11 @@ watch(
   position: sticky;
   top: 8px;
   z-index: 5;
-  background: transparent;
   backdrop-filter: blur(3px);
 }
 
-/* Sidebar filtros pegajoso en desktop */
-.sticky-sidebar{
-  position: sticky;
-  top: 12px;
-}
+/* Sidebar filtros pegajoso (desktop) */
+.sticky-sidebar{ position: sticky; top: 12px; }
 
 /* Botón flotante filtros en móvil */
 .floating-filters-btn{
@@ -713,7 +828,7 @@ watch(
   right: 16px;
   bottom: 16px;
   z-index: 20;
-  border-radius: 9999px;
+  border-radius: 10px;
   width: 48px; height: 48px;
   display: grid; place-items: center;
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
@@ -735,7 +850,7 @@ watch(
 .ghost-wrap{ text-align:center; padding:2rem 0; color:#64748b; }
 .ghost{
   width:120px; height:140px; margin:0 auto; background:#fff; border-radius:60px 60px 20px 20px;
-  position:relative; box-shadow:0 10px 20px rgba(0,0,0,.08);
+  position:relative; box-shadow: 0 10px 20px rgba(0,0,0,.08);
   animation: floaty 3s ease-in-out infinite;
 }
 .ghost:before{
@@ -782,5 +897,27 @@ watch(
 }
 .hdr-otro{
   background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important;
+}
+
+/* ===== Offcanvas móvil ===== */
+.oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
+.oc-enter-from, .oc-leave-to { opacity: 0; }
+.oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
+.oc-backdrop{ position: absolute; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(1px); }
+.oc-panel{
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(92vw, 420px);
+  background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.2);
+  display: flex; flex-direction: column;
+  transform: translateX(0); animation: ocSlideIn .22s ease-out;
+}
+@keyframes ocSlideIn { from { transform: translateX(100%); opacity: .6; } to { transform: translateX(0); opacity: 1; } }
+.oc-header{ padding: .9rem .9rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.oc-body{ padding: .9rem; overflow: auto; }
+.oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
+
+/* Compactación tipográfica en xs */
+@media (max-width: 420px){
+  .card-header .small{ font-size: .8rem; }
 }
 </style>

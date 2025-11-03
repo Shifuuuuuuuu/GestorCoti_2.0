@@ -3,13 +3,16 @@
     <div class="container py-4 py-md-5">
 
       <!-- Header -->
-      <header class="d-flex align-items-center justify-content-between mb-4">
-        <div>
+      <header class="page-head mb-4">
+        <div class="page-head__left">
           <h1 class="h4 fw-semibold mb-1">Creación de SOLPED</h1>
           <p class="text-secondary mb-0">Complete los datos y envíe la solicitud.</p>
+          <small class="text-secondary d-inline d-sm-none mt-2">
+            Usuario: <strong>{{ usuarioNombre || '-' }}</strong>
+          </small>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="page-head__right">
           <router-link
             class="btn btn-outline-primary btn-sm"
             :to="{ name: 'historial-solped' }"
@@ -18,7 +21,7 @@
             <i class="bi bi-clock-history me-1"></i>
             Historial
           </router-link>
-          <small class="text-secondary d-none d-sm-block">
+          <small class="text-secondary d-none d-sm-inline">
             Usuario: <strong>{{ usuarioNombre || '-' }}</strong>
           </small>
         </div>
@@ -34,11 +37,11 @@
 
       <!-- Card: Datos generales -->
       <section class="card card-elevated mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <h2 class="h6 mb-0 fw-semibold">Datos generales</h2>
 
           <!-- Guardado local -->
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end w-auto">
             <div class="form-check form-switch">
               <input
                 id="swLocalSave"
@@ -137,11 +140,10 @@
               </div>
             </div>
 
-            <!-- Centro de costo limitado por asignación -->
+            <!-- Centro de costo -->
             <div class="col-12 col-md-6">
               <label class="form-label">Centro de costo</label>
 
-              <!-- Aviso si no hay contratos asignados -->
               <div v-if="!Object.keys(centrosDisponibles).length" class="alert alert-warning py-2 small">
                 No tienes contratos asignados. Solicita a un administrador que te asigne uno o más.
               </div>
@@ -170,8 +172,8 @@
               </div>
 
               <div v-if="requiereAutorizacion" class="dropzone" @click="$refs.inputAuth.click()">
-                <i class="bi bi-cloud-arrow-up me-2"></i>
-                <div>
+                <i class="bi bi-cloud-arrow-up me-2 fs-5"></i>
+                <div class="dz-text">
                   <strong>Subir Archivo</strong>
                   <div class="small text-secondary">PDF, JPG/PNG, XLS/XLSX, CSV</div>
                 </div>
@@ -199,12 +201,12 @@
       <!-- Card: Ítems -->
       <section class="card card-elevated">
         <div class="card-header">
-          <div class="d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
               <h2 class="h6 mb-0 fw-semibold">Tabla de ítems</h2>
               <small class="text-secondary">Descripción, cantidades y datos referenciales.</small>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 w-auto">
               <button class="btn btn-outline-secondary btn-sm" @click="agregarFila" title="Agregar fila">
                 <i class="bi bi-plus-lg"></i>
               </button>
@@ -220,7 +222,7 @@
 
         <div class="card-body p-0">
           <div class="table-responsive">
-            <table class="table align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 responsive-stack">
               <thead>
                 <tr>
                   <th style="width:56px;">#</th>
@@ -235,8 +237,9 @@
               </thead>
               <tbody>
                 <tr v-for="(item, i) in form.items" :key="item.id">
-                  <td class="text-secondary">{{ i + 1 }}</td>
-                  <td class="position-relative">
+                  <td class="text-secondary" :data-label="'#'">{{ i + 1 }}</td>
+
+                  <td class="position-relative" :data-label="'Descripción'">
                     <input
                       class="form-control form-control-sm"
                       v-model="item.descripcion"
@@ -258,14 +261,22 @@
                       </li>
                     </ul>
                   </td>
-                  <td>
+
+                  <td :data-label="'Código'">
                     <input class="form-control form-control-sm" v-model="item.codigo_referencial"
                            @input="item.codigo_referencial = (item.codigo_referencial||'').toUpperCase()"
                            placeholder="Opcional" />
                   </td>
-                  <td><input type="number" min="0" class="form-control form-control-sm" v-model.number="item.cantidad" placeholder="0" /></td>
-                  <td><input type="number" min="0" class="form-control form-control-sm" v-model.number="item.stock" placeholder="0" /></td>
-                  <td>
+
+                  <td :data-label="'Cantidad'">
+                    <input type="number" min="0" class="form-control form-control-sm" v-model.number="item.cantidad" placeholder="0" />
+                  </td>
+
+                  <td :data-label="'Stock'">
+                    <input type="number" min="0" class="form-control form-control-sm" v-model.number="item.stock" placeholder="0" />
+                  </td>
+
+                  <td :data-label="'N° Interno / Patente'">
                     <input
                       class="form-control form-control-sm"
                       v-model="item.numero_interno"
@@ -274,16 +285,19 @@
                       placeholder="ABC-123"
                     />
                   </td>
-                  <td>
+
+                  <td :data-label="'Imagen'">
                     <input :ref="el => inputImagenRefs[i] = el" type="file" class="d-none" accept="image/*" @change="(e) => subirImagenItem(e, i)" />
-                    <div v-if="item.imagen_url" class="d-flex align-items-center gap-2">
+                    <div v-if="item.imagen_url" class="d-flex align-items-center gap-2 flex-wrap">
                       <img :src="item.imagen_url" alt="img" class="thumb" />
-                      <button class="btn btn-sm btn-outline-secondary" @click="() => inputImagenRefs[i]?.click()" title="Cambiar imagen">
-                        <i class="bi bi-image"></i>
-                      </button>
-                      <button class="btn btn-sm btn-outline-danger" @click="eliminarImagenItem(i)" title="Eliminar imagen">
-                        <i class="bi bi-trash"></i>
-                      </button>
+                      <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" @click="() => inputImagenRefs[i]?.click()" title="Cambiar imagen">
+                          <i class="bi bi-image"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" @click="eliminarImagenItem(i)" title="Eliminar imagen">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
                     </div>
                     <div v-else>
                       <button class="btn btn-sm btn-outline-secondary" @click="() => inputImagenRefs[i]?.click()" title="Subir imagen">
@@ -291,8 +305,9 @@
                       </button>
                     </div>
                   </td>
-                  <td>
-                    <div class="btn-group btn-group-sm">
+
+                  <td :data-label="'Acciones'">
+                    <div class="btn-group btn-group-sm w-100 w-sm-auto">
                       <button class="btn btn-outline-primary" @click="guardarFila(i)" title="Guardar fila">
                         <i class="bi bi-save"></i>
                       </button>
@@ -302,6 +317,7 @@
                     </div>
                   </td>
                 </tr>
+
                 <tr v-if="!form.items.length">
                   <td colspan="8" class="text-center text-secondary py-4">No hay ítems. Usa “+”.</td>
                 </tr>
@@ -349,10 +365,8 @@ export default {
     const usuarioNombre = computed(() => userFullName.value || "");
     const uid = computed(() => auth?.user?.uid || "");
 
-    // contratos asignados (códigos) para el usuario
     const centrosAsignados = ref([]); // string[]
 
-    // catálogo completo de centros (código => nombre completo)
     const centrosCosto = {
       '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
       'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
@@ -391,7 +405,6 @@ export default {
       '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM'
     };
 
-    // opciones visibles en el <select>: solo asignados
     const centrosDisponibles = computed(() => {
       const out = {};
       const asg = Array.isArray(centrosAsignados.value) ? centrosAsignados.value : [];
@@ -409,7 +422,6 @@ export default {
         const data = snap.exists() ? snap.data() : null;
         userFullName.value = (data?.fullName || data?.fullname || "").toString().trim();
 
-        // contratos asignados (normalizados a string)
         const arr = Array.isArray(data?.centrosAsignados) ? data.centrosAsignados : [];
         centrosAsignados.value = arr.map(x => String(x));
       } catch (e) {
@@ -456,7 +468,6 @@ export default {
     const enviandoSolpe = ref(false);
     const loadingNumero = ref(false);
 
-    // Sugerencias por fila
     const suggests = reactive({});
     const timers = reactive({});
     const focusRow = ref(-1);
@@ -483,7 +494,7 @@ export default {
       return [];
     });
 
-    /* ===== Centro de costo (sincroniza nombre completo al seleccionar) ===== */
+    /* ===== Centro de costo ===== */
     const onCentroCosto = () => {
       const code = form.numero_contrato || "";
       form.nombre_centro_costo = centrosCosto[code] || "";
@@ -515,7 +526,7 @@ export default {
       }
     };
 
-    /* ======= DRAFT desde Historial (sessionStorage) ======= */
+    /* ======= DRAFT desde Historial ======= */
     const applyDraft = async (draft) => {
       try {
         form.empresa = draft.empresa || "";
@@ -536,8 +547,6 @@ export default {
         if (!form.items.length) agregarFila();
         setNow();
         if (form.empresa) await actualizarNumeroSolpePorEmpresa();
-
-        // garantizar que el contrato del draft esté permitido
         asegurarContratoPermitido();
       } catch (e) {
         console.error("No se pudo aplicar el borrador:", e);
@@ -545,15 +554,13 @@ export default {
       }
     };
 
-    /* ======= Guardado local (opcional) ======= */
+    /* ======= Guardado local ======= */
     const LOCAL_PREF_KEY = "solped_local_enabled";
     const localSaveEnabled = ref(false);
 
-    // Claves: una por empresa y otra "último borrador" por usuario
     const perCompanyKey = computed(() => `solped_local_${uid.value || "anon"}_${form.empresa || "gen"}`);
     const lastKey       = computed(() => `solped_local_last_${uid.value || "anon"}`);
 
-    // Bandera para pausar el autosave (reset / post-envío)
     const suppressLocalSave = ref(false);
     const runWithoutAutosave = async (fn) => {
       const prev = suppressLocalSave.value;
@@ -584,7 +591,7 @@ export default {
     const applySerialized = (raw) => {
       try {
         const data = JSON.parse(raw || "{}");
-        if (data.empresa) form.empresa = data.empresa; // primero empresa
+        if (data.empresa) form.empresa = data.empresa;
         form.numero_contrato      = data.numero_contrato      || "";
         form.nombre_centro_costo  = data.nombre_centro_costo  || "";
         form.tipo_solped          = data.tipo_solped          || "";
@@ -603,15 +610,12 @@ export default {
           : [];
         if (!form.items.length) agregarFila();
         setNow();
-
-        // si el borrador tenía un contrato no permitido, límpialo
         asegurarContratoPermitido();
       } catch (e) {
         console.error("No se pudo parsear borrador local:", e);
       }
     };
 
-    // ¿el formulario tiene contenido real para guardar?
     const formHasContent = () => {
       const hasHeader =
         (form.empresa && form.empresa.trim() !== "") ||
@@ -681,7 +685,6 @@ export default {
       } catch { /* noop */ }
     };
 
-    // auto-guardar cuando cambie el formulario
     watch(form, () => scheduleLocalSave(), { deep: true });
     watch(uid,  () => scheduleLocalSave());
     watch(() => form.empresa, () => scheduleLocalSave());
@@ -791,7 +794,7 @@ export default {
       if (isLast && filaCompleta) agregarFila();
     };
 
-    /* ======= Anticolisión de número: contador transaccional ======= */
+    /* ======= Anticolisión ======= */
     const seedCounterIfNeeded = async (empresa) => {
       const ctrRef = doc(db, "solpe_counters", empresa);
       const snap = await getDoc(ctrRef);
@@ -820,7 +823,6 @@ export default {
     };
 
     /* ===== Validaciones ===== */
-    // asegura que el contrato actual esté en la lista permitida
     const asegurarContratoPermitido = () => {
       const code = String(form.numero_contrato || "");
       const set = new Set(centrosAsignados.value || []);
@@ -857,7 +859,6 @@ export default {
       try {
         enviandoSolpe.value = true; setNow();
 
-        // número único transaccional
         const numeroAsignado = await getNextNumeroTransaccional(form.empresa);
 
         let numeroFinal = numeroAsignado;
@@ -884,8 +885,8 @@ export default {
           nombre_solped: (form.nombre_solped || "").toUpperCase(),
           tipo_solped: form.tipo_solped,
           dirigidoA: form.dirigidoA,
-          numero_contrato: form.numero_contrato,              // código
-          nombre_centro_costo: form.nombre_centro_costo || "",// nombre completo
+          numero_contrato: form.numero_contrato,
+          nombre_centro_costo: form.nombre_centro_costo || "",
           usuario: usuarioNombre.value || "",
           estatus: form.estatus || "Pendiente",
           autorizacion_url: form.autorizacion_url || null,
@@ -905,7 +906,7 @@ export default {
 
         await addDoc(collection(db, "solpes"), payload);
 
-        // Catalogo de items (para sugerencias)
+        // Catalogo de items
         for (const it of form.items) {
           const original = (it.descripcion || "").trim();
           const norm = normalize(original);
@@ -936,7 +937,6 @@ export default {
         okMsg.value = `SOLPED #${numeroFinal} guardada con éxito.`;
         addToast("success", "SOLPED enviada correctamente.");
 
-        // ===== LIMPIEZA & RESET SIN AUTOGUARDADO =====
         await clearLocalNow();
 
         await runWithoutAutosave(async () => {
@@ -969,11 +969,8 @@ export default {
       requiereAutorizacion.value = false;
       suggests.value = {};
       focusRow.value = -1;
-      if (keepEmpresa) {
-        form.empresa = empresaHold;
-      } else {
-        form.empresa = "";
-      }
+      if (keepEmpresa) form.empresa = empresaHold;
+      else form.empresa = "";
       if (!form.items.length) agregarFila();
     };
 
@@ -981,10 +978,8 @@ export default {
       setNow();
       try { localSaveEnabled.value = localStorage.getItem(LOCAL_PREF_KEY) === "1"; } catch(e) {console.error(e)}
 
-      // primero obtener usuario + contratos asignados
       await loadUserFullName();
 
-      // 1) ¿viene un borrador desde Historial?
       try {
         const raw = sessionStorage.getItem("solped_draft");
         if (raw) {
@@ -996,7 +991,6 @@ export default {
         }
       } catch (e) { console.warn("Borrador inválido:", e); }
 
-      // 2) intenta recuperar borrador local si existe (por empresa o último del usuario)
       try {
         const rawLocal = localStorage.getItem(perCompanyKey.value) || localStorage.getItem(lastKey.value);
         if (rawLocal) {
@@ -1008,27 +1002,18 @@ export default {
         }
       } catch {/* noop */}
 
-      // 3) preview número si ya hay empresa
       if (form.empresa) await actualizarNumeroSolpePorEmpresa();
-
-      // 4) al menos una fila
       if (!form.items.length) agregarFila();
-
-      // 5) si alguien tenía seleccionado un contrato no permitido, límpialo
       asegurarContratoPermitido();
     });
 
     return {
-      // state
       form, requiereAutorizacion, inputImagenRefs,
       error, okMsg, enviandoSolpe, loadingNumero,
       usuarioNombre, cotizadoresFiltrados, centrosCosto, centrosDisponibles,
       suggests, focusRow,
-      // local save
       localSaveEnabled, saveLocalNow, loadLocalNow, clearLocalNow, persistLocalSavePref,
-      // toasts
       toasts, addToast, closeToast,
-      // methods
       onEmpresaChange, onCentroCosto,
       agregarFila, eliminarFila, guardarFila,
       onNumeroInternoBlur, onDescInput, aplicarSugerencia, onDescBlur,
@@ -1042,9 +1027,17 @@ export default {
 </script>
 
 <style scoped>
-.solped-page{
-  min-height:100vh;
+/* ----- Layout general ----- */
+.solped-page{ min-height:100vh; }
+
+/* Header responsivo */
+.page-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
 }
+.page-head__left{ min-width:0; }
+.page-head__right{ display:flex; align-items:center; gap:10px; }
+
+/* ----- Card estilo ----- */
 .card-elevated{
   border:1px solid #e5e7eb !important;
   box-shadow:
@@ -1052,12 +1045,17 @@ export default {
     0 3px  6px rgba(0,0,0,.06) !important;
   border-radius: .9rem !important;
 }
+
+/* Dropzone */
 .dropzone{
   cursor:pointer; display:flex; align-items:center; gap:.75rem;
   border:1px dashed #cbd5e1; border-radius:.6rem;
   padding:1rem 1.1rem; color:#475569; background:#fff;
 }
 .dropzone:hover{ background:#f1f5f9; }
+.dz-text{ line-height:1.1; }
+
+/* Tabla / inputs */
 .table td, .table th{ vertical-align:middle; }
 .thumb{ width:40px; height:40px; object-fit:cover; border-radius:4px; }
 
@@ -1071,38 +1069,95 @@ export default {
 
 /* TOASTS */
 .toast-stack{
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 1080;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  position: fixed; right: 16px; bottom: 16px; z-index: 1080;
+  display: flex; flex-direction: column; gap: 10px;
 }
 .toast-box{
-  display: flex;
-  align-items: center;
-  padding: .6rem .8rem;
-  border-radius: .5rem;
-  color: #fff;
-  min-width: 260px;
-  max-width: 360px;
+  display: flex; align-items: center; padding: .6rem .8rem;
+  border-radius: .5rem; color: #fff; min-width: 260px; max-width: 360px;
   box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-danger{ background: linear-gradient(135deg,#ef4444,#dc2626); }
-.btn-close-white{
-  filter: invert(1) grayscale(100%) brightness(200%);
-}
+.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
+.btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* deja que el popover pueda sobresalir del contenedor */
+/* Permitir que el popover sobresalga del contenedor */
 :deep(.card .table-responsive){ overflow: visible !important; }
 :deep(table), :deep(tbody), :deep(tr), :deep(td){ overflow: visible !important; }
 
-@media (max-width: 576px){
-  :deep(.card .table-responsive){
-    overflow-x: auto !important;
-    overflow-y: visible !important;
+/* =====================  RESPONSIVE  ===================== */
+/* 1) Ajustes XS/SM: la tabla se convierte en “cards” por fila */
+@media (max-width: 768px){
+  .page-head{ align-items:flex-start; }
+
+  /* hace scroll horizontal solo si es necesario en otras tablas,
+     pero en esta la convertimos en bloques */
+  .responsive-stack thead{
+    display:none;
   }
+  .responsive-stack,
+  .responsive-stack tbody,
+  .responsive-stack tr,
+  .responsive-stack td{
+    display:block; width:100%;
+  }
+
+  .responsive-stack tr{
+    background: var(--card-bg, #ffffff);
+    border:1px solid var(--card-border, #e5e7eb);
+    border-radius:12px;
+    padding:10px 10px 6px;
+    margin:10px 0;
+    box-shadow: 0 6px 16px rgba(0,0,0,.06);
+  }
+
+  .responsive-stack td{
+    border:none !important;
+    padding:8px 6px !important;
+  }
+
+  /* Etiqueta del campo */
+  .responsive-stack td[data-label]::before{
+    content: attr(data-label);
+    display:block;
+    font-weight:600;
+    font-size:.82rem;
+    color:#6b7280;
+    margin-bottom:4px;
+  }
+
+  /* Botoneras a ancho completo si hace falta */
+  .responsive-stack td [class*="btn-group"]{
+    width:100%; justify-content:flex-end; gap:6px; flex-wrap:nowrap;
+  }
+
+  /* Sugerencias: no cortar en móvil */
+  .suggest-popover{
+    position:relative;
+    box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  }
+}
+
+/* 2) Modo oscuro: superficies coherentes con tu theme */
+:global(html.theme-dark) .card-elevated{
+  border-color: rgba(255,255,255,.08) !important;
+  background: #111827 !important;
+}
+:global(html.theme-dark) .dropzone{
+  background:#0f172a; color:#e5e7eb; border-color: rgba(255,255,255,.16);
+}
+:global(html.theme-dark) .dropzone:hover{ background:#0b1220; }
+:global(html.theme-dark) .responsive-stack tr{
+  --card-bg:#111827; --card-border:rgba(255,255,255,.08);
+  color:#e5e7eb;
+}
+:global(html.theme-dark) .responsive-stack td[data-label]::before{
+  color:#9ca3af;
+}
+:global(html.theme-dark) .suggest-popover{
+  background:#0b1220; border-color: rgba(255,255,255,.12);
+}
+:global(html.theme-dark) .list-group-item{
+  background:transparent; color:#e5e7eb; border-color: rgba(255,255,255,.08);
 }
 </style>

@@ -31,7 +31,7 @@ const photoUrl = computed(() =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName.value || auth?.user?.email || 'User')}&background=EEE&color=111`
 );
 
-// -------- Collapse 100% controlado por JS (sin data-bs-*) --------
+/* ---------- Collapse 100% controlado por JS ---------- */
 const collapseRef = ref(null);
 let collapseInst = null;
 
@@ -43,11 +43,10 @@ function getCollapse() {
 }
 function toggleCollapse() { getCollapse()?.toggle(); }
 function closeCollapse()  { getCollapse()?.hide();  }
-// cerrar al navegar
+
 const go = (loc) => { router.push(loc); closeCollapse(); };
 const logout = async () => { await auth.logout(); router.replace({ name: "login" }); };
 
-// Cerrar collapse si clic fuera de la navbar
 function handleDocClick(e) {
   if (!collapseRef.value) return;
   const isShown = collapseRef.value.classList.contains("show");
@@ -65,29 +64,28 @@ onBeforeUnmount(() => {
   collapseInst = null;
 });
 
-// ============== AJUSTES (overlay centrado, igual que en SideNavbar) ==============
-const showSettings = ref(false);
+/* ============== AJUSTES (overlay centrado, igual que en SideNavbar) ============== */
+const showSettings  = ref(false);
+const localTheme    = ref(isDark.value ? "dark" : "light");
+const localLayout   = ref(isNavbar.value ? "navbar" : "sidebar");
+const localPrimary  = ref(ui.primary || "rojo");
 
-// estados locales (reflejan el store)
-const localTheme  = ref(isDark.value ? "dark" : "light");
-const localLayout = ref(isNavbar.value ? "navbar" : "sidebar");
-watch(isDark,   v => { localTheme.value  = v ? "dark" : "light"; });
-watch(isNavbar, v => { localLayout.value = v ? "navbar" : "sidebar"; });
+watch(isDark,   v => { localTheme.value   = v ? "dark" : "light"; });
+watch(isNavbar, v => { localLayout.value  = v ? "navbar" : "sidebar"; });
+watch(() => ui.primary, p => { if (p) localPrimary.value = p; });
 
 const openSettings  = () => { showSettings.value = true; };
 const closeSettings = () => { showSettings.value = false; };
 
 const applySettings = async () => {
-  await ui.setTheme(localTheme.value);      // aplica clase al <html>
-  await ui.setMenuStyle(localLayout.value); // persiste en Firestore
-  if (localLayout.value === "sidebar") {
-    // si pasas a sidebar desde navbar, cierra el collapse para no superponer
-    closeCollapse();
-  }
+  await ui.setTheme(localTheme.value);        // clase en <html>
+  await ui.setPrimary(localPrimary.value);    // actualiza --xt-red, --xt-red-d1, --xt-red-d2
+  await ui.setMenuStyle(localLayout.value);   // persiste estilo
+  if (localLayout.value === "sidebar") closeCollapse();
   closeSettings();
 };
 
-// ESC cierra overlay y también el collapse si estuviera abierto
+// ESC cierra overlay y/o collapse
 const onKey = (e) => {
   if (e.key === "Escape") {
     if (showSettings.value) closeSettings();
@@ -96,20 +94,45 @@ const onKey = (e) => {
 };
 onMounted(() => window.addEventListener("keydown", onKey));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
+
+/* Paleta visual (debe coincidir con PRIMARY_MAP del store) */
+const PRIMARY_OPTIONS = [
+  {k:'turquesa', n:'Turquesa', c:'#0d9488'},
+  {k:'azul',     n:'Azul',     c:'#2563eb'},
+  {k:'verde',    n:'Verde',    c:'#16a34a'},
+  {k:'rojo',     n:'Rojo',     c:'#c62828'},
+  {k:'amarillo', n:'Amarillo', c:'#f59e0b'},
+  {k:'rosado',   n:'Rosado',   c:'#db2777'},
+  {k:'celeste',  n:'Celeste',  c:'#06b6d4'},
+  {k:'violeta',  n:'Violeta',  c:'#7c3aed'},
+  {k:'naranjo',  n:'Naranjo',  c:'#f97316'},
+  {k:'gris',     n:'Gris',     c:'#6b7280'},
+  {k:'negro',    n:'Negro',    c:'#111827'},
+  {k:'lima',     n:'Lima',     c:'#84cc16'},
+  {k:'esmeralda',n:'Esmeralda',c:'#10b981'},
+  {k:'cian',     n:'Cian',     c:'#0891b2'},
+  {k:'indigo',   n:'Índigo',   c:'#4f46e5'},
+  {k:'marron',   n:'Marrón',   c:'#8b5e34'},
+  {k:'granate',  n:'Granate',  c:'#991b1b'},
+  {k:'oliva',    n:'Oliva',    c:'#708238'},
+  {k:'menta',    n:'Menta',    c:'#2dd4bf'},
+  {k:'salmon',   n:'Salmón',   c:'#fb7185'},
+  {k:'dorado',   n:'Dorado',   c:'#d4af37'},
+  {k:'cobre',    n:'Cobre',    c:'#b87333'},
+];
 </script>
 
 <template>
   <nav class="navbar navbar-expand-lg navbar-dark bg-xtreme fixed-top shadow-sm">
     <div class="container-fluid align-items-center">
 
-      <!-- Brand (izquierda) -->
+      <!-- Brand -->
       <router-link to="/" class="navbar-brand fw-semibold me-2 order-1">
         Xtreme Disponibilidad
       </router-link>
 
       <!-- Grupo derecho (móvil): hamburguesa + Ajustes -->
       <div class="d-flex align-items-center ms-auto order-3 gap-2">
-        <!-- Hamburguesa (collapse controlado por JS) -->
         <button
           class="navbar-toggler d-lg-none"
           type="button"
@@ -121,7 +144,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- ÚNICO BOTÓN: Ajustes (abre overlay centrado) -->
+        <!-- Botón Ajustes (abre overlay centrado) -->
         <button
           class="btn btn-sm btn-light"
           @click.stop="openSettings"
@@ -132,8 +155,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           <i class="bi bi-gear-fill"></i>
         </button>
       </div>
-
-
 
       <!-- CONTENIDO COLAPSABLE -->
       <div
@@ -229,7 +250,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
     </div>
   </nav>
 
-  <!-- ====== MODAL de AJUSTES (centrado en pantalla, igual al SideNavbar) ====== -->
+  <!-- ====== MODAL de AJUSTES (idéntico a SideNavbar) ====== -->
   <div
     v-if="showSettings"
     class="settings-overlay"
@@ -264,8 +285,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
           </div>
         </div>
 
-        <hr class="settings-divider" />
-
         <!-- LAYOUT -->
         <div class="mb-2">
           <div class="settings-label">Estilo de menú</div>
@@ -278,6 +297,32 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
             <input type="radio" class="btn-check" name="layout" id="m-sidebar" value="sidebar" v-model="localLayout">
             <label class="btn settings-pill" for="m-sidebar">
               <i class="bi bi-layout-sidebar-inset me-1"></i> Menú lateral
+            </label>
+          </div>
+        </div>
+
+        <hr class="settings-divider" />
+
+        <!-- COLOR PRIMARIO -->
+        <div class="mb-3">
+          <div class="settings-label">Color primario</div>
+          <div class="color-grid">
+            <label
+              v-for="opt in PRIMARY_OPTIONS"
+              :key="opt.k"
+              class="color-swatch"
+              :title="opt.n"
+            >
+              <input
+                type="radio"
+                class="visually-hidden"
+                name="primary"
+                :id="'p-'+opt.k"
+                :value="opt.k"
+                v-model="localPrimary"
+              />
+              <span class="swatch" :style="{ background: opt.c }"></span>
+              <span class="swatch-label">{{ opt.n }}</span>
             </label>
           </div>
         </div>
@@ -294,8 +339,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 </template>
 
 <style scoped>
-.bg-xtreme { background: #c62828; }
+/* 🔁 El topbar usa la variable primaria (que cambia con ui.setPrimary) */
+.bg-xtreme { background: var(--xt-red) !important; }
 
+/* Botones en la navbar */
 .navbar .btn,
 .navbar .navbar-toggler{
   box-shadow: none !important;
@@ -312,36 +359,37 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   }
 }
 
-/* ======= MODAL CENTRADO DE AJUSTES (mismo look que SideNavbar) ======= */
+/* ======= MODAL CENTRADO DE AJUSTES (idéntico) ======= */
 .settings-overlay{
   position: fixed; inset: 0;
   display: grid; place-items: center;
-  background: rgba(0,0,0,.48);
+  background: rgba(0,0,0,.56);
   z-index: 2001;
-  padding: 16px;
+  padding: 20px;
   animation: overlayIn .12s ease-out both;
 }
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .settings-card{
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  width: min(420px, 92vw);
+  width: min(460px, 92vw);
   background: #ffffff;
   color: #1f2937;
   border: 1px solid rgba(0,0,0,.06);
   box-shadow:
-    0 12px 36px rgba(0,0,0,.30),
-    0 4px 14px rgba(0,0,0,.20);
+    0 14px 40px rgba(0,0,0,.30),
+    0 6px 18px rgba(0,0,0,.20);
   transform: translateY(-4px);
   animation: cardIn .16s ease-out both;
 }
 @keyframes cardIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
+/* Header con degradado según primario (igual al SideNavbar) */
 .settings-card__header{
   display: flex; align-items: center; gap: 8px;
   padding: 12px 14px;
-  background: linear-gradient(135deg, #c62828, #8e1515);
+  background: linear-gradient(135deg, var(--xt-red), var(--xt-red-d2));
   color: #fff;
 }
 .settings-card__header i{ font-size: 1.05rem; }
@@ -354,6 +402,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   border-top: 1px solid rgba(0,0,0,.06);
 }
 
+/* Etiquetas y divisores */
 .settings-label{
   font-size: .75rem;
   text-transform: uppercase;
@@ -380,10 +429,52 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   transition: all .12s ease;
 }
 .settings-pill:hover{ background: #e5e7eb; }
-.btn-check:checked + .settings-pill{
-  background: #111827;
-  border-color: #111827;
-  color: #fff;
+
+/* ======= Grid de colores ======= */
+.color-grid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+}
+.color-swatch{
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,.02);
+  cursor: pointer;
+  transition: .12s ease;
+  user-select: none;
+}
+.color-swatch:hover{ background: rgba(0,0,0,.04); }
+.swatch{
+  width: 20px; height: 20px; border-radius: 999px;
+  box-shadow: 0 0 0 2px #fff inset, 0 1px 4px rgba(0,0,0,.25);
+}
+.swatch-label{
+  font-size: .875rem; font-weight: 600; color: #374151;
+}
+
+/* Radios ocultos pero clickeables (van dentro del label) */
+.visually-hidden{
+  position: absolute !important;
+  opacity: 0;
+}
+
+/* ✅ Marca visual del seleccionado (modo claro) */
+.visually-hidden:checked + .swatch {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+
+/* ✅ Resalto del contenedor completo usando :has() (si el navegador lo soporta) */
+.color-swatch:has(input.visually-hidden:checked) {
+  border-color: var(--xt-red);
+  box-shadow: 0 0 0 2px var(--xt-red, #c62828) inset;
+  background: rgba(0,0,0,.04);
 }
 
 /* Botón outline clarito para footer */
@@ -396,7 +487,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   --bs-btn-active-border-color: #d1d5db;
 }
 
-/* Modo oscuro */
+/* ======= Modo oscuro ======= */
 :global(html.theme-dark) .settings-card{
   background: #1f2937;
   color: #e5e7eb;
@@ -416,9 +507,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   color: #e5e7eb;
 }
 :global(html.theme-dark) .settings-pill:hover{ background: #0b1220; }
-:global(html.theme-dark) .btn-check:checked + .settings-pill{
-  background: #e5e7eb;
-  border-color: #e5e7eb;
-  color: #111827;
+
+/* Seleccionado en oscuro */
+:global(html.theme-dark) .visually-hidden:checked + .swatch{
+  outline: 2px solid #e5e7eb;
+  outline-offset: 2px;
+}
+:global(html.theme-dark) .color-swatch:has(input.visually-hidden:checked){
+  border-color: var(--xt-white-60);
+  box-shadow: 0 0 0 2px var(--xt-white-60) inset;
+  background: rgba(255,255,255,.06);
 }
 </style>

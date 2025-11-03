@@ -3,18 +3,39 @@
   <div class="historial-page">
     <div class="container py-4 py-md-5">
       <!-- Top bar -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <button class="btn btn-outline-secondary btn-sm" @click="volver">
-          <i class="bi bi-arrow-left"></i>
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+        <button class="btn btn-outline-secondary btn-sm" @click="volver" aria-label="Volver">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
           <span class="d-none d-sm-inline ms-1">Volver</span>
         </button>
 
-        <h1 class="h5 fw-semibold mb-0 text-truncate">Historial de SOLPED</h1>
+        <h1 class="h5 fw-semibold mb-0 text-truncate flex-grow-1 text-center d-none d-sm-block">
+          Historial de SOLPED
+        </h1>
+        <h1 class="h6 fw-semibold mb-0 text-truncate d-sm-none">Historial</h1>
 
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-primary btn-sm" @click="toggleSidebar">
-            <i class="bi" :class="showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset'"></i>
-            <span class="d-none d-sm-inline ms-1">{{ showSidebar ? 'Ocultar filtros' : 'Mostrar filtros' }}</span>
+          <button
+            class="btn btn-outline-primary btn-sm"
+            @click="toggleFiltersResponsive"
+            :aria-expanded="isDesktop ? showSidebar : showFiltersMobile"
+            aria-controls="filters-aside"
+            :aria-label="isDesktop
+              ? (showSidebar ? 'Ocultar filtros' : 'Mostrar filtros')
+              : (showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros')"
+          >
+            <i
+              class="bi"
+              :class="showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset'"
+              aria-hidden="true"
+            ></i>
+            <span class="d-none d-sm-inline ms-1">
+              {{
+                (isDesktop
+                  ? (showSidebar ? 'Ocultar filtros' : 'Mostrar filtros')
+                  : (showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros'))
+              }}
+            </span>
           </button>
         </div>
       </div>
@@ -25,18 +46,18 @@
         class="alert-pro alert-dismissible fade show d-flex align-items-start gap-2 mb-3"
         role="alert"
       >
-        <i class="bi bi-exclamation-octagon-fill fs-5 flex-shrink-0"></i>
+        <i class="bi bi-exclamation-octagon-fill fs-5 flex-shrink-0" aria-hidden="true"></i>
         <div class="flex-grow-1">
           <strong>Ups, algo salió mal.</strong>
           <div class="small opacity-85">{{ error }}</div>
         </div>
-        <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Cerrar"></button>
       </div>
 
       <!-- Buscador exacto -->
-      <div class="card card-elevated mb-3">
+      <div class="card card-elevated mb-3" aria-labelledby="lbl-busqueda-exacta">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">🔎 Buscar SOLPED por número</div>
+          <div id="lbl-busqueda-exacta" class="fw-semibold">🔎 Buscar SOLPED por número</div>
           <div class="small text-secondary">Consulta directa (no carga todo)</div>
         </div>
         <div class="card-body">
@@ -48,26 +69,39 @@
                 v-model.number="numeroBusquedaExacta"
                 @keyup.enter="buscarSolpeExacta"
                 placeholder="Ej: 1234"
+                inputmode="numeric"
+                min="1"
+                aria-label="Número de SOLPED"
               >
             </div>
             <div class="col-12 col-sm-3 d-grid">
-              <button class="btn btn-danger" @click="buscarSolpeExacta">
-                <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2"></span>
+              <button class="btn btn-danger" @click="buscarSolpeExacta" :disabled="loadingSearch">
+                <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
                 Buscar
               </button>
             </div>
           </div>
 
-          <div v-if="solpeEncontrada" class="alert alert-light d-flex align-items-center mt-3">
+          <div
+            v-if="solpeEncontrada"
+            class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2"
+            role="status"
+          >
             <div class="me-auto">
               <div class="fw-semibold">Resultado: SOLPED #{{ solpeEncontrada.numero_solpe ?? '—' }}</div>
               <div class="small text-secondary">
-                {{ solpeEncontrada.empresa || '—' }} · {{ solpeEncontrada.nombre_centro_costo || '—' }} · {{ prettyFecha(solpeEncontrada.fecha) }}
+                {{ solpeEncontrada.empresa || '—' }} ·
+                {{ solpeEncontrada.nombre_centro_costo || '—' }} ·
+                {{ prettyFecha(solpeEncontrada.fecha) }}
               </div>
             </div>
             <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-outline-primary" @click="goSolpedDetalle(solpeEncontrada)">Ver detalle</button>
-              <button class="btn btn-sm btn-outline-secondary" @click="expandEncontrada">Expandir aquí</button>
+              <button class="btn btn-sm btn-outline-primary" @click="goSolpedDetalle(solpeEncontrada)">
+                Ver detalle
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" @click="expandEncontrada">
+                Expandir aquí
+              </button>
             </div>
           </div>
         </div>
@@ -79,40 +113,38 @@
 
         <span v-if="filtroFecha" class="badge bg-light text-dark border">
           Fecha: {{ filtroFecha }}
-          <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; applyFilters()"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; applyFilters()" aria-label="Quitar filtro fecha"></button>
         </span>
 
         <span v-for="s in filtroEstatus" :key="'es-'+s" class="badge bg-light text-dark border">
           {{ s }}
-          <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(s)"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(s)" :aria-label="`Quitar estado ${s}`"></button>
         </span>
 
         <span v-for="u in filtroUsuario" :key="'u-'+u" class="badge bg-light text-dark border">
           {{ u }}
-          <button class="btn-close btn-close-white ms-2 small" @click="removeUsuario(u)"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="removeUsuario(u)" :aria-label="`Quitar usuario ${u}`"></button>
         </span>
 
-        <!-- Centros -->
         <span v-for="c in selectedCentros" :key="'c-'+c" class="badge bg-light text-dark border">
           {{ centrosMap[c] || c }}
-          <button class="btn-close btn-close-white ms-2 small" @click="removeContrato(c)"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="removeContrato(c)" :aria-label="`Quitar centro ${c}`"></button>
         </span>
 
-        <!-- Flags -->
         <span v-if="onlyMine" class="badge bg-light text-dark border">
           Sólo mis SOLPED
-          <button class="btn-close btn-close-white ms-2 small" @click="toggleOnlyMine(false)"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="toggleOnlyMine(false)" aria-label="Quitar 'sólo mis SOLPED'"></button>
         </span>
         <span v-if="onlyDirectedToMe" class="badge bg-light text-dark border">
           Dirigidas a mí
-          <button class="btn-close btn-close-white ms-2 small" @click="toggleOnlyDirected(false)"></button>
+          <button class="btn-close btn-close-white ms-2 small" @click="toggleOnlyDirected(false)" aria-label="Quitar 'dirigidas a mí'"></button>
         </span>
 
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
       </div>
 
       <!-- Segmento por empresa -->
-      <div class="mb-3">
+      <div class="mb-3" role="tablist" aria-label="Filtro por empresa">
         <div class="btn-group flex-wrap">
           <button class="btn btn-sm" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
           <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Mining' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Mining')">⛏ Mining</button>
@@ -124,20 +156,20 @@
       <div class="row">
         <!-- Listado -->
         <div class="col-12" :class="showSidebar ? 'col-lg-9' : 'col-lg-12'">
-          <div v-if="loading" class="loading-global">
+          <div v-if="loading" class="loading-global" role="status" aria-live="polite">
             <div class="spinner-border me-2" role="status" aria-hidden="true"></div>
             Cargando SOLPED…
           </div>
 
           <template v-else>
             <!-- Paginación superior pegajosa -->
-            <nav v-if="totalPages > 1" class="mt-3 sticky-pager">
+            <nav v-if="totalPages > 1" class="mt-3 sticky-pager" aria-label="Paginación">
               <ul class="pagination justify-content-center mb-1">
                 <li class="page-item" :class="{disabled: page===1}">
-                  <button class="page-link" @click="prevPage" :disabled="page===1">Anterior</button>
+                  <button class="page-link" @click="prevPage" :disabled="page===1" aria-label="Página anterior">Anterior</button>
                 </li>
                 <li class="page-item" :class="{disabled: page===totalPages}">
-                  <button class="page-link" @click="nextPage" :disabled="page===totalPages">Siguiente</button>
+                  <button class="page-link" @click="nextPage" :disabled="page===totalPages" aria-label="Página siguiente">Siguiente</button>
                 </li>
               </ul>
               <div class="text-center small text-secondary">
@@ -149,7 +181,7 @@
             <div v-for="(lista, empresa) in agrupadasPaged" :key="empresa" class="mb-3">
               <div class="card border bg-white mb-2">
                 <div class="card-body py-2">
-                  <i class="bi bi-building me-2"></i>
+                  <i class="bi bi-building me-2" aria-hidden="true"></i>
                   <strong>{{ empresa }}</strong>
                   <span class="text-secondary small ms-2">({{ lista.length }})</span>
                 </div>
@@ -161,8 +193,14 @@
                 class="card card-elevated mb-2"
                 :class="{'card-unread': hasUnreadForMe(s)}"
               >
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <div class="pointer position-relative d-flex align-items-start gap-2" @click="onExpandCard(s)" style="flex:1;">
+                <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                  <div
+                    class="pointer position-relative d-flex align-items-start gap-2 flex-grow-1"
+                    @click="onExpandCard(s)"
+                    role="button"
+                    :aria-expanded="solpeExpandidaId===s.id"
+                    :aria-controls="`solpe-detalle-${s.id}`"
+                  >
                     <div class="flex-grow-1">
                       <div class="fw-semibold text-truncate">📄 SOLPED #{{ s.numero_solpe }}</div>
                       <div class="small text-secondary">
@@ -173,7 +211,7 @@
                           Nombre: {{ s.nombre_solped }}
                         </span>
                         <br class="d-none d-md-block">
-                        <span class="badge rounded-pill bg-dark me-2">Creador: {{ s.usuario || '—' }}</span>
+                        <span class="badge rounded-pill bg-dark me-2 mt-1 mt-md-0">Creador: {{ s.usuario || '—' }}</span>
                         <template v-if="chipsDirigidoA(s).length">
                           <span class="me-1 d-none d-sm-inline">Cotizador :</span>
                           <span
@@ -190,12 +228,11 @@
                     </div>
                   </div>
 
-                  <div class="d-flex align-items-center gap-2">
+                  <div class="d-flex align-items-center gap-2 flex-shrink-0">
                     <span class="badge" :style="estadoChipStyle(s)">{{ s.estatus }}</span>
 
-                    <!-- Cambiar estado (Admin/Editor/Aprobador) -->
                     <div v-if="canChangeStatus" class="dropdown">
-                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                         Cambiar estado
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end">
@@ -207,86 +244,93 @@
                       </ul>
                     </div>
 
-                    <!-- Copiar SOLPED (sólo Generador) -->
                     <button
                       v-if="isGenerador"
                       class="btn btn-outline-info btn-sm"
                       title="Copiar y editar"
                       @click.stop="copiarSolped(s)"
+                      aria-label="Copiar y editar SOLPED"
                     >
-                      <i class="bi bi-files"></i>
+                      <i class="bi bi-files" aria-hidden="true"></i>
                     </button>
 
-                    <!-- Editar (sólo Generador dueño, mismo día, <=24h) -->
                     <button
                       v-if="puedeEditarSolped(s)"
                       class="btn btn-sm btn-outline-primary"
                       title="Editar SOLPED (24h desde creación, mismo día)"
                       @click.stop="abrirEditar(s)"
+                      aria-label="Editar SOLPED"
                     >
-                      <i class="bi bi-pencil-square"></i>
+                      <i class="bi bi-pencil-square" aria-hidden="true"></i>
                       <span class="d-none d-md-inline ms-1">Editar</span>
                     </button>
 
-                    <!-- Descargar Excel -->
-                    <button class="btn btn-success btn-sm" @click.stop="descargarExcel(s)" title="Descargar Excel">
-                      <i class="bi bi-file-earmark-excel"></i>
+                    <button class="btn btn-success btn-sm" @click.stop="descargarExcel(s)" title="Descargar Excel" aria-label="Descargar Excel de la SOLPED">
+                      <i class="bi bi-file-earmark-excel" aria-hidden="true"></i>
                     </button>
 
-                    <!-- Generar OC (solo Editores y dirigida a mí; estatus Pendiente/Parcial) -->
                     <button
                       v-if="isEditor && isDirectedToMe(s) && canGenerateOC(s)"
                       class="btn btn-outline-warning btn-sm"
                       title="Generar OC para esta SOLPED"
-                      @click.stop="irAGenerarOC(s)">
-                      <i class="bi bi-receipt"></i>
+                      @click.stop="irAGenerarOC(s)"
+                      aria-label="Generar OC"
+                    >
+                      <i class="bi bi-receipt" aria-hidden="true"></i>
                       <span class="d-none d-md-inline ms-1">Generar OC</span>
                     </button>
 
-                    <button class="btn btn-outline-info btn-sm" @click.stop="goSolpedDetalle(s)" title="Ver detalle">
-                      <i class="bi bi-eye"></i>
+                    <button class="btn btn-outline-info btn-sm" @click.stop="goSolpedDetalle(s)" title="Ver detalle" aria-label="Ver detalle de la SOLPED">
+                      <i class="bi bi-eye" aria-hidden="true"></i>
                     </button>
                   </div>
                 </div>
 
                 <!-- Detalle expandido -->
-                <div v-if="solpeExpandidaId===s.id" class="card-body">
+                <div v-if="solpeExpandidaId===s.id" class="card-body" :id="`solpe-detalle-${s.id}`">
                   <!-- Ítems -->
                   <div class="fw-semibold mb-2">🛠 Ítems asociados</div>
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
                       <thead class="table-light">
                         <tr>
-                          <th>Ítem</th><th>Descripción</th><th>Código</th><th>Cantidad</th>
-                          <th>Cant. Cotizada</th><th>N° Interno</th><th>Imagen</th>
+                          <th>Ítem</th>
+                          <th>Descripción</th>
+                          <th class="d-none d-md-table-cell">Código</th>
+                          <th>Cantidad</th>
+                          <th class="d-none d-lg-table-cell">Cant. Cotizada</th>
+                          <th class="d-none d-lg-table-cell">N° Interno</th>
+                          <th class="d-none d-md-table-cell">Imagen</th>
                           <th>Estatus</th>
+                          <th class="text-end d-none d-sm-table-cell">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="it in (s.items||[])" :key="it.item">
                           <td>{{ it.item }}</td>
                           <td class="w-25">{{ it.descripcion }}</td>
-                          <td>{{ it.codigo_referencial }}</td>
+                          <td class="d-none d-md-table-cell">{{ it.codigo_referencial }}</td>
                           <td>{{ it.cantidad }}</td>
-                          <td>{{ it.cantidad_cotizada || '' }}</td>
-                          <td>{{ it.numero_interno }}</td>
-                          <td>
+                          <td class="d-none d-lg-table-cell">{{ it.cantidad_cotizada || '' }}</td>
+                          <td class="d-none d-lg-table-cell">{{ it.numero_interno }}</td>
+                          <td class="d-none d-md-table-cell">
                             <template v-if="it.imagen_url || it.imagen_referencia_base64">
                               <img
                                 :src="it.imagen_url || toDataURL(it.imagen_referencia_base64)"
                                 class="thumb pointer"
                                 @click="abrirImagen(it)"
+                                alt="Imagen ítem"
                               >
                               <button class="btn btn-link btn-sm p-0 ms-2" @click="abrirImagenNuevaPestana(it)">ver</button>
                             </template>
                             <span v-else class="text-secondary small">Sin imagen</span>
                           </td>
                           <td>
-                            <span class="badge rounded-pill px-3" :style="{background:getBadgeColor(it.estado||'Pendiente'), color:'#fff'}">
+                            <span class="badge rounded-pill px-3" :style="{background:getBadgeColor((it.estado||'Pendiente')), color:'#fff'}">
                               {{ (it.estado || 'Pendiente') }}
                             </span>
                           </td>
-                          <td class="text-end">
+                          <td class="text-end d-none d-sm-table-cell">
                             <div v-if="canChangeStatus" class="dropdown">
                               <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Cambiar ítem</button>
                               <ul class="dropdown-menu dropdown-menu-end">
@@ -299,6 +343,9 @@
                               </ul>
                             </div>
                           </td>
+                        </tr>
+                        <tr v-if="(s.items||[]).length===0">
+                          <td colspan="9" class="text-center text-secondary py-3">Sin ítems en esta SOLPED.</td>
                         </tr>
                       </tbody>
                     </table>
@@ -318,7 +365,7 @@
                         class="alert-pro list-group-item"
                         :class="{'comment-unread': !(Array.isArray(c?.vistoPor) && c.vistoPor.includes(myUid))}"
                       >
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between flex-wrap gap-1">
                           <strong>{{ c.usuario || '—' }}</strong>
                           <small class="text-muted">{{ formatDateTime(c.fecha) }}</small>
                         </div>
@@ -331,46 +378,36 @@
                       <button class="btn btn-primary" :disabled="!(s.nuevoComentario && s.nuevoComentario.trim())" @click="agregarComentario(s)">Enviar</button>
                     </div>
                   </div>
+
                   <!-- Documento adjunto de autorización -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">📎 Documento adjunto de autorización</label>
-                      <span v-if="s.autorizacion_nombre"
-                            class="badge bg-secondary-subtle text-secondary-emphasis">
+                      <span v-if="s.autorizacion_nombre" class="badge bg-secondary-subtle text-secondary-emphasis">
                         {{ extFromName(s.autorizacion_nombre).toUpperCase() }}
                       </span>
                     </div>
 
                     <template v-if="s.autorizacion_url">
-                      <div class="d-flex align-items-center gap-2">
-                        <i class="bi"
-                          :class="iconFromExt(extFromName(s.autorizacion_nombre))"></i>
-
-                        <a class="link-primary"
-                          :href="s.autorizacion_url"
-                          target="_blank" rel="noopener">
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <i class="bi" :class="iconFromExt(extFromName(s.autorizacion_nombre))" aria-hidden="true"></i>
+                        <a class="link-primary" :href="s.autorizacion_url" target="_blank" rel="noopener">
                           {{ s.autorizacion_nombre || 'Ver documento' }}
                         </a>
-
-                        <a class="btn btn-sm btn-outline-secondary"
-                          :href="s.autorizacion_url"
-                          target="_blank" rel="noopener"
-                          download>
+                        <a class="btn btn-sm btn-outline-secondary" :href="s.autorizacion_url" target="_blank" rel="noopener" download>
                           ver
                         </a>
                       </div>
                     </template>
-
-                    <div v-else class="text-secondary small">
-                      No hay documento adjunto.
-                    </div>
+                    <div v-else class="text-secondary small">No hay documento adjunto.</div>
                   </div>
+
                   <!-- Cotizaciones vinculadas -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">🧾 Cotizaciones vinculadas</label>
                       <button class="btn btn-sm btn-outline-primary" @click="fetchOCs(s.id)" :disabled="isLoadingOC(s.id)">
-                        <span v-if="isLoadingOC(s.id)" class="spinner-border spinner-border-sm me-1"></span>
+                        <span v-if="isLoadingOC(s.id)" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                         {{ ocListFor(s.id).length ? 'Actualizar' : 'Cargar' }}
                       </button>
                     </div>
@@ -379,9 +416,9 @@
                     <div v-else-if="ocListFor(s.id).length === 0" class="text-secondary small">No hay cotizaciones vinculadas.</div>
 
                     <div v-else class="list-group">
-                      <div v-for="oc in ocListFor(s.id)" :key="oc.__docId" class="list-group-item d-flex align-items-center">
+                      <div v-for="oc in ocListFor(s.id)" :key="oc.__docId" class="list-group-item d-flex align-items-center flex-wrap gap-2">
                         <div class="me-auto">
-                          <div class="d-flex align-items-center gap-2">
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
                             <strong>Cotización N° {{ oc.id ?? '—' }}</strong>
                             <span class="badge" :class="estadoChipOC(oc.estatus)">{{ oc.estatus || '—' }}</span>
                           </div>
@@ -392,7 +429,7 @@
                           </div>
                         </div>
                         <div class="ms-2">
-                          <button class="btn btn-sm btn-outline-primary" @click.stop="goOC(oc)">Ver detalle</button>
+                          <button class="btn btn-sm btn-outline-primary" @click.stop="goOC(oc)" aria-label="Ver detalle de la OC">Ver detalle</button>
                         </div>
                       </div>
                     </div>
@@ -403,8 +440,8 @@
             </div>
 
             <!-- Vacío -->
-            <div v-if="displayList.length===0" class="ghost-wrap">
-              <div class="ghost">
+            <div v-if="displayList.length===0" class="ghost-wrap" role="status" aria-live="polite">
+              <div class="ghost" aria-hidden="true">
                 <div class="ghost-eyes"></div>
                 <div class="ghost-bottom">
                   <div></div><div></div><div></div><div></div>
@@ -417,7 +454,12 @@
         </div>
 
         <!-- Sidebar filtros (sticky en desktop) -->
-        <aside v-if="showSidebar" class="col-12 col-lg-3 d-none d-lg-block">
+        <aside
+          v-if="showSidebar"
+          id="filters-aside"
+          class="col-12 col-lg-3 d-none d-lg-block"
+          aria-label="Filtros"
+        >
           <div class="card card-elevated sticky-sidebar">
             <div class="card-header d-flex align-items-center justify-content-between">
               <h2 class="h6 mb-0 fw-semibold">Filtros</h2>
@@ -464,8 +506,8 @@
                 <small v-if="tempUsuarioSelSet.size" class="text-secondary">{{ tempUsuarioSelSet.size }} seleccionados</small>
               </div>
               <div class="input-group mb-2">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input class="form-control" placeholder="Buscar nombre" v-model="busquedaUsuario">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input class="form-control" placeholder="Buscar nombre" v-model="busquedaUsuario" aria-label="Buscar usuario">
               </div>
               <div class="border rounded p-2 mb-3" style="max-height: 220px; overflow:auto;">
                 <div class="form-check" v-for="u in usuariosOrdenadosFiltrados" :key="u.id">
@@ -496,7 +538,7 @@
 
               <div class="mb-0">
                 <label class="form-label">Tamaño de página</label>
-                <select class="form-select" v-model.number="pageSize">
+                <select class="form-select" v-model.number="pageSize" aria-label="Tamaño de página">
                   <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
@@ -506,31 +548,143 @@
       </div>
     </div>
 
+    <!-- Offcanvas filtros (móvil / tablet) -->
+    <transition name="oc">
+      <div v-if="showFiltersMobile" class="oc-wrap d-lg-none" @keydown.esc="closeFiltersMobile">
+        <!-- backdrop -->
+        <div class="oc-backdrop" @click="closeFiltersMobile"></div>
+
+        <!-- panel -->
+        <div
+          class="oc-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filtros de historial"
+        >
+          <div class="oc-header">
+            <h2 class="h6 mb-0 fw-semibold">Filtros</h2>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-sm btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
+              <button class="btn btn-sm btn-outline-dark" @click="closeFiltersMobile" aria-label="Cerrar filtros">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="oc-body">
+            <!-- Fecha -->
+            <div class="mb-3">
+              <label class="form-label">Fecha</label>
+              <input type="date" class="form-control" v-model="filtroFecha">
+            </div>
+
+            <!-- Estado -->
+            <div class="mb-3">
+              <label class="form-label">Estado</label>
+              <select class="form-select" multiple v-model="filtroEstatus">
+                <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
+              </select>
+              <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
+            </div>
+
+            <!-- Centros -->
+            <div class="mb-3">
+              <label class="form-label">Centro de costo (código)</label>
+              <input class="form-control mb-2" v-model="centroPickerSearch" placeholder="Buscar código o nombre…">
+              <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
+                <div class="form-check" v-for="code in centrosFiltrados" :key="code">
+                  <input class="form-check-input" type="checkbox"
+                         :id="'m_cc_'+code"
+                         :checked="selectedCentrosSet.has(code)"
+                         @change="toggleCentro(code)">
+                  <label class="form-check-label" :for="'m_cc_'+code">
+                    <strong>{{ code }}</strong> — {{ centrosMap[code] }}
+                  </label>
+                </div>
+              </div>
+              <small class="text-secondary d-block mt-1">Puedes seleccionar varios (máx. 10).</small>
+            </div>
+
+            <!-- Usuario (generador) -->
+            <div class="mb-1 d-flex align-items-center justify-content-between">
+              <label class="form-label mb-0">Usuario (Generador)</label>
+              <small v-if="tempUsuarioSelSet.size" class="text-secondary">{{ tempUsuarioSelSet.size }} seleccionados</small>
+            </div>
+            <div class="input-group mb-2">
+              <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+              <input class="form-control" placeholder="Buscar nombre" v-model="busquedaUsuario" aria-label="Buscar usuario">
+            </div>
+            <div class="border rounded p-2 mb-3" style="max-height: 220px; overflow:auto;">
+              <div class="form-check" v-for="u in usuariosOrdenadosFiltrados" :key="u.id">
+                <input class="form-check-input" type="checkbox"
+                       :id="'m_u_'+u.id"
+                       :checked="tempUsuarioSelSet.has(u.fullName)"
+                       @change="toggleTempUsuario(u.fullName)">
+                <label class="form-check-label" :for="'m_u_'+u.id">{{ u.fullName }}</label>
+              </div>
+            </div>
+
+            <!-- Flags -->
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="m_chkOnlyMine"
+                       :checked="onlyMine"
+                       @change="toggleOnlyMine($event.target.checked)">
+                <label class="form-check-label" for="m_chkOnlyMine">Ver sólo mis SOLPED</label>
+              </div>
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="m_chkOnlyDirected"
+                       :checked="onlyDirectedToMe"
+                       @change="toggleOnlyDirected($event.target.checked)">
+                <label class="form-check-label" for="m_chkOnlyDirected">Ver sólo dirigidas a mí</label>
+              </div>
+              <small class="text-secondary d-block mt-1">Estas opciones se guardan sólo si las marcas.</small>
+            </div>
+
+            <!-- Tamaño de página -->
+            <div class="mb-0">
+              <label class="form-label">Tamaño de página</label>
+              <select class="form-select" v-model.number="pageSize">
+                <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="oc-footer">
+            <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+            <button class="btn btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- Botón flotante filtros (móvil) -->
     <button
       class="btn btn-primary floating-filters-btn d-lg-none"
-      @click="toggleSidebar"
-      :title="showSidebar ? 'Ocultar filtros' : 'Mostrar filtros'"
+      @click="toggleFiltersResponsive"
+      :title="showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros'"
+      aria-label="Abrir filtros"
     >
-      <i class="bi bi-funnel"></i>
+      <i class="bi bi-funnel" aria-hidden="true"></i>
     </button>
 
     <!-- Toasts -->
-    <div class="toast-stack">
+    <div class="toast-stack" aria-live="polite" aria-atomic="true">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
-        <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'"></i>
+        <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'" aria-hidden="true"></i>
         <span class="me-3">{{ t.text }}</span>
-        <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
+        <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)" aria-label="Cerrar notificación"></button>
       </div>
     </div>
 
     <!-- Modal imagen -->
-    <div v-if="showImgModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.6);">
+    <div v-if="showImgModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.6);" @keydown.esc="showImgModal=false">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
           <div class="modal-header">
             <h5 class="modal-title">Vista previa de imagen</h5>
-            <button class="btn-close" @click="showImgModal=false"></button>
+            <button class="btn-close" @click="showImgModal=false" aria-label="Cerrar"></button>
           </div>
           <div class="modal-body text-center">
             <img :src="previewImgSrc" class="img-fluid" alt="Imagen ítem">
@@ -544,7 +698,7 @@
     </div>
 
     <!-- ========= MODAL EDICIÓN SOLPED ========= -->
-    <div v-if="showEditModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.55);">
+    <div v-if="showEditModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.55);" @keydown.esc="cerrarEditar">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -552,7 +706,7 @@
               Editar SOLPED #{{ editForm.numero_solpe }}
               <span class="badge bg-secondary ms-2">{{ editForm.empresa || '—' }}</span>
             </h5>
-            <button class="btn-close" @click="cerrarEditar"></button>
+            <button class="btn-close" @click="cerrarEditar" aria-label="Cerrar edición"></button>
           </div>
 
           <div class="modal-body">
@@ -622,11 +776,11 @@
                       <tr>
                         <th style="width:70px;">Ítem</th>
                         <th>Descripción</th>
-                        <th style="width:140px;">Código ref.</th>
+                        <th style="width:140px;" class="d-none d-md-table-cell">Código ref.</th>
                         <th style="width:110px;">Cantidad</th>
-                        <th style="width:120px;">N° Interno</th>
-                        <th style="width:120px;">Stock</th>
-                        <th style="width:140px;">Imagen</th>
+                        <th style="width:120px;" class="d-none d-lg-table-cell">N° Interno</th>
+                        <th style="width:120px;" class="d-none d-lg-table-cell">Stock</th>
+                        <th style="width:140px;" class="d-none d-md-table-cell">Imagen</th>
                         <th style="width:60px;"></th>
                       </tr>
                     </thead>
@@ -636,11 +790,11 @@
                         <td>
                           <textarea class="form-control form-control-sm" v-model="it.descripcion" rows="2" placeholder="Descripción del ítem"></textarea>
                         </td>
-                        <td><input class="form-control form-control-sm" v-model="it.codigo_referencial"></td>
+                        <td class="d-none d-md-table-cell"><input class="form-control form-control-sm" v-model="it.codigo_referencial"></td>
                         <td><input class="form-control form-control-sm" type="number" min="0" v-model.number="it.cantidad"></td>
-                        <td><input class="form-control form-control-sm" v-model="it.numero_interno"></td>
-                        <td><input class="form-control form-control-sm" type="number" min="0" v-model.number="it.stock"></td>
-                        <td>
+                        <td class="d-none d-lg-table-cell"><input class="form-control form-control-sm" v-model="it.numero_interno"></td>
+                        <td class="d-none d-lg-table-cell"><input class="form-control form-control-sm" type="number" min="0" v-model.number="it.stock"></td>
+                        <td class="d-none d-md-table-cell">
                           <div class="d-flex align-items-center gap-2">
                             <input type="file" accept="image/*" class="form-control form-control-sm" @change="onPickImg($event, it)">
                             <template v-if="it.imagen_referencia_base64 || it.imagen_url">
@@ -649,13 +803,13 @@
                           </div>
                         </td>
                         <td class="text-end">
-                          <button class="btn btn-sm btn-outline-danger" @click="eliminarItem(idx)">
-                            <i class="bi bi-trash"></i>
+                          <button class="btn btn-sm btn-outline-danger" @click="eliminarItem(idx)" aria-label="Eliminar ítem">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
                           </button>
                         </td>
                       </tr>
                       <tr v-if="editItems.length===0">
-                        <td colspan="9" class="text-center text-muted py-4">Sin ítems.</td>
+                        <td colspan="8" class="text-center text-muted py-4">Sin ítems.</td>
                       </tr>
                     </tbody>
                   </table>
@@ -668,7 +822,7 @@
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" @click="cerrarEditar">Cancelar</button>
             <button class="btn btn-primary" :disabled="savingEdit" @click="guardarEdicion">
-              <span v-if="savingEdit" class="spinner-border spinner-border-sm me-2"></span>
+              <span v-if="savingEdit" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
               Guardar cambios
             </button>
           </div>
@@ -679,6 +833,7 @@
 </template>
 
 <script setup>
+/* === mismo script que vienes usando, con micro-mejoras === */
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
@@ -688,11 +843,12 @@ import {
 import { useAuthStore } from '../stores/authService';
 import * as XLSX from 'xlsx-js-style';
 
+/* ---------- Router / Auth ---------- */
 const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
 
-/* ========= Persistencia (localStorage) ========= */
+/* ---------- LocalStorage helpers ---------- */
 const LS = {
   SHOW_SIDEBAR:      'historial_show_sidebar',
   FILTRO_FECHA:      'historial_filtro_fecha',
@@ -713,12 +869,10 @@ const safeRead = (k, def=null) => {
     try { return JSON.parse(v); } catch { return v; }
   } catch { return def; }
 };
-const safeWrite = (k, v) => {
-  try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch(e) {console.error(e);}
-};
-const safeRemove = (k) => { try { localStorage.removeItem(k); } catch(e) {console.error(e);} };
+const safeWrite = (k, v) => { try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch(e) { console.error(e); } };
+const safeRemove = (k) => { try { localStorage.removeItem(k); } catch(e) { console.error(e); } };
 
-/* ========= Rol / permisos ========= */
+/* ---------- Roles / permisos ---------- */
 const rawRole = computed(() => String(auth?.profile?.role || auth?.profile?.rol || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,''));
 const isAdmin = computed(() => rawRole.value.includes('admin'));
 const isEditor = computed(() => rawRole.value.includes('editor'));
@@ -726,15 +880,25 @@ const isAprobador = computed(() => rawRole.value.includes('aprobador'));
 const isGenerador = computed(() => rawRole.value.includes('generador'));
 const canChangeStatus = computed(() => isAdmin.value || isEditor.value || isAprobador.value);
 
+/* ---------- Estado base ---------- */
 const error = ref('');
 const loading = ref(true);
 const loadingSearch = ref(false);
 
-/* ========= Sidebar (persistente) ========= */
-const showSidebar = ref(true);
-const toggleSidebar = () => { showSidebar.value = !showSidebar.value; };
+/* ---------- Responsive ---------- */
+const isDesktop = ref(false);
+const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 
-/* ========= Buscador exacto ========= */
+/* ---------- Sidebar / Offcanvas ---------- */
+const showSidebar = ref(true);
+const showFiltersMobile = ref(false);
+const openFiltersMobile = () => { showFiltersMobile.value = true; document.documentElement.style.overflow = 'hidden'; };
+const closeFiltersMobile = () => { showFiltersMobile.value = false; document.documentElement.style.overflow = ''; };
+const toggleSidebar = () => { showSidebar.value = !showSidebar.value; safeWrite(LS.SHOW_SIDEBAR, showSidebar.value); };
+const toggleFiltersResponsive = () => { computeIsDesktop(); isDesktop.value ? toggleSidebar() : (showFiltersMobile.value ? closeFiltersMobile() : openFiltersMobile()); };
+const handleResize = () => { const wasMobileOpen = showFiltersMobile.value; computeIsDesktop(); if (isDesktop.value && wasMobileOpen) closeFiltersMobile(); };
+
+/* ---------- Buscador exacto ---------- */
 const numeroBusquedaExacta = ref(null);
 const solpeEncontrada = ref(null);
 const buscarSolpeExacta = async () => {
@@ -755,8 +919,7 @@ const buscarSolpeExacta = async () => {
       }));
       solpeEncontrada.value = { id: d.id, ...data };
     }
-  } catch (e) {
-    console.error(e);
+  } catch (e) { console.error(e);
     error.value = 'No se pudo realizar la búsqueda.';
   } finally {
     loadingSearch.value = false;
@@ -770,41 +933,28 @@ const expandEncontrada = () => {
   solpeEncontrada.value = { ...solpeEncontrada.value };
   solpeExpandidaId.value = solpeEncontrada.value.id;
 };
-const goSolpedDetalle = (s) => {
-  if (!s?.id) return;
-  router.push({ name: 'SolpedDetalle', params: { id: s.id } });
-};
+const goSolpedDetalle = (s) => { if (s?.id) router.push({ name: 'SolpedDetalle', params: { id: s.id } }); };
 
-/* ========= Identidad ========= */
+/* ---------- Identidad ---------- */
 const myUid = computed(() => (auth?.user?.uid || '').toString());
 const myEmail = computed(() => (auth?.user?.email || '').toLowerCase());
 const myFullName = ref('');
 
-/* ========= Filtros (persistentes) ========= */
+/* ---------- Filtros persistentes ---------- */
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const filtroUsuario = ref([]);
 const onlyDirectedToMe = ref(false);
 const onlyMine = ref(false);
 const empresaSegmento = ref('todas');
-
-const toggleOnlyDirected = (val) => {
-  onlyDirectedToMe.value = !!val;
-  safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value);
-  applyFilters();
-};
-const toggleOnlyMine = (val) => {
-  onlyMine.value = !!val;
-  safeWrite(LS.ONLY_MINE, onlyMine.value);
-  applyFilters();
-};
-
+const toggleOnlyDirected = (val) => { onlyDirectedToMe.value = !!val; safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value); applyFilters(); };
+const toggleOnlyMine = (val) => { onlyMine.value = !!val; safeWrite(LS.ONLY_MINE, onlyMine.value); applyFilters(); };
 const hasActiveFilters = computed(() =>
   !!filtroFecha.value || filtroEstatus.value.length || filtroUsuario.value.length ||
   onlyDirectedToMe.value || onlyMine.value || empresaSegmento.value !== 'todas' || selectedCentros.value.length > 0
 );
 
-/* ========= Centros de costo: DB + fallback ========= */
+/* ---------- Centros de costo ---------- */
 const centrosMap = ref({});
 const centrosLocalFallback = {
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
@@ -861,7 +1011,7 @@ async function loadCentrosCosto() {
   }
 }
 
-/* ========= Centros selección UI (persistentes) ========= */
+/* ---------- Selección de centros ---------- */
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
@@ -875,21 +1025,15 @@ const centrosFiltrados = computed(() => {
     code.toLowerCase().includes(q) || String(centrosMap.value[code]||'').toLowerCase().includes(q)
   );
 });
-const toggleCentro = (code) => {
-  const set = new Set(selectedCentros.value);
-  set.has(code) ? set.delete(code) : set.add(code);
-  selectedCentros.value = Array.from(set);
-  applyFilters();
-};
+const toggleCentro = (code) => { const set = new Set(selectedCentros.value); set.has(code) ? set.delete(code) : set.add(code); selectedCentros.value = Array.from(set); applyFilters(); };
 const removeContrato = (code) => { selectedCentros.value = selectedCentros.value.filter(x => x!==code); applyFilters(); };
 const clientCentrosOverflow = computed(()=> selectedCentros.value.length > 10);
 
-/* ========= Usuarios (generadores, persistencia de selección) ========= */
+/* ---------- Usuarios (generadores) ---------- */
 const listaUsuarios = ref([]);
 const busquedaUsuario = ref('');
 const tempUsuarioSelSet = ref(new Set());
 const clientUsuariosOverflow = computed(()=> tempUsuarioSelSet.value.size > 10 || filtroUsuario.value.length > 10);
-
 const normalizeText = (v='') => v.toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 const usuariosOrdenadosFiltrados = computed(() => {
   const q = normalizeText(busquedaUsuario.value);
@@ -900,7 +1044,7 @@ const usuariosOrdenadosFiltrados = computed(() => {
 });
 const toggleTempUsuario = (fullName) => { const s = tempUsuarioSelSet.value; s.has(fullName) ? s.delete(fullName) : s.add(fullName); };
 
-/* ========= Paginación (persistente pageSize) ========= */
+/* ---------- Paginación ---------- */
 const page = ref(1);
 const pageSize = ref(10);
 const totalCount = ref(0);
@@ -908,7 +1052,7 @@ const pageFrom = computed(() => totalCount.value ? (page.value-1)*pageSize.value
 const pageTo = computed(() => Math.min(totalCount.value, page.value*pageSize.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
 
-/* ========= Datos en vivo de la página ========= */
+/* ---------- Datos de la página ---------- */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 const agruparPorEmpresa = (arr=[]) => {
@@ -926,19 +1070,19 @@ const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
 
-/* ========= Listas auxiliares ========= */
+/* ---------- Listas auxiliares ---------- */
 const listaEstatus = [
   'Completado','Rechazado','Solicitado','Pendiente','Preaprobado',
   'OC enviada a proveedor','Parcial'
 ];
 
-/* ========= Helpers ========= */
+/* ---------- Helpers UI ---------- */
 const prettyFecha = (f) => {
   try {
     if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
     if (typeof f === 'string') return new Date(f).toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
     if (f instanceof Date) return f.toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
-  } catch(e) {console.error(e)}
+  } catch(e) { console.error(e); }
   return '—';
 };
 const toDataURL = (base) => `data:image/jpeg;base64,${base}`;
@@ -978,7 +1122,7 @@ const estadoChipStyle = (s) => {
 };
 const getBadgeColor = (estatus) => getColorByStatus(estatus);
 
-/* ========= Dirigido a mí ========= */
+/* ---------- Dirigido a mí ---------- */
 const chipsDirigidoA = (s) => {
   const out = [];
   if (Array.isArray(s.dirigidoA)) {
@@ -1019,27 +1163,21 @@ const hasUnreadForMe = (s) => {
   return arr.some(c => !Array.isArray(c?.vistoPor) || !c.vistoPor.includes(uid));
 };
 
-/* ========= Query builder ========= */
+/* ---------- Query builder ---------- */
 const buildWhere = () => {
   const wh = [];
-
   if (empresaSegmento.value !== 'todas') wh.push(where('empresa','==',empresaSegmento.value));
-
   if (filtroEstatus.value.length === 1) wh.push(where('estatus','==',filtroEstatus.value[0]));
   else if (filtroEstatus.value.length > 1) wh.push(where('estatus','in', filtroEstatus.value.slice(0,10)));
-
   if (filtroFecha.value) {
     try {
       const start = new Date(`${filtroFecha.value}T00:00:00`);
       const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
       wh.push(where('fecha','>=',start));
       wh.push(where('fecha','<=',end));
-    } catch(e) {console.error(e)}
+    } catch(e) { console.error(e);}
   }
-
-  if (onlyMine.value && myFullName.value) {
-    wh.push(where('usuario','==', myFullName.value));
-  }
+  if (onlyMine.value && myFullName.value) wh.push(where('usuario','==', myFullName.value));
 
   if (selectedCentros.value.length === 1) {
     wh.push(where('numero_contrato','==', selectedCentros.value[0]));
@@ -1052,25 +1190,16 @@ const buildWhere = () => {
   } else if (filtroUsuario.value.length >=2 && filtroUsuario.value.length <=10) {
     wh.push(where('usuario','in', filtroUsuario.value));
   }
-
   return wh;
 };
-
 const makePageQuery = (pageNumber=1) => {
   const wh = buildWhere();
-  const base = query(
-    collection(db, 'solpes'),
-    ...wh,
-    orderBy('numero_solpe','desc'),
-    limit(pageSize.value)
-  );
-  if (pageNumber > 1 && cursors.value[pageNumber - 1]) {
-    return query(base, startAfter(cursors.value[pageNumber - 1]));
-  }
+  const base = query(collection(db, 'solpes'), ...wh, orderBy('numero_solpe','desc'), limit(pageSize.value));
+  if (pageNumber > 1 && cursors.value[pageNumber - 1]) return query(base, startAfter(cursors.value[pageNumber - 1]));
   return base;
 };
 
-/* ========= Suscripción + conteo ========= */
+/* ---------- Suscripción + conteo ---------- */
 const subscribePage = () => {
   if (typeof unsubscribe === 'function') { unsubscribe(); unsubscribe = null; }
   loading.value = true;
@@ -1088,9 +1217,7 @@ const subscribePage = () => {
     });
 
     // filtros cliente
-    if (onlyMine.value && myFullName.value) {
-      docs = docs.filter(s => String(s.usuario||'').trim() === myFullName.value);
-    }
+    if (onlyMine.value && myFullName.value) docs = docs.filter(s => String(s.usuario||'').trim() === myFullName.value);
     if (onlyDirectedToMe.value) docs = docs.filter(isDirectedToMe);
     if (clientCentrosOverflow.value) {
       const set = new Set(selectedCentros.value);
@@ -1107,35 +1234,28 @@ const subscribePage = () => {
     cursors.value[page.value] = last || null;
 
     loading.value = false;
-
     await nextTick();
     window.scrollTo(0, savedScrollY.value);
-  }, (e) => {
-    console.error(e);
+  }, (e) => { console.error(e);
     error.value = 'No se pudieron cargar las SOLPED de la página.';
     loading.value = false;
   });
 };
-
 const refreshCount = async () => {
   try {
     const wh = buildWhere();
     const countQ = query(collection(db, 'solpes'), ...wh);
     const res = await getCountFromServer(countQ);
     totalCount.value = res.data().count || 0;
-  } catch (e) {
-    console.error('count error', e);
+  } catch (e) { console.error(e);
     totalCount.value = Math.max(totalCount.value || 0, pageDocs.value.length);
   }
 };
 
-/* ========= Filtros cliente adicionales ========= */
-function applyClientFilters(arr){
-  let out = Array.isArray(arr) ? arr : [];
-  return out;
-}
+/* ---------- Filtros cliente adicionales ---------- */
+function applyClientFilters(arr){ return Array.isArray(arr) ? arr : []; }
 
-/* ========= Usuarios (carga) ========= */
+/* ---------- Carga usuarios ---------- */
 const loadUsuarios = async () => {
   try {
     const snap = await getDocs(query(collection(db,'Usuarios')));
@@ -1143,9 +1263,7 @@ const loadUsuarios = async () => {
     const isGenerator = (u) =>
       (u.role && String(u.role).toLowerCase() === 'generador solped') ||
       (Array.isArray(u.roles) && u.roles.map(r=>String(r).toLowerCase()).includes('generador solped'));
-    listaUsuarios.value = raw.filter(u => u.fullName && isGenerator(u))
-      .map(u => ({ id: u.id, fullName: u.fullName }));
-
+    listaUsuarios.value = raw.filter(u => u.fullName && isGenerator(u)).map(u => ({ id: u.id, fullName: u.fullName }));
     const me = snap.docs.find(d => d.id === myUid.value);
     myFullName.value = me?.data()?.fullName || auth?.user?.displayName || '';
   } catch {
@@ -1153,12 +1271,9 @@ const loadUsuarios = async () => {
   }
 };
 
-/* ========= Acciones ========= */
+/* ---------- Acciones ---------- */
 const applyFilters = () => {
-  // sincroniza selección temporal a filtro efectivo
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
-
-  // persistir filtros clave
   safeWrite(LS.FILTRO_FECHA, filtroFecha.value || '');
   safeWrite(LS.FILTRO_ESTATUS, filtroEstatus.value || []);
   safeWrite(LS.SELECTED_CENTROS, selectedCentros.value || []);
@@ -1172,7 +1287,6 @@ const applyFilters = () => {
   subscribePage();
   refreshCount();
 };
-
 const limpiarFiltros = () => {
   filtroFecha.value = '';
   filtroEstatus.value = [];
@@ -1185,40 +1299,37 @@ const limpiarFiltros = () => {
   empresaSegmento.value = 'todas';
   pageSize.value = 10;
 
-  // limpiar LS
   [LS.FILTRO_FECHA, LS.FILTRO_ESTATUS, LS.SELECTED_CENTROS, LS.USUARIOS_TEMP,
    LS.EMPRESA_SEG, LS.PAGE_SIZE, LS.ONLY_DIRECTED, LS.ONLY_MINE].forEach(safeRemove);
 
   applyFilters();
 };
-const extFromName = (name = '') => {
-  const m = String(name).match(/\.([a-z0-9]+)$/i);
-  return m ? m[1].toLowerCase() : '';
-};
-
+const extFromName = (name = '') => { const m = String(name).match(/\.([a-z0-9]+)$/i); return m ? m[1].toLowerCase() : ''; };
 const iconFromExt = (ext) => {
   if (ext === 'pdf') return 'bi-file-earmark-pdf-fill text-danger';
   if (ext === 'xls' || ext === 'xlsx') return 'bi-file-earmark-excel-fill text-success';
   if (['png','jpg','jpeg','webp','gif'].includes(ext)) return 'bi-file-earmark-image-fill';
   return 'bi-paperclip';
 };
-
 const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x=>x!==s); applyFilters(); };
 const removeUsuario = (u) => { filtroUsuario.value = filtroUsuario.value.filter(x=>x!==u); tempUsuarioSelSet.value.delete(u); applyFilters(); };
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
-/* ========= Paginación ========= */
-const goPage = (p) => {
-  if (p < 1) p = 1;
-  if (p > totalPages.value) p = totalPages.value;
-  savedScrollY.value = window.scrollY;
-  page.value = p;
-  subscribePage();
-};
+/* ---------- Paginación ---------- */
+const goPage = (p) => { if (p < 1) p = 1; if (p > totalPages.value) p = totalPages.value; savedScrollY.value = window.scrollY; page.value = p; subscribePage(); };
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
-/* ========= Copiar SOLPED ========= */
+/* ---------- Toasts ---------- */
+const toasts = ref([]);
+const addToast = (type, text, timeout=3000) => {
+  const id = Date.now() + Math.random();
+  toasts.value.push({id, type, text});
+  setTimeout(()=>closeToast(id), timeout);
+};
+const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
+
+/* ---------- Copiar SOLPED ---------- */
 const copiarSolped = (s) => {
   try {
     const draft = {
@@ -1244,28 +1355,16 @@ const copiarSolped = (s) => {
     sessionStorage.setItem('solped_draft', JSON.stringify(draft));
     addToast('success', 'Borrador copiado. Abriendo creador de SOLPED…');
     router.push({ name: 'solped', query: { draft: '1' } });
-  } catch (e) {
-    console.error(e);
+  } catch (e) { console.error(e);
     addToast('danger','No se pudo copiar la SOLPED.');
   }
 };
 
-/* ========= Generar OC ========= */
-const irAGenerarOC = (s) => {
-  const q = { fromSolpedId: s.id };
-  try {
-    router.push({ name: 'GeneradorOC', query: q });
-  } catch (e) {
-    console.error(e);
-    router.push({ path: '/generar-oc', query: q });
-  }
-};
-const canGenerateOC = (s) => {
-  const st = (s?.estatus || '').toString().trim().toLowerCase();
-  return st === 'pendiente' || st === 'parcial';
-};
+/* ---------- Generar OC ---------- */
+const irAGenerarOC = (s) => { const q = { fromSolpedId: s.id }; try { router.push({ name: 'GeneradorOC', query: q }); } catch { router.push({ path: '/generar-oc', query: q }); } };
+const canGenerateOC = (s) => { const st = (s?.estatus || '').toString().trim().toLowerCase(); return st === 'pendiente' || st === 'parcial'; };
 
-/* ========= Comentarios y estados ========= */
+/* ---------- Comentarios / estados ---------- */
 const agregarComentario = async (s) => {
   const texto = (s.nuevoComentario || '').trim();
   if (!texto) { addToast('danger','Debes ingresar un comentario.'); return; }
@@ -1280,8 +1379,8 @@ const agregarComentario = async (s) => {
     s.comentarios = curr;
     s.nuevoComentario = '';
     addToast('success','Comentario agregado');
-  } catch (e) {
-    console.error(e); addToast('danger','Error al guardar el comentario.');
+  } catch (e) { console.error(e);
+    addToast('danger','Error al guardar el comentario.');
   }
 };
 const setStatus = async (s, estatus) => {
@@ -1298,7 +1397,7 @@ const setStatus = async (s, estatus) => {
     await addDoc(collection(db, 'solpes', s.id, 'historialEstados'), { fecha: new Date(), estatus, usuario: myFullName.value || '—' });
     s.estatus = estatus;
     addToast('success', `SOLPED #${s.numero_solpe} → "${estatus}"`);
-  } catch (e) { console.error(e); addToast('danger','Error al actualizar estatus.'); }
+  } catch (e) {console.error(e);  addToast('danger','Error al actualizar estatus.'); }
 };
 const setItemStatus = async (solpe, item, nuevo) => {
   if (!canChangeStatus.value) return;
@@ -1311,7 +1410,7 @@ const setItemStatus = async (solpe, item, nuevo) => {
   } catch (e) { console.error(e); addToast('danger','No se pudo cambiar el estado del ítem.'); }
 };
 
-/* ========= OC vinculadas ========= */
+/* ---------- OCs vinculadas ---------- */
 const ocBySolped = ref({});
 const ocLoadingSet = ref(new Set());
 const isLoadingOC = (id) => ocLoadingSet.value.has(id);
@@ -1325,8 +1424,7 @@ const fetchOCs = async (solpedId) => {
       const qy = query(collection(db,'ordenes_oc'), where('solpedId','==', solpedId), orderBy('fechaSubida','desc'));
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ __docId: d.id, ...d.data() }));
-    }catch(e){
-      console.error(e)
+    }catch(e){console.error(e);
       const qy = query(collection(db,'ordenes_oc'), where('solpedId','==', solpedId));
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ __docId: d.id, ...d.data() }));
@@ -1338,11 +1436,7 @@ const fetchOCs = async (solpedId) => {
   }
 };
 const goOC = (oc) => router.push({ name: 'oc-detalle', params: { id: oc.__docId } });
-const fmtMonedaOC = (n, c='CLP') => {
-  const v = Number(n || 0);
-  try { return v.toLocaleString('es-CL', { style:'currency', currency:c, minimumFractionDigits:0 }); }
-  catch { return `${c} ${v.toLocaleString('es-CL')}`; }
-};
+const fmtMonedaOC = (n, c='CLP') => { const v = Number(n || 0); try { return v.toLocaleString('es-CL', { style:'currency', currency:c, minimumFractionDigits:0 }); } catch { return `${c} ${v.toLocaleString('es-CL')}`; } };
 const estadoChipOC = (estatus) => {
   const s = (estatus || '').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -1353,7 +1447,7 @@ const estadoChipOC = (estatus) => {
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
-/* ========= Imagen: modal / pestaña nueva ========= */
+/* ---------- Imágenes ---------- */
 const showImgModal = ref(false);
 const previewImgSrc = ref('');
 const abrirImagen = (it) => {
@@ -1368,7 +1462,7 @@ const abrirImagenNuevaPestana = (it) => {
   window.open(url, '_blank', 'noopener');
 };
 
-/* ========= Excel ========= */
+/* ---------- Excel ---------- */
 const setStyle = (ws, addr, s) => { if (!ws[addr]) ws[addr] = { t:'s', v:'' }; ws[addr].s = { ...(ws[addr].s||{}), ...s }; };
 const styleCell = (ws, r, c, s) => { const addr = XLSX.utils.encode_cell({ r, c }); setStyle(ws, addr, s); };
 const descargarExcel = (solpe) => {
@@ -1416,17 +1510,11 @@ const descargarExcel = (solpe) => {
   }catch(e){ console.error(e); addToast('danger','No se pudo generar el Excel.'); }
 };
 
-/* ========= Toasts ========= */
-const toasts = ref([]);
-const addToast = (type, text, timeout=3000) => {
-  const id = Date.now() + Math.random();
-  toasts.value.push({id, type, text});
-  setTimeout(()=>closeToast(id), timeout);
-};
-const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
-
-/* ========= Init / watchers ========= */
+/* ---------- Init ---------- */
 onMounted(async () => {
+  computeIsDesktop();
+  window.addEventListener('resize', handleResize);
+
   // Restaurar persistencia
   const savedSidebar = safeRead(LS.SHOW_SIDEBAR, true);
   const savedFecha   = safeRead(LS.FILTRO_FECHA, '');
@@ -1448,32 +1536,31 @@ onMounted(async () => {
   onlyDirectedToMe.value = savedOnlyDir;
   onlyMine.value         = savedOnlyMine;
 
-  // Guarda inmediatamente (por consistencia entre tabs)
   safeWrite(LS.SHOW_SIDEBAR, showSidebar.value);
   safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value);
   safeWrite(LS.ONLY_MINE, onlyMine.value);
 
   await Promise.all([loadUsuarios(), loadCentrosCosto()]);
-  // sincroniza lista de usuarios seleccionados a filtro efectivo
+
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
   subscribePage();
   await refreshCount();
 });
+onBeforeUnmount(() => {
+  if (typeof unsubscribe === 'function') unsubscribe();
+  window.removeEventListener('resize', handleResize);
+  document.documentElement.style.overflow = '';
+});
 
-onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
-
-/* watchers de aplicación de filtros y persistencia */
+/* ---------- Watchers ---------- */
 watch([empresaSegmento, filtroFecha, () => filtroEstatus.value.slice(), pageSize], () => { applyFilters(); });
-
-/* watchers de persistencia granular */
 watch(showSidebar, (v)=> safeWrite(LS.SHOW_SIDEBAR, !!v));
 watch(selectedCentros, (v)=> safeWrite(LS.SELECTED_CENTROS, v || []), { deep:true });
 watch(tempUsuarioSelSet, (s)=> safeWrite(LS.USUARIOS_TEMP, Array.from(s || new Set())), { deep:true });
-watch(filtroUsuario, (v)=> safeWrite(LS.USUARIOS_TEMP, v || []), { deep:true }); // espejo
-watch(filtroEstatus, (v)=> safeWrite(LS.FILTRO_ESTATUS, v || []), { deep:true });
+watch(filtroUsuario, (v)=> safeWrite(LS.USUARIOS_TEMP, v || []), { deep:true });
 watch(()=>filtroFecha.value, (v)=> safeWrite(LS.FILTRO_FECHA, v || ''));
 
-/* ========= Expand / ver comentario ========= */
+/* ---------- Expand / marcar vistos ---------- */
 const solpeExpandidaId = ref(null);
 const marcarComentariosVistos = async (s) => {
   try {
@@ -1484,7 +1571,7 @@ const marcarComentariosVistos = async (s) => {
     }));
     await setDoc(doc(db,'solpes', s.id), { comentarios }, { merge:true });
     s.comentarios = comentarios;
-  } catch (e) { console.error(e); }
+  } catch (e) {console.error(e);}
 };
 const onExpandCard = async (s) => {
   solpeExpandidaId.value = (solpeExpandidaId.value === s.id) ? null : s.id;
@@ -1494,15 +1581,11 @@ const onExpandCard = async (s) => {
   }
 };
 
-/* ========= ========= */
-/* ====== EDICIÓN ===== */
-/* ========= ========= */
-
+/* ---------- Edición ---------- */
 const tiposSolped = [
   "EPP","INSUMOS DE OFICINA","SERVICIOS DE TERCEROS","REPUESTOS","MATERIALES","HERRAMIENTAS","LUBRICANTES",
   "NEUMÁTICOS","EDP","MATERIAS PRIMA","INSUMOS DE MINERÍA"
 ];
-
 const cotizadoresServicios = ["Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
 const cotizadoresMining    = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
 const cotizadoresHorm      = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
@@ -1518,22 +1601,17 @@ const sameLocalDay = (a, b) => {
   const bx = new Date(b.getFullYear(), b.getMonth(), b.getDate());
   return ax.getTime() === bx.getTime();
 };
-
 const puedeEditarSolped = (s) => {
   if (!isGenerador.value) return false;
   const esDueno = myFullName.value && (String(s.usuario || '').trim() === myFullName.value);
   if (!esDueno) return false;
-
   const d = s?.fecha?.toDate ? s.fecha.toDate() : (s?.fecha ? new Date(s.fecha) : null);
   if (!d || isNaN(d)) return false;
-
   const ahora = new Date();
   const dentro24h = (ahora.getTime() - d.getTime()) <= (24 * 60 * 60 * 1000);
   const mismoDia = sameLocalDay(ahora, d);
-
   return mismoDia && dentro24h;
 };
-
 const dirigidoOptions = computed(() => {
   const emp = (editForm.value?.empresa || '').toLowerCase();
   if (emp.includes('servicio')) return cotizadoresServicios;
@@ -1541,14 +1619,12 @@ const dirigidoOptions = computed(() => {
   if (emp.includes('hormig'))   return cotizadoresHorm;
   return Array.from(new Set([...cotizadoresServicios, ...cotizadoresMining, ...cotizadoresHorm]));
 });
-
 function cloneSolpedForEdit(s){
   const base = JSON.parse(JSON.stringify(s || {}));
   const e = (base.empresa || '').toLowerCase();
   if (e.includes('serv')) base.empresa = 'Xtreme Servicio';
   else if (e.includes('mining')) base.empresa = 'Xtreme Mining';
   else if (e.includes('hormig')) base.empresa = 'Xtreme Hormigones';
-
   return {
     id: base.id,
     numero_solpe: base.numero_solpe,
@@ -1562,12 +1638,8 @@ function cloneSolpedForEdit(s){
     usuario: base.usuario || '',
   };
 }
-
 const abrirEditar = (s) => {
-  if (!puedeEditarSolped(s)) {
-    addToast('danger', 'No puedes editar: sólo el generador, mismo día y dentro de 24h desde la creación.');
-    return;
-  }
+  if (!puedeEditarSolped(s)) { addToast('danger', 'No puedes editar: sólo el generador, mismo día y dentro de 24h desde la creación.'); return; }
   editForm.value = cloneSolpedForEdit(s);
   editItems.value = (s.items||[]).map(it => ({ ...it, __k: Math.random().toString(36).slice(2) }));
   dirigidoASelected.value = (Array.isArray(s.dirigidoA) ? s.dirigidoA.filter(v => typeof v === 'string') : []);
@@ -1576,19 +1648,8 @@ const abrirEditar = (s) => {
   }
   showEditModal.value = true;
 };
-
-const cerrarEditar = () => {
-  showEditModal.value = false;
-  savingEdit.value = false;
-  editForm.value = {};
-  editItems.value = [];
-  dirigidoASelected.value = [];
-};
-
-watch(() => editForm.value.numero_contrato, (codigo) => {
-  editForm.value.nombre_centro_costo = centrosMap.value?.[codigo] || '';
-});
-
+const cerrarEditar = () => { showEditModal.value = false; savingEdit.value = false; editForm.value = {}; editItems.value = []; dirigidoASelected.value = []; };
+watch(() => editForm.value.numero_contrato, (codigo) => { editForm.value.nombre_centro_costo = centrosMap.value?.[codigo] || ''; });
 function onPickImg(ev, it){
   const f = ev?.target?.files?.[0];
   if (!f) return;
@@ -1601,10 +1662,7 @@ function onPickImg(ev, it){
   };
   reader.readAsDataURL(f);
 }
-function borrarImg(it){
-  delete it.imagen_url;
-  delete it.imagen_referencia_base64;
-}
+function borrarImg(it){ delete it.imagen_url; delete it.imagen_referencia_base64; }
 function agregarItem(){
   editItems.value.push({
     __k: Math.random().toString(36).slice(2),
@@ -1617,12 +1675,9 @@ function agregarItem(){
     stock: 0
   });
 }
-function eliminarItem(idx){
-  editItems.value.splice(idx,1);
-}
+function eliminarItem(idx){ editItems.value.splice(idx,1); }
 async function guardarEdicion(){
-  if (!editForm.value?.id) return;
-  if (savingEdit.value) return;
+  if (!editForm.value?.id || savingEdit.value) return;
 
   const refCheck = doc(db, 'solpes', editForm.value.id);
   const snapCheck = await getDoc(refCheck);
@@ -1634,7 +1689,6 @@ async function guardarEdicion(){
   }
 
   savingEdit.value = true;
-
   try{
     const refd = doc(db, 'solpes', editForm.value.id);
     const payload = {
@@ -1656,9 +1710,9 @@ async function guardarEdicion(){
         imagen_url: it.imagen_url || ''
       }))
     };
-
     await updateDoc(refd, payload);
 
+    // Catálogo ligero
     const now = new Date();
     for (const it of payload.items) {
       const descOrig = (it.descripcion || '').trim();
@@ -1683,8 +1737,7 @@ async function guardarEdicion(){
     addToast('success','SOLPED actualizada');
     cerrarEditar();
     subscribePage();
-  }catch(e){
-    console.error(e);
+  }catch(e){console.error(e);
     addToast('danger','No se pudo guardar la edición.');
   }finally{
     savingEdit.value = false;
@@ -1699,15 +1752,13 @@ async function guardarEdicion(){
 .small{ font-size:.875rem; }
 .text-secondary{ color:#64748b !important; }
 
-/* ===== Alertas “pro” (unificadas) ===== */
+/* ===== Alertas “pro” ===== */
 .alert-pro{
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #fff;
   color: #0f172a;
-  box-shadow:
-    0 8px 24px rgba(15,23,42,.06),
-    0 2px  6px rgba(15,23,42,.05);
+  box-shadow: 0 8px 24px rgba(15,23,42,.06), 0 2px 6px rgba(15,23,42,.05);
   position: relative;
   overflow: hidden;
   animation: fadeSlideIn .25s ease-out;
@@ -1718,25 +1769,14 @@ async function guardarEdicion(){
   position:absolute; inset:0 0 0 auto; width:6px;
   background: linear-gradient(180deg,#ef4444,#dc2626);
 }
-@keyframes fadeSlideIn{
-  from{ opacity:0; transform: translateY(-4px); }
-  to{ opacity:1; transform: translateY(0); }
-}
+@keyframes fadeSlideIn{ from{opacity:0; transform: translateY(-4px);} to{opacity:1; transform: translateY(0);} }
 
 /* ===== Cards elevadas ===== */
 .card-elevated{
   border:1px solid #e5e7eb !important;
-  box-shadow:
-    0 10px 20px rgba(0,0,0,.08),
-    0 3px  6px rgba(0,0,0,.06) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06) !important;
   border-radius: .9rem !important;
   background:#fff;
-}
-/* opcional; ya hay estilos similares para thumbs */
-.autorizacion-thumb {
-  max-width: 260px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
 }
 
 /* Paginación superior pegajosa */
@@ -1763,12 +1803,10 @@ async function guardarEdicion(){
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
 }
 
-/* ===== Resaltado por comentarios no vistos ===== */
+/* Resaltado por comentarios no vistos */
 .card-unread{
   border-color:#2563eb !important;
-  box-shadow:
-    0 0 0 2px rgba(37,99,235,.15),
-    0 12px 24px rgba(37,99,235,.18) !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.15), 0 12px 24px rgba(37,99,235,.18) !important;
   position: relative;
 }
 .dot-unread{
@@ -1777,11 +1815,8 @@ async function guardarEdicion(){
   box-shadow: 0 0 0 6px rgba(37,99,235,.15);
 }
 
-/* Comentario no visto (en la lista) */
-.comment-unread{
-  border-left: 3px solid #2563eb;
-  background: #f0f7ff;
-}
+/* Comentario no visto */
+.comment-unread{ border-left: 3px solid #2563eb; background: #f0f7ff; }
 
 /* Loading */
 .loading-global{
@@ -1832,8 +1867,25 @@ async function guardarEdicion(){
 /* Tabla / imágenes */
 .thumb{ width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #e2e8f0; }
 
-/* Responsivo menor: compactar tipografía en xs */
+/* Compactación tipográfica en xs */
 @media (max-width: 420px){
   .card-header .small{ font-size: .8rem; }
 }
+
+/* ===== Offcanvas móvil ===== */
+.oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
+.oc-enter-from, .oc-leave-to { opacity: 0; }
+.oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
+.oc-backdrop{ position: absolute; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(1px); }
+.oc-panel{
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(92vw, 420px);
+  background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.2);
+  display: flex; flex-direction: column;
+  transform: translateX(0); animation: ocSlideIn .22s ease-out;
+}
+@keyframes ocSlideIn { from { transform: translateX(100%); opacity: .6; } to { transform: translateX(0); opacity: 1; } }
+.oc-header{ padding: .9rem .9rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.oc-body{ padding: .9rem; overflow: auto; }
+.oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
 </style>

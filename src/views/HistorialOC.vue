@@ -1,20 +1,35 @@
+<!-- src/views/HistorialOC.vue -->
 <template>
   <div class="hist-oc-page">
     <div class="container py-4 py-md-5">
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <!-- Top bar -->
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
-          <i class="bi bi-arrow-left"></i> Volver
+          <i class="bi bi-arrow-left"></i>
+          <span class="d-none d-sm-inline ms-1">Volver</span>
         </button>
 
-        <h1 class="h4 fw-semibold mb-0">Historial de Cotizaciones</h1>
+        <h1 class="h5 fw-semibold mb-0 text-truncate flex-grow-1 text-center d-none d-sm-block">
+          Historial de Cotizaciones
+        </h1>
+        <h1 class="h6 fw-semibold mb-0 text-truncate d-sm-none">Historial OC</h1>
 
         <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-outline-primary btn-sm" @click="toggleSidebar">
-            <i class="bi" :class="showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset'"></i>
-            <span class="d-none d-sm-inline ms-1">{{ showSidebar ? 'Ocultar filtros' : 'Mostrar filtros' }}</span>
+          <!-- En desktop alterna sidebar; en móvil abre offcanvas -->
+          <button class="btn btn-outline-primary btn-sm" @click="toggleFiltersResponsive">
+            <i
+              class="bi"
+              :class="(isDesktop
+                       ? (showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset')
+                       : (showFiltersMobile ? 'bi-x-lg' : 'bi-funnel'))"
+            ></i>
+            <span class="d-none d-sm-inline ms-1">
+              {{ isDesktop ? (showSidebar ? 'Ocultar filtros' : 'Mostrar filtros')
+                           : (showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros') }}
+            </span>
           </button>
 
-          <!-- Switch Mis cotizaciones (header) -->
+          <!-- Switch Mis cotizaciones (oculto en xs) -->
           <div class="form-check form-switch ms-2 d-none d-sm-flex align-items-center">
             <input
               class="form-check-input"
@@ -54,10 +69,10 @@
               </button>
             </div>
           </div>
-          <div v-if="ocEncontrada" class="alert d-flex align-items-center mt-3">
+          <div v-if="ocEncontrada" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
             <div class="me-auto">
               <div class="fw-semibold">Resultado: N° {{ ocEncontrada.id ?? '—' }}</div>
-              <div class="small ">
+              <div class="small text-secondary">
                 {{ ocEncontrada.empresa }} · {{ ocEncontrada.nombre_centro_costo || ocEncontrada.centroCostoNombre || '—' }}
                 · {{ fmtFecha(ocEncontrada.fechaSubida) }}
               </div>
@@ -102,11 +117,11 @@
 
       <!-- Segmento por empresa -->
       <div class="mb-3">
-        <div class="btn-group">
-          <button class="btn" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
-          <button class="btn" :class="empresaSegmento==='Xtreme Mining' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Mining')">⛏ Mining</button>
-          <button class="btn" :class="empresaSegmento==='Xtreme Servicio' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Servicio')">🛠 Servicio</button>
-          <button class="btn" :class="empresaSegmento==='Xtreme Hormigones' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Hormigones')">🧱 Hormigones</button>
+        <div class="btn-group flex-wrap">
+          <button class="btn btn-sm" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Mining' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Mining')">⛏ Mining</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Servicio' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Servicio')">🛠 Servicio</button>
+          <button class="btn btn-sm" :class="empresaSegmento==='Xtreme Hormigones' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('Xtreme Hormigones')">🧱 Hormigones</button>
         </div>
       </div>
 
@@ -164,7 +179,7 @@
                     <span class="badge badge-status" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus || '—' }}</span>
                   </div>
 
-                  <div class="small ">
+                  <div class="small text-secondary">
                     Subida: <strong>{{ fmtFecha(oc.fechaSubida) }}</strong>
                     <span v-if="oc.fechaAprobacion"> · Aprobada: <strong>{{ fmtFecha(oc.fechaAprobacion) }}</strong></span>
                   </div>
@@ -173,32 +188,32 @@
                 <div class="card-body">
                   <div class="row g-3">
                     <div class="col-12 col-md-6">
-                      <div class="small ">Centro de Costo</div>
+                      <div class="small text-secondary">Centro de Costo</div>
                       <div class="fw-semibold">
                         {{ oc.numero_contrato || oc.centroCosto || '—' }} — {{ oc.nombre_centro_costo || oc.centroCostoNombre || '—' }}
                       </div>
                     </div>
                     <div class="col-12 col-md-6">
-                      <div class="small ">Responsable</div>
+                      <div class="small text-secondary">Responsable</div>
                       <div class="fw-semibold">{{ oc.responsable || '—' }}</div>
                     </div>
 
                     <div class="col-12 col-md-4">
-                      <div class="small">Moneda</div>
+                      <div class="small text-secondary">Moneda</div>
                       <div class="fw-semibold">{{ oc.moneda || '—' }}</div>
                     </div>
                     <div class="col-12 col-md-4">
-                      <div class="small">Total con IVA</div>
+                      <div class="small text-secondary">Total con IVA</div>
                       <div class="fw-semibold">{{ fmtMoneda(oc.precioTotalConIVA, oc.moneda) }}</div>
                     </div>
                     <div class="col-12 col-md-4">
-                      <div class="small ">Aprobador sugerido</div>
+                      <div class="small text-secondary">Aprobador sugerido</div>
                       <div class="fw-semibold">{{ oc.aprobadorSugerido || '—' }}</div>
                     </div>
 
                     <div class="col-12">
-                      <div class="small ">Comentario</div>
-                      <div class="border rounded p-2 ">{{ oc.comentario || '—' }}</div>
+                      <div class="small text-secondary">Comentario</div>
+                      <div class="border rounded p-2">{{ oc.comentario || '—' }}</div>
                     </div>
                   </div>
 
@@ -206,7 +221,7 @@
                   <div class="mt-3 d-flex align-items-center gap-2"
                        v-if="oc.solpedId || oc.numero_solped != null">
                     <i class="bi bi-link-45deg"></i>
-                    <span class="small">Vinculado a SOLPED</span>
+                    <span class="small text-secondary">Vinculado a SOLPED</span>
 
                     <span class="badge bg-secondary-subtle text-secondary-emphasis">
                       N° {{ oc.numero_solped ?? '—' }}
@@ -220,8 +235,8 @@
                   </div>
                 </div>
 
-                <div class="card-footer  d-flex align-items-center justify-content-between">
-                  <div class="small ">
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                  <div class="small text-secondary">
                     Empresa: <strong>{{ oc.empresa }}</strong> · Ítems: <strong>{{ (oc.items?.length||0) }}</strong>
                   </div>
                   <div class="d-flex align-items-center gap-2">
@@ -241,7 +256,6 @@
               </div>
               <p class="ghost-text">No hay cotizaciones con los filtros aplicados.</p>
             </div>
-
           </template>
         </div>
 
@@ -256,69 +270,108 @@
               </div>
             </div>
             <div class="card-body">
-              <div class="mb-3">
-                <label class="form-label">Fecha (subida)</label>
-                <input type="date" class="form-control" v-model="filtroFecha">
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Estado</label>
-                <select class="form-select" multiple v-model="filtroEstatus">
-                  <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
-                </select>
-                <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
-              </div>
-
-              <!-- Centros de costo -->
-              <div class="mb-2">
-                <label class="form-label">Centro de costo (código)</label>
-                <input class="form-control mb-2" v-model="centroPickerSearch" placeholder="Buscar código o nombre…" />
-                <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
-                  <div class="form-check" v-for="code in centrosFiltrados" :key="code">
-                    <input class="form-check-input" type="checkbox"
-                           :id="'cc_'+code"
-                           :checked="selectedCentrosSet.has(code)"
-                           @change="toggleCentro(code)">
-                    <label class="form-check-label" :for="'cc_'+code">
-                      <strong>{{ code }}</strong> — {{ centrosCosto[code] }}
-                    </label>
-                  </div>
-                </div>
-                <small class="text-secondary d-block mt-1">
-                  Si seleccionas 1–10 códigos se filtra en servidor. Más de 10 se filtra en la página.
-                </small>
-              </div>
-
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="chkMine" v-model="soloMias">
-                <label class="form-check-label" for="chkMine">Ver sólo mis cotizaciones</label>
-              </div>
-
-              <div class="mb-0">
-                <label class="form-label">Tamaño de página</label>
-                <select class="form-select" v-model.number="pageSize" @change="applyFilters">
-                  <option v-for="n in [5,10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
-                </select>
-              </div>
+              <FiltroForm
+                v-model:filtro-fecha="filtroFecha"
+                v-model:filtro-estatus="filtroEstatus"
+                v-model:centro-search="centroSearch"
+                v-model:centro-picker-search="centroPickerSearch"
+                :centros-costo="centrosCosto"
+                :centros-filtrados="centrosFiltrados"
+                :selected-centros="selectedCentros"
+                :selected-centros-set="selectedCentrosSet"
+                :solo-mias="soloMias"
+                :page-size="pageSize"
+                @toggle-centro="toggleCentro"
+                @remove-centro="removeCentro"
+                @apply="applyFilters"
+                @limpiar="limpiarFiltros"
+                @update:solo-mias="(v)=> soloMias = v"
+                @update:page-size="(v)=> { pageSize = v; applyFilters(); }"
+              />
             </div>
           </div>
         </aside>
       </div>
     </div>
 
+    <!-- Offcanvas filtros (móvil / tablet) -->
+    <transition name="oc">
+      <div v-if="showFiltersMobile" class="oc-wrap d-lg-none">
+        <div class="oc-backdrop" @click="closeFiltersMobile"></div>
+
+        <div
+          class="oc-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filtros historial OC"
+          @keydown.esc="closeFiltersMobile"
+        >
+          <div class="oc-header">
+            <h2 class="h6 mb-0 fw-semibold">Filtros</h2>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-sm btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
+              <button class="btn btn-sm btn-outline-dark" @click="closeFiltersMobile" aria-label="Cerrar filtros">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="oc-body">
+            <FiltroForm
+              v-model:filtro-fecha="filtroFecha"
+              v-model:filtro-estatus="filtroEstatus"
+              v-model:centro-search="centroSearch"
+              v-model:centro-picker-search="centroPickerSearch"
+              :centros-costo="centrosCosto"
+              :centros-filtrados="centrosFiltrados"
+              :selected-centros="selectedCentros"
+              :selected-centros-set="selectedCentrosSet"
+              :solo-mias="soloMias"
+              :page-size="pageSize"
+              mobile
+              @toggle-centro="toggleCentro"
+              @remove-centro="removeCentro"
+              @apply="applyFilters"
+              @limpiar="limpiarFiltros"
+              @update:solo-mias="(v)=> soloMias = v"
+              @update:page-size="(v)=> { pageSize = v; }"
+            />
+          </div>
+
+          <div class="oc-footer">
+            <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+            <button class="btn btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- Botón flotante filtros (móvil) -->
     <button
       class="btn btn-primary floating-filters-btn d-lg-none"
-      @click="toggleSidebar"
-      :title="showSidebar ? 'Ocultar filtros' : 'Mostrar filtros'"
+      @click="toggleFiltersResponsive"
+      :title="showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros'"
+      aria-label="Abrir filtros"
     >
       <i class="bi bi-funnel"></i>
+    </button>
+
+    <!-- Botón flotante: volver arriba (móvil) -->
+    <button
+      v-show="showScrollTop"
+      class="btn btn-outline-dark floating-top-btn d-lg-none"
+      @click="scrollToTop"
+      aria-label="Volver arriba"
+      :title="'Volver arriba'"
+    >
+      <i class="bi bi-arrow-up"></i>
     </button>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
@@ -326,24 +379,172 @@ import {
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
+/* ========== Subcomponente: FiltroForm (reutilizable para sidebar/offcanvas) ========== */
+const FiltroForm = {
+  name: 'FiltroForm',
+  props: {
+    filtroFecha: String,
+    filtroEstatus: Array,
+    centroSearch: String,
+    centroPickerSearch: String,
+    centrosCosto: Object,
+    centrosFiltrados: Array,
+    selectedCentros: Array,
+    selectedCentrosSet: Object,
+    soloMias: Boolean,
+    pageSize: Number,
+    mobile: Boolean
+  },
+  emits: [
+    'update:filtro-fecha',
+    'update:filtro-estatus',
+    'update:centro-search',
+    'update:centro-picker-search',
+    'update:solo-mias',
+    'update:page-size',
+    'toggle-centro',
+    'remove-centro',
+    'apply',
+    'limpiar'
+  ],
+  setup(props, { emit }) {
+    return () => [
+      h('div', { class: 'mb-3' }, [
+        h('label', { class: 'form-label' }, 'Fecha (subida)'),
+        h('input', {
+          type: 'date',
+          class: 'form-control',
+          value: props.filtroFecha,
+          onInput: e => emit('update:filtro-fecha', e.target.value)
+        })
+      ]),
+
+      h('div', { class: 'mb-3' }, [
+        h('label', { class: 'form-label' }, 'Estado'),
+        h('select', {
+          class: 'form-select',
+          multiple: true,
+          value: props.filtroEstatus,
+          onChange: e => emit('update:filtro-estatus', Array.from(e.target.selectedOptions).map(o => o.value))
+        },
+          ['Aprobado','Preaprobado','Pendiente de Aprobación','Revisión Guillermo','Enviada a proveedor','Rechazado'].map(s =>
+            h('option', { value: s }, s)
+          )
+        ),
+        h('small', { class: 'text-secondary' }, 'Puedes seleccionar varios (máx. 10).')
+      ]),
+
+      h('div', { class: 'mb-2' }, [
+        h('label', { class: 'form-label' }, 'Centro de costo (código)'),
+        h('input', {
+          class: 'form-control mb-2',
+          placeholder: 'Buscar código o nombre…',
+          value: props.centroPickerSearch,
+          onInput: e => emit('update:centro-picker-search', e.target.value)
+        }),
+        h('div', {
+          class: 'border rounded p-2',
+          style: { maxHeight: props.mobile ? '46vh' : '220px', overflow: 'auto' }
+        },
+          (props.centrosFiltrados || []).map(code =>
+            h('div', { class: 'form-check', key: code }, [
+              h('input', {
+                class: 'form-check-input',
+                type: 'checkbox',
+                id: `cc_${code}`,
+                checked: props.selectedCentrosSet && props.selectedCentrosSet.has && props.selectedCentrosSet.has(code),
+                onChange: () => emit('toggle-centro', code)
+              }),
+              h('label', { class: 'form-check-label', for: `cc_${code}` }, [
+                h('strong', code),
+                ` — ${props.centrosCosto ? (props.centrosCosto[code] || '') : ''}`
+              ])
+            ])
+          )
+        ),
+        h('small', { class: 'text-secondary d-block mt-1' },
+          'Si seleccionas 1–10 códigos se filtra en servidor. Más de 10 se filtra en la página.'
+        )
+      ]),
+
+      h('div', { class: 'mb-3' }, [
+        h('label', { class: 'form-label' }, 'Centro (texto contiene)'),
+        h('input', {
+          class: 'form-control',
+          placeholder: 'Ej: San Bernardo / Caneche',
+          value: props.centroSearch,
+          onInput: e => emit('update:centro-search', e.target.value)
+        }),
+        h('small', { class: 'text-secondary' }, 'Se aplica en la página.')
+      ]),
+
+      h('div', { class: 'form-check mb-3' }, [
+        h('input', {
+          class: 'form-check-input',
+          type: 'checkbox',
+          id: `chkMine_${props.mobile ? 'm' : 'd'}`,
+          checked: props.soloMias,
+          onChange: e => emit('update:solo-mias', e.target.checked)
+        }),
+        h('label', { class: 'form-check-label', for: `chkMine_${props.mobile ? 'm' : 'd'}` }, 'Ver sólo mis cotizaciones')
+      ]),
+
+      h('div', { class: 'mb-0' }, [
+        h('label', { class: 'form-label' }, 'Tamaño de página'),
+        h('select', {
+          class: 'form-select',
+          value: props.pageSize,
+          onChange: e => emit('update:page-size', Number(e.target.value))
+        },
+          [5,10,20,30,40,50].map(n => h('option', { value: n }, String(n)))
+        )
+      ])
+    ]
+  }
+};
+/* ===================================================================================== */
+
 const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
+
+/* ========= Responsive / Offcanvas ========= */
+const isDesktop = ref(false);
+const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
+
+const LS_SHOW_SIDEBAR = 'histOC:showSidebar';
+const showSidebar = ref(true);
+const showFiltersMobile = ref(false);
+
+const openFiltersMobile = () => {
+  showFiltersMobile.value = true;
+  document.documentElement.style.overflow = 'hidden';
+};
+const closeFiltersMobile = () => {
+  showFiltersMobile.value = false;
+  document.documentElement.style.overflow = '';
+};
+const toggleSidebarOnly = () => {
+  showSidebar.value = !showSidebar.value;
+  try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? '1' : '0'); } catch(e){console.error('persist sidebar error', e);}
+};
+const toggleFiltersResponsive = () => {
+  computeIsDesktop();
+  if (isDesktop.value) toggleSidebarOnly();
+  else (showFiltersMobile.value ? closeFiltersMobile() : openFiltersMobile());
+};
+const handleResize = () => {
+  const wasMobileOpen = showFiltersMobile.value;
+  computeIsDesktop();
+  if (isDesktop.value && wasMobileOpen) closeFiltersMobile();
+};
 
 /* ========= Estado ========= */
 const loading = ref(true);
 const loadingSearch = ref(false);
 const error = ref('');
 
-/* ===== Sidebar persistente ===== */
-const LS_SHOW_SIDEBAR = 'histOC:showSidebar';
-const showSidebar = ref(true);
-const toggleSidebar = () => {
-  showSidebar.value = !showSidebar.value;
-  try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? '1' : '0'); } catch(e){console.error('persist sidebar error', e);}
-};
-
-/* ========= Datos de la página ========= */
+/* ========= Datos/página ========= */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
@@ -397,7 +598,7 @@ const centrosCosto = {
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
-const centroSearch = ref(''); // texto libre para nombre de centro (filtro cliente)
+const centroSearch = ref(''); // texto libre (cliente)
 
 /* ========= Paginación ========= */
 const page = ref(1);
@@ -423,12 +624,10 @@ const fmtFecha = (f) => {
     return d.toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' });
   } catch { return '—'; }
 };
-
 const fmtMoneda = (n, c='CLP') => {
   const v = Number(n || 0);
-  try {
-    return v.toLocaleString('es-CL', { style: 'currency', currency: c, minimumFractionDigits: 0 });
-  } catch { return `${c} ${v.toLocaleString('es-CL')}`; }
+  try { return v.toLocaleString('es-CL', { style: 'currency', currency: c, minimumFractionDigits: 0 }); }
+  catch { return `${c} ${v.toLocaleString('es-CL')}`; }
 };
 
 /* ======== Roles ======== */
@@ -502,9 +701,7 @@ const hasActiveFilters = computed(() =>
 const currentUserName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || '').trim());
 
 /* ========= Persistencia local ========= */
-/** Clave unificada de filtros */
 const LS_FILTERS = 'histOC:filters_v1';
-/** Compat legacy */
 const LS_SOLO_MIAS_KEY = 'histOC:soloMias';
 
 function persistFilters(){
@@ -519,10 +716,8 @@ function persistFilters(){
   };
   try { localStorage.setItem(LS_FILTERS, JSON.stringify(payload)); } catch(e){console.error('persist filters error', e);}
 }
-
 function loadPersistedFilters(){
   try {
-    // Sidebar
     const sb = localStorage.getItem(LS_SHOW_SIDEBAR);
     if (sb === '0') showSidebar.value = false;
     if (sb === '1') showSidebar.value = true;
@@ -538,19 +733,16 @@ function loadPersistedFilters(){
       soloMias.value         = !!f.soloMias;
       if ([5,10,20,30,40,50].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
     } else {
-      // fallback compat para "Mis cotizaciones"
       const legacy = localStorage.getItem(LS_SOLO_MIAS_KEY);
       if (legacy === '1') soloMias.value = true;
       if (legacy === '0') soloMias.value = false;
     }
   } catch(e){console.error('load persisted filters error', e);}
 }
-
-/** Sincroniza entre pestañas */
 function onStorageSync(e){
   if (e.key === LS_FILTERS && e.newValue){
     loadPersistedFilters();
-    applyFilters(); // reconsulta con nuevos filtros
+    applyFilters();
   } else if (e.key === LS_SHOW_SIDEBAR && e.newValue !== null){
     showSidebar.value = (e.newValue === '1');
   }
@@ -592,7 +784,6 @@ const buildBaseWhere = () => {
 
   return wh;
 };
-
 const makePageQuery = (pageNumber=1) => {
   const wh = buildBaseWhere();
   const base = query(
@@ -655,6 +846,7 @@ const refreshCount = async () => {
 function applyClientFilters(arr) {
   let out = Array.isArray(arr) ? arr : [];
 
+  // Texto contiene en nombre de centro
   if (centroNombreFiltroActivo.value) {
     const q = centroSearch.value.trim().toLowerCase();
     out = out.filter(oc => {
@@ -679,13 +871,8 @@ const agruparPorEmpresa = (arr=[]) => {
 const agrupadasPaged = computed(() => agruparPorEmpresa(displayList.value));
 
 /* ========= Acciones ========= */
-const listaEstatus = [
-  'Aprobado','Preaprobado','Pendiente de Aprobación','Revisión Guillermo',
-  'Enviada a proveedor','Rechazado'
-];
-
 const applyFilters = () => {
-  persistFilters();        // <=== guarda al aplicar
+  persistFilters();
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
@@ -719,10 +906,7 @@ const prevPage = () => goPage(page.value - 1);
 
 /* ========= Navegación ========= */
 const goOC = (oc) => router.push({ name: 'oc-detalle', params: { id: oc.__docId } });
-const goSolped = (oc) => {
-  const id = oc?.solpedId;
-  if (id) router.push({ name: 'SolpedDetalle', params: { id } });
-};
+const goSolped = (oc) => { const id = oc?.solpedId; if (id) router.push({ name: 'SolpedDetalle', params: { id } }); };
 
 /* ========= Búsqueda exacta ========= */
 const buscarOCExacta = async () => {
@@ -742,8 +926,21 @@ const buscarOCExacta = async () => {
   }
 };
 
-/* ========= Init ========= */
+/* ========= FAB “Volver arriba” (sólo móvil) ========= */
+const showScrollTop = ref(false);
+const onScroll = () => {
+  showScrollTop.value = window.scrollY > 300;
+};
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+/* ========= Init / Cleanup ========= */
 onMounted(async () => {
+  computeIsDesktop();
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('scroll', onScroll, { passive: true });
+
   // carga filtros + sidebar persistidos
   loadPersistedFilters();
 
@@ -754,12 +951,15 @@ onMounted(async () => {
   // sincroniza entre pestañas
   window.addEventListener('storage', onStorageSync);
 });
-onBeforeUnmount(() => { if (typeof unsubscribe === 'function') unsubscribe(); });
+onBeforeUnmount(() => {
+  if (typeof unsubscribe === 'function') unsubscribe();
+  window.removeEventListener('resize', handleResize);
+  window.removeEventListener('scroll', onScroll);
+  document.documentElement.style.overflow = '';
+});
 onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 
-/* ========= Observadores =========
-   Guardan cambios de forma “reactiva” y re-aplican.
-*/
+/* ========= Observadores ========= */
 watch(
   [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
   () => { applyFilters(); },
@@ -776,16 +976,26 @@ watch(
 }
 
 /* Paginación superior pegajosa */
-.sticky-pager{ position: sticky; top: 8px; z-index: 5; background: transparent; backdrop-filter: blur(3px); }
+.sticky-pager{ position: sticky; top: 8px; z-index: 5; backdrop-filter: blur(3px); }
 
 /* Sidebar filtros pegajoso en desktop */
 .sticky-sidebar{ position: sticky; top: 12px; }
 
-/* Botón flotante filtros en móvil */
+/* Botón flotante filtros (móvil) */
 .floating-filters-btn{
-  position: fixed; right: 16px; bottom: 16px; z-index: 20;
-  border-radius: 9999px; width: 48px; height: 48px; display: grid; place-items: center;
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 20;
+  border-radius: 12px; width: 48px; height: 48px; display: grid; place-items: center;
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
+}
+
+/* Botón flotante “volver arriba” (móvil) */
+.floating-top-btn{
+  position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom));
+  z-index: 20;
+  border-radius: 12px; width: 48px; height: 48px; display: grid; place-items: center;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 10px 20px rgba(0,0,0,.18);
 }
 
 /* Tarjeta clickable si está rechazado o pendiente */
@@ -805,7 +1015,7 @@ watch(
 .ghost-wrap{ text-align:center; padding:2rem 0; color:#64748b; }
 .ghost{
   width:120px; height:140px; margin:0 auto; background:#fff; border-radius:60px 60px 20px 20px;
-  position:relative; box-shadow:0 10px 20px rgba(0,0,0,.08);
+  position:relative; box-shadow: 0 10px 20px rgba(0,0,0,.08);
   animation: floaty 3s ease-in-out infinite;
 }
 .ghost:before{
@@ -825,8 +1035,6 @@ watch(
 .form-check.form-switch .form-check-input{ cursor: pointer; }
 
 /* ========= PALETA PERSONALIZADA POR ESTADO ========= */
-
-/* BADGES */
 .badge-status{ font-weight:600; border:0; }
 .badge-aprobado{    background:#e7f6e9; color:#166534; }
 .badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }
@@ -837,25 +1045,33 @@ watch(
 .badge-otro{        background:#f1f5f9; color:#334155; }
 
 /* HEADERS (SOLO EDITOR) */
-.hdr-aprobado{
-  background:#e7f6e9 !important; color:#0f5132 !important; border-bottom:1px solid #ccead2 !important;
+.hdr-aprobado{    background:#e7f6e9 !important; color:#0f5132 !important; border-bottom:1px solid #ccead2 !important; }
+.hdr-preaprobado{ background:#e6f3fb !important; color:#0b4a6f !important; border-bottom:1px solid #c7e6f7 !important; }
+.hdr-pendiente{   background:#fff1db !important; color:#7c2d12 !important; border-bottom:1px solid #ffe1b6 !important; }
+.hdr-rechazado{   background:#fee2e2 !important; color:#7f1d1d !important; border-bottom:1px solid #fecaca !important; }
+.hdr-enviada{     background:#e8edff !important; color:#1e3a8a !important; border-bottom:1px solid #cdd6ff !important; }
+.hdr-revision{    background:#efe9ff !important; color:#4c1d95 !important; border-bottom:1px solid #dfd3ff !important; }
+.hdr-otro{        background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important; }
+
+/* ===== Offcanvas móvil ===== */
+.oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
+.oc-enter-from, .oc-leave-to { opacity: 0; }
+.oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
+.oc-backdrop{ position: absolute; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(1px); }
+.oc-panel{
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(92vw, 420px);
+  background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.2);
+  display: flex; flex-direction: column;
+  transform: translateX(0); animation: ocSlideIn .22s ease-out;
 }
-.hdr-preaprobado{
-  background:#e6f3fb !important; color:#0b4a6f !important; border-bottom:1px solid #c7e6f7 !important;
-}
-.hdr-pendiente{
-  background:#fff1db !important; color:#7c2d12 !important; border-bottom:1px solid #ffe1b6 !important;
-}
-.hdr-rechazado{
-  background:#fee2e2 !important; color:#7f1d1d !important; border-bottom:1px solid #fecaca !important;
-}
-.hdr-enviada{
-  background:#e8edff !important; color:#1e3a8a !important; border-bottom:1px solid #cdd6ff !important;
-}
-.hdr-revision{
-  background:#efe9ff !important; color:#4c1d95 !important; border-bottom:1px solid #dfd3ff !important;
-}
-.hdr-otro{
-  background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important;
+@keyframes ocSlideIn { from { transform: translateX(100%); opacity: .6; } to { transform: translateX(0); opacity: 1; } }
+.oc-header{ padding: .9rem .9rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.oc-body{ padding: .9rem; overflow: auto; }
+.oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
+
+/* Ajustes compactos en xs */
+@media (max-width: 420px){
+  .card-header .small{ font-size: .8rem; }
 }
 </style>

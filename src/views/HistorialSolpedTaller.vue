@@ -1,6 +1,6 @@
 <!-- src/views/HistorialSolpedTaller.vue -->
 <template>
-  <div class="historial-taller-page">
+  <div class="historial-taller-page" v-cloak>
     <div class="container py-4 py-md-5">
       <!-- Top bar -->
       <div class="topbar row g-2 align-items-center mb-3">
@@ -14,8 +14,8 @@
           <h1 class="h5 fw-semibold mb-0">Historial SOLPED Taller</h1>
         </div>
 
-        <div class="col-6 col-sm-auto order-2 order-sm-3 d-flex justify-content-end">
-          <!-- Desktop/tablet: botón alterna sidebar (solo feedback visual en ≥lg) -->
+        <div class="col-6 col-sm-auto order-2 order-sm-3 d-flex justify-content-end gap-2">
+          <!-- Desktop/tablet: alterna sidebar fijo (≥lg) -->
           <button
             class="btn btn-outline-primary btn-sm d-none d-lg-inline-flex"
             @click="toggleSidebar"
@@ -24,13 +24,12 @@
             <span class="ms-1">{{ showSidebar ? 'Ocultar filtros' : 'Mostrar filtros' }}</span>
           </button>
 
-          <!-- Mobile/Tablet: abre Offcanvas -->
+          <!-- Móvil/Tablet: abre Offcanvas por JS (evita conflicto con hamburguesa) -->
           <button
             class="btn btn-outline-primary btn-sm d-inline-flex d-lg-none"
-            data-bs-toggle="offcanvas"
-            data-bs-target="#filtersOffcanvas"
             type="button"
             title="Mostrar filtros"
+            @click="openFiltersOffcanvas"
           >
             <i class="bi bi-funnel"></i>
           </button>
@@ -102,7 +101,6 @@
                 >
                   Ver detalle
                 </router-link>
-                <!-- Generar OC sólo para editores estrictos y estados permitidos -->
                 <button
                   v-if="canGenerateOC(solpeEncontrada)"
                   class="btn btn-sm btn-outline-warning"
@@ -144,7 +142,6 @@
             <button class="btn-close btn-close-white ms-2 small" @click="removeSolicitante(u)"></button>
           </span>
 
-          <!-- Chips de CC seleccionados -->
           <span
             v-for="code in selectedCC"
             :key="'cc-'+code"
@@ -214,7 +211,6 @@
                   <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="badge" :style="estadoChipStyle(s)">{{ s.estatus }}</span>
 
-                    <!-- Cambiar estado: SOLO admin/aprobador-editor/editor -->
                     <div class="dropdown" v-if="canChangeStatus">
                       <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
                         Cambiar estado
@@ -228,7 +224,6 @@
                       </ul>
                     </div>
 
-                    <!-- Copiar/editar: SOLO Generador Solped -->
                     <button
                       v-if="canCopySolped"
                       class="btn btn-sm btn-outline-primary"
@@ -238,7 +233,6 @@
                       <i class="bi bi-files"></i>
                     </button>
 
-                    <!-- EDITAR: dueño (usuario_sesion) o por rol (aprobador/editor/editor/admin), mismo día y <=24h -->
                     <button
                       v-if="puedeEditarSolped(s) || puedeEditarPorRol(s)"
                       class="btn btn-sm btn-outline-primary"
@@ -249,12 +243,10 @@
                       <span class="d-none d-md-inline ms-1">Editar</span>
                     </button>
 
-                    <!-- Descargar Excel: permitido para todos los que ven -->
                     <button class="btn btn-sm btn-success" @click.stop="descargarExcel(s)" title="Descargar Excel">
                       <i class="bi bi-file-earmark-excel"></i>
                     </button>
 
-                    <!-- Generar OC: SOLO editores estrictos y si estado Pendiente/Parcial -->
                     <button
                       v-if="canGenerateOC(s)"
                       class="btn btn-sm btn-outline-warning"
@@ -264,7 +256,6 @@
                       <span class="d-none d-md-inline ms-1">Generar OC</span>
                     </button>
 
-                    <!-- Ver detalle (todos los que ven) -->
                     <button class="btn btn-sm btn-outline-info" @click.stop="verDetalleSolped(s)" title="Ver detalle">
                       <i class="bi bi-eye"></i>
                     </button>
@@ -287,6 +278,7 @@
                           <th class="d-none d-lg-table-cell">N° Interno</th>
                           <th class="d-none d-lg-table-cell">Imagen</th>
                           <th>Estatus</th>
+                          <th class="text-end d-none d-lg-table-cell">Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -310,7 +302,6 @@
                             </span>
                           </td>
                           <td class="text-end d-none d-lg-table-cell">
-                            <!-- Cambiar ítem: solo roles con permisos -->
                             <div class="dropdown" v-if="canChangeStatus">
                               <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
                                 Cambiar ítem
@@ -465,11 +456,11 @@
 
               <!-- Vacío con fantasma -->
               <div v-if="!loading && filteredAll.length===0" class="ghost-wrap">
-              <div class="ghost">
-                <div class="ghost-eyes"></div>
-                <div class="ghost-bottom"><div></div><div></div><div></div><div></div></div>
-              </div>
-              <p class="ghost-text">No hay cotizaciones con los filtros aplicados.</p>
+                <div class="ghost">
+                  <div class="ghost-eyes"></div>
+                  <div class="ghost-bottom"><div></div><div></div><div></div><div></div></div>
+                </div>
+                <p class="ghost-text">No hay cotizaciones con los filtros aplicados.</p>
               </div>
             </template>
           </div>
@@ -534,7 +525,7 @@
                     <label class="form-check-label" :for="'u_'+normalize(u)">{{ u }}</label>
                   </div>
                 </div>
-                <!-- Sólo mis SOLPED -->
+
                 <div class="form-check mb-3">
                   <input class="form-check-input" type="checkbox" id="chkOnlyMineDesk" v-model="onlyMine" @change="persistOnlyMine">
                   <label class="form-check-label" for="chkOnlyMineDesk">Ver sólo mis SOLPED</label>
@@ -552,20 +543,21 @@
           </aside>
         </div>
 
-        <!-- Offcanvas Filtros (móvil/tablet) -->
+        <!-- Offcanvas Filtros (móvil/tablet) - controlado por JS -->
         <div
-          class="offcanvas offcanvas-end d-lg-none"
+          class="offcanvas offcanvas-end offcanvas-filtros d-lg-none"
           tabindex="-1"
-          id="filtersOffcanvas"
+          :id="filtersOffcanvasId"
           ref="filtersOffcanvasEl"
           aria-labelledby="filtersOffcanvasLabel"
+          data-bs-backdrop="true"
+          data-bs-scroll="true"
         >
           <div class="offcanvas-header">
             <h5 id="filtersOffcanvasLabel" class="mb-0">Filtros</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+            <button type="button" class="btn-close" @click="closeFiltersOffcanvas" aria-label="Cerrar"></button>
           </div>
           <div class="offcanvas-body">
-            <!-- Mismo contenido de filtros pero optimizado a móvil -->
             <div class="mb-3">
               <label class="form-label">Texto libre</label>
               <input class="form-control" placeholder="Descripción, código, solicitante, empresa, CC…"
@@ -638,11 +630,21 @@
             </div>
 
             <div class="d-grid gap-2">
-              <button class="btn btn-success" @click="applySolicitantesFiltro" data-bs-dismiss="offcanvas">Aplicar</button>
+              <button class="btn btn-success" @click="applyAndClose">Aplicar</button>
               <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
             </div>
           </div>
         </div>
+
+        <!-- FAB (botón flotante de filtros) - solo móvil -->
+        <button
+          class="filter-fab btn btn-primary d-lg-none"
+          type="button"
+          title="Filtros"
+          @click="openFiltersOffcanvas"
+        >
+          <i class="bi bi-funnel"></i>
+        </button>
 
         <!-- ========= MODAL EDICIÓN SOLPED TALLER ========= -->
         <div v-if="showEditModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.55);">
@@ -781,7 +783,7 @@ export default {
     const solpeEncontrada = ref(null);
 
     // OCs por SOLPED
-    const _ocBySolped = ref(new Map());   // Map<solpedId, Array<OC>>
+    const _ocBySolped = ref(new Map());
     const _ocLoading = ref(new Set());
     const isLoadingOC = (solpedId) => _ocLoading.value.has(solpedId);
     const ocListFor = (solpedId) => _ocBySolped.value.get(solpedId) || [];
@@ -791,11 +793,11 @@ export default {
     const fechaDesde = ref("");
     const fechaHasta = ref("");
     const filtroEstatus = ref([]);
-    const filtroSolicitante = ref([]);   // lista de nombres en MAYÚSCULAS
+    const filtroSolicitante = ref([]);   // nombres en MAYÚSCULAS
     const busquedaSolicitante = ref("");
     const onlyMine = ref(false);
 
-    // === Centro de costo (multi) ===
+    // Centros de costo (…)
     const centrosCosto = {
       "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
       "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
@@ -846,11 +848,11 @@ export default {
       goPage(1);
     };
 
-    // === Persistencia de filtros y UI ===
-    const LS_TALLER_FILTERS   = "hist_taller_filters_v2";  // todos los filtros juntos
+    // Persistencia
+    const LS_TALLER_FILTERS   = "hist_taller_filters_v2";
     const LS_SHOW_SIDEBAR     = "hist_taller_show_sidebar";
 
-    // Paginación UI (cliente)
+    // Paginación
     const page = ref(1);
     const pageSizeOptions = [10, 20, 30, 40, 50];
     const pageSize = ref(10);
@@ -886,20 +888,19 @@ export default {
         tempSolicitanteSelSet.value = new Set(filtroSolicitante.value);
         onlyMine.value          = !!f.onlyMine;
         if ([10,20,30,40,50].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
-      } catch(e){ console.error(e); }
+      } catch(e){  console.error(e);  }
     };
 
     const syncFromStorageEvent = (e) => {
       if (e.key === LS_TALLER_FILTERS && e.newValue) {
         loadPersistedFilters();
-        // recalcula sin “saltos”
         goPage(page.value);
       } else if (e.key === LS_SHOW_SIDEBAR && e.newValue !== null) {
         showSidebar.value = (e.newValue === "1");
       }
     };
 
-    // Solicitantes (para filtro)
+    // Solicitantes
     const listaSolicitantes = ref([]);
     const tempSolicitanteSelSet = ref(new Set());
 
@@ -915,29 +916,25 @@ export default {
     const myUid = computed(() => (auth?.user?.uid || "").toString());
     const myEmail = computed(() => (auth?.user?.email || "").toLowerCase());
 
-    // === Roles y permisos ===
+    // Roles y permisos
     const userRole = ref('');
     const allowedRoles = new Set(['admin', 'aprobador/editor', 'editor']);
     const canChangeStatus = computed(() => allowedRoles.has((userRole.value || '').toLowerCase()));
     const canCopySolped = computed(() => (userRole.value || '').toLowerCase() === 'generador solped');
     const isStrictEditor = computed(() => (userRole.value || '').toLowerCase() === 'editor');
 
-    // NUEVO: roles con permiso de edición general (además del dueño)
     const canEditAnyByRole = computed(() => {
       const r = (userRole.value || "").toLowerCase();
       return r === "aprobador/editor" || r === "editor" || r === "admin";
     });
 
-    // === Whitelist de solo lectura (pueden VER aunque no sean editores) ===
     const WHITELIST_EMAILS = new Set(['tallercm@xtremeservicios.cl']);
     const WHITELIST_NAMES  = new Set(['TALLER CM']);
     const isWhitelistedViewer = computed(() =>
       WHITELIST_EMAILS.has(myEmail.value) || WHITELIST_NAMES.has((myFullName.value || '').toUpperCase())
     );
 
-    // Alias útiles
     const isEditor = computed(() => allowedRoles.has((userRole.value || '').toLowerCase()));
-    // Puede ver si es editor O si está en whitelist
     const canViewHistorial = computed(() => isEditor.value || isWhitelistedViewer.value);
 
     const loadUserRole = async () => {
@@ -949,12 +946,9 @@ export default {
           const u = usnap.data() || {};
           userRole.value = (u.role || u.rol || '').toString();
         }
-      } catch (e) {
-        console.warn('No se pudo cargar el rol del usuario:', e);
-      }
+      } catch { /* noop */ }
     };
 
-    // Generar OC sólo si es estrictamente editor y estado permitido
     const canGenerateOC = (s) => {
       if (!isStrictEditor.value) return false;
       const st = (s?.estatus || '').toString().trim().toLowerCase();
@@ -970,15 +964,13 @@ export default {
       }
     };
 
-    // Persistencias puntuales (compat con UI)
     const persistOnlyMine = () => { persistFilters(); goPage(1); };
     const toggleSidebar = () => {
       showSidebar.value = !showSidebar.value;
-      try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? "1" : "0"); } catch (e) {console.error(e);}
+      try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? "1" : "0"); } catch { /* noop */ }
     };
     const persistPageSize = () => { persistFilters(); goPage(1); };
 
-    // Helpers
     const normalize = (v="") => v.toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").toUpperCase().trim();
     const formatDateTime = (d) => {
       if (!d) return "";
@@ -1070,15 +1062,13 @@ export default {
 
           solpesOriginal.value = [...solpesOriginal.value, ...list];
 
-          // Lista de solicitantes
           const setSol = new Set(solpesOriginal.value.map(x => (x.nombre_solicitante || "").toString().toUpperCase()).filter(Boolean));
           listaSolicitantes.value = Array.from(setSol).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
 
           lastDocRef.value = snap.docs[snap.docs.length - 1];
           if (snap.docs.length < BATCH_SIZE) hasMore.value = false;
         }
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudieron cargar SOLPED de taller.";
       } finally {
         loading.value = false;
@@ -1090,7 +1080,6 @@ export default {
       await cargarSolpes(false);
     };
 
-    // Resaltado por comentarios no vistos
     const hasUnreadForMe = (s) => {
       const uid = myUid.value;
       if (!uid) return false;
@@ -1126,8 +1115,7 @@ export default {
         });
 
         _ocBySolped.value.set(solpedId, list.sort((a,b)=>(a.id||0)-(b.id||0)));
-      } catch (e) {
-        console.error("Error cargando OCs:", e);
+      } catch {
         _ocBySolped.value.set(solpedId, []);
       } finally {
         _ocLoading.value.delete(solpedId);
@@ -1136,7 +1124,7 @@ export default {
 
     const goOC = (oc) => {
       if (!oc) return;
-      const docId = oc.__docId; // id del doc en ordenes_oc_taller
+      const docId = oc.__docId;
       if (router.hasRoute("OrdenOCTallerDetalle")) {
         router.push({ name: "OrdenOCTallerDetalle", params: { id: docId }, query: { id: oc.id ?? undefined } });
       } else {
@@ -1159,13 +1147,11 @@ export default {
             query: { numero: s.numero_solpe ?? undefined }
           });
         }
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudo abrir el detalle de la SOLPED.";
       }
     };
 
-    // Expand / marcar vistos + cargar OCs
     const onExpandCard = async (s) => {
       solpeExpandidaId.value = (solpeExpandidaId.value === s.id) ? null : s.id;
       if (solpeExpandidaId.value === s.id) {
@@ -1186,9 +1172,7 @@ export default {
         })) : [];
         await setDoc(doc(db, "solped_taller", s.id), { comentarios }, { merge: true });
         s.comentarios = comentarios;
-      } catch (e) {
-        console.error(e);
-      }
+      } catch { /* noop */ }
     };
 
     // ===== Filtros =====
@@ -1282,7 +1266,7 @@ export default {
 
     const filteredAll = computed(() => aplicarFiltros(solpesOriginal.value));
 
-    // Paginación (cliente)
+    // Paginación
     const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize.value)));
     const pageFrom = computed(() => filteredAll.value.length ? (page.value - 1) * pageSize.value + 1 : 0);
     const pageTo = computed(() => Math.min(filteredAll.value.length, page.value * pageSize.value));
@@ -1317,7 +1301,6 @@ export default {
       return arr;
     });
 
-    // Acciones (con guards)
     const ordenarSolpes = () => { ordenAscendente.value = !ordenAscendente.value; goPage(1); };
     const limpiarFiltros = () => {
       filtroTexto.value = "";
@@ -1333,17 +1316,16 @@ export default {
       goPage(1);
     };
 
-    const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x!==s); persistFilters(); goPage(1); };
+    const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x!==s); persistFilters(); goPage(1) ;};
     const removeSolicitante = (u) => { filtroSolicitante.value = filtroSolicitante.value.filter(x => x!==u); tempSolicitanteSelSet.value.delete(u); persistFilters(); goPage(1); };
 
-    // ===== Evitar “saltos” al cambiar estatus (scroll suave) =====
+    // ===== Evitar saltos al cambiar estado =====
     const savedScrollY = ref(0);
     const restoreScrollSoon = async () => {
       await nextTick();
       requestAnimationFrame(() => { window.scrollTo(0, savedScrollY.value || 0); });
     };
 
-    // Estado general (SUAVE, sin reordenar ni recargar)
     const setStatus = async (s, estatus) => {
       if (!canChangeStatus.value) {
         error.value = "No tienes permisos para cambiar el estado.";
@@ -1355,30 +1337,24 @@ export default {
         const refd = doc(db, "solped_taller", s.id);
 
         if (estatus === "Completado") {
-          // 1) prepara items en memoria
           const itemsUpd = (s.items || []).map(it => ({ ...it, estado: "completado" }));
-          // 2) escribe en Firestore
           await updateDoc(refd, { estatus, items: itemsUpd });
-          // 3) actualiza objeto en sitio
           s.estatus = estatus;
           s.items = itemsUpd;
         } else {
           await updateDoc(refd, { estatus });
-          s.estatus = estatus; // in-place
+          s.estatus = estatus;
         }
 
-        // historial (no afecta render)
         const usuario = myFullName.value || auth?.user?.displayName || auth?.user?.email || "Anónimo";
         await addDoc(collection(db, "solped_taller", s.id, "historialEstados"), { fecha: new Date(), estatus, usuario });
 
         restoreScrollSoon();
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "Error al actualizar estatus.";
       }
     };
 
-    // Cambiar estado de ÍTEM (SUAVE)
     const setItemStatus = async (solpe, item, nuevo) => {
       if (!canChangeStatus.value) {
         error.value = "No tienes permisos para cambiar el estado del ítem.";
@@ -1396,8 +1372,7 @@ export default {
         solpe.items = itemsUpd;
 
         restoreScrollSoon();
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudo cambiar el estado del ítem.";
       }
     };
@@ -1416,8 +1391,7 @@ export default {
         await setDoc(refd, { comentarios: curr }, { merge: true });
         s.comentarios = curr;
         s.nuevoComentario = "";
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "Error al guardar el comentario.";
       }
     };
@@ -1471,13 +1445,11 @@ export default {
         await cargarSolpes(true);
         goPage(1);
         alert(`SOLPED copiada como #${nuevoNumero}`);
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudo copiar la SOLPED.";
       }
     };
 
-    // Preparar copia y abrir formulario (GUARD Generador Solped)
     const prepararCopiaYEditar = (s) => {
       if (!canCopySolped.value) {
         error.value = "No tienes permisos para copiar/editar SOLPED (sólo Generador Solped).";
@@ -1509,7 +1481,6 @@ export default {
           }
         };
 
-        // lo dejas en session/local según tu creador
         localStorage.setItem("solped_taller_draft_v1", JSON.stringify(draft));
 
         if (router.hasRoute("SolpedTaller")) {
@@ -1517,13 +1488,12 @@ export default {
         } else {
           router.push("/solped-taller");
         }
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudo preparar la copia para edición.";
       }
     };
 
-    // Buscar exacto (solped_taller)
+    // Buscar exacto
     const buscarSolpeExacta = async () => {
       solpeEncontrada.value = null;
       const n = Number(numeroBusqueda.value || 0);
@@ -1541,8 +1511,7 @@ export default {
             comentarios: Array.isArray(data.comentarios) ? data.comentarios : []
           };
         }
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudo realizar la búsqueda.";
       } finally {
         loadingSearch.value = false;
@@ -1567,7 +1536,7 @@ export default {
     };
     const abrirImagenNuevaPestana = (it) => abrirImagen(it);
 
-    // Excel
+    // Excel (… mismas funciones) //
     const setStyle = (ws, addr, s) => { if (!ws[addr]) ws[addr] = { t:'s', v:'' }; ws[addr].s = { ...(ws[addr].s||{}), ...s }; };
     const styleCell = (ws, r, c, s) => { const addr = XLSX.utils.encode_cell({ r, c }); setStyle(ws, addr, s); };
     const rangeBorder = (ws, r1, c1, r2, c2, border) => {
@@ -1643,8 +1612,7 @@ export default {
 
         const hoy = new Date().toISOString().slice(0,10);
         XLSX.writeFile(wb, `SOLPED_TALLER_${solpe.numero_solpe || ''}_${hoy}.xlsx`);
-      } catch (e) {
-        console.error(e);
+      } catch {
         error.value = "No se pudo generar el Excel.";
       }
     };
@@ -1659,21 +1627,80 @@ export default {
           if (me.exists()) full = me.data()?.fullName || full;
         }
         myFullName.value = (full || "").toString().toUpperCase();
-      } catch (e) {console.error(e)}
+      } catch { /* noop */ }
     };
 
-    // Offcanvas ref (móvil)
+    // ====== Offcanvas (móvil) sin conflicto con hamburguesa ======
     const filtersOffcanvasEl = ref(null);
+    const filtersOffcanvasId = `filtersOffcanvas-${Math.random().toString(36).slice(2)}`;
+    let OffcanvasClass = null;
+    let offcanvasInstance = null;
 
-    /* ======== Estado modal edición ======== */
+    const ensureOffcanvasInstance = async () => {
+      if (!OffcanvasClass) {
+        try {
+          // Carga dinámica (funciona con Vite)
+          OffcanvasClass = (await import('bootstrap/js/dist/offcanvas')).default;
+        } catch {
+          OffcanvasClass = window?.bootstrap?.Offcanvas || null;
+        }
+      }
+      if (filtersOffcanvasEl.value && !offcanvasInstance && OffcanvasClass) {
+        offcanvasInstance = OffcanvasClass.getOrCreateInstance(filtersOffcanvasEl.value, {
+          backdrop: true,
+          scroll: true,
+          keyboard: true
+        });
+
+        // Al abrir: cierra cualquier otro offcanvas y colapsa navbar abierto
+        filtersOffcanvasEl.value.addEventListener('show.bs.offcanvas', () => {
+          document.querySelectorAll('.offcanvas.show').forEach(el => {
+            if (el !== filtersOffcanvasEl.value) {
+              try { OffcanvasClass.getOrCreateInstance(el).hide(); } catch(e) { console.error(e); }
+            }
+          });
+          document.querySelectorAll('.navbar-collapse.show').forEach(el => { el.classList.remove('show'); });
+        });
+
+        // Marcar body para ocultar hamburguesa/botones móviles
+        filtersOffcanvasEl.value.addEventListener('shown.bs.offcanvas', () => {
+          document.body.classList.add('filters-open');
+        });
+        filtersOffcanvasEl.value.addEventListener('hidden.bs.offcanvas', () => {
+          document.body.classList.remove('filters-open');
+        });
+      }
+    };
+
+    const openFiltersOffcanvas = async () => {
+      await ensureOffcanvasInstance();
+      if (!offcanvasInstance) return;
+      // Asegura cierre de otros componentes abiertos antes de abrir
+      document.querySelectorAll('.offcanvas.show').forEach(el => {
+        if (el !== filtersOffcanvasEl.value) {
+          try { OffcanvasClass.getOrCreateInstance(el).hide(); } catch (e) { console.error(e);}
+        }
+      });
+      document.querySelectorAll('.navbar-collapse.show').forEach(el => { el.classList.remove('show'); });
+      offcanvasInstance.show();
+    };
+
+    const closeFiltersOffcanvas = () => {
+      if (offcanvasInstance) offcanvasInstance.hide();
+    };
+
+    const applyAndClose = () => {
+      applySolicitantesFiltro();
+      closeFiltersOffcanvas();
+    };
+
+    // ====== Edición ======
     const showEditModal = ref(false);
     const savingEdit = ref(false);
     const editForm = ref({});
     const editItems = ref([]);
 
-    /* ======== Reglas de edición ======== */
     const puedeEditarSolped = (s) => {
-      // Dueño: por usuario_sesion (o nombre_solicitante como fallback)
       const me = (myFullName.value || "").toUpperCase().trim();
       const docOwner = ((s?.usuario_sesion || s?.nombre_solicitante || "") + "").toUpperCase().trim();
 
@@ -1715,7 +1742,6 @@ export default {
       return mismoDia && dentro24h;
     };
 
-    /* ======== Abrir/cerrar edición ======== */
     function abrirEditar(s){
       if (!(puedeEditarSolped(s) || puedeEditarPorRol(s))) {
         error.value = 'No puedes editar: dueño (usuario_sesion) o rol (Aprobador/Editor/Editor/Admin), mismo día y dentro de 24h.';
@@ -1748,7 +1774,6 @@ export default {
       editItems.value = [];
     }
 
-    /* CRUD ítems en modal */
     function agregarItem(){
       editItems.value.push({
         __k: Math.random().toString(36).slice(2),
@@ -1763,12 +1788,10 @@ export default {
       editItems.value.splice(idx,1);
     }
 
-    /* ======== Guardar (con revalidación estricta) ======== */
     async function guardarEdicion(){
       if (!editForm.value?.id) return;
       if (savingEdit.value) return;
 
-      // Revalidar contra Firestore (por si expiró la ventana o cambió dueño/fecha/rol)
       const refCheck = doc(db, 'solped_taller', editForm.value.id);
       const snapCheck = await getDoc(refCheck);
       const dataCheck = snapCheck.data() || {};
@@ -1786,7 +1809,6 @@ export default {
           tipo_solped: editForm.value.tipo_solped || '',
           centro_costo: editForm.value.centro_costo || '',
           nombre_solicitante: editForm.value.nombre_solicitante || '',
-          // numero_solpe y fecha NO se tocan
           items: editItems.value.map(it => ({
             item: it.item,
             descripcion: it.descripcion || '',
@@ -1798,7 +1820,6 @@ export default {
 
         await updateDoc(refCheck, payload);
 
-        // Actualizar en memoria (lista visible)
         const idx = solpesOriginal.value.findIndex(x => x.id === editForm.value.id);
         if (idx >= 0) {
           solpesOriginal.value[idx] = {
@@ -1808,8 +1829,7 @@ export default {
         }
 
         cerrarEditar();
-      } catch(e){
-        console.error(e);
+      } catch{
         error.value = 'No se pudo guardar la edición.';
         savingEdit.value = false;
       }
@@ -1817,19 +1837,15 @@ export default {
 
     // Init
     onMounted(async () => {
-      // Sidebar persistido
       try {
         const savedSidebar = localStorage.getItem(LS_SHOW_SIDEBAR);
         if (savedSidebar === "0") showSidebar.value = false;
-      } catch (e) { console.error(e); }
+      } catch { /* noop */ }
 
-      // Filtros persistidos
       loadPersistedFilters();
-
-      // Cargar rol del usuario ANTES de datos
       await loadUserRole();
 
-      // Si NO es editor y NO está en whitelist, bloqueamos duro
+      // Gate de acceso
       if (!(isEditor.value || isWhitelistedViewer.value)) {
         loading.value = false;
         return;
@@ -1839,15 +1855,19 @@ export default {
       await cargarSolpes(true);
       goPage(1);
 
-      // sincroniza preferencias entre pestañas
+      // Offcanvas listo
+      await ensureOffcanvasInstance();
+
+      // Sincroniza preferencias entre pestañas
       window.addEventListener("storage", syncFromStorageEvent);
     });
 
     onUnmounted(() => {
       window.removeEventListener("storage", syncFromStorageEvent);
+      try { if (offcanvasInstance) offcanvasInstance.dispose?.(); } catch (e) { console.error(e); }
     });
 
-    // Recalcular cuando cambian filtros (y persistir)
+    // Recalcular/persistir filtros
     watch([filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine], () => {
       persistFilters();
       goPage(1);
@@ -1859,11 +1879,9 @@ export default {
     });
 
     // Constantes
-    const listaEstatus = [
-      "Completado","Preaprobado","Rechazado","Pendiente","Parcial"
-    ];
+    const listaEstatus = ["Completado","Preaprobado","Rechazado","Pendiente","Parcial"];
 
-    // Autorización (stubs)
+    // Autorización
     const abrirAutorizacion = (s) => { if (!s?.autorizacion_url) return; window.open(s.autorizacion_url, "_blank"); };
     const descargarAutorizacion = (s) => {
       if (!s?.autorizacion_url) return;
@@ -1882,10 +1900,10 @@ export default {
       solpesOriginal, solpeExpandidaId, ordenAscendente,
       showSidebar,
 
-      // Centro de costo (multi)
+      // Centro de costo
       centrosCosto, ccAll, ccSearch, selectedCC, ccFiltered, removeCC,
 
-      // server-side batching
+      // batching
       hasMore, loadMore,
 
       // paginación
@@ -1927,13 +1945,16 @@ export default {
       canEditAnyByRole,
 
       // offcanvas
-      filtersOffcanvasEl,
+      filtersOffcanvasEl, filtersOffcanvasId,
+      openFiltersOffcanvas, closeFiltersOffcanvas, applyAndClose,
     };
   }
 };
 </script>
 
 <style scoped>
+[v-cloak]{ display:none; }
+
 /* ===== Layout base ===== */
 .btn { border-radius: 6px; }
 .btn.btn-sm { border-radius: 6px; }
@@ -2007,7 +2028,7 @@ export default {
   box-shadow: 0 0 0 6px rgba(37,99,235,.15);
 }
 
-/* Comentario no visto (en la lista) */
+/* Comentario no visto */
 .comment-unread{
   border-left: 3px solid #2563eb;
   background: #f0f7ff;
@@ -2062,20 +2083,64 @@ export default {
   white-space: nowrap;
 }
 
-/* ===== Offcanvas fixes ===== */
+/* ===== Offcanvas base ===== */
 .offcanvas{
   --bs-offcanvas-width: min(92vw, 420px);
+  z-index: 1040; /* menor que modal (1050) y suficientemente alto para navbar */
 }
 
-/* ===== Media Queries para mejor responsividad ===== */
+/* ---------- Offcanvas de filtros: subirlo, redondeos y z-index ---------- */
+.offcanvas-filtros{
+  top: 56px; /* ajusta según altura de tu header (44–64px típico) */
+  max-height: calc(100vh - 56px);
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  z-index: 1065;
+}
+
+/* Backdrop más clarito (en vez de gris oscuro) */
+:global(.offcanvas-backdrop.show){
+  opacity: .18;
+}
+
+/* Cuando el offcanvas está abierto, ocultamos la hamburguesa/botones móviles */
+:global(body.filters-open .topbar .d-lg-none .btn){
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Si tienes otros botones flotantes móviles, también ocultarlos en abierto */
+:global(body.filters-open .btn-menu-flotante),
+:global(body.filters-open .btn-hamburguesa){
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ---------- FAB (botón flotante de filtros) ---------- */
+.filter-fab{
+  position: fixed;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.20);
+  z-index: 1066; /* sobre contenido, bajo modales */
+}
+
+/* Da aire al final para que el FAB no tape acciones del listado en móvil */
+@media (max-width: 991.98px){
+  .historial-taller-page .container{
+    padding-bottom: 84px;
+  }
+}
+
+/* ===== Media Queries ===== */
 @media (max-width: 575.98px){
   .sticky-pager{ top: 0; border-radius: 0; }
 }
 
 @media (min-width: 768px) and (max-width: 991.98px){
-  /* Tablet: deja respirar las columnas */
-  .card-header .small.text-secondary{
-    display: block;
-  }
+  .card-header .small.text-secondary{ display: block; }
 }
 </style>

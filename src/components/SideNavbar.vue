@@ -54,20 +54,22 @@ watch(() => ui.isSidebarOpen, (open) => {
 const showSettings = ref(false);
 
 // Estados locales sincronizados con el store
-const localTheme  = ref(isDark.value ? "dark" : "light");
-const localLayout = ref(isNavbar.value ? "navbar" : "sidebar");
+const localTheme    = ref(isDark.value ? "dark" : "light");
+const localLayout   = ref(isNavbar.value ? "navbar" : "sidebar");
+const localPrimary  = ref(ui.primary || "rojo");
+
 watch(isDark,   v => { localTheme.value  = v ? "dark" : "light"; });
 watch(isNavbar, v => { localLayout.value = v ? "navbar" : "sidebar"; });
+watch(() => ui.primary, (p) => { if (p) localPrimary.value = p; });
 
 const openSettings  = () => { showSettings.value = true; };
 const closeSettings = () => { showSettings.value = false; };
 
 const applySettings = async () => {
-  await ui.setTheme(localTheme.value);            // aplica clase al <html>
-  await ui.setMenuStyle(localLayout.value);       // persiste en Firestore
-  if (localLayout.value === "navbar") {
-    ui.closeSidebar?.();
-  }
+  await ui.setTheme(localTheme.value);          // clase en <html>
+  await ui.setPrimary(localPrimary.value);      // actualiza --xt-red*
+  await ui.setMenuStyle(localLayout.value);     // persiste en Firestore
+  if (localLayout.value === "navbar") ui.closeSidebar?.();
   closeSettings();
 };
 
@@ -90,6 +92,32 @@ onBeforeUnmount(() => {
 
 // Cerrar al cambiar de ruta (extra por si viene de links externos al menú)
 watch(() => route.fullPath, () => ui.closeSidebar?.());
+
+// Paleta para el grid (debe coincidir con PRIMARY_MAP del store)
+const PRIMARY_OPTIONS = [
+  {k:'turquesa', n:'Turquesa', c:'#0d9488'},
+  {k:'azul',     n:'Azul',     c:'#2563eb'},
+  {k:'verde',    n:'Verde',    c:'#16a34a'},
+  {k:'rojo',     n:'Rojo',     c:'#c62828'},
+  {k:'amarillo', n:'Amarillo', c:'#f59e0b'},
+  {k:'rosado',   n:'Rosado',   c:'#db2777'},
+  {k:'celeste',  n:'Celeste',  c:'#06b6d4'},
+  {k:'violeta',  n:'Violeta',  c:'#7c3aed'},
+  {k:'naranjo',  n:'Naranjo',  c:'#f97316'},
+  {k:'gris',     n:'Gris',     c:'#6b7280'},
+  {k:'negro',    n:'Negro',    c:'#111827'},
+  {k:'lima',     n:'Lima',     c:'#84cc16'},
+  {k:'esmeralda',n:'Esmeralda',c:'#10b981'},
+  {k:'cian',     n:'Cian',     c:'#0891b2'},
+  {k:'indigo',   n:'Índigo',   c:'#4f46e5'},
+  {k:'marron',   n:'Marrón',   c:'#8b5e34'},
+  {k:'granate',  n:'Granate',  c:'#991b1b'},
+  {k:'oliva',    n:'Oliva',    c:'#708238'},
+  {k:'menta',    n:'Menta',    c:'#2dd4bf'},
+  {k:'salmon',   n:'Salmón',   c:'#fb7185'},
+  {k:'dorado',   n:'Dorado',   c:'#d4af37'},
+  {k:'cobre',    n:'Cobre',    c:'#b87333'},
+];
 </script>
 
 <template>
@@ -102,7 +130,7 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
 
   <!-- Drawer: desktop visible, móvil entra/sale -->
   <aside
-    class="app-sidebar bg-xtreme"
+    class="app-sidebar"
     :class="{ 'is-open': ui.isSidebarOpen || !isNarrow }"
     aria-label="Menú lateral"
   >
@@ -123,7 +151,6 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
         >
           <i class="bi bi-gear-fill"></i>
         </button>
-
       </div>
     </div>
 
@@ -132,7 +159,7 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
       <img :src="photoUrl" class="rounded-circle me-2" width="36" height="36" />
       <div class="d-flex flex-column">
         <strong class="text-white small">{{ fullName || 'Usuario' }}</strong>
-        <span class="text-white-50 small">{{ role || '—' }}</span>
+        <span class="text-white-75 small">{{ role || '—' }}</span>
       </div>
     </div>
 
@@ -253,6 +280,32 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
             </label>
           </div>
         </div>
+
+        <hr class="settings-divider" />
+
+        <!-- COLOR PRIMARIO -->
+        <div class="mb-1">
+          <div class="settings-label">Color primario</div>
+          <div class="color-grid">
+            <label
+              v-for="opt in PRIMARY_OPTIONS"
+              :key="opt.k"
+              class="color-swatch"
+              :title="opt.n"
+            >
+              <input
+                type="radio"
+                class="visually-hidden"
+                name="primary"
+                :id="'p-'+opt.k"
+                :value="opt.k"
+                v-model="localPrimary"
+              />
+              <span class="swatch" :style="{ background: opt.c }"></span>
+              <span class="swatch-label">{{ opt.n }}</span>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div class="settings-card__footer">
@@ -265,7 +318,7 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
   </div>
 </template>
 
-<!-- 🔴 BLOQUE GLOBAL: variables + utilidad bg-xtreme -->
+<!-- 🔴 BLOQUE GLOBAL: el color del sidebar viene de variables primarias -->
 <style>
 :root{
   --xt-red:    #c62828;
@@ -280,23 +333,24 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
   --xt-black-18: rgba(0,0,0,.18);
 }
 
-/* utilidad global */
+/* Utilidades */
 .bg-xtreme { background-color: var(--xt-red) !important; }
+.text-white-75{ color: var(--xt-white-75) !important; }
 </style>
 
 <!-- 🎯 BLOQUE SCOPED del componente -->
 <style scoped>
-/* Backdrop móvil (sidebar) */
+/* Backdrop móvil */
 .sidebar-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  z-index: 1039; /* justo debajo del sidebar (1040) */
+  position: fixed; inset: 0; background: rgba(0,0,0,.56);
+  z-index: 1039;
 }
 
-/* Drawer */
+/* Drawer (usa variables primarias) */
 .app-sidebar {
   position: fixed; top: 0; left: 0; bottom: 0;
   width: 260px;
-  background-color: #c62828 !important;
+  background: var(--xt-red) !important;
   display: flex; flex-direction: column;
   z-index: 1040;
   box-shadow: 4px 0 20px var(--xt-black-18);
@@ -319,14 +373,19 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
   position: relative;
   height: 56px; padding: 0 12px;
   display: flex; align-items: center; justify-content: center;
-  background-color: var(--xt-red) !important;
+  /* Degradado usando primario */
+  background: linear-gradient(135deg, var(--xt-red), var(--xt-red-d2)) !important;
   border-bottom: 1px solid var(--xt-red-d2);
+  color: var(--xt-white);
 }
+
+.brand{ font-weight: 700; letter-spacing: .2px; }
 
 .sidebar-user {
   padding: 12px 14px; display: flex; align-items: center;
-  background-color: var(--xt-red-d1) !important;
+  background: linear-gradient(135deg, var(--xt-red-d1), var(--xt-red-d2)) !important;
   border-bottom: 1px solid var(--xt-red-d2);
+  color: var(--xt-white);
 }
 
 .sidebar-nav { flex: 1; padding: 8px; overflow: auto; }
@@ -345,42 +404,41 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
 .divider { border-color: var(--xt-white-10); }
 .sidebar-footer { padding: 8px; border-top: 1px solid var(--xt-red-d2); }
 
-/* ======= MODAL CENTRADO DE AJUSTES ======= */
+/* ======= MODAL CENTRADO DE AJUSTES (idéntico al TopNavbar) ======= */
 .settings-overlay{
   position: fixed; inset: 0;
   display: grid; place-items: center;
-  background: rgba(0,0,0,.48);              /* backdrop más notorio */
-  z-index: 2001;                             /* por encima del sidebar */
-  padding: 16px;                              /* margen interno para pantallas pequeñas */
+  background: rgba(0,0,0,.56);
+  z-index: 2001;
+  padding: 20px;
   animation: overlayIn .12s ease-out both;
 }
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .settings-card{
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  width: min(420px, 92vw);                   /* un poco más grande y centrada */
-  background: #ffffff;                       /* sólido (modo claro) */
+  width: min(460px, 92vw);
+  background: #ffffff;             /* sólido (modo claro) */
   color: #1f2937;
   border: 1px solid rgba(0,0,0,.06);
   box-shadow:
-    0 12px 36px rgba(0,0,0,.30),
-    0 4px 14px rgba(0,0,0,.20);
+    0 14px 40px rgba(0,0,0,.30),
+    0 6px 18px rgba(0,0,0,.20);
   transform: translateY(-4px);
   animation: cardIn .16s ease-out both;
 }
 @keyframes cardIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 
-/* Header con degradado rojo y controles visibles */
+/* Header con degradado según primario */
 .settings-card__header{
   display: flex; align-items: center; gap: 8px;
   padding: 12px 14px;
-  background: linear-gradient(135deg, #c62828, #8e1515);
+  background: linear-gradient(135deg, var(--xt-red), var(--xt-red-d2));
   color: #fff;
 }
 .settings-card__header i{ font-size: 1.05rem; }
 
-/* Body y Footer */
 .settings-card__body{ padding: 16px 14px; }
 .settings-card__footer{
   display: flex; justify-content: flex-end; gap: 8px;
@@ -405,6 +463,7 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
 }
 
 /* Pills (radios bonitos) */
+/* Pills (radios bonitos) */
 .settings-pill{
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
@@ -416,10 +475,52 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
   transition: all .12s ease;
 }
 .settings-pill:hover{ background: #e5e7eb; }
-.btn-check:checked + .settings-pill{
-  background: #111827;
-  border-color: #111827;
-  color: #fff;
+
+/* ======= Grid de colores (igual que TopNavbar) ======= */
+.color-grid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+}
+.color-swatch{
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,.02);
+  cursor: pointer;
+  transition: .12s ease;
+  user-select: none;
+}
+.color-swatch:hover{ background: rgba(0,0,0,.04); }
+.swatch{
+  width: 20px; height: 20px; border-radius: 999px;
+  box-shadow: 0 0 0 2px #fff inset, 0 1px 4px rgba(0,0,0,.25);
+}
+.swatch-label{
+  font-size: .875rem; font-weight: 600; color: #374151;
+}
+
+/* Radios ocultos pero clickeables (van dentro del label) */
+.visually-hidden{
+  position: absolute !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ✅ Marca visual del color seleccionado (modo claro) */
+.visually-hidden:checked + .swatch {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+/* ✅ Resalto del contenedor con :has() si el navegador lo soporta */
+.color-swatch:has(input.visually-hidden:checked) {
+  border-color: var(--xt-red);
+  box-shadow: 0 0 0 2px var(--xt-red) inset;
+  background: rgba(0,0,0,.04);
 }
 
 /* Botón outline clarito para footer */
@@ -432,7 +533,7 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
   --bs-btn-active-border-color: #d1d5db;
 }
 
-/* Modo oscuro (si añades class theme-dark en <html>) */
+/* ======= Modo oscuro ======= */
 :global(html.theme-dark) .settings-card{
   background: #1f2937;          /* gris 800 */
   color: #e5e7eb;
@@ -452,9 +553,23 @@ watch(() => route.fullPath, () => ui.closeSidebar?.());
   color: #e5e7eb;
 }
 :global(html.theme-dark) .settings-pill:hover{ background: #0b1220; }
-:global(html.theme-dark) .btn-check:checked + .settings-pill{
-  background: #e5e7eb;
-  border-color: #e5e7eb;
-  color: #111827;
+
+/* Seleccionado en oscuro */
+:global(html.theme-dark) .visually-hidden:checked + .swatch{
+  outline: 2px solid #e5e7eb;
+  outline-offset: 2px;
 }
+:global(html.theme-dark) .color-swatch{
+  border-color: rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+}
+:global(html.theme-dark) .color-swatch:hover{
+  background: rgba(255,255,255,.05);
+}
+:global(html.theme-dark) .color-swatch:has(input.visually-hidden:checked){
+  border-color: var(--xt-white-60);
+  box-shadow: 0 0 0 2px var(--xt-white-60) inset;
+  background: rgba(255,255,255,.06);
+}
+:global(html.theme-dark) .swatch-label{ color: #e5e7eb; }
 </style>

@@ -8,10 +8,9 @@ html, body, #app {
 
 body {
   margin: 0;
-  /* si base.css puso display:flex/centering, lo normalizamos */
   display: block !important;
   place-items: initial !important;
-  background: #0b1220; /* color de fondo de seguridad */
+  background: #0b1220; /* seguridad inicial */
 }
 
 /* Elimina límites y paddings del scaffold */
@@ -19,46 +18,73 @@ body {
   max-width: none !important;
   margin: 0 !important;
   padding: 0 !important;
-  display: block !important; /* quita el grid del scaffold */
+  display: block !important;
 }
 
-/* Puedes mantener tus estilos de enlaces */
-a,
-.green {
+/* Links de ejemplo */
+a, .green {
   text-decoration: none;
   color: hsla(160, 100%, 37%, 1);
   transition: 0.4s;
   padding: 3px;
 }
 
-/* Anula el comportamiento del scaffold en >=1024px */
 @media (min-width: 1024px) {
-  body {
-    display: block !important;
-    place-items: initial !important;
-  }
-  #app {
-    display: block !important;     /* en vez de grid */
-    grid-template-columns: none !important;
-    padding: 0 !important;
-  }
+  body { display: block !important; place-items: initial !important; }
+  #app { display: block !important; grid-template-columns: none !important; padding: 0 !important; }
 }
-/* === THEME OVERRIDES (contenido) === */
 
-/* ==== TEMA CLARO (contenido) ==== */
+/* ========== THEME OVERRIDES (global) ========== */
+/* Añade debajo de los tokens por tema */
+
+
+
+
+
+
+
+html.theme-dark .row,
+html.theme-dark main,
+html.theme-dark section {
+  background: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* Bootstrap: tokens por tema (clave para fondo/texto por defecto) */
+html.theme-light {
+  --bs-body-bg: #f6f7fb;
+  --bs-body-color: #0f172a;
+}
+
+/* Reemplaza esto en src/assets/main.css */
+html.theme-dark {
+  --bs-body-bg: #0b1220;   /* antes: #0f172a */
+  --bs-body-color: #e5e7eb;
+}
+
+html[data-bs-theme="light"] body,
 html.theme-light body {
-  background: #f6f7fb !important;
-  color: #0f172a !important; /* texto principal */
+  background: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
 }
 
-/* ==== TEMA OSCURO (contenido) ==== */
+html[data-bs-theme="dark"] body,
 html.theme-dark body {
-  background: #0f172a !important; /* slate-900 */
-  color: #e5e7eb !important;      /* zinc-200 */
+  background: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
 }
 
-/* Mantener rojo corporativo para barras */
-.bg-xtreme { background: #c62828 !important; }
+/* Superficies principales transparentes: que hereden body */
+.app-shell,
+.app-main,
+.content,
+.page,
+.router-view,
+.container,
+.container-fluid {
+  background: transparent !important;
+  color: inherit;
+}
 
 /* ===== Tarjetas ===== */
 html.theme-dark .card {
@@ -131,11 +157,11 @@ html.theme-dark .form-check-input {
   border-color: rgba(255,255,255,.4) !important;
 }
 html.theme-dark .form-check-input:checked {
-  background-color: #c62828 !important; /* rojo corporativo para checks */
-  border-color: #c62828 !important;
+  background-color: var(--xt-red) !important; /* usa el primario dinámico */
+  border-color: var(--xt-red) !important;
 }
 
-/* ===== Badges “claras” en oscuro ===== */
+/* ===== Badges claras en oscuro ===== */
 html.theme-dark .badge.bg-light {
   background-color: rgba(255,255,255,.14) !important;
   color: #fff !important;
@@ -146,10 +172,10 @@ html.theme-dark .text-muted { color: #9ca3af !important; }
 html.theme-light .text-muted { color: #6b7280 !important; }
 
 /* ===== Enlaces ===== */
-html.theme-dark a { color: #93c5fd; } /* azul suave */
+html.theme-dark a { color: #93c5fd; }
 html.theme-dark a:hover { color: #bfdbfe; }
 
-/* ===== Botones (opcional: mejorar outline en oscuro) ===== */
+/* ===== Botones outline ===== */
 html.theme-dark .btn-outline-secondary {
   color: #e5e7eb; border-color: rgba(255,255,255,.4);
 }
@@ -157,24 +183,28 @@ html.theme-dark .btn-outline-secondary:hover {
   background: rgba(255,255,255,.08); color: #fff; border-color: rgba(255,255,255,.5);
 }
 
-/* ===== Tab panes, nav pills (si usas) ===== */
-html.theme-dark .nav-pills .nav-link {
-  color: #e5e7eb;
-}
-html.theme-dark .nav-pills .nav-link.active {
-  background: #c62828; color: #fff;
-}
-
 /* ===== Hr ===== */
 html.theme-dark hr { border-color: rgba(255,255,255,.12); }
 
-/* ===== Toasts (si estás usando Bootstrap toasts) ===== */
-html.theme-dark .toast { background: #111827; color: #e5e7eb; border-color: rgba(255,255,255,.08); }
+/* ===== Toasts ===== */
+html.theme-dark .toast {
+  background: #111827; color: #e5e7eb; border-color: rgba(255,255,255,.08);
+}
 
-/* ===== Mantener barras rojas ===== */
+/* ===== Mantener barras con PRIMARIO dinámico ===== */
 .navbar.bg-xtreme,
 .app-sidebar,
 .sidebar-header,
-.sidebar-user { background-color: #c62828 !important; }
+.sidebar-user {
+  background-color: var(--xt-red) !important;
+}
 
+/* ===== Corrige utilidades que “fijan” blanco ===== */
+html.theme-dark .bg-white {
+  background-color: #111827 !important; /* superficie oscura */
+  color: #e5e7eb !important;
+}
 
+/* Por si usas .bg-body/.text-body en algún lado */
+.bg-body { background-color: var(--bs-body-bg) !important; }
+.text-body { color: var(--bs-body-color) !important; }
