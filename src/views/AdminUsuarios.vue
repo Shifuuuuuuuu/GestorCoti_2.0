@@ -5,20 +5,32 @@
     <div class="container py-4 py-md-5">
 
       <!-- Header / acciones -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 fw-semibold mb-0">Administrar usuarios</h1>
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary" @click="abrirCrear">
-            <i class="bi bi-person-plus me-1"></i> Agregar usuario
+      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+        <h1 class="h5 h4-sm fw-semibold mb-0">Administrar usuarios</h1>
+
+        <!-- Acciones: en XS se apilan/ocultan textos largos -->
+        <div class="d-flex align-items-stretch gap-2 flex-wrap">
+          <!-- Botón Filtros solo en < md -->
+          <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
+            <i class="bi bi-sliders2 me-1"></i><span>Filtros</span>
           </button>
+
+          <button class="btn btn-primary" @click="abrirCrear">
+            <i class="bi bi-person-plus me-1"></i>
+            <span class="d-none d-sm-inline">Agregar usuario</span>
+            <span class="d-inline d-sm-none">Agregar</span>
+          </button>
+
           <button class="btn btn-outline-secondary" @click="cargarUsuarios">
-            <i class="bi bi-arrow-clockwise me-1"></i> Recargar
+            <i class="bi bi-arrow-clockwise me-1"></i>
+            <span class="d-none d-sm-inline">Recargar</span>
+            <span class="d-inline d-sm-none">Reload</span>
           </button>
         </div>
       </div>
 
-      <!-- Filtros -->
-      <div class="card mb-3">
+      <!-- Filtros (tarjeta visible en ≥ md) -->
+      <div class="card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
             <div class="col-12 col-md-6">
@@ -64,36 +76,48 @@
               No hay resultados con esos filtros.
             </div>
 
-            <div class="table-responsive" v-else>
-              <table class="table table-hover align-middle mb-0">
-                <thead>
+            <div class="table-responsive">
+              <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="position-sticky top-0 bg-body">
                   <tr>
                     <th style="width:40px;"></th>
                     <th>Nombre</th>
-                    <th>Email</th>
+                    <th class="d-none d-sm-table-cell">Email</th>
                     <th>Rol</th>
-                    <th>Teléfono</th>
-                    <th>RUT</th>
-                    <th>Contratos</th>
-                    <th>Creado</th>
-                    <th style="width: 170px;">Acciones</th>
+                    <th class="d-none d-lg-table-cell">Teléfono</th>
+                    <th class="d-none d-lg-table-cell">RUT</th>
+                    <th class="d-none d-xl-table-cell">Contratos</th>
+                    <th class="d-none d-xl-table-cell">Creado</th>
+                    <th style="width: 136px;" class="text-end pe-3">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="u in paginado" :key="u.uid">
                     <td><i class="bi bi-person-circle fs-5 text-secondary"></i></td>
-                    <td class="fw-semibold">{{ u.fullName || '—' }}</td>
-                    <td>{{ u.email || '—' }}</td>
+
+                    <td class="fw-semibold">
+                      <div class="text-truncate" style="max-width: 200px;">{{ u.fullName || '—' }}</div>
+                      <!-- En XS mostramos mail debajo -->
+                      <div class="small text-secondary d-sm-none">{{ u.email || '—' }}</div>
+                    </td>
+
+                    <td class="d-none d-sm-table-cell">
+                      <div class="text-truncate" style="max-width: 220px;">
+                        {{ u.email || '—' }}
+                      </div>
+                    </td>
+
                     <td>
                       <span class="badge bg-secondary-subtle text-secondary-emphasis">
                         {{ u.role || '—' }}
                       </span>
                     </td>
-                    <td>{{ u.phone || '—' }}</td>
-                    <td>{{ u.rut || '—' }}</td>
 
-                    <!-- Columna Contratos -->
-                    <td>
+                    <td class="d-none d-lg-table-cell">{{ u.phone || '—' }}</td>
+                    <td class="d-none d-lg-table-cell">{{ u.rut || '—' }}</td>
+
+                    <!-- Contratos -->
+                    <td class="d-none d-xl-table-cell">
                       <div v-if="(u.centrosAsignados||[]).length===0" class="text-secondary small">—</div>
                       <div v-else class="d-flex flex-wrap gap-1">
                         <span
@@ -108,9 +132,11 @@
                       </div>
                     </td>
 
-                    <td class="small text-secondary">{{ fmtFecha(u.createdAt) }}</td>
-                    <td>
-                      <div class="btn-group btn-group-sm">
+                    <td class="small text-secondary d-none d-xl-table-cell">{{ fmtFecha(u.createdAt) }}</td>
+
+                    <td class="text-end pe-3">
+                      <!-- En xs/sm, iconos; en md+, botones con texto -->
+                      <div class="btn-group btn-group-sm d-none d-md-inline-flex">
                         <button class="btn btn-outline-primary" @click="abrirEditar(u)">Editar</button>
                         <button
                           class="btn btn-outline-danger"
@@ -118,6 +144,20 @@
                           :disabled="accionando && uidEnAccion===u.uid">
                           <span v-if="accionando && uidEnAccion===u.uid" class="spinner-border spinner-border-sm me-2"></span>
                           Eliminar
+                        </button>
+                      </div>
+
+                      <div class="d-inline-flex d-md-none gap-1">
+                        <button class="btn btn-outline-primary btn-sm" @click="abrirEditar(u)" title="Editar">
+                          <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <button
+                          class="btn btn-outline-danger btn-sm"
+                          @click="abrirConfirm(u)"
+                          :disabled="accionando && uidEnAccion===u.uid"
+                          title="Eliminar">
+                          <span v-if="accionando && uidEnAccion===u.uid" class="spinner-border spinner-border-sm"></span>
+                          <i v-else class="bi bi-trash3"></i>
                         </button>
                       </div>
                     </td>
@@ -128,10 +168,10 @@
 
             <!-- Paginación -->
             <div class="card-footer">
-              <nav>
-                <ul class="pagination justify-content-center mb-0">
+              <nav class="overflow-auto">
+                <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
                   <li class="page-item" :class="{disabled: paginaActual===1}">
-                    <button class="page-link" @click="goToPage(paginaActual-1)">«</button>
+                    <button class="page-link" @click="goToPage(paginaActual-1)" aria-label="Anterior">«</button>
                   </li>
                   <li
                     v-for="n in visiblePages"
@@ -141,7 +181,7 @@
                     <button class="page-link" @click="goToPage(n)">{{ n }}</button>
                   </li>
                   <li class="page-item" :class="{disabled: paginaActual===totalPaginas}">
-                    <button class="page-link" @click="goToPage(paginaActual+1)">»</button>
+                    <button class="page-link" @click="goToPage(paginaActual+1)" aria-label="Siguiente">»</button>
                   </li>
                 </ul>
               </nav>
@@ -176,12 +216,12 @@
                 <div class="form-text">No se guarda en Firestore.</div>
               </div>
 
-              <div class="col-12 col-md-6">
+              <div class="col-12 col-sm-6">
                 <label class="form-label">Teléfono</label>
                 <input class="form-control" v-model="form.phone" placeholder="+569..." />
               </div>
 
-              <div class="col-12 col-md-6">
+              <div class="col-12 col-sm-6">
                 <label class="form-label">RUT</label>
                 <input class="form-control" v-model="form.rut" placeholder="99.999.999-9" />
               </div>
@@ -242,7 +282,7 @@
                   <div v-if="ccFiltrados.length===0" class="text-secondary small py-2">Sin resultados.</div>
                 </div>
 
-                <div class="form-text">
+                <div class="form-text mt-1">
                   Si no asignas contratos, el usuario verá <em>todos</em> (no recomendado).
                 </div>
               </div>
@@ -254,7 +294,7 @@
             <div class="d-flex flex-wrap gap-2 justify-content-end">
               <button class="btn btn-secondary" @click="cerrarOff">Cancelar</button>
 
-              <!-- NUEVO: guardar solo contratos (Firestore) -->
+              <!-- Guardar solo contratos (Firestore) -->
               <button
                 v-if="esEdicion"
                 class="btn btn-outline-primary"
@@ -268,6 +308,40 @@
                 <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
                 {{ esEdicion ? 'Guardar cambios' : 'Crear usuario' }}
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offcanvas Filtros (solo móviles) -->
+      <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
+        <div class="offcanvas-panel offcanvas-panel-sm">
+          <div class="offcanvas-header">
+            <h5 class="mb-0"><i class="bi bi-sliders2 me-2"></i>Filtros</h5>
+            <button class="btn-close" @click="toggleFiltros(false)"></button>
+          </div>
+          <div class="offcanvas-body">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Buscar por nombre completo</label>
+                <input
+                  class="form-control"
+                  v-model="busqueda"
+                  placeholder="Ej: Juan, María, etc." />
+              </div>
+              <div class="col-12">
+                <label class="form-label">Filtrar por rol</label>
+                <select class="form-select" v-model="rolFiltro">
+                  <option value="">— Todos —</option>
+                  <option v-for="r in rolesDisponibles" :key="r" :value="r">{{ r }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="offcanvas-footer">
+            <div class="d-flex gap-2 justify-content-between w-100">
+              <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-primary" @click="toggleFiltros(false)">Aplicar</button>
             </div>
           </div>
         </div>
@@ -338,7 +412,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 
 /* ================== Contratos (centros de costo) ================== */
 const centrosCosto = {
-  '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
+  '30858': 'CONTRATO 30858 INFRA CHUQUICAMATA',
+  '27483': 'CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA',
   'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
   '20915': 'CONTRATO 20915 SUM. HORMIGON DAND',
   '23302-CARPETAS': 'CONTRATO 23302 CARPETAS',
@@ -392,13 +467,15 @@ const paginaActual = ref(1);
 
 const offOpen = ref(false);
 const esEdicion = ref(false);
+const filtrosOpen = ref(false);
+
 const form = ref({
   uid:'', email:'', fullName:'', phone:'', rut:'', role:'', password:'',
   centrosAsignados: []
 });
 
 const accionando = ref(false);
-const accionandoContratos = ref(false); // <— NUEVO: loading para guardar contratos
+const accionandoContratos = ref(false);
 const uidEnAccion = ref(null);
 
 /* ================== UI: contratos en offcanvas ================== */
@@ -482,7 +559,7 @@ const cargarUsuarios = async () => {
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
       });
     });
-    arr.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||''));
+    arr.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||'')); // ordena por nombre
     usuarios.value = arr;
     paginaActual.value = 1;
   } catch (e) {
@@ -510,7 +587,9 @@ const paginado = computed(() => {
   return filtrados.value.slice(start, start + pageSize);
 });
 const visiblePages = computed(() => {
-  const maxButtons = 7;
+  // menos botones en pantallas pequeñas
+  const isSmall = window.matchMedia && window.matchMedia('(max-width: 576px)').matches;
+  const maxButtons = isSmall ? 5 : 7;
   const pages = [];
   let start = Math.max(1, paginaActual.value - Math.floor(maxButtons/2));
   let end = Math.min(totalPaginas.value, start + maxButtons - 1);
@@ -521,7 +600,7 @@ const visiblePages = computed(() => {
 const goToPage = (n) => { if (n<1 || n>totalPaginas.value) return; paginaActual.value = n; };
 const limpiarFiltros = () => { busqueda.value=''; rolFiltro.value=''; paginaActual.value=1; };
 
-/* ================== Offcanvas ================== */
+/* ================== Offcanvas crear/editar ================== */
 const abrirCrear = () => {
   esEdicion.value = false;
   form.value = { email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'', centrosAsignados: [] };
@@ -535,6 +614,9 @@ const abrirEditar = (u) => {
   offOpen.value = true;
 };
 const cerrarOff = () => { offOpen.value = false; };
+
+/* ================== Offcanvas filtros (móvil) ================== */
+const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
 
 /* ================== Cloud Functions (v2, misma región) ================== */
 const functions = getFunctions(undefined, FUNCTIONS_REGION);
@@ -585,7 +667,7 @@ const guardar = async () => {
 
       addToast('success','Usuario creado.');
     } else {
-      // Editar TODO (Auth + Firestore). Úsalo cuando cambies email/nombre/teléfono/rol.
+      // Editar TODO (Auth + Firestore)
       const uid = data.uid;
 
       await cfUpdate({
@@ -618,7 +700,7 @@ const guardar = async () => {
   }
 };
 
-/* ======= NUEVO: Guardar contratos SIN tocar Auth (solo Firestore) ======= */
+/* ======= Guardar contratos SOLO Firestore ======= */
 const guardarContratos = async () => {
   if (!esEdicion.value) {
     addToast('warning','Primero crea el usuario para poder asignar contratos.');
@@ -678,7 +760,6 @@ async function confirmarEliminar(){
 
   } catch (e) {
     console.error(e);
-    // si no existe en Auth, limpia Firestore igual
     const msg = mapFunctionsError(e);
     if (msg.toLowerCase().includes('no se encontró') || (e?.code||'').includes('not-found')) {
       try {
@@ -706,7 +787,12 @@ async function confirmarEliminar(){
   min-height:100vh;
 }
 
-/* Offcanvas lateral derecho */
+/* Headings un poco más grandes en ≥ sm */
+@media (min-width: 576px){
+  .h4-sm{ font-size: 1.35rem; }
+}
+
+/* Offcanvas base */
 .offcanvas-backdrop{
   position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
   background: rgba(0,0,0,.45);
@@ -721,10 +807,17 @@ async function confirmarEliminar(){
   border-top-left-radius:.75rem; border-bottom-left-radius:.75rem;
   animation: slideIn .18s ease-out both;
 }
+.offcanvas-panel-sm{
+  width: 420px; max-width: 96vw;
+}
 @keyframes slideIn { from{ transform: translateX(20px); opacity: 0; } to{ transform:none; opacity:1; } }
-.offcanvas-header, .offcanvas-footer{ padding: .9rem 1rem; border-bottom: 1px solid #eee; }
-.offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.offcanvas-body{ padding: 1rem; overflow: auto; }
+.offcanvas-header, .offcanvas-footer{
+  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
+}
+.offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
+.offcanvas-body{
+  padding: 1rem; overflow: auto;
+}
 
 /* Lista de contratos scrolleable */
 .contratos-box{
@@ -748,19 +841,19 @@ async function confirmarEliminar(){
   color: var(--bs-body-color);
 }
 .vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
+  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
 }
-.vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
+.vmodal-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
 /* Toasts */
 .toast-stack{
-  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
+  position: fixed; right: 12px; bottom: 12px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
 }
 .toast-box{
   display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  min-width: 240px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
@@ -775,5 +868,34 @@ async function confirmarEliminar(){
   background: linear-gradient(135deg,#ef4444,#dc2626);
   color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
+}
+
+/* Tabla: recortes/ajustes en pantallas pequeñas */
+.table td, .table th{
+  vertical-align: middle;
+}
+@media (max-width: 576px){
+  thead th:first-child,
+  tbody td:first-child{
+    width: 34px !important;
+  }
+  /* Limita anchos para truncar bonito */
+  td .text-truncate{ max-width: 180px; }
+}
+
+/* Sticky header de la tabla */
+.table-responsive thead th{
+  z-index: 1;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Pagination mejor en móviles */
+.pagination .page-link{
+  min-width: 34px; text-align:center;
+}
+
+/* Ajustes de densidad en móviles para el offcanvas principal */
+@media (max-width: 576px){
+  .offcanvas-body .row.g-3{ row-gap: .75rem; }
 }
 </style>

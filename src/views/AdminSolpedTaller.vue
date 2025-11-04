@@ -2,15 +2,14 @@
 <template>
   <div class="admin-solpes-page">
     <div class="container py-4">
-     <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <h1 class="h4 fw-semibold mb-0">Admin · SOLPED Taller</h1>
 
-        <!-- Toolbar en una línea -->
-        <div class="toolbar d-flex align-items-stretch gap-2 flex-wrap">
-
+        <div class="d-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto">
           <!-- Buscar numero_solpe -->
-          <div class="input-group toolbar-item" style="width: 240px;">
+          <div class="input-group toolbar-item flex-grow-1" style="min-width: 240px; max-width: 360px;">
+            <span class="input-group-text">#</span>
             <input
               class="form-control"
               placeholder="Buscar numero_solpe"
@@ -29,42 +28,10 @@
             </button>
           </div>
 
-          <!-- Estatus (rápido) -->
-          <div class="input-group toolbar-item" style="width: 220px;">
-            <span class="input-group-text">Estatus</span>
-            <select class="form-select" v-model="filtroEstatusHeader" @change="onChangeEstatusHeader">
-              <option value="">Todos</option>
-              <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
-            </select>
-          </div>
-
-          <!-- Fecha -->
-          <div class="input-group toolbar-item" style="width: 200px;">
-            <span class="input-group-text">Fecha</span>
-            <input class="form-control" type="date" v-model="filtroFecha" @change="aplicarFiltros">
-          </div>
-
-          <!-- Solicitante -->
-          <div class="input-group toolbar-item" style="width: 320px;">
-            <span class="input-group-text">Solicitante</span>
-            <input
-              class="form-control"
-              v-model.trim="filtroSolicitante"
-              placeholder="Ej: FRANK PINTO"
-              @keyup.enter="aplicarFiltros"
-            >
-            <button
-              v-if="filtroSolicitante"
-              class="btn btn-outline-secondary"
-              @click="filtroSolicitante=''; aplicarFiltros()"
-              title="Limpiar solicitante">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-
-          <!-- Acciones filtros -->
-          <button class="btn btn-success toolbar-item" @click="aplicarFiltros" title="Aplicar filtros">
-            <i class="bi bi-funnel me-1"></i> Aplicar
+          <!-- Botón Filtros (abre offcanvas) -->
+          <button class="btn btn-outline-primary toolbar-item" @click="abrirFiltros">
+            <i class="bi bi-funnel me-1"></i> Filtros
+            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
           </button>
 
           <!-- Nueva -->
@@ -75,24 +42,33 @@
       </div>
 
       <!-- Chips de filtros activos -->
-      <div v-if="hasActiveFilters" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <small class="text-secondary">Filtros activos:</small>
+
         <span v-if="filtroFecha" class="badge bg-light text-dark border">
           Fecha: {{ filtroFecha }}
           <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; aplicarFiltros()"></button>
         </span>
+
         <span v-if="filtroSolicitante" class="badge bg-light text-dark border">
-          Solicitante: {{ filtroSolicitante }} <span class="text-secondary">({{ filtroSolicExacto ? 'exacto' : 'contiene' }})</span>
+          Solicitante: {{ filtroSolicitante }}
+          <span class="text-secondary">({{ filtroSolicExacto ? 'exacto' : 'contiene' }})</span>
           <button class="btn-close btn-close-white ms-2 small" @click="filtroSolicitante=''; aplicarFiltros()"></button>
         </span>
+
         <span v-for="es in filtroEstatus" :key="es" class="badge bg-light text-dark border">
           {{ es }}
           <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(es)"></button>
         </span>
+
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
+
+        <span v-if="busquedaActiva" class="badge bg-info-subtle text-info-emphasis">
+          Búsqueda por número activa
+        </span>
       </div>
 
-      <!-- Tabla -->
+      <!-- Tabla / Cards -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
@@ -101,7 +77,8 @@
           </div>
         </div>
 
-        <div class="table-responsive">
+        <!-- Vista tabla (md y arriba) -->
+        <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
             <thead>
               <tr>
@@ -128,8 +105,8 @@
               <tr v-else v-for="r in rows" :key="r.__id">
                 <td class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</td>
                 <td>
-                  <div class="fw-semibold">{{ r.centro_costo || '—' }}</div>
-                  <div class="small text-secondary">
+                  <div class="fw-semibold text-truncate">{{ r.centro_costo || '—' }}</div>
+                  <div class="small text-secondary text-truncate">
                     Solicitante: {{ r.nombre_solicitante || '—' }}
                   </div>
                 </td>
@@ -154,6 +131,48 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Vista cards (xs - sm) -->
+        <div class="d-block d-md-none">
+          <div v-if="cargando" class="text-center py-4">
+            <div class="spinner-border" role="status"></div>
+            <div class="small text-secondary mt-2">Cargando…</div>
+          </div>
+
+          <div v-else-if="rows.length === 0" class="text-center py-4 text-secondary">
+            Sin resultados.
+          </div>
+
+          <div v-else class="list-group list-group-flush">
+            <div v-for="r in rows" :key="r.__id" class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</div>
+                  <div class="small text-secondary">{{ r.fecha || '—' }}</div>
+                </div>
+                <span class="badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+              </div>
+
+              <div class="mt-2 small">
+                <div class="text-truncate"><span class="text-secondary">Centro costo:</span> {{ r.centro_costo || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Solicitante:</span> {{ r.nombre_solicitante || '—' }}</div>
+              </div>
+
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-outline-primary btn-sm flex-fill" @click="abrirEditor(r)">
+                  <i class="bi bi-pencil-square me-1"></i> Editar
+                </button>
+                <button class="btn btn-outline-secondary btn-sm flex-fill" @click="irADetalle(r)">
+                  <i class="bi bi-box-arrow-up-right me-1"></i> Detalle
+                </button>
+                <button class="btn btn-outline-danger btn-sm" @click="abrirConfirm(r)">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Paginación -->
@@ -190,183 +209,286 @@
       </div>
     </div>
 
-    <!-- Offcanvas Editor -->
-    <div v-if="editorAbierto" class="offcanvas-backdrop" @click.self="cerrarEditor">
+    <!-- Offcanvas Filtros -->
+    <div v-if="filtrosAbiertos" class="offcanvas-backdrop" @click.self="cerrarFiltros">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
-          <div>
-            <div class="fw-semibold">Editar SOLPED Taller</div>
-          </div>
-          <button class="btn-close" @click="cerrarEditor"></button>
+          <div class="fw-semibold">Filtros · SOLPED Taller</div>
+          <button class="btn-close" @click="cerrarFiltros"></button>
         </div>
 
         <div class="offcanvas-body">
           <div class="row g-3">
-            <!-- Encabezado -->
-            <div class="col-6 col-md-3">
-              <label class="form-label">N° SOLPE</label>
-              <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
-            </div>
-            <div class="col-6 col-md-3">
+            <!-- Fecha -->
+            <div class="col-12 col-md-6">
               <label class="form-label">Fecha</label>
-              <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD">
-            </div>
-            <div class="col-12 col-md-3">
-              <label class="form-label">Empresa</label>
-              <select class="form-select" v-model="edit.empresa">
-                <option>Xtreme Servicio</option>
-                <option>Xtreme Servicios</option>
-                <option>Xtreme Mining</option>
-              </select>
-            </div>
-            <div class="col-12 col-md-3">
-              <label class="form-label">Estatus</label>
-              <select class="form-select" v-model="edit.estatus">
-                <option>Solicitado</option>
-                <option>Cotizando</option>
-                <option>Revisión</option>
-                <option>Completado</option>
-                <option>Rechazado</option>
-                <option>Pendiente</option>
-              </select>
+              <input class="form-control" type="date" v-model="filtroFecha">
             </div>
 
-            <!-- Centro de costo -->
+            <!-- Solicitante -->
             <div class="col-12">
-              <label class="form-label">Centro de Costo</label>
+              <label class="form-label">Solicitante</label>
               <div class="input-group">
-                <select class="form-select" v-model="selectedCentroEdit" @change="applyCentroCosto(edit, selectedCentroEdit)">
-                  <option value="">— Selecciona centro —</option>
-                  <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
-                    {{ opt.key }} — {{ opt.name }}
-                  </option>
-                </select>
-                <input class="form-control" v-model="edit.centro_costo" placeholder="o escribe uno personalizado">
+                <input
+                  class="form-control"
+                  v-model.trim="filtroSolicitante"
+                  placeholder="Ej: FRANK PINTO"
+                >
+                <button
+                  v-if="filtroSolicitante"
+                  class="btn btn-outline-secondary"
+                  @click="filtroSolicitante=''"
+                  title="Limpiar solicitante">
+                  <i class="bi bi-x-lg"></i>
+                </button>
               </div>
+              <div class="form-check mt-2">
+                <input id="chkExacto" class="form-check-input" type="checkbox" v-model="filtroSolicExacto">
+                <label class="form-check-label" for="chkExacto">Coincidencia exacta</label>
+              </div>
+              <div class="form-text">Si no está marcado, se filtra por “contiene”.</div>
             </div>
 
-            <!-- Solicitante / sesión -->
-            <div class="col-12 col-md-6">
-              <label class="form-label">Nombre solicitante</label>
-              <input class="form-control" v-model="edit.nombre_solicitante" placeholder="Ej: FRANK PINTO">
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label">Usuario sesión</label>
-              <input class="form-control" v-model="edit.usuario_sesion" placeholder="Ej: TALLER CM">
-            </div>
-
-            <!-- Cotizadores (checkboxes) -->
+            <!-- Estatus (multi) -->
             <div class="col-12">
-              <label class="form-label mb-1">Cotizadores</label>
+              <label class="form-label mb-2">Estatus</label>
               <div class="d-flex flex-wrap gap-2">
-                <label class="form-check me-3" v-for="p in COTIZADORES_OPCIONES" :key="p">
-                  <input class="form-check-input me-1" type="checkbox" :value="p" v-model="edit.cotizadores">
-                  <span class="form-check-label">{{ p }}</span>
+                <label v-for="s in ESTATUS_OPC" :key="s" class="form-check form-check-inline me-3">
+                  <input class="form-check-input" type="checkbox" :value="s" v-model="filtroEstatus">
+                  <span class="form-check-label">{{ s }}</span>
                 </label>
               </div>
-            </div>
-
-            <!-- Items -->
-            <div class="col-12">
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <div class="fw-semibold">Ítems</div>
-                <button class="btn btn-sm btn-outline-primary" @click="abrirModalItem('edit')">
-                  <i class="bi bi-plus-lg me-1"></i> Agregar ítem
-                </button>
-              </div>
-
-              <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th style="width:60px;">Ítem</th>
-                      <th>Descripción</th>
-                      <th style="width:100px;">Cant.</th>
-                      <th style="width:110px;">Cotizada</th>
-                      <th style="width:160px;">Código ref.</th>
-                      <th style="width:140px;">Estado</th>
-                      <th style="width:140px;">Img</th>
-                      <th style="width:160px;">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="!edit.items?.length">
-                      <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
-                    </tr>
-                    <tr v-for="(it, idx) in edit.items" :key="`e-${idx}`">
-                      <td class="fw-semibold">{{ it.item }}</td>
-                      <td class="small">
-                        <div class="fw-semibold">{{ it.descripcion }}</div>
-                        <div class="text-secondary">{{ it.numero_interno || '—' }}</div>
-                      </td>
-                      <td>{{ it.cantidad ?? 0 }}</td>
-                      <td>{{ it.cantidad_cotizada ?? 0 }}</td>
-                      <td>{{ it.codigo_referencial || '—' }}</td>
-                      <td>{{ it.estado || '—' }}</td>
-                      <td>
-                        <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
-                        <span v-else class="text-secondary small">—</span>
-                      </td>
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <button class="btn btn-outline-secondary" @click="abrirModalItem('edit', it, idx)">
-                            <i class="bi bi-pencil"></i>
-                          </button>
-                          <button class="btn btn-outline-danger" @click="eliminarItem('edit', idx)">
-                            <i class="bi bi-trash3"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Historial Estados -->
-            <div class="col-12">
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <div class="fw-semibold">Historial de Estados</div>
-                <button class="btn btn-sm btn-outline-primary" @click="agregarHistorial()">
-                  <i class="bi bi-plus-lg me-1"></i> Agregar
-                </button>
-              </div>
-              <div class="list-group">
-                <div class="list-group-item" v-for="(h, ix) in edit.historialEstados" :key="'h'+ix">
-                  <div class="row g-2 align-items-center">
-                    <div class="col-md-3">
-                      <input class="form-control form-control-sm" v-model="h.fecha" placeholder="YYYY-MM-DD">
-                    </div>
-                    <div class="col-md-4">
-                      <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
-                    </div>
-                    <div class="col-md-5 d-flex">
-                      <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
-                      <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
-                        <i class="bi bi-trash3"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div v-if="!edit.historialEstados?.length" class="list-group-item text-secondary small">
-                  Sin historial.
-                </div>
-              </div>
+              <div class="form-text">Puedes seleccionar varios (hasta 10) para usar la consulta con <code>in</code>.</div>
             </div>
           </div>
         </div>
 
         <div class="offcanvas-footer">
-          <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-outline-secondary" @click="cerrarEditor">Cerrar</button>
-            <button class="btn btn-primary" :disabled="guardando" @click="guardarEdicion">
-              <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
-              Guardar cambios
+          <div class="d-flex justify-content-between w-100 gap-2">
+            <button class="btn btn-outline-secondary" @click="limpiarFiltros">
+              Limpiar
             </button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary" @click="cerrarFiltros">Cerrar</button>
+              <button class="btn btn-primary" @click="aplicarFiltros">
+                <i class="bi bi-funnel me-1"></i> Aplicar
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+  <!-- Offcanvas Editor (RESPONSIVO) -->
+  <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
+    <div class="offcanvas-panel editor-panel">
+      <div class="offcanvas-header editor-header">
+        <div class="fw-semibold text-truncate">Editar SOLPED Taller</div>
+        <button class="btn-close" @click="cerrarEditor" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="offcanvas-body editor-body">
+        <div class="row g-3">
+          <!-- Encabezado -->
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label">N° SOLPE</label>
+            <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
+          </div>
+          <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label">Fecha</label>
+            <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD">
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Empresa</label>
+            <select class="form-select" v-model="edit.empresa">
+              <option>Xtreme Servicio</option>
+              <option>Xtreme Servicios</option>
+              <option>Xtreme Mining</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Estatus</label>
+            <select class="form-select" v-model="edit.estatus">
+              <option>Solicitado</option>
+              <option>Cotizando</option>
+              <option>Revisión</option>
+              <option>Completado</option>
+              <option>Rechazado</option>
+              <option>Pendiente</option>
+            </select>
+          </div>
+
+          <!-- Centro de costo -->
+          <div class="col-12">
+            <label class="form-label">Centro de Costo</label>
+            <div class="input-group input-group-merge-mobile">
+              <select class="form-select" v-model="selectedCentroEdit" @change="applyCentroCosto(edit, selectedCentroEdit)">
+                <option value="">— Selecciona centro —</option>
+                <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
+                  {{ opt.key }} — {{ opt.name }}
+                </option>
+              </select>
+              <input class="form-control" v-model="edit.centro_costo" placeholder="o escribe uno personalizado">
+            </div>
+          </div>
+
+          <!-- Solicitante / sesión -->
+          <div class="col-12 col-md-6">
+            <label class="form-label">Nombre solicitante</label>
+            <input class="form-control" v-model="edit.nombre_solicitante" placeholder="Ej: FRANK PINTO">
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Usuario sesión</label>
+            <input class="form-control" v-model="edit.usuario_sesion" placeholder="Ej: TALLER CM">
+          </div>
+
+          <!-- Cotizadores (checkboxes) -->
+          <div class="col-12">
+            <label class="form-label mb-1">Cotizadores</label>
+            <div class="d-flex flex-wrap gap-2">
+              <label class="form-check me-3" v-for="p in COTIZADORES_OPCIONES" :key="p">
+                <input class="form-check-input me-1" type="checkbox" :value="p" v-model="edit.cotizadores">
+                <span class="form-check-label">{{ p }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Ítems -->
+          <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <div class="fw-semibold">Ítems</div>
+              <button class="btn btn-sm btn-outline-primary" @click="abrirModalItem('edit')">
+                <i class="bi bi-plus-lg me-1"></i> Agregar ítem
+              </button>
+            </div>
+
+            <!-- Tabla en ≥ sm -->
+            <div class="table-responsive d-none d-sm-block">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:60px;">Ítem</th>
+                    <th>Descripción</th>
+                    <th style="width:100px;">Cant.</th>
+                    <th style="width:110px;">Cotizada</th>
+                    <th style="width:160px;">Código ref.</th>
+                    <th style="width:140px;">Estado</th>
+                    <th style="width:140px;">Img</th>
+                    <th style="width:160px;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!edit.items?.length">
+                    <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
+                  </tr>
+                  <tr v-for="(it, idx) in edit.items" :key="`e-${idx}`">
+                    <td class="fw-semibold">{{ it.item }}</td>
+                    <td class="small">
+                      <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
+                      <div class="text-secondary text-truncate">{{ it.numero_interno || '—' }}</div>
+                    </td>
+                    <td>{{ it.cantidad ?? 0 }}</td>
+                    <td>{{ it.cantidad_cotizada ?? 0 }}</td>
+                    <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
+                    <td>{{ it.estado || '—' }}</td>
+                    <td>
+                      <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
+                      <span v-else class="text-secondary small">—</span>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" @click="abrirModalItem('edit', it, idx)">
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" @click="eliminarItem('edit', idx)">
+                          <i class="bi bi-trash3"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Cards en xs -->
+            <div class="d-block d-sm-none">
+              <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
+              <div class="list-group list-group-flush">
+                <div v-for="(it, idx) in edit.items" :key="`m-${idx}`" class="list-group-item">
+                  <div class="d-flex justify-content-between">
+                    <div class="fw-semibold">Ítem {{ it.item }}</div>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
+                  </div>
+                  <div class="small mt-1 text-truncate-3"><span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}</div>
+                  <div class="small mt-1">
+                    <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
+                    <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
+                  </div>
+                  <div class="small text-truncate mt-1">
+                    <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
+                  </div>
+                  <div class="small mt-1">
+                    <span class="text-secondary">Img:</span>
+                    <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
+                    <span v-else class="text-secondary">—</span>
+                  </div>
+                  <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-outline-secondary btn-sm flex-fill" @click="abrirModalItem('edit', it, idx)">
+                      <i class="bi bi-pencil me-1"></i> Editar
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" @click="eliminarItem('edit', idx)">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Historial Estados -->
+          <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <div class="fw-semibold">Historial de Estados</div>
+              <button class="btn btn-sm btn-outline-primary" @click="agregarHistorial()">
+                <i class="bi bi-plus-lg me-1"></i> Agregar
+              </button>
+            </div>
+            <div class="list-group">
+              <div class="list-group-item" v-for="(h, ix) in edit.historialEstados" :key="'h'+ix">
+                <div class="row g-2 align-items-center">
+                  <div class="col-12 col-sm-4 col-md-3">
+                    <input class="form-control form-control-sm" v-model="h.fecha" placeholder="YYYY-MM-DD">
+                  </div>
+                  <div class="col-12 col-sm-5 col-md-4">
+                    <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
+                  </div>
+                  <div class="col-12 col-sm-3 col-md-5 d-flex">
+                    <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
+                    <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-if="!edit.historialEstados?.length" class="list-group-item text-secondary small">
+                Sin historial.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="offcanvas-footer editor-footer">
+        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 w-100">
+          <button class="btn btn-outline-secondary w-100 w-sm-auto" @click="cerrarEditor">Cerrar</button>
+          <button class="btn btn-primary w-100 w-sm-auto" :disabled="guardando" @click="guardarEdicion">
+            <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
+            Guardar cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
     <!-- Modal NUEVA SOLPED (Taller) -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
@@ -697,14 +819,24 @@ const filtroFecha = ref("");
 const filtroSolicitante = ref("");
 const filtroSolicExacto = ref(false);
 const filtroEstatus = ref([]);           // multi
-const filtroEstatusHeader = ref("");     // select rápido (uno)
 const filtrosActivos = ref(false);
 let unsubFilter = null;
+
+/* Offcanvas filtros */
+const filtrosAbiertos = ref(false);
+const abrirFiltros = () => { filtrosAbiertos.value = true; };
+const cerrarFiltros = () => { filtrosAbiertos.value = false; };
 
 const hasActiveFilters = computed(() =>
   !!filtroFecha.value || !!filtroSolicitante.value || (filtroEstatus.value?.length || 0) > 0
 );
-
+const totalFiltrosActivos = computed(() => {
+  let n = 0;
+  if (filtroFecha.value) n++;
+  if (filtroSolicitante.value) n++;
+  n += (filtroEstatus.value?.length || 0);
+  return n;
+});
 
 /* ---------- Toasts ---------- */
 const toasts = ref([]);
@@ -831,14 +963,7 @@ function limpiarBusqueda(){
   subscribePage(1);
 }
 
-/* ---------- FILTRO RÁPIDO (header) ---------- */
-function onChangeEstatusHeader(){
-  // sincroniza el select rápido con el filtro multi
-  filtroEstatus.value = filtroEstatusHeader.value ? [filtroEstatusHeader.value] : [];
-  aplicarFiltros();
-}
-
-/* ---------- FILTROS: aplicar / limpiar ---------- */
+/* ---------- FILTROS ---------- */
 function buildFilterQuery(){
   const wh = [];
 
@@ -866,10 +991,12 @@ function buildFilterQuery(){
 }
 
 function aplicarFiltros(){
+  // Si no hay filtros, volver a paginación en tiempo real
   if (!hasActiveFilters.value){
     filtrosActivos.value = false;
     currentPage.value = 1;
     subscribePage(1);
+    cerrarFiltros();
     return;
   }
 
@@ -896,6 +1023,7 @@ function aplicarFiltros(){
     rows.value = arr;
     cargando.value = false;
     hasNextPage.value = false;
+    cerrarFiltros();
   }, (err) => {
     console.error("onSnapshot filter:", err);
     addToast("danger", "Error aplicando filtros.");
@@ -908,15 +1036,11 @@ function limpiarFiltros(){
   filtroSolicitante.value = "";
   filtroSolicExacto.value = false;
   filtroEstatus.value = [];
-  filtroEstatusHeader.value = ""; // limpia el quick-select también
   aplicarFiltros();
 }
 
 function removeEstatus(es){
   filtroEstatus.value = filtroEstatus.value.filter(x => x!==es);
-  // si quitaste el único seleccionado desde chips, limpia el header
-  if (filtroEstatus.value.length !== 1) filtroEstatusHeader.value = "";
-  else filtroEstatusHeader.value = filtroEstatus.value[0];
   aplicarFiltros();
 }
 
@@ -1007,20 +1131,7 @@ function cerrarEditor(){
   selectedCentroEdit.value = "";
 }
 
-/* ---------- Historial ---------- */
-function agregarHistorial(){
-  if (!Array.isArray(edit.value.historialEstados)) edit.value.historialEstados = [];
-  edit.value.historialEstados.push({
-    fecha: new Date().toISOString().slice(0,10),
-    estatus: edit.value.estatus || "Actualizado",
-    usuario: edit.value.nombre_solicitante || edit.value.usuario_sesion || ""
-  });
-}
-function eliminarHistorial(ix){
-  edit.value.historialEstados.splice(ix, 1);
-}
-
-/* ---------- Ítems (modal compartido: edición o creación) ---------- */
+/* ---------- Ítems (modal compartido) ---------- */
 const modalItem = ref(false);
 const isEditItem = ref(false);
 const itemIndex = ref(-1);
@@ -1219,7 +1330,7 @@ onBeforeUnmount(() => { cleanupSubs(); });
   min-height:100vh;
 }
 
-/* Offcanvas */
+/* Offcanvas base */
 .offcanvas-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: grid; place-items: end; z-index: 1080;
@@ -1248,23 +1359,19 @@ onBeforeUnmount(() => { cleanupSubs(); });
   from{ transform: translateX(20px); opacity:.0; }
   to{ transform: translateX(0); opacity:1; }
 }
-/* Toolbar: que todo quede de la misma altura y alineado */
-.toolbar .toolbar-item .form-control,
-.toolbar .toolbar-item .form-select,
-.toolbar .toolbar-item .btn,
-.toolbar .toolbar-item .input-group-text {
+
+/* Toolbar items altura consistente */
+.toolbar-item .form-control,
+.toolbar-item .form-select,
+.toolbar-item .btn,
+.toolbar-item .input-group-text {
   height: 38px;
 }
 
-.toolbar .input-group-text {
-  min-width: 64px;            /* etiquetas más legibles */
-  justify-content: center;
-}
-
-@media (max-width: 992px){
-  /* En pantallas chicas, que puedan envolver bonito */
-  .toolbar .toolbar-item{
-    flex: 1 1 auto;
+/* Cards mobile */
+@media (max-width: 575.98px){
+  .list-group-item{
+    border-left: 0; border-right: 0;
   }
 }
 

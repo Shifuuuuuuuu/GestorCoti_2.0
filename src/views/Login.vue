@@ -105,12 +105,8 @@
                 <!-- Checks -->
                 <div class="d-flex flex-column gap-2 my-3">
                   <div class="form-check">
-                    <input id="remember" class="form-check-input" type="checkbox" v-model="remember" />
-                    <label class="form-check-label" for="remember">Recordar correo</label>
-                  </div>
-                  <div class="form-check">
                     <input id="keep" class="form-check-input" type="checkbox" v-model="keep" />
-                    <label class="form-check-label" for="keep">Mantener sesión iniciada</label>
+                    <label class="form-check-label" for="keep">Mantener sesión</label>
                   </div>
                 </div>
 

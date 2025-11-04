@@ -5,23 +5,34 @@
     <div class="container py-4 py-md-5">
 
       <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 fw-semibold mb-0">Administrar equipos</h1>
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary" @click="abrirCrear">
-            <i class="bi bi-plus-lg me-1"></i> Agregar equipo
+      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+        <h1 class="h5 h4-sm fw-semibold mb-0">Administrar equipos</h1>
+
+        <div class="d-flex align-items-stretch gap-2 flex-wrap">
+          <!-- Botón Filtros solo en < md -->
+          <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
+            <i class="bi bi-sliders2 me-1"></i> Filtros
           </button>
+
+          <button class="btn btn-primary" @click="abrirCrear">
+            <i class="bi bi-plus-lg me-1"></i>
+            <span class="d-none d-sm-inline">Agregar equipo</span>
+            <span class="d-inline d-sm-none">Agregar</span>
+          </button>
+
           <button class="btn btn-outline-secondary" @click="cargarEquipos">
-            <i class="bi bi-arrow-clockwise me-1"></i> Recargar
+            <i class="bi bi-arrow-clockwise me-1"></i>
+            <span class="d-none d-sm-inline">Recargar</span>
+            <span class="d-inline d-sm-none">Reload</span>
           </button>
 
           <!-- Importar Excel/CSV -->
-          <input ref="fileInput" type="file" class="d-none"
-                 accept=".xlsx,.xls,.csv" @change="onFilePicked">
+          <input ref="fileInput" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onFilePicked">
           <button class="btn btn-success" @click="pedirArchivo" :disabled="importando">
             <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>
-            {{ importando ? 'Importando…' : 'Importar Excel' }}
+            <span class="d-none d-sm-inline">{{ importando ? 'Importando…' : 'Importar Excel' }}</span>
+            <span class="d-inline d-sm-none">{{ importando ? 'Import…' : 'Excel' }}</span>
           </button>
         </div>
       </div>
@@ -32,14 +43,13 @@
         <div class="flex-grow-1">
           {{ importMsg }}
           <div class="progress mt-2" style="height: 6px;">
-            <div class="progress-bar" role="progressbar"
-                 :style="{ width: importPct + '%' }"></div>
+            <div class="progress-bar" role="progressbar" :style="{ width: importPct + '%' }"></div>
           </div>
         </div>
       </div>
 
-      <!-- Filtros -->
-      <div class="card mb-3">
+      <!-- Filtros (solo ≥ md) -->
+      <div class="card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
             <div class="col-12 col-md-6">
@@ -57,9 +67,7 @@
               </select>
             </div>
             <div class="col-12 col-md-2">
-              <button class="btn btn-dark w-100" @click="limpiarFiltros">
-                Limpiar
-              </button>
+              <button class="btn btn-dark w-100" @click="limpiarFiltros">Limpiar</button>
             </div>
           </div>
         </div>
@@ -84,44 +92,80 @@
             </div>
 
             <div v-else class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+              <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="position-sticky top-0 bg-body">
                   <tr>
-                    <th style="width:36px;"></th>
-                    <th style="min-width:140px;">Código</th>
+                    <th style="width:34px;"></th>
+                    <th style="min-width:120px;">Código</th>
                     <th>Equipo</th>
-                    <th>Marca / Modelo</th>
-                    <th>Clasificación</th>
-                    <th>Tipo</th>
-                    <th class="text-center">Año</th>
-                    <th>Localización</th>
-                    <th style="width: 180px;">Acciones</th>
+                    <th class="d-none d-md-table-cell">Marca / Modelo</th>
+                    <th class="d-none d-lg-table-cell">Clasificación</th>
+                    <th class="d-none d-xl-table-cell">Tipo</th>
+                    <th class="text-center d-none d-xl-table-cell">Año</th>
+                    <th class="d-none d-xl-table-cell">Localización</th>
+                    <th class="text-end pe-3" style="width:160px;">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="e in paginado" :key="e.__id">
                     <td><i class="bi bi-truck-front text-secondary"></i></td>
-                    <td class="fw-semibold">{{ e.codigo || '—' }}</td>
-                    <td class="small">{{ e.equipo || '—' }}</td>
-                    <td class="small">{{ e.marca || '—' }} <span v-if="e.modelo">/ {{ e.modelo }}</span></td>
-                    <td>
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ e.clasificacion1 || '—' }}</span>
+
+                    <td class="fw-semibold text-nowrap">
+                      <div class="text-truncate" style="max-width:120px;">{{ e.codigo || '—' }}</div>
+                      <!-- En XS mostramos debajo algunos datos -->
+                      <div class="small text-secondary d-md-none mt-1">
+                        <span class="me-2">{{ e.marca || '—' }}</span>
+                        <span v-if="e.modelo">/ {{ e.modelo }}</span>
+                      </div>
                     </td>
-                    <td class="small">{{ e.tipo_equipo || '—' }}</td>
-                    <td class="text-center">{{ e.ano ?? '—' }}</td>
-                    <td class="small">{{ e.localizacion || '—' }}</td>
-                    <td>
-                      <div class="btn-group btn-group-sm">
+
+                    <td class="small">
+                      <div class="text-truncate" style="max-width:240px;">{{ e.equipo || '—' }}</div>
+                      <div class="small text-secondary d-lg-none">
+                        <span v-if="e.clasificacion1">{{ e.clasificacion1 }}</span>
+                      </div>
+                    </td>
+
+                    <td class="small d-none d-md-table-cell">
+                      {{ e.marca || '—' }}<span v-if="e.modelo"> / {{ e.modelo }}</span>
+                    </td>
+
+                    <td class="d-none d-lg-table-cell">
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                        {{ e.clasificacion1 || '—' }}
+                      </span>
+                    </td>
+
+                    <td class="small d-none d-xl-table-cell">{{ e.tipo_equipo || '—' }}</td>
+                    <td class="text-center d-none d-xl-table-cell">{{ e.ano ?? '—' }}</td>
+                    <td class="small d-none d-xl-table-cell">{{ e.localizacion || '—' }}</td>
+
+                    <td class="text-end pe-3">
+                      <!-- md+: botones con texto -->
+                      <div class="btn-group btn-group-sm d-none d-md-inline-flex">
                         <button class="btn btn-outline-primary" @click="abrirEditar(e)">Editar</button>
                         <button class="btn btn-outline-danger"
                                 :disabled="accionando && idEnAccion===e.__id"
                                 @click="abrirConfirm(e)">
-                          <span v-if="accionando && idEnAccion===e.__id"
-                                class="spinner-border spinner-border-sm me-2"></span>
+                          <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm me-2"></span>
                           Eliminar
                         </button>
                       </div>
-                      <div class="small text-secondary mt-1" v-if="e.creado || e.actualizado">
+                      <!-- xs/sm: iconos -->
+                      <div class="d-inline-flex d-md-none gap-1">
+                        <button class="btn btn-outline-primary btn-sm" @click="abrirEditar(e)" title="Editar">
+                          <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                :disabled="accionando && idEnAccion===e.__id"
+                                @click="abrirConfirm(e)"
+                                title="Eliminar">
+                          <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm"></span>
+                          <i v-else class="bi bi-trash3"></i>
+                        </button>
+                      </div>
+
+                      <div class="small text-secondary mt-1 d-none d-md-block" v-if="e.creado || e.actualizado">
                         <span v-if="e.creado">Creado: {{ fmtFecha(e.creado) }}</span>
                         <span v-if="e.actualizado"> · Act.: {{ fmtFecha(e.actualizado) }}</span>
                       </div>
@@ -133,16 +177,16 @@
 
             <!-- Paginación -->
             <div class="card-footer bg-white">
-              <nav>
-                <ul class="pagination justify-content-center mb-0">
+              <nav class="overflow-auto">
+                <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
                   <li class="page-item" :class="{disabled: paginaActual===1}">
-                    <button class="page-link" @click="goToPage(paginaActual-1)">«</button>
+                    <button class="page-link" @click="goToPage(paginaActual-1)" aria-label="Anterior">«</button>
                   </li>
                   <li v-for="n in visiblePages" :key="'pg-'+n" class="page-item" :class="{active: paginaActual===n}">
                     <button class="page-link" @click="goToPage(n)">{{ n }}</button>
                   </li>
                   <li class="page-item" :class="{disabled: paginaActual===totalPaginas}">
-                    <button class="page-link" @click="goToPage(paginaActual+1)">»</button>
+                    <button class="page-link" @click="goToPage(paginaActual+1)" aria-label="Siguiente">»</button>
                   </li>
                 </ul>
               </nav>
@@ -214,7 +258,7 @@
           </div>
 
           <div class="offcanvas-footer">
-            <div class="d-flex gap-2 justify-content-end">
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
               <button class="btn btn-outline-secondary" @click="cerrarOff">Cancelar</button>
               <button class="btn btn-primary" :disabled="accionando" @click="guardar">
                 <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
@@ -225,12 +269,47 @@
         </div>
       </div>
 
+      <!-- Offcanvas Filtros (solo móviles) -->
+      <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
+        <div class="offcanvas-panel offcanvas-panel-sm">
+          <div class="offcanvas-header">
+            <h5 class="mb-0"><i class="bi bi-sliders2 me-2"></i>Filtros</h5>
+            <button class="btn-close" @click="toggleFiltros(false)"></button>
+          </div>
+          <div class="offcanvas-body">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Buscar (equipo, marca o código)</label>
+                <input
+                  class="form-control"
+                  v-model="busqueda"
+                  placeholder="Ej: SILO, RANDON, JK-2864" />
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Filtrar por Clasificación</label>
+                <select class="form-select" v-model="filtroClasificacion">
+                  <option value="">— Todas —</option>
+                  <option v-for="c in clasificacionesOrdenadas" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="offcanvas-footer">
+            <div class="d-flex gap-2 justify-content-between w-100">
+              <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-primary" @click="toggleFiltros(false)">Aplicar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2"
-            :class="t.type==='success' ? 'bi bi-check-circle-fill'
-                : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
+             :class="t.type==='success' ? 'bi bi-check-circle-fill'
+                    : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
           <span class="me-3">{{ t.text }}</span>
           <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
         </div>
@@ -266,9 +345,7 @@
         </div>
 
         <div class="vmodal-footer d-flex justify-content-end gap-2">
-          <button class="btn btn-outline-secondary" @click="cerrarConfirm" :disabled="eliminando">
-            Cancelar
-          </button>
+          <button class="btn btn-outline-secondary" @click="cerrarConfirm" :disabled="eliminando">Cancelar</button>
           <button class="btn btn-danger" @click="confirmarEliminar" :disabled="eliminando">
             <span v-if="eliminando" class="spinner-border spinner-border-sm me-2"></span>
             Eliminar
@@ -314,6 +391,7 @@ const pageSize = 10;
 
 const offOpen = ref(false);
 const esEdicion = ref(false);
+const filtrosOpen = ref(false);
 const form = ref<Partial<Equipo>>({});
 
 const accionando = ref(false);
@@ -403,8 +481,11 @@ const paginado = computed(() => {
   const start = (paginaActual.value - 1) * pageSize;
   return filtrados.value.slice(start, start + pageSize);
 });
+
+// menos botones en pantallas pequeñas
 const visiblePages = computed(() => {
-  const maxButtons = 7;
+  const isSmall = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 576px)').matches;
+  const maxButtons = isSmall ? 5 : 7;
   const pages:number[] = [];
   let start = Math.max(1, paginaActual.value - Math.floor(maxButtons/2));
   let end = Math.min(totalPaginas.value, start + maxButtons - 1);
@@ -412,6 +493,7 @@ const visiblePages = computed(() => {
   for (let i=start; i<=end; i++) pages.push(i);
   return pages;
 });
+
 const goToPage = (n:number) => { if (n>=1 && n<=totalPaginas.value) paginaActual.value = n; };
 const limpiarFiltros = () => { busqueda.value=''; filtroClasificacion.value=''; paginaActual.value=1; };
 
@@ -438,6 +520,10 @@ const abrirEditar = (e:Equipo) => {
 };
 const cerrarOff = () => { offOpen.value = false; };
 
+/* ===== Offcanvas filtros (móvil) ===== */
+const toggleFiltros = (v:boolean) => { filtrosOpen.value = !!v; };
+
+/* ===== Validación y Guardado ===== */
 const validarForm = () => {
   if (!form.value.codigo?.trim()) { addToast('warning','Ingresa el código.'); return false; }
   if (!form.value.equipo?.trim()) { addToast('warning','Ingresa la descripción del equipo.'); return false; }
@@ -634,7 +720,6 @@ async function importarExcel(file: File){
       const batch = writeBatch(db);
 
       for (const r of slice){
-        // Valores entrantes (sin forzar "No hay información" aún)
         const incoming:any = {
           codigo: r.codigo || '',
           equipo: r.equipo || '',
@@ -647,13 +732,11 @@ async function importarExcel(file: File){
           localizacion: r.localizacion || ''
         };
 
-        // Encontrar existente por código o chasis
         const keyCodigo = (incoming.codigo || '').toLowerCase();
         const keyChasis = (incoming.numero_chasis || '').toLowerCase();
         const found = (keyCodigo && byCodigo.get(keyCodigo)) || (keyChasis && byChasis.get(keyChasis));
 
         if (found){
-          // UPDATE: si incoming está vacío, mantenemos existente; si existente también está vacío, rellenamos con "No hay información"
           const merged:any = {
             codigo: incoming.codigo || (found.codigo || ''),
             equipo: incoming.equipo || (found.equipo || 'No hay información'),
@@ -669,9 +752,8 @@ async function importarExcel(file: File){
           const refDoc = doc(db, 'equipos', found.__id);
           batch.update(refDoc, { ...merged, actualizado: serverTimestamp() });
         } else {
-          // CREATE: cualquier vacío -> "No hay información" (salvo ano)
           const payload:any = {
-            codigo: incoming.codigo, // puede venir vacío
+            codigo: incoming.codigo,
             equipo: incoming.equipo || 'No hay información',
             marca: incoming.marca || 'No hay información',
             modelo: incoming.modelo || 'No hay información',
@@ -717,18 +799,18 @@ async function importarExcel(file: File){
     #f8fafc;
 }
 
+/* Headings un poco más grandes en ≥ sm */
+@media (min-width: 576px){
+  .h4-sm{ font-size: 1.35rem; }
+}
+
 /* Offcanvas lateral derecho */
 .offcanvas-backdrop{
-  position: fixed;
-  inset: 0;
-  z-index: 1080;
-  display: grid;
-  place-items: center;
+  position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
   background: rgba(0,0,0,.45);
 }
 .offcanvas-panel{
-  position: fixed;
-  right: 0; top: 0; bottom: 0;
+  position: fixed; right: 0; top: 0; bottom: 0;
   width: 560px; max-width: 95vw;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
@@ -737,11 +819,12 @@ async function importarExcel(file: File){
   border-top-left-radius:.75rem; border-bottom-left-radius:.75rem;
   animation: slideIn .18s ease-out both;
 }
+.offcanvas-panel-sm{ width: 420px; max-width: 96vw; }
 @keyframes slideIn { from{ transform: translateX(20px); opacity: 0; } to{ transform:none; opacity:1; } }
 .offcanvas-header, .offcanvas-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
+  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
 }
-.offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
+.offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
 
 /* Modal genérico */
@@ -756,19 +839,19 @@ async function importarExcel(file: File){
   color: var(--bs-body-color);
 }
 .vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
+  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
 }
-.vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
+.vmodal-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
 /* Toasts */
 .toast-stack{
-  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
+  position: fixed; right: 12px; bottom: 12px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
 }
 .toast-box{
   display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  min-width: 240px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
@@ -777,13 +860,25 @@ async function importarExcel(file: File){
 
 /* Icono del modal de eliminación */
 .confirm-icon{
-  width: 38px; height: 38px;
-  border-radius: 10px;
-  display: grid; place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626);
-  color: #fff; font-size: 18px;
+  width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+  background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
+
+/* Tabla responsive */
+.table td, .table th{ vertical-align: middle; }
+.table-responsive thead th{
+  z-index: 1; border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Limites de truncado para móviles */
+@media (max-width: 576px){
+  thead th:first-child, tbody td:first-child{ width: 34px !important; }
+  td .text-truncate{ max-width: 180px; }
+}
+
+/* Paginación mejor en móviles */
+.pagination .page-link{ min-width: 34px; text-align:center; }
 
 /* Progreso import */
 .progress { background: #f1f5f9; }

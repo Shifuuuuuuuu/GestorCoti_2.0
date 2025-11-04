@@ -560,6 +560,7 @@ const empresaSegmento = ref('todas');
 
 /* ========= Centros de costo ========= */
 const centrosCosto = {
+  "30858":"CONTRATO 30858 INFRA CHUQUICAMATA",
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
   "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
   "20915":"CONTRATO 20915 SUM. HORMIGON DAND",

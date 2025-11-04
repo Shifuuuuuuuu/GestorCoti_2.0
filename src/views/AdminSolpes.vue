@@ -1,15 +1,15 @@
+<!-- src/views/AdminSolpes.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="admin-solpes-page">
     <div class="container py-4">
       <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <h1 class="h4 fw-semibold mb-0">Admin · SOLPES</h1>
 
-        <!-- Toolbar en una línea -->
-        <div class="toolbar d-flex align-items-stretch gap-2 flex-wrap">
+        <div class="d-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto">
           <!-- Buscar numero_solpe -->
-          <div class="input-group toolbar-item" style="width: 240px;">
+          <div class="input-group toolbar-item flex-grow-1" style="min-width: 240px; max-width: 360px;">
             <span class="input-group-text">#</span>
             <input
               class="form-control"
@@ -29,36 +29,11 @@
             </button>
           </div>
 
-          <!-- Estatus (rápido) -->
-          <div class="input-group toolbar-item" style="width: 220px;">
-            <span class="input-group-text">Estatus</span>
-            <select class="form-select" v-model="filtroEstatusHeader" @change="onChangeEstatusHeader">
-              <option value="">Todos</option>
-              <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
-            </select>
-          </div>
-
-          <!-- Fecha -->
-          <div class="input-group toolbar-item" style="width: 200px;">
-            <span class="input-group-text">Fecha</span>
-            <input class="form-control" type="date" v-model="filtroFecha" @change="aplicarFiltros">
-          </div>
-
-          <!-- Usuario (desde colección solpes) -->
-          <div class="input-group toolbar-item" style="width: 300px;">
-            <span class="input-group-text">Usuario</span>
-            <select class="form-select" v-model="filtroUsuario" @change="aplicarFiltros">
-              <option value="">Todos</option>
-              <option v-for="u in usuariosOpts" :key="u" :value="u">{{ u }}</option>
-            </select>
-            <button
-              v-if="filtroUsuario"
-              class="btn btn-outline-secondary"
-              @click="filtroUsuario=''; aplicarFiltros()"
-              title="Limpiar usuario">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
+          <!-- Botón Filtros (abre offcanvas top en móvil / panel en md+) -->
+          <button class="btn btn-outline-primary toolbar-item" @click="mobileFiltersOpen = true">
+            <i class="bi bi-funnel me-1"></i> Filtros
+            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
+          </button>
 
           <!-- Nueva -->
           <button class="btn btn-primary toolbar-item" @click="abrirModalNueva">
@@ -68,7 +43,7 @@
       </div>
 
       <!-- Chips de filtros activos -->
-      <div v-if="hasActiveFilters" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+      <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <small class="text-secondary">Filtros activos:</small>
 
         <span v-if="filtroFecha" class="badge bg-light text-dark border">
@@ -87,23 +62,42 @@
         </span>
 
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
+
+        <span v-if="busquedaActiva" class="badge bg-info-subtle text-info-emphasis">
+          Búsqueda por número activa
+        </span>
       </div>
 
-      <!-- Tabla -->
+      <!-- Tabla / Cards -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
             Listado ({{ rows.length }} / pág.)
             <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">paginación desactivada</span>
           </div>
+
+          <!-- Barra compacta de búsqueda en móvil -->
+          <div class="d-flex d-md-none gap-2">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">#</span>
+              <input class="form-control" placeholder="Buscar" v-model="buscarNumero" @keyup.enter="onBuscarNumero">
+              <button class="btn btn-outline-secondary" @click="onBuscarNumero">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+            <button v-if="busquedaActiva" class="btn btn-sm btn-outline-danger" @click="limpiarBusqueda" title="Limpiar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
         </div>
 
-        <div class="table-responsive">
+        <!-- Vista tabla (md y arriba) -->
+        <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
-            <thead>
+            <thead class="table-light">
               <tr>
                 <th style="width:110px;"># SOLPE</th>
-                <th>Centro de Costo</th>
+                <th class="minw-220">Centro de Costo</th>
                 <th style="width:160px;">Empresa</th>
                 <th style="width:140px;">Estatus</th>
                 <th style="width:120px;">Fecha</th>
@@ -123,12 +117,10 @@
                 </td>
               </tr>
               <tr v-else v-for="r in rows" :key="r.__id">
+                <td class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</td>
                 <td>
-                  <div class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</div>
-                </td>
-                <td>
-                  <div class="fw-semibold">{{ r.numero_contrato || '—' }}</div>
-                  <div class="small text-secondary">{{ r.nombre_centro_costo || '—' }}</div>
+                  <div class="fw-semibold text-truncate">{{ r.numero_contrato || '—' }}</div>
+                  <div class="small text-secondary text-truncate">{{ r.nombre_centro_costo || '—' }}</div>
                 </td>
                 <td>{{ r.empresa || '—' }}</td>
                 <td>
@@ -143,7 +135,7 @@
                     <button class="btn btn-outline-danger" @click="abrirConfirm(r)" title="Eliminar">
                       <i class="bi bi-trash3"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary" @click="irADetalle(r)" title="Ver detalle">
+                    <button class="btn btn-outline-secondary" @click="irADetalle(r)" title="Ver detalle">
                       <i class="bi bi-box-arrow-up-right"></i>
                     </button>
                   </div>
@@ -151,6 +143,49 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Vista cards (xs - sm) -->
+        <div class="d-block d-md-none">
+          <div v-if="cargando" class="text-center py-4">
+            <div class="spinner-border" role="status"></div>
+            <div class="small text-secondary mt-2">Cargando…</div>
+          </div>
+
+          <div v-else-if="rows.length === 0" class="text-center py-4 text-secondary">
+            Sin resultados.
+          </div>
+
+          <div v-else class="list-group list-group-flush">
+            <div v-for="r in rows" :key="r.__id" class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</div>
+                  <div class="small text-secondary">{{ r.fecha || '—' }}</div>
+                </div>
+                <span class="badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+              </div>
+
+              <div class="mt-2 small">
+                <div class="text-truncate"><span class="text-secondary">Centro:</span> {{ r.nombre_centro_costo || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Contrato:</span> {{ r.numero_contrato || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}</div>
+                <div class="text-truncate" v-if="r.usuario"><span class="text-secondary">Usuario:</span> {{ r.usuario }}</div>
+              </div>
+
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-outline-primary btn-sm flex-fill" @click="abrirEditor(r)">
+                  <i class="bi bi-pencil-square me-1"></i> Editar
+                </button>
+                <button class="btn btn-outline-secondary btn-sm flex-fill" @click="irADetalle(r)">
+                  <i class="bi bi-box-arrow-up-right me-1"></i> Detalle
+                </button>
+                <button class="btn btn-outline-danger btn-sm" @click="abrirConfirm(r)">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Paginación -->
@@ -187,26 +222,102 @@
       </div>
     </div>
 
-    <!-- Offcanvas Editor -->
-    <div v-if="editorAbierto" class="offcanvas-backdrop" @click.self="cerrarEditor">
+    <!-- Offcanvas Filtros (móvil / top) -->
+    <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
-          <div>
-            <div class="fw-semibold">Editar SOLPED</div>
-          </div>
-          <button class="btn-close" @click="cerrarEditor"></button>
+          <div class="fw-semibold"><i class="bi bi-funnel me-2"></i>Filtros · SOLPES</div>
+          <button class="btn-close" @click="mobileFiltersOpen=false" aria-label="Cerrar"></button>
         </div>
 
         <div class="offcanvas-body">
           <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Buscar por N° SOLPE</label>
+              <div class="input-group">
+                <span class="input-group-text">#</span>
+                <input
+                  class="form-control"
+                  placeholder="Ej: 105"
+                  v-model="buscarNumero"
+                  @keyup.enter="onBuscarNumero"
+                />
+                <button class="btn btn-outline-secondary" @click="onBuscarNumero">
+                  <i class="bi bi-search"></i>
+                </button>
+                <button
+                  v-if="busquedaActiva"
+                  class="btn btn-outline-danger"
+                  @click="limpiarBusqueda"
+                  title="Limpiar"
+                >
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Estatus</label>
+              <select class="form-select" v-model="filtroEstatusHeader" @change="onChangeEstatusHeader">
+                <option value="">Todos</option>
+                <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Usuario</label>
+              <div class="input-group">
+                <select class="form-select" v-model="filtroUsuario">
+                  <option value="">Todos</option>
+                  <option v-for="u in usuariosOpts" :key="u" :value="u">{{ u }}</option>
+                </select>
+                <button v-if="filtroUsuario" class="btn btn-outline-secondary" @click="filtroUsuario=''">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Fecha</label>
+              <input class="form-control" type="date" v-model="filtroFecha">
+            </div>
+          </div>
+        </div>
+
+        <div class="offcanvas-footer d-flex justify-content-between">
+          <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+          <button class="btn btn-primary" @click="mobileApplyFilters">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Offcanvas Editor (mismo look que Taller) -->
+    <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
+      <div class="offcanvas-panel editor-panel">
+        <div class="offcanvas-header editor-header">
+          <div class="fw-semibold text-truncate">Editar SOLPED</div>
+          <button class="btn-close" @click="cerrarEditor" aria-label="Cerrar"></button>
+        </div>
+
+        <div class="offcanvas-body editor-body">
+          <div class="row g-3">
             <!-- Numero SOLPE + Usuario + Estatus + Fecha -->
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
             </div>
+            <div class="col-12 col-sm-6 col-md-3">
+              <label class="form-label">Fecha</label>
+              <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD">
+            </div>
             <div class="col-12 col-md-3">
-              <label class="form-label">Usuario</label>
-              <input class="form-control" v-model="edit.usuario">
+              <label class="form-label">Empresa</label>
+              <select class="form-select" v-model="edit.empresa">
+                <option>Xtreme Servicio</option>
+                <option>Xtreme Servicios</option>
+                <option>Xtreme Mining</option>
+              </select>
             </div>
             <div class="col-12 col-md-3">
               <label class="form-label">Estatus</label>
@@ -219,38 +330,31 @@
                 <option>Pendiente</option>
               </select>
             </div>
-            <div class="col-12 col-md-3">
-              <label class="form-label">Fecha (YYYY-MM-DD)</label>
-              <input class="form-control" v-model="edit.fecha" placeholder="2025-09-08">
-            </div>
-
-            <!-- Empresa -->
-            <div class="col-12 col-md-4">
-              <label class="form-label">Empresa</label>
-              <select class="form-select" v-model="edit.empresa">
-                <option>Xtreme Hormigones</option>
-                <option>Xtreme Servicio</option>
-                <option>Xtreme Mining</option>
-              </select>
-            </div>
 
             <!-- Centro de costo -->
-            <div class="col-12 col-md-8">
+            <div class="col-12">
               <label class="form-label">Centro de Costo</label>
-              <select class="form-select" v-model="selectedCentroEdit" @change="setCentroFromKey(edit, selectedCentroEdit)">
-                <option value="">— Selecciona centro —</option>
-                <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
-                  {{ opt.key }} — {{ opt.name }}
-                </option>
-              </select>
+              <div class="input-group input-group-merge-mobile">
+                <select class="form-select" v-model="selectedCentroEdit" @change="setCentroFromKey(edit, selectedCentroEdit)">
+                  <option value="">— Selecciona centro —</option>
+                  <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
+                    {{ opt.key }} — {{ opt.name }}
+                  </option>
+                </select>
+                <input class="form-control" :value="edit.nombre_centro_costo" placeholder="(se autocompleta)">
+              </div>
             </div>
 
-            <!-- Tipo y nombre SOLPED -->
+            <!-- Usuario / Tipo / Nombre -->
+            <div class="col-12 col-md-4">
+              <label class="form-label">Usuario</label>
+              <input class="form-control" v-model="edit.usuario" placeholder="Ej: ADMIN">
+            </div>
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="edit.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
             </div>
-            <div class="col-12 col-md-8">
+            <div class="col-12 col-md-4">
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="edit.nombre_solped">
             </div>
@@ -268,8 +372,8 @@
 
             <!-- Autorización (archivo) -->
             <div class="col-12">
-              <label class="form-label">Documento adjunto de autorización</label>
-              <div class="d-flex gap-2">
+              <label class="form-label">Documento de autorización</label>
+              <div class="d-flex gap-2 flex-wrap">
                 <input
                   ref="inputAutorizacionEditEl"
                   id="inputAutorizacionEdit"
@@ -290,7 +394,7 @@
               </div>
             </div>
 
-            <!-- Items -->
+            <!-- Ítems -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Ítems</div>
@@ -299,7 +403,7 @@
                 </button>
               </div>
 
-              <div class="table-responsive">
+              <div class="table-responsive d-none d-sm-block">
                 <table class="table table-sm align-middle mb-0">
                   <thead class="table-light">
                     <tr>
@@ -320,12 +424,12 @@
                     <tr v-for="(it, idx) in edit.items" :key="idx">
                       <td class="fw-semibold">{{ it.item }}</td>
                       <td class="small">
-                        <div class="fw-semibold">{{ it.descripcion }}</div>
-                        <div class="text-secondary">{{ it.numero_interno || '—' }}</div>
+                        <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
+                        <div class="text-secondary text-truncate">{{ it.numero_interno || '—' }}</div>
                       </td>
                       <td>{{ it.cantidad ?? 0 }}</td>
                       <td>{{ it.cantidad_cotizada ?? 0 }}</td>
-                      <td>{{ it.codigo_referencial || '—' }}</td>
+                      <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
                       <td>{{ it.estado || '—' }}</td>
                       <td>
                         <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
@@ -345,6 +449,41 @@
                   </tbody>
                 </table>
               </div>
+
+              <!-- Cards en xs -->
+              <div class="d-block d-sm-none">
+                <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
+                <div class="list-group list-group-flush">
+                  <div v-for="(it, idx) in edit.items" :key="'m-'+idx" class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                      <div class="fw-semibold">Ítem {{ it.item }}</div>
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
+                    </div>
+                    <div class="small mt-1 text-truncate-3"><span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}</div>
+                    <div class="small mt-1">
+                      <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
+                      <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
+                    </div>
+                    <div class="small text-truncate mt-1">
+                      <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
+                    </div>
+                    <div class="small mt-1">
+                      <span class="text-secondary">Img:</span>
+                      <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
+                      <span v-else class="text-secondary">—</span>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                      <button class="btn btn-outline-secondary btn-sm flex-fill" @click="abrirModalItem(it, idx)">
+                        <i class="bi bi-pencil me-1"></i> Editar
+                      </button>
+                      <button class="btn btn-outline-danger btn-sm" @click="eliminarItem(idx)">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <!-- Historial Estados -->
@@ -358,13 +497,13 @@
               <div class="list-group">
                 <div class="list-group-item" v-for="(h, ix) in edit.historialEstados" :key="'h'+ix">
                   <div class="row g-2 align-items-center">
-                    <div class="col-md-3">
+                    <div class="col-12 col-sm-4 col-md-3">
                       <input class="form-control form-control-sm" v-model="h.fecha" placeholder="YYYY-MM-DD">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12 col-sm-5 col-md-4">
                       <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
                     </div>
-                    <div class="col-md-5 d-flex">
+                    <div class="col-12 col-sm-3 col-md-5 d-flex">
                       <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
                       <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
                         <i class="bi bi-trash3"></i>
@@ -380,10 +519,10 @@
           </div>
         </div>
 
-        <div class="offcanvas-footer">
-          <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-secondary" @click="cerrarEditor">Cerrar</button>
-            <button class="btn btn-primary" :disabled="guardando" @click="guardarEdicion">
+        <div class="offcanvas-footer editor-footer">
+          <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 w-100">
+            <button class="btn btn-outline-secondary w-100 w-sm-auto" @click="cerrarEditor">Cerrar</button>
+            <button class="btn btn-primary w-100 w-sm-auto" :disabled="guardando" @click="guardarEdicion">
               <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
               Guardar cambios
             </button>
@@ -428,25 +567,34 @@
               </select>
             </div>
 
+            <!-- Centro de costo -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
-              <select class="form-select" v-model="selectedCentroNuevo">
-                <option value="">— Selecciona centro —</option>
-                <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
-                  {{ opt.key }} — {{ opt.name }}
-                </option>
-              </select>
+              <div class="input-group">
+                <select class="form-select" v-model="selectedCentroNuevo" @change="setCentroFromKey(nuevo, selectedCentroNuevo)">
+                  <option value="">— Selecciona centro —</option>
+                  <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
+                    {{ opt.key }} — {{ opt.name }}
+                  </option>
+                </select>
+                <input class="form-control" :value="nuevo.nombre_centro_costo || ''" placeholder="(se autocompleta)" readonly>
+              </div>
             </div>
 
+            <div class="col-md-4">
+              <label class="form-label">Usuario</label>
+              <input class="form-control" v-model="nuevo.usuario" placeholder="ADMIN">
+            </div>
             <div class="col-md-4">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="nuevo.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
             </div>
-            <div class="col-md-8">
+            <div class="col-md-4">
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="nuevo.nombre_solped">
             </div>
 
+            <!-- Dirigido A -->
             <div class="col-12">
               <label class="form-label mb-1">Dirigido A</label>
               <div class="d-flex flex-wrap gap-2">
@@ -457,9 +605,10 @@
               </div>
             </div>
 
+            <!-- Autorización -->
             <div class="col-12">
               <label class="form-label">Autorización (PDF / imagen / Excel)</label>
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 flex-wrap">
                 <input
                   ref="inputAutorizacionNuevoEl"
                   id="inputAutorizacionNuevo"
@@ -476,6 +625,7 @@
                 </div>
               </div>
             </div>
+
           </div>
         </div>
         <div class="vmodal-footer">
@@ -493,7 +643,6 @@
       <div class="vmodal" style="max-width: 720px;">
         <div class="vmodal-header">
           <h5 class="mb-0">{{ isEditItem ? 'Editar ítem' : 'Nuevo ítem' }}</h5>
-          <button class="btn-close" @click="cerrarModalItem"></button>
         </div>
         <div class="vmodal-body">
           <div class="row g-3">
@@ -535,14 +684,8 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Subir imagen (opcional)</label>
-              <input
-                ref="inputImagenItemEl"
-                id="inputImagenItem"
-                type="file"
-                class="form-control"
-                accept="image/*"
-                @change="onImagenItem"
-              >
+              <input id="inputImagenItem" type="file" class="form-control"
+                accept="image/*" @change="onImagenItem">
               <div class="form-text">Se guarda en Storage.</div>
               <div v-if="itemForm.imagen_url" class="small mt-1">
                 <a :href="itemForm.imagen_url" target="_blank">Ver imagen</a>
@@ -551,7 +694,7 @@
           </div>
         </div>
         <div class="vmodal-footer">
-          <button class="btn btn-outline-secondary" @click="cerrarModalItem">Cancelar</button>
+          <button class="btn btn-secondary" @click="cerrarModalItem">Cancelar</button>
           <button class="btn btn-primary" @click="guardarItemForm">
             Guardar ítem
           </button>
@@ -620,9 +763,13 @@ const DIRIGIDO_OPCIONES = [
   "Luis Orellana","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
 ];
 
-/* Centros de Costo */
-const centrosCosto = { /* ... tus claves/nombres aquí ... */ };
+/* Centros de Costo (rellenar con tus claves reales) */
+const centrosCosto = {
+  // '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
+  // ...
+};
 const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}));
+
 const router = useRouter();
 
 /* ---------- Estado listado & paginación ---------- */
@@ -640,18 +787,25 @@ let unsubSearch = null;
 
 /* ---------- Filtros ---------- */
 const filtroFecha = ref("");
-const filtroUsuario = ref("");           // usuario seleccionado
+const filtroUsuario = ref("");
 const filtroEstatus = ref([]);           // multi
-const filtroEstatusHeader = ref("");     // select rápido (uno)
+const filtroEstatusHeader = ref("");
 let unsubFilter = null;
 
-/* Lista de usuarios para el select */
-const usuariosOpts = ref([]);            // se llena desde la colección
+/* Lista de usuarios para el select (dinámico) */
+const usuariosOpts = ref([]);
 let unsubUsuarios = null;
 
 const hasActiveFilters = computed(() =>
   !!filtroFecha.value || !!filtroUsuario.value || (filtroEstatus.value?.length || 0) > 0
 );
+const totalFiltrosActivos = computed(() => {
+  let n = 0;
+  if (filtroFecha.value) n++;
+  if (filtroUsuario.value) n++;
+  n += (filtroEstatus.value?.length || 0);
+  return n;
+});
 
 /* ---------- Toasts ---------- */
 const toasts = ref([]);
@@ -683,13 +837,13 @@ const visiblePageButtons = computed(() => {
 });
 
 function cleanupSubs(){
-  if (unsubList) { unsubList(); unsubList=null; }
-  if (unsubSearch) { unsubSearch(); unsubSearch=null; }
-  if (unsubFilter) { unsubFilter(); unsubFilter=null; }
-  if (unsubUsuarios) { unsubUsuarios(); unsubUsuarios=null; }
+  if (unsubList){ unsubList(); unsubList=null; }
+  if (unsubSearch){ unsubSearch(); unsubSearch=null; }
+  if (unsubFilter){ unsubFilter(); unsubFilter=null; }
+  if (unsubUsuarios){ unsubUsuarios(); unsubUsuarios=null; }
 }
 
-/* Cargar usuarios únicos para el select (hasta 500 registros ordenados por usuario) */
+/* Cargar usuarios únicos (para el filtro) */
 function cargarUsuarios(){
   try{
     const qy = query(
@@ -713,7 +867,7 @@ function cargarUsuarios(){
 
 function subscribePage(page){
   cleanupSubs();
-  cargarUsuarios(); // aseguramos opciones frescas
+  cargarUsuarios();
   cargando.value = true;
   busquedaActiva.value = false;
 
@@ -733,13 +887,14 @@ function subscribePage(page){
 
   unsubList = onSnapshot(qy, (snap) => {
     const arr = [];
-    snap.forEach(d => arr.push({ __id: d.id, ...d.data(), __snap: d }));
+    const snaps = [];
+    snap.forEach(d => { arr.push({ __id: d.id, ...d.data() }); snaps.push(d); });
     hasNextPage.value = arr.length > PAGE_SIZE;
 
     const pageDocs = arr.slice(0, PAGE_SIZE);
-    rows.value = pageDocs.map(x => { const y = { ...x }; delete y.__snap; return y; });
+    rows.value = pageDocs;
 
-    const lastSnap = pageDocs.length ? pageDocs[pageDocs.length-1].__snap : null;
+    const lastSnap = snaps[pageDocs.length-1];
     if (lastSnap) pageCursors.value[page-1] = lastSnap;
 
     cargando.value = false;
@@ -803,7 +958,7 @@ function onChangeEstatusHeader(){
   aplicarFiltros();
 }
 function removeEstatus(es){
-  filtroEstatus.value = filtroEstatus.value.filter(x => x !== es);
+  filtroEstatus.value = filtroEstatus.value.filter(x => x!==es);
   if (filtroEstatusHeader.value === es) filtroEstatusHeader.value = "";
   aplicarFiltros();
 }
@@ -811,13 +966,8 @@ function removeEstatus(es){
 function buildFilterQuery(){
   const wh = [];
 
-  if (filtroFecha.value) {
-    wh.push(where("fecha","==", filtroFecha.value));
-  }
-
-  if (filtroUsuario.value) {
-    wh.push(where("usuario","==", filtroUsuario.value));
-  }
+  if (filtroFecha.value) wh.push(where("fecha","==", filtroFecha.value));
+  if (filtroUsuario.value) wh.push(where("usuario","==", filtroUsuario.value));
 
   if (filtroEstatus.value.length === 1) {
     wh.push(where("estatus","==", filtroEstatus.value[0]));
@@ -851,7 +1001,6 @@ function aplicarFiltros(){
     let arr = [];
     snap.forEach(d => arr.push({ __id: d.id, ...d.data() }));
 
-    // salvaguarda por si hay +10 estados marcados (Firestore no soporta in > 10)
     if (filtroEstatus.value.length > 10) {
       const set = new Set(filtroEstatus.value);
       arr = arr.filter(r => set.has(r.estatus));
@@ -875,10 +1024,24 @@ function limpiarFiltros(){
   aplicarFiltros();
 }
 
+/* Aplicar desde el offcanvas móvil */
+const mobileFiltersOpen = ref(false);
+function mobileApplyFilters(){
+  aplicarFiltros();
+  mobileFiltersOpen.value = false;
+}
+
 /* ---------- Refs para inputs de archivos ---------- */
 const inputAutorizacionEditEl = ref(null);
 const inputAutorizacionNuevoEl = ref(null);
-const inputImagenItemEl = ref(null);
+
+/* ---------- Editor (offcanvas) ---------- */
+const editorAbierto = ref(false);
+const seleccion = ref(null);
+const edit = ref({});
+const guardando = ref(false);
+const selectedCentroEdit = ref("");
+const archivoAutorizacionEdit = ref(null);
 
 function abrirSelectorAutorizacionEdit(){
   inputAutorizacionEditEl.value?.click();
@@ -886,13 +1049,6 @@ function abrirSelectorAutorizacionEdit(){
 function abrirSelectorAutorizacionNuevo(){
   inputAutorizacionNuevoEl.value?.click();
 }
-
-/* ---------- Editor (offcanvas) y resto de lógica ---------- */
-const editorAbierto = ref(false);
-const seleccion = ref(null);
-const edit = ref({});
-const guardando = ref(false);
-const selectedCentroEdit = ref("");
 
 function setCentroFromKey(targetObj, key){
   if (!key || !centrosCosto[key]) {
@@ -929,7 +1085,7 @@ function abrirEditor(row){
   selectedCentroEdit.value = foundKey;
 
   editorAbierto.value = true;
-  resetUploadUI();
+  archivoAutorizacionEdit.value = null;
 }
 
 const irADetalle = (row) => {
@@ -942,31 +1098,8 @@ function cerrarEditor(){
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
-  resetUploadUI();
-}
-
-/* ---------- Autorización (archivo) ---------- */
-const archivoAutorizacionEdit = ref(null);
-const archivoAutorizacionNuevo = ref(null);
-
-function resetUploadUI(){
   archivoAutorizacionEdit.value = null;
-  archivoAutorizacionNuevo.value = null;
   if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
-  if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
-  if (inputImagenItemEl.value) inputImagenItemEl.value.value = "";
-}
-function onArchivoAutorizacionEdit(e){
-  const f = (e.target.files || [])[0];
-  if (!f) return;
-  archivoAutorizacionEdit.value = f;
-  edit.value.autorizacion_nombre = f.name;
-}
-function onArchivoAutorizacionNuevo(e){
-  const f = (e.target.files || [])[0];
-  if (!f) return;
-  archivoAutorizacionNuevo.value = f;
-  nuevo.value.autorizacion_nombre = f.name;
 }
 
 /* ---------- Guardar Edición ---------- */
@@ -984,6 +1117,7 @@ async function guardarEdicion(){
       const up = await uploadBytes(sRef, archivoAutorizacionEdit.value);
       const url = await getDownloadURL(up.ref);
       edit.value.autorizacion_url = url;
+      edit.value.autorizacion_nombre = archivoAutorizacionEdit.value.name;
     }
 
     if (typeof edit.value.numero_solpe === "string") {
@@ -1008,92 +1142,12 @@ async function guardarEdicion(){
   }
 }
 
-/* ---------- Confirmación de borrado ---------- */
-const confirmOpen = ref(false);
-const confirmRow  = ref(null);
-const eliminando  = ref(false);
-
-function abrirConfirm(row){ confirmRow.value = row; confirmOpen.value = true; }
-function cerrarConfirm(){ if (!eliminando.value){ confirmOpen.value = false; confirmRow.value = null; } }
-async function confirmarEliminar(){
-  if (!confirmRow.value?.__id) return;
-  try {
-    eliminando.value = true;
-    await deleteDoc(doc(db, "solpes", confirmRow.value.__id));
-    addToast("success", "SOLPED eliminada.");
-    cerrarConfirm();
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo eliminar.");
-  } finally {
-    eliminando.value = false;
-  }
-}
-
-/* ---------- Ítems (modal) ---------- */
-const modalItem = ref(false);
-const isEditItem = ref(false);
-const itemIndex = ref(-1);
-const itemForm = ref({
-  item: 1, descripcion: "", cantidad: 0, cantidad_cotizada: 0,
-  codigo_referencial: "", estado: "Pendiente", numero_interno: "", imagen_url: null
-});
-const imagenItemFile = ref(null);
-
-function abrirModalItem(it=null, idx=-1){
-  if (!it) {
-    const arr = Array.isArray(edit.value.items) ? edit.value.items : [];
-    const maxIt = arr.reduce((m, a) => Math.max(m, Number(a?.item ?? 0)), 0);
-    itemForm.value = {
-      ...itemForm.value,
-      item: maxIt + 1, descripcion:"", cantidad:0, cantidad_cotizada:0,
-      codigo_referencial:"", estado:"Pendiente", numero_interno:"", imagen_url:null
-    };
-    isEditItem.value = false; itemIndex.value = -1;
-  } else {
-    itemForm.value = deepClone(it);
-    isEditItem.value = true; itemIndex.value = idx;
-  }
-  imagenItemFile.value = null;
-  if (inputImagenItemEl.value) inputImagenItemEl.value.value = "";
-  modalItem.value = true;
-}
-function cerrarModalItem(){ modalItem.value = false; }
-function onImagenItem(e){ const f = (e.target.files || [])[0]; imagenItemFile.value = f || null; }
-
-async function guardarItemForm(){
-  try {
-    if (imagenItemFile.value && seleccion.value) {
-      const storage = getStorage();
-      const id = seleccion.value.__id;
-      const path = `solpes/${id}/items/${Date.now()}_${imagenItemFile.value.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, imagenItemFile.value);
-      const url = await getDownloadURL(up.ref);
-      itemForm.value.imagen_url = url;
-    }
-    const normalized = {
-      ...itemForm.value,
-      item: Number(itemForm.value.item ?? 0),
-      cantidad: Number(itemForm.value.cantidad ?? 0),
-      cantidad_cotizada: Number(itemForm.value.cantidad ?? 0) < 0 ? 0 : Number(itemForm.value.cantidad_cotizada ?? 0)
-    };
-    if (!Array.isArray(edit.value.items)) edit.value.items = [];
-    if (isEditItem.value && itemIndex.value >= 0) edit.value.items.splice(itemIndex.value, 1, normalized);
-    else edit.value.items.push(normalized);
-    modalItem.value = false;
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo guardar el ítem.");
-  }
-}
-function eliminarItem(idx){ edit.value.items.splice(idx, 1); }
-
 /* ---------- Nueva SOLPED ---------- */
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
 const selectedCentroNuevo = ref("");
+const archivoAutorizacionNuevo = ref(null);
 
 function defaultNueva(){
   return {
@@ -1105,17 +1159,39 @@ function defaultNueva(){
     historialEstados: []
   };
 }
-function abrirModalNueva(){ nuevo.value = defaultNueva(); selectedCentroNuevo.value = ""; resetUploadUI(); modalNueva.value = true; }
+function abrirModalNueva(){
+  nuevo.value = defaultNueva();
+  selectedCentroNuevo.value = "";
+  archivoAutorizacionNuevo.value = null;
+  if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
+  modalNueva.value = true;
+}
 function cerrarModalNueva(){ modalNueva.value = false; }
+
+function onArchivoAutorizacionEdit(e){
+  const f = (e.target.files || [])[0];
+  if (!f) return;
+  archivoAutorizacionEdit.value = f;
+  edit.value.autorizacion_nombre = f.name;
+}
+function onArchivoAutorizacionNuevo(e){
+  const f = (e.target.files || [])[0];
+  if (!f) return;
+  archivoAutorizacionNuevo.value = f;
+  nuevo.value.autorizacion_nombre = f.name;
+}
+
 
 async function crearNueva(){
   try {
     creando.value = true;
     setCentroFromKey(nuevo.value, selectedCentroNuevo.value);
+
     if (typeof nuevo.value.numero_solpe === "string") {
       const n = parseInt(nuevo.value.numero_solpe, 10);
       nuevo.value.numero_solpe = isNaN(n) ? null : n;
     }
+
     const payload = deepClone(nuevo.value);
     const docRef = await addDoc(collection(db, "solpes"), payload);
 
@@ -1141,14 +1217,109 @@ async function crearNueva(){
   }
 }
 
-/* ---------- Historial helpers (faltaban en tu snippet visible) ---------- */
-function agregarHistorial(){
-  if (!Array.isArray(edit.value.historialEstados)) edit.value.historialEstados = [];
-  edit.value.historialEstados.push({ fecha: "", estatus: "", usuario: "" });
+/* ---------- Confirmación de eliminación ---------- */
+const confirmOpen = ref(false);
+const confirmRow  = ref(null);
+const eliminando  = ref(false);
+
+function abrirConfirm(row){
+  confirmRow.value = row;
+  confirmOpen.value = true;
 }
-function eliminarHistorial(ix){
-  if (!Array.isArray(edit.value.historialEstados)) return;
-  edit.value.historialEstados.splice(ix,1);
+function cerrarConfirm(){
+  if (eliminando.value) return;
+  confirmOpen.value = false;
+  confirmRow.value = null;
+}
+async function confirmarEliminar(){
+  if (!confirmRow.value?.__id) return;
+  try {
+    eliminando.value = true;
+    await deleteDoc(doc(db, "solpes", confirmRow.value.__id));
+    addToast("success", "SOLPED eliminada.");
+    cerrarConfirm();
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo eliminar.");
+  } finally {
+    eliminando.value = false;
+  }
+}
+
+/* ---------- Ítems (modal) ---------- */
+const modalItem = ref(false);
+const isEditItem = ref(false);
+const itemIndex = ref(-1);
+const itemForm = ref({
+  item: 1,
+  descripcion: "",
+  cantidad: 0,
+  cantidad_cotizada: 0,
+  codigo_referencial: "",
+  estado: "Pendiente",
+  numero_interno: "",
+  imagen_url: null
+});
+const imagenItemFile = ref(null);
+
+function abrirModalItem(it=null, idx=-1){
+  const arr = Array.isArray(edit.value.items) ? edit.value.items : [];
+  if (!it) {
+    const maxIt = arr.reduce((m, a) => Math.max(m, Number(a?.item ?? 0)), 0);
+    itemForm.value = {
+      item: maxIt + 1,
+      descripcion: "",
+      cantidad: 0,
+      cantidad_cotizada: 0,
+      codigo_referencial: "",
+      estado: "Pendiente",
+      numero_interno: "",
+      imagen_url: null
+    };
+    isEditItem.value = false; itemIndex.value = -1;
+  } else {
+    itemForm.value = deepClone(it);
+    isEditItem.value = true; itemIndex.value = idx;
+  }
+  imagenItemFile.value = null;
+  const el = document.getElementById("inputImagenItem");
+  if (el) el.value = "";
+  modalItem.value = true;
+}
+function cerrarModalItem(){ modalItem.value = false; }
+function onImagenItem(e){
+  const f = (e.target.files || [])[0];
+  imagenItemFile.value = f || null;
+}
+
+async function guardarItemForm(){
+  try {
+    if (imagenItemFile.value && seleccion.value) {
+      const storage = getStorage();
+      const id = seleccion.value.__id;
+      const path = `solpes/${id}/items/${Date.now()}_${imagenItemFile.value.name}`;
+      const sRef = sref(storage, path);
+      const up = await uploadBytes(sRef, imagenItemFile.value);
+      const url = await getDownloadURL(up.ref);
+      itemForm.value.imagen_url = url;
+    }
+    const normalized = {
+      ...itemForm.value,
+      item: Number(itemForm.value.item ?? 0),
+      cantidad: Number(itemForm.value.cantidad ?? 0),
+      cantidad_cotizada: Number(itemForm.value.cantidad_cotizada ?? 0)
+    };
+    if (!Array.isArray(edit.value.items)) edit.value.items = [];
+    if (isEditItem.value && itemIndex.value >= 0) edit.value.items.splice(itemIndex.value, 1, normalized);
+    else edit.value.items.push(normalized);
+    modalItem.value = false;
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo guardar el ítem.");
+  }
+}
+function eliminarItem(idx){
+  edit.value.items.splice(idx, 1);
 }
 
 /* ---------- Lifecycle ---------- */
@@ -1157,57 +1328,127 @@ onBeforeUnmount(() => { cleanupSubs(); });
 </script>
 
 <style scoped>
-.admin-solpes-page{ min-height:100vh; }
+.admin-solpes-page{
+  min-height:100vh;
+}
 
-/* Toolbar: alturas alineadas */
-.toolbar .toolbar-item .form-control,
-.toolbar .toolbar-item .form-select,
-.toolbar .toolbar-item .btn,
-.toolbar .toolbar-item .input-group-text { height: 38px; }
-.toolbar .input-group-text{ min-width: 64px; justify-content: center; }
-@media (max-width: 992px){ .toolbar .toolbar-item{ flex: 1 1 auto; } }
+/* Helpers responsivos */
+.minw-180{ min-width: 180px; }
+.minw-200{ min-width: 200px; }
+.minw-220{ min-width: 220px; }
+.minw-260{ min-width: 260px; }
+.minw-320{ min-width: 320px; }
 
-/* Offcanvas */
-.offcanvas-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: end; z-index: 1080; }
+/* Toolbar: alturas alineadas (igual que Taller) */
+.toolbar-item .form-control,
+.toolbar-item .form-select,
+.toolbar-item .btn,
+.toolbar-item .input-group-text {
+  height: 38px;
+}
+
+/* Offcanvas base */
+.offcanvas-backdrop{
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: grid; place-items: end; z-index: 1080;
+}
 .offcanvas-panel{
-  width: min(820px, 100%);
-  background: var(--bs-body-bg); color: var(--bs-body-color);
-  height: 100vh; box-shadow: -12px 0 32px rgba(0,0,0,.25);
-  animation: slideIn .22s ease-out; display: flex; flex-direction: column;
+  width: min(860px, 100%);
+  height: 100vh;
+  box-shadow: -12px 0 32px rgba(0,0,0,.25);
+  animation: slideIn .22s ease-out;
+  display: flex; flex-direction: column;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
 }
-.offcanvas-header, .offcanvas-footer{ padding: .9rem 1rem; border-bottom: 1px solid #eee; }
+.offcanvas-header, .offcanvas-footer{
+  padding: .9rem 1rem;
+  border-bottom: 1px solid #eee;
+}
 .offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.offcanvas-body{ padding: 1rem; overflow: auto; flex: 1 1 auto; min-height: 0; }
-@keyframes slideIn{ from{ transform: translateX(20px); opacity:.0; } to{ transform: translateX(0); opacity:1; } }
-
-/* Modal */
-.vmodal-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1080; display: grid; place-items: center; padding: 1rem; }
-.vmodal{
-  width: 100%; max-width: 640px; border-radius: .75rem; box-shadow: 0 20px 50px rgba(0,0,0,.25);
-  overflow: hidden; background: var(--bs-body-bg); color: var(--bs-body-color); border: 1px solid rgba(0,0,0,.05);
+.offcanvas-body{
+  padding: 1rem;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
-.vmodal-header, .vmodal-footer{ padding: .9rem 1rem; border-bottom: 1px solid #eee; }
+@keyframes slideIn{
+  from{ transform: translateX(20px); opacity:.0; }
+  to{ transform: translateX(0); opacity:1; }
+}
+
+/* Toolbar items altura consistente */
+.toolbar-item .form-control,
+.toolbar-item .form-select,
+.toolbar-item .btn,
+.toolbar-item .input-group-text {
+  height: 38px;
+}
+
+/* Cards mobile */
+@media (max-width: 575.98px){
+  .list-group-item{
+    border-left: 0; border-right: 0;
+  }
+}
+
+@keyframes slideInRight{
+  from{ transform: translateX(24px); opacity: .0; }
+  to{ transform: translateX(0); opacity: 1; }
+}
+
+
+/* Modal base (igual que Taller) */
+.vmodal-backdrop{
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  z-index: 1080; display: grid; place-items: center; padding: 1rem;
+}
+.vmodal{
+  width: 100%; max-width: 640px;  border-radius: .75rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border: 1px solid rgba(0,0,0,.05);
+}
+.vmodal-header, .vmodal-footer{
+  padding: .9rem 1rem; border-bottom: 1px solid #eee;
+}
 .vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-/* Toasts */
-.toast-stack{ position: fixed; right: 16px; bottom: 16px; z-index: 1200; display: flex; flex-direction: column; gap: 10px; }
+/* Toasts (igual) */
+.toast-stack{
+  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
+  display: flex; flex-direction: column; gap: 10px;
+}
 .toast-box{
   display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Modal confirm */
+/* Icono/encabezado del modal de eliminación */
 .confirm-icon{
-  width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; font-size: 18px;
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg,#ef4444,#dc2626);
+  color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-/* Botón peligro más “soft” al pasar */
-.btn-danger:hover{ filter: brightness(0.95); }
+/* Tabla */
+.table td, .table th { vertical-align: middle; }
+.text-truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 576px){
+  .text-truncate { max-width: 180px; }
+}
+
+/* Hover suave en botón peligro */
+.btn-danger:hover{
+  filter: brightness(0.95);
+}
 </style>

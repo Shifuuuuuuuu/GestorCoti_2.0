@@ -827,7 +827,8 @@ const modalCentroAbierto = ref(false);
 const centroCosto = ref("");
 const filtroCentro = ref("");
 const centrosCostoLista = ref([
-  { key: '27483', name: 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA' },
+  { key: '30858', name: 'CONTRATO 30858 INFRA CHUQUICAMATA' },
+  { key: '27483', name: 'CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA' },
   { key: 'PPCALAMA', name: 'PLANTA PREDOSIFICADO CALAMA' },
   { key: '20915', name: 'CONTRATO 20915 SUM. HORMIGON DAND' },
   { key: '23302-CARPETAS', name: 'CONTRATO 23302 CARPETAS' },

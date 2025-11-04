@@ -1,14 +1,16 @@
+<!-- src/views/AdminOCTaller.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="admin-oc-page">
     <div class="container py-4">
       <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <h1 class="h4 fw-semibold mb-0">Admin · Órdenes OC (Taller)</h1>
+      <div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
+        <h1 class="h5 h4-md fw-semibold mb-0">Admin · Órdenes OC (Taller)</h1>
 
-        <div class="d-flex flex-wrap gap-2">
+        <!-- Desktop / Tablet: filtros + acciones -->
+        <div class="d-none d-md-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto ms-md-3">
           <!-- Buscador (ID doc o id numérico) -->
-          <div class="input-group" style="width: 300px;">
+          <div class="input-group minw-280">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
             <input
               class="form-control"
@@ -26,45 +28,91 @@
             </button>
           </div>
 
-          <!-- Filtros -->
-          <div class="input-group" style="width: 230px;">
-            <span class="input-group-text">Estatus</span>
-            <select class="form-select" v-model="filtroEstatus" @change="aplicarFiltros">
-              <option value="">Todos</option>
-              <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
-            </select>
-          </div>
-
-          <div class="input-group" style="width: 250px;">
-            <span class="input-group-text">Responsable</span>
-            <select class="form-select" v-model="filtroResponsable" @change="aplicarFiltros">
-              <option value="">Todos</option>
-              <option v-for="r in RESPONSABLES_OPC" :key="r" :value="r">{{ r }}</option>
-            </select>
-          </div>
+          <!-- Botón Filtros (abre offcanvas) -->
+          <button class="btn btn-outline-primary" @click="mobileFiltersOpen = true">
+            <i class="bi bi-funnel me-1"></i> Filtros
+            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
+          </button>
 
           <button class="btn btn-primary" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva OC (Taller)
           </button>
         </div>
+
+        <!-- Móvil: botones -->
+        <div class="d-flex d-md-none w-100 gap-2">
+          <button class="btn btn-outline-secondary flex-fill" @click="mobileFiltersOpen = true">
+            <i class="bi bi-funnel me-1"></i> Filtros
+            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-1">{{ totalFiltrosActivos }}</span>
+          </button>
+          <button class="btn btn-primary flex-fill" @click="abrirModalNueva">
+            <i class="bi bi-plus-lg me-1"></i> Nueva
+          </button>
+        </div>
       </div>
 
-      <!-- Tabla -->
+      <!-- Chips de filtros activos -->
+      <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <small class="text-secondary">Filtros activos:</small>
+
+        <span v-if="filtroEstatus" class="badge bg-light text-dark border">
+          Estatus: {{ filtroEstatus }}
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroEstatus=''; aplicarFiltros()"></button>
+        </span>
+
+        <span v-if="filtroResponsable" class="badge bg-light text-dark border">
+          Responsable: {{ filtroResponsable }}
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroResponsable=''; aplicarFiltros()"></button>
+        </span>
+
+        <span v-if="busquedaActiva" class="badge bg-info-subtle text-info-emphasis">
+          Búsqueda aplicada
+          <button class="btn-close btn-close-white ms-2 small" @click="limpiarBusqueda()"></button>
+        </span>
+
+        <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros" v-if="hasActiveFilters || busquedaActiva">
+          Limpiar todo
+        </button>
+      </div>
+
+      <!-- Tabla / Cards -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">Listado ({{ rows.length }} / pág.)</div>
+          <div class="fw-semibold">
+            Listado ({{ rows.length }} / pág.)
+            <span v-if="busquedaActiva || hasActiveFilters" class="text-secondary small ms-2">
+              paginación desactivada
+            </span>
+          </div>
+
+          <!-- Buscar móvil (compacto) -->
+          <div class="d-flex d-md-none gap-2">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input class="form-control" placeholder="ID doc o ID" v-model="buscarTexto" @keyup.enter="onBuscar">
+              <button class="btn btn-outline-secondary" @click="onBuscar">Buscar</button>
+            </div>
+            <button
+              v-if="busquedaActiva"
+              class="btn btn-sm btn-outline-danger"
+              @click="limpiarBusqueda"
+              title="Limpiar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
         </div>
 
-        <div class="table-responsive">
+        <!-- Vista tabla (≥ md) -->
+        <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
-            <thead >
+            <thead>
               <tr>
                 <th style="width:110px;">ID</th>
                 <th>Centro Costo</th>
                 <th style="width:180px;">Responsable</th>
-                <th style="width:140px;">Estatus</th>
-                <th style="width:140px;">Empresa</th>
-                <th style="width:150px;">Fecha subida</th>
+                <th style="width:160px;">Estatus</th>
+                <th class="d-none d-lg-table-cell" style="width:160px;">Empresa</th>
+                <th class="d-none d-md-table-cell" style="width:150px;">Fecha subida</th>
                 <th style="width:220px;">Acciones</th>
               </tr>
             </thead>
@@ -81,18 +129,22 @@
               <tr v-else v-for="r in rows" :key="r.__id">
                 <td class="fw-semibold">#{{ r.id ?? '—' }}</td>
                 <td>
-                  <div class="fw-semibold">{{ r.centroCostoTexto || '—' }}</div>
+                  <div class="fw-semibold text-truncate">{{ r.centroCostoTexto || '—' }}</div>
+                  <!-- Fecha visible en móvil -->
+                  <div class="small text-secondary d-md-none mt-1">
+                    <i class="bi bi-calendar3 me-1"></i>{{ prettyTS(r.fechaSubida) }}
+                  </div>
                 </td>
                 <td>{{ r.responsable || '—' }}</td>
                 <td><span class="badge" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span></td>
-                <td>{{ r.empresa || '—' }}</td>
-                <td>{{ prettyTS(r.fechaSubida) }}</td>
+                <td class="d-none d-lg-table-cell">{{ r.empresa || '—' }}</td>
+                <td class="d-none d-md-table-cell">{{ prettyTS(r.fechaSubida) }}</td>
                 <td>
-                  <div class="btn-group btn-group-sm">
+                  <!-- Acciones desktop -->
+                  <div class="d-none d-sm-inline-flex btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" title="Editar" @click="abrirEditor(r)">
                       <i class="bi bi-pencil-square"></i>
                     </button>
-                    <!-- abrir modal confirmación -->
                     <button class="btn btn-outline-danger" title="Eliminar" @click="abrirConfirm(r)">
                       <i class="bi bi-trash3"></i>
                     </button>
@@ -100,28 +152,71 @@
                       <i class="bi bi-file-earmark-pdf"></i>
                     </button>
                   </div>
+                  <!-- Acciones móvil -->
+                  <div class="dropdown d-inline d-sm-none">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">
+                      Acciones
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><button class="dropdown-item" @click="abrirEditor(r)"><i class="bi bi-pencil-square me-2"></i>Editar</button></li>
+                      <li><button class="dropdown-item" @click="verArchivoOC(r)"><i class="bi bi-file-earmark-pdf me-2"></i>Ver archivo</button></li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li><button class="dropdown-item text-danger" @click="abrirConfirm(r)"><i class="bi bi-trash3 me-2"></i>Eliminar</button></li>
+                    </ul>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
+        <!-- Vista cards (xs-sm) -->
+        <div class="d-block d-md-none">
+          <div v-if="cargando" class="text-center py-4">
+            <div class="spinner-border" role="status"></div>
+            <div class="small text-secondary mt-2">Cargando…</div>
+          </div>
+          <div v-else-if="rows.length === 0" class="text-center py-4 text-secondary">Sin resultados.</div>
+
+          <div v-else class="list-group list-group-flush">
+            <div v-for="r in rows" :key="r.__id" class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold">#{{ r.id ?? '—' }}</div>
+                  <div class="small text-secondary"><i class="bi bi-calendar3 me-1"></i>{{ prettyTS(r.fechaSubida) }}</div>
+                </div>
+                <span class="badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+              </div>
+              <div class="mt-2 small">
+                <div class="text-truncate"><span class="text-secondary">Centro costo:</span> {{ r.centroCostoTexto || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Responsable:</span> {{ r.responsable || '—' }}</div>
+              </div>
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-outline-primary btn-sm flex-fill" @click="abrirEditor(r)">
+                  <i class="bi bi-pencil-square me-1"></i> Editar
+                </button>
+                <button class="btn btn-outline-secondary btn-sm flex-fill" @click="verArchivoOC(r)">
+                  <i class="bi bi-file-earmark-pdf me-1"></i> Archivo
+                </button>
+                <button class="btn btn-outline-danger btn-sm" @click="abrirConfirm(r)">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Paginación -->
-        <div class="card-footer " v-if="!busquedaActiva">
+        <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
-            <ul class="pagination justify-content-center mb-0">
+            <ul class="pagination justify-content-center mb-0 flex-wrap gap-1">
               <li class="page-item" :class="{ disabled: currentPage === 1 }">
                 <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">«</button>
               </li>
-
-              <li
-                class="page-item"
-                v-for="n in visiblePageButtons"
-                :key="n"
-                :class="{ active: currentPage === n }">
+              <li class="page-item" v-for="n in visiblePageButtons" :key="n" :class="{ active: currentPage === n }">
                 <button class="page-link" @click="goToPage(n)">{{ n }}</button>
               </li>
-
               <li class="page-item" :class="{ disabled: !hasNextPage }">
                 <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="!hasNextPage">»</button>
               </li>
@@ -140,13 +235,68 @@
       </div>
     </div>
 
-    <!-- Offcanvas Editor -->
+    <!-- Offcanvas Filtros (lateral derecho y responsivo) -->
+    <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
+      <div class="offcanvas-panel">
+        <div class="offcanvas-header">
+          <div class="fw-semibold"><i class="bi bi-funnel me-2"></i>Filtros</div>
+          <button class="btn-close" @click="mobileFiltersOpen=false" aria-label="Cerrar"></button>
+        </div>
+        <div class="offcanvas-body">
+          <div class="row g-3">
+            <!-- Buscador -->
+            <div class="col-12">
+              <label class="form-label">Buscar OC (Taller)</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input
+                  class="form-control"
+                  placeholder="ID doc o ID (número)"
+                  v-model="buscarTexto"
+                  @keyup.enter="onBuscar"
+                />
+                <button class="btn btn-outline-secondary" @click="onBuscar">Buscar</button>
+                <button
+                  v-if="busquedaActiva"
+                  class="btn btn-outline-danger"
+                  @click="limpiarBusqueda"
+                  title="Limpiar">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Estatus -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Estatus</label>
+              <select class="form-select" v-model="filtroEstatus" @change="aplicarFiltros">
+                <option value="">Todos</option>
+                <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+
+            <!-- Responsable -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Responsable</label>
+              <select class="form-select" v-model="filtroResponsable" @change="aplicarFiltros">
+                <option value="">Todos</option>
+                <option v-for="r in RESPONSABLES_OPC" :key="r" :value="r">{{ r }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="offcanvas-footer d-flex justify-content-between">
+          <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar todo</button>
+          <button class="btn btn-primary" @click="mobileApplyFilters">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Offcanvas Editor (ÚNICO con edición en línea) -->
     <div v-if="editorAbierto" class="offcanvas-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
-          <div>
-            <div class="fw-semibold">Editar Orden OC (Taller)</div>
-          </div>
+          <div class="fw-semibold text-truncate">Editar Orden OC (Taller)</div>
           <button class="btn-close" @click="cerrarEditor"></button>
         </div>
 
@@ -180,7 +330,7 @@
             </div>
 
             <!-- Centro de costo -->
-            <div class="col-12 col-md-6">
+            <div class="col-12">
               <label class="form-label">Centro Costo (texto)</label>
               <input class="form-control" v-model="edit.centroCostoTexto" placeholder="THPV-31">
             </div>
@@ -198,14 +348,19 @@
               <input class="form-control" v-model="edit.aprobadorSugerido" placeholder="Juan Cubillos">
             </div>
 
-            <!-- Asociación SOLPED (opcional a nivel doc) -->
+            <!-- Asociación SOLPED -->
             <div class="col-12 col-md-4">
               <label class="form-label">Número SOLPED (asociar)</label>
-              <input class="form-control" v-model="edit.numero_solped" placeholder="p.ej. 18">
+              <input class="form-control" v-model="edit.numero_solped" placeholder="p.ej. 29">
+              <div class="form-text">Solo referencia visual / vínculo.</div>
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
-              <input class="form-control" v-model="edit.tipo_solped" placeholder="REPUESTOS / Sin SOLPED">
+              <input class="form-control" v-model="edit.tipo_solped" placeholder="Sin SOLPED / REPUESTOS / ...">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Tipo compra</label>
+              <input class="form-control" v-model="edit.tipoCompra" placeholder="stock / emergencia / ...">
             </div>
 
             <!-- Económicos -->
@@ -218,7 +373,11 @@
               <input class="form-control" v-model.number="edit.precioTotalConIVA" type="number" min="0">
             </div>
 
-            <!-- Comentario -->
+            <!-- Comentario / Destino -->
+            <div class="col-12 col-md-6">
+              <label class="form-label">Destino compra</label>
+              <input class="form-control" v-model="edit.destinoCompra" placeholder="">
+            </div>
             <div class="col-12">
               <label class="form-label">Comentario</label>
               <textarea class="form-control" rows="2" v-model="edit.comentario" placeholder="Notas / observaciones"></textarea>
@@ -228,11 +387,12 @@
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivo OC (único)</div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                   <input id="inputArchivoOC" type="file" class="d-none"
-                    accept="application/pdf,image/*"
-                    @change="onArchivoOC">
-                  <button class="btn btn-sm btn-outline-secondary" @click="() => document.getElementById('inputArchivoOC')?.click()">
+                         accept="application/pdf,image/*"
+                         @change="onArchivoOC">
+                  <button class="btn btn-sm btn-outline-secondary"
+                          @click="() => document.getElementById('inputArchivoOC')?.click()">
                     <i class="bi bi-paperclip me-1"></i> Reemplazar archivo OC
                   </button>
                   <button class="btn btn-sm btn-outline-danger" v-if="edit.archivoOC?.url" @click="borrarArchivoOC">
@@ -260,18 +420,20 @@
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivos en Storage</div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                   <input id="inputArchivosStorage" type="file" class="d-none"
-                    multiple accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                    @change="onArchivosStorage">
-                  <button class="btn btn-sm btn-outline-secondary" @click="() => document.getElementById('inputArchivosStorage')?.click()">
+                         multiple
+                         accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                         @change="onArchivosStorage">
+                  <button class="btn btn-sm btn-outline-secondary"
+                          @click="() => document.getElementById('inputArchivosStorage')?.click()">
                     <i class="bi bi-cloud-upload me-1"></i> Agregar archivos
                   </button>
                 </div>
               </div>
               <div class="list-group">
                 <div class="list-group-item d-flex align-items-center justify-content-between"
-                  v-for="(a, ai) in edit.archivosStorage" :key="'st'+ai">
+                     v-for="(a, ai) in edit.archivosStorage" :key="'st'+ai">
                   <div class="small">
                     <i class="bi bi-file-earmark me-2"></i>
                     <strong>{{ a.nombre }}</strong>
@@ -288,6 +450,134 @@
               </div>
             </div>
 
+            <!-- Ítems (edición en línea) -->
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="fw-semibold">Ítems</div>
+                <button class="btn btn-sm btn-outline-primary" @click="agregarItemInline">
+                  <i class="bi bi-plus-lg me-1"></i> Agregar ítem
+                </button>
+              </div>
+
+              <!-- Tabla en ≥ sm -->
+              <div class="table-responsive d-none d-sm-block">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:72px;">Ítem</th>
+                      <th>Descripción</th>
+                      <th style="width:110px;">Cant.</th>
+                      <th style="width:120px;">Cotizada</th>
+                      <th style="width:160px;">Código ref.</th>
+                      <th style="width:140px;">Estado</th>
+                      <th style="width:160px;">Imagen</th>
+                      <th style="width:170px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!edit.items?.length">
+                      <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
+                    </tr>
+                    <tr v-for="(it, idx) in edit.items" :key="'e-'+idx">
+                      <td>
+                        <input class="form-control form-control-sm" v-model.number="it.item" type="number" min="1">
+                      </td>
+                      <td>
+                        <input class="form-control form-control-sm" v-model="it.descripcion" placeholder="Descripción">
+                        <input class="form-control form-control-sm mt-1" v-model="it.numero_interno" placeholder="N° interno (opcional)">
+                      </td>
+                      <td><input class="form-control form-control-sm" v-model.number="it.cantidad" type="number" min="0"></td>
+                      <td><input class="form-control form-control-sm" v-model.number="it.cantidad_cotizada" type="number" min="0"></td>
+                      <td><input class="form-control form-control-sm" v-model="it.codigo_referencial" placeholder="Código"></td>
+                      <td>
+                        <select class="form-select form-select-sm" v-model="it.estado">
+                          <option>pendiente</option>
+                          <option>parcial</option>
+                          <option>completado</option>
+                          <option>revisión</option>
+                        </select>
+                      </td>
+                      <td>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                          <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
+                          <input :id="`inputImg-${idx}`" type="file" class="d-none" accept="image/*"
+                                 @change="onImagenItemChange($event, idx)">
+                          <button class="btn btn-sm btn-outline-secondary"
+                                  @click="() => document.getElementById(`inputImg-${idx}`)?.click()">
+                            Subir
+                          </button>
+                          <button v-if="it.imagen_url" class="btn btn-sm btn-outline-danger" @click="quitarImagenItem(idx)">
+                            Quitar
+                          </button>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-danger" @click="eliminarItemInline(idx)">
+                            <i class="bi bi-trash3"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Cards en xs -->
+              <div class="d-block d-sm-none">
+                <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
+                <div class="list-group list-group-flush">
+                  <div v-for="(it, idx) in edit.items" :key="'m-'+idx" class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div class="fw-semibold">Ítem</div>
+                      <button class="btn btn-sm btn-outline-danger" @click="eliminarItemInline(idx)"><i class="bi bi-trash3"></i></button>
+                    </div>
+                    <div class="row g-2 mt-1">
+                      <div class="col-4">
+                        <input class="form-control form-control-sm" v-model.number="it.item" type="number" min="1" placeholder="#"/>
+                      </div>
+                      <div class="col-8">
+                        <select class="form-select form-select-sm" v-model="it.estado">
+                          <option>pendiente</option>
+                          <option>parcial</option>
+                          <option>completado</option>
+                          <option>revisión</option>
+                        </select>
+                      </div>
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" v-model="it.descripcion" placeholder="Descripción"/>
+                      </div>
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" v-model="it.numero_interno" placeholder="N° interno"/>
+                      </div>
+                      <div class="col-6">
+                        <input class="form-control form-control-sm" v-model.number="it.cantidad" type="number" min="0" placeholder="Cant."/>
+                      </div>
+                      <div class="col-6">
+                        <input class="form-control form-control-sm" v-model.number="it.cantidad_cotizada" type="number" min="0" placeholder="Cotizada"/>
+                      </div>
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" v-model="it.codigo_referencial" placeholder="Código ref."/>
+                      </div>
+                      <div class="col-12 d-flex align-items-center gap-2">
+                        <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
+                        <input :id="`minputImg-${idx}`" type="file" class="d-none" accept="image/*"
+                               @change="onImagenItemChange($event, idx)">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                @click="() => document.getElementById(`minputImg-${idx}`)?.click()">
+                          Subir imagen
+                        </button>
+                        <button v-if="it.imagen_url" class="btn btn-sm btn-outline-danger" @click="quitarImagenItem(idx)">
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
             <!-- Historial -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
@@ -300,7 +590,7 @@
                 <div class="list-group-item" v-for="(h, ix) in edit.historial" :key="'h'+ix">
                   <div class="row g-2 align-items-center">
                     <div class="col-md-3">
-                      <input class="form-control form-control-sm" v-model="h.fecha" placeholder="ISO 2025-09-16T12:21:34.628Z">
+                      <input class="form-control form-control-sm" v-model="h.fecha" placeholder="ISO 2025-09-26T13:03:53.878Z">
                     </div>
                     <div class="col-md-4">
                       <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
@@ -321,8 +611,8 @@
         </div>
 
         <div class="offcanvas-footer">
-          <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-outline-secondary" @click="cerrarEditor">Cerrar</button>
+          <div class="d-flex justify-content-end gap-2 flex-wrap">
+            <button class="btn btn-secondary" @click="cerrarEditor">Cerrar</button>
             <button class="btn btn-primary" :disabled="guardando" @click="guardarEdicion">
               <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
               Guardar cambios
@@ -355,7 +645,7 @@
             <div class="col-6 col-md-3">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
-                <option v-for="s in ESTATUS_OPC" :key="s">{{ s }}</option>
+                <option v-for="s in ESTATUS_OPC" :key="'n-'+s">{{ s }}</option>
               </select>
             </div>
 
@@ -368,7 +658,7 @@
               <label class="form-label">Responsable</label>
               <select class="form-select" v-model="nuevo.responsable">
                 <option value="">— Selecciona —</option>
-                <option v-for="r in RESPONSABLES_OPC" :key="r">{{ r }}</option>
+                <option v-for="r in RESPONSABLES_OPC" :key="'nr-'+r">{{ r }}</option>
               </select>
             </div>
 
@@ -406,10 +696,10 @@
             <!-- Cargar archivoOC inicial -->
             <div class="col-12">
               <label class="form-label">Archivo OC (PDF/imagen)</label>
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 flex-wrap">
                 <input id="inputArchivoOCNuevo" type="file" class="d-none"
-                  accept="application/pdf,image/*"
-                  @change="onArchivoOCNuevo">
+                       accept="application/pdf,image/*"
+                       @change="onArchivoOCNuevo">
                 <button class="btn btn-secondary" @click="() => document.getElementById('inputArchivoOCNuevo')?.click()">
                   <i class="bi bi-paperclip me-1"></i> Seleccionar archivo OC
                 </button>
@@ -422,11 +712,11 @@
             <!-- Adjuntos múltiples -->
             <div class="col-12">
               <label class="form-label">Archivos Storage (múltiples)</label>
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 flex-wrap">
                 <input id="inputArchivosStorageNuevo" type="file" class="d-none"
-                  multiple
-                  accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivosStorageNuevo">
+                       multiple
+                       accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                       @change="onArchivosStorageNuevo">
                 <button class="btn btn-secondary" @click="() => document.getElementById('inputArchivosStorageNuevo')?.click()">
                   <i class="bi bi-cloud-upload me-1"></i> Seleccionar archivos
                 </button>
@@ -627,6 +917,7 @@ function subscribePage(page){
 }
 
 function goToPage(n){
+  if (hasActiveFilters.value || busquedaActiva.value) return; // sin paginar con filtros/búsqueda
   if (n < 1) return;
   if (n > currentPage.value + 1 && !hasNextPage.value) return;
   currentPage.value = n;
@@ -639,6 +930,7 @@ async function onBuscar(){
   const raw = (buscarTexto.value ?? "").trim();
   if (!raw) { limpiarBusqueda(); return; }
 
+  // ID numérico exacto
   const num = parseInt(raw, 10);
   if (!isNaN(num) && String(num) === raw) {
     if (unsubList) { unsubList(); unsubList = null; }
@@ -665,6 +957,7 @@ async function onBuscar(){
     return;
   }
 
+  // ID de documento
   if (raw.length >= 8) {
     if (unsubList) { unsubList(); unsubList = null; }
     if (unsubSearch) { unsubSearch(); unsubSearch = null; }
@@ -692,6 +985,28 @@ function limpiarBusqueda(){
   busquedaActiva.value = false;
   currentPage.value = 1;
   subscribePage(1);
+}
+
+/* --------- Filtros móvil --------- */
+const mobileFiltersOpen = ref(false);
+const hasActiveFilters = computed(() =>
+  !!filtroEstatus.value || !!filtroResponsable.value
+);
+const totalFiltrosActivos = computed(() => {
+  let n = 0;
+  if (filtroEstatus.value) n++;
+  if (filtroResponsable.value) n++;
+  return n;
+});
+function mobileApplyFilters(){
+  aplicarFiltros();
+  mobileFiltersOpen.value = false;
+}
+function limpiarFiltros(){
+  filtroEstatus.value = "";
+  filtroResponsable.value = "";
+  if (busquedaActiva.value) limpiarBusqueda();
+  else aplicarFiltros();
 }
 
 /* ---------- Editor (offcanvas) ---------- */
@@ -723,6 +1038,7 @@ function abrirEditor(row){
     archivosStorage: Array.isArray(row.archivosStorage) ? deepClone(row.archivosStorage) : [],
     centroCostoTexto: row.centroCostoTexto ?? "",
     comentario: row.comentario ?? "",
+    destinoCompra: row.destinoCompra ?? "",
     empresa: row.empresa ?? "Xtreme Servicios",
     estatus: row.estatus ?? "Solicitado",
     fechaAprobacion: row.fechaAprobacion ?? null,
@@ -734,10 +1050,11 @@ function abrirEditor(row){
     responsable: row.responsable ?? "",
     tipoCompra: row.tipoCompra ?? "",
     tipo_solped: row.tipo_solped ?? "Sin SOLPED",
-    numero_solped: row.numero_solped ?? ""
+    numero_solped: row.numero_solped ?? "",
+    items: Array.isArray(row.items) ? deepClone(row.items) : []
   });
 
-  // Pinta valores en inputs datetime-local
+  // Pintar inputs datetime-local
   fechaSubidaLocal.value = toLocalInputValue(edit.value.fechaSubida);
   fechaAprobacionLocal.value = toLocalInputValue(edit.value.fechaAprobacion);
 
@@ -757,7 +1074,7 @@ function cerrarEditor(){
   nuevosStorageFiles.value = [];
 }
 
-/* Sincroniza inputs datetime-local -> objeto edit (Timestamp) */
+/* Sincroniza datetime-local -> Timestamp */
 watch(fechaSubidaLocal, (val) => {
   const d = fromLocalInputValue(val);
   edit.value.fechaSubida = d ? Timestamp.fromDate(d) : null;
@@ -766,6 +1083,48 @@ watch(fechaAprobacionLocal, (val) => {
   const d = fromLocalInputValue(val);
   edit.value.fechaAprobacion = d ? Timestamp.fromDate(d) : null;
 });
+
+/* ---------- Ítems (en línea) ---------- */
+function agregarItemInline(){
+  const arr = edit.value.items || (edit.value.items = []);
+  const maxIt = arr.reduce((m, a) => Math.max(m, Number(a?.item ?? 0)), 0);
+  arr.push({
+    item: maxIt + 1,
+    descripcion: "",
+    cantidad: 0,
+    cantidad_cotizada: 0,
+    codigo_referencial: "",
+    estado: "pendiente",
+    numero_interno: "",
+    imagen_url: null
+  });
+}
+function eliminarItemInline(ix){
+  (edit.value.items || []).splice(ix, 1);
+}
+async function onImagenItemChange(ev, idx){
+  try {
+    const f = (ev.target.files || [])[0];
+    if (!f || !seleccion.value) return;
+    const storage = getStorage();
+    const idDoc = seleccion.value.__id;
+    const path = `ordenes_oc_taller/${idDoc}/items/${Date.now()}_${f.name}`;
+    const sRef = sref(storage, path);
+    const up = await uploadBytes(sRef, f);
+    const url = await getDownloadURL(up.ref);
+    edit.value.items[idx].imagen_url = url;
+    addToast("success", "Imagen subida.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo subir la imagen del ítem.");
+  } finally {
+    const el = ev?.target; if (el) el.value = "";
+  }
+}
+function quitarImagenItem(idx){
+  if (!edit.value?.items?.[idx]) return;
+  edit.value.items[idx].imagen_url = null;
+}
 
 /* ---------- Guardar Edición ---------- */
 async function guardarEdicion() {
@@ -782,7 +1141,6 @@ async function guardarEdicion() {
       const sRef = sref(storage, path);
       const up = await uploadBytes(sRef, archivoOCFile.value);
       const url = await getDownloadURL(up.ref);
-
       edit.value.archivoOC = {
         nombre: archivoOCFile.value.name,
         tipo: archivoOCFile.value.type || "application/octet-stream",
@@ -808,7 +1166,7 @@ async function guardarEdicion() {
       nuevosStorageFiles.value = [];
     }
 
-    // Normalizaciones numéricas
+    // Normalizaciones
     if (typeof edit.value.id === "string") {
       const n = parseInt(edit.value.id, 10);
       edit.value.id = isNaN(n) ? null : n;
@@ -817,16 +1175,12 @@ async function guardarEdicion() {
       const n = parseInt(edit.value.precioTotalConIVA, 10);
       edit.value.precioTotalConIVA = isNaN(n) ? 0 : n;
     }
-
-    // Ítems si existieran
     if (Array.isArray(edit.value.items)) {
       edit.value.items = edit.value.items.map(it => ({
         ...it,
         item: Number(it.item ?? 0),
         cantidad: Number(it.cantidad ?? 0),
-        cantidad_cotizada: Number(it.cantidad_cotizada ?? it.cantidad ?? 0),
-        precio_unitario: Number(it.precio_unitario ?? 0),
-        precioTotalConIVA: Number(it.precioTotalConIVA ?? 0),
+        cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
       }));
     }
 
@@ -891,6 +1245,7 @@ function defaultNuevo(){
     empresa: "Xtreme Servicios",
     estatus: "Solicitado",
     comentario: "",
+    destinoCompra: "",
     centroCostoTexto: "",
     responsable: "",
     aprobadoPor: "",
@@ -900,13 +1255,10 @@ function defaultNuevo(){
     numero_solped: "",
     moneda: "CLP",
     precioTotalConIVA: 0,
-    // archivos
     archivoOC: null,
     archivosStorage: [],
-    // timestamps
     fechaSubida: null,
     fechaAprobacion: null,
-    // otros
     historial: [],
     items: []
   };
@@ -1011,9 +1363,26 @@ onBeforeUnmount(() => {
 <style scoped>
 .admin-oc-page{
   min-height:100vh;
+  --oc-top-gap: 8px;
+  --oc-radius: 14px;
+  --oc-maxw: 640px;
 }
 
-/* Offcanvas */
+/* Helpers responsivos */
+.h4-md { font-size: 1.25rem; }
+@media (min-width: 768px){ .h4-md { font-size: 1.5rem; } }
+
+.minw-220{ min-width: 220px; }
+.minw-240{ min-width: 240px; }
+.minw-280{ min-width: 280px; }
+
+/* Truncados bonitos en tabla */
+.text-truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 576px){
+  .text-truncate { max-width: 180px; }
+}
+
+/* -------- Offcanvas lateral (filtros/editor) -------- */
 .offcanvas-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: grid; place-items: end; z-index: 1080;
@@ -1028,22 +1397,18 @@ onBeforeUnmount(() => {
   display: flex; flex-direction: column;
 }
 .offcanvas-header, .offcanvas-footer{
-  padding: .9rem 1rem;
-  border-bottom: 1px solid #eee;
+  padding: .9rem 1rem; border-bottom: 1px solid #eee;
 }
 .offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .offcanvas-body{
-  padding: 1rem;
-  overflow: auto;
-  flex: 1 1 auto;
-  min-height: 0;
+  padding: 1rem; overflow: auto; flex: 1 1 auto; min-height: 0;
 }
 @keyframes slideIn{
   from{ transform: translateX(20px); opacity:.0; }
   to{ transform: translateX(0); opacity:1; }
 }
 
-/* Modal */
+/* Modal genérico */
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1080; display: grid; place-items: center; padding: 1rem;
@@ -1053,6 +1418,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
+  border: 1px solid rgba(0,0,0,.06);
 }
 .vmodal-header, .vmodal-footer{
   padding: .9rem 1rem; border-bottom: 1px solid #eee;
@@ -1074,7 +1440,7 @@ onBeforeUnmount(() => {
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono del modal de eliminación */
+/* Icono modal eliminación */
 .confirm-icon{
   width: 38px; height: 38px;
   border-radius: 10px;

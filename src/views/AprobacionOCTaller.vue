@@ -4,12 +4,16 @@
   <div class="aprob-oc-page">
     <div class="container py-4 py-md-5">
       <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <button class="btn btn-outline-secondary btn-sm" @click="volver">
+      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <button class="btn btn-outline-secondary btn-sm order-1" @click="volver">
           <i class="bi bi-arrow-left"></i> Volver
         </button>
-        <h1 class="h4 fw-semibold mb-0">Aprobación de OC (Taller)</h1>
-        <div>
+
+        <h1 class="h4 fw-semibold mb-0 order-2 flex-grow-1 text-center text-md-start">
+          Aprobación de OC (Taller)
+        </h1>
+
+        <div class="order-3">
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
       </div>
@@ -21,7 +25,7 @@
 
       <!-- Lista -->
       <div class="card" v-if="rolActual">
-        <div class="card-header d-flex align-items-center justify-content-between ">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="fw-semibold">Órdenes encontradas</div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ ocs.length }}</span>
         </div>
@@ -38,20 +42,23 @@
 
           <div v-else class="list-group list-group-flush">
             <div v-for="oc in ocs" :key="oc.__docId" class="list-group-item">
-              <div class="d-flex align-items-start gap-3">
-                <div class="flex-grow-1">
-                  <div class="d-flex align-items-center gap-2">
+              <!-- Cabecera OC -->
+              <div class="row g-3 align-items-start">
+                <div class="col-12 col-lg-9">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="fw-semibold">OC N° {{ oc.id ?? '—' }}</span>
                     <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus }}</span>
                   </div>
 
-                  <!-- === RESUMEN DESTACADO (chips) === -->
+                  <!-- Resumen (chips) -->
                   <div class="oc-highlight mt-2">
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <span class="oc-pill" title="Centro de costo">
                         <i class="bi bi-building me-1"></i>
                         <strong>Centro:</strong>
-                        {{ oc.centroCostoTexto || oc.centroCostoNombre || '—' }}
+                        <span class="text-truncate d-inline-block maxw-180">
+                          {{ oc.centroCostoTexto || oc.centroCostoNombre || '—' }}
+                        </span>
                         <template v-if="oc.centroCosto"> ({{ oc.centroCosto }})</template>
                       </span>
 
@@ -73,51 +80,75 @@
                   </div>
 
                   <!-- Compacto -->
-                  <div class="text-body-secondary small mt-1">
+                  <div class="text-body-secondary small mt-1 break-any">
                     <strong>Responsable:</strong> {{ oc.responsable || '—' }} ·
                     <strong>Subida:</strong> {{ fmtFecha(oc.fechaSubida) }}
                   </div>
 
-                  <div v-if="oc.comentario" class="small mt-1">
+                  <div v-if="oc.comentario" class="small mt-1 break-any">
                     <em>“{{ oc.comentario }}”</em>
                   </div>
                 </div>
 
-                <div class="d-flex flex-column gap-2">
-                  <button class="btn btn-sm btn-primary" @click="oc.expandido = !oc.expandido">
-                    {{ oc.expandido ? 'Ocultar' : 'Ver' }} detalle
-                  </button>
+                <!-- Acciones -->
+                <div class="col-12 col-lg-3">
+                  <div class="d-grid gap-2 d-lg-flex justify-content-lg-end">
+                    <button class="btn btn-primary btn-sm" @click="oc.expandido = !oc.expandido">
+                      {{ oc.expandido ? 'Ocultar' : 'Ver' }} detalle
+                    </button>
 
-                  <!-- Ver SOLPED (taller) -->
-                  <button
-                    v-if="oc.solpedId"
-                    class="btn btn-sm btn-secondary"
-                    @click="irASolped(oc)">
-                    Ver SOLPED
-                  </button>
+                    <button
+                      v-if="oc.solpedId"
+                      class="btn btn-secondary btn-sm"
+                      @click="irASolped(oc)">
+                      Ver SOLPED
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <!-- Detalle -->
               <transition name="fade">
                 <div v-if="oc.expandido" class="mt-3">
-                  <!-- Archivos (solo archivosStorage) -->
+                  <!-- Archivos -->
                   <div v-if="(oc.archivosStorage||[]).length" class="mb-3">
                     <div class="fw-semibold mb-2">📂 Archivos Adjuntos</div>
 
                     <div v-for="(a,i) in oc.archivosStorage" :key="a.url || (a.nombre+i)" class="card mb-2">
-                      <div class="card-header d-flex align-items-center">
-                        <div class="fw-semibold me-auto">{{ a.nombre || ('archivo_'+(i+1)) }}</div>
+                      <div class="card-header d-flex align-items-center flex-wrap gap-2">
+                        <div class="fw-semibold me-auto text-truncate">
+                          {{ a.nombre || ('archivo_'+(i+1)) }}
+                        </div>
+
+                        <button class="btn btn-sm btn-primary" @click="openViewer({ url:a.url, tipo:a.tipo, nombre:a.nombre })">
+                          <i class="bi bi-arrows-fullscreen me-1"></i> Ver grande
+                        </button>
+
                         <button class="btn btn-sm btn-outline-secondary" @click="a.ver = !a.ver">
                           {{ a.ver ? 'Ocultar' : 'Mostrar' }}
                         </button>
                       </div>
+
                       <div v-if="a.ver" class="card-body">
-                        <div v-if="(a.tipo||'').includes('pdf')" class="ratio ratio-16x9">
+                        <!-- PDF preview -->
+                        <div
+                          v-if="(a.tipo||'').includes('pdf') || isPdf(a.url)"
+                          class="ratio ratio-16x9"
+                          @click="isXs ? openViewer({ url:a.url, tipo:guessMime(a.url), nombre:a.nombre }) : null"
+                          style="cursor: var(--cur-ptr);"
+                        >
                           <iframe :src="a.url" style="border:none;"></iframe>
                         </div>
-                        <div class="text-center" v-else>
-                          <img :src="a.url" class="img-fluid rounded shadow-sm" style="max-height:600px;object-fit:contain;">
+
+                        <!-- Imagen -->
+                        <div v-else class="text-center">
+                          <img
+                            :src="a.url"
+                            class="img-fluid rounded shadow-sm"
+                            style="max-height:600px;object-fit:contain; cursor: var(--cur-ptr);"
+                            @click="isXs ? openViewer({ url:a.url, tipo:a.tipo, nombre:a.nombre }) : null"
+                            :alt="a.nombre || ('archivo_'+(i+1))"
+                          >
                         </div>
                       </div>
                     </div>
@@ -134,21 +165,21 @@
                           <th class="text-center">Cant.</th>
                           <th class="text-center">Cotizada</th>
                           <th class="text-center">Estado</th>
-                          <th>N° Interno</th>
-                          <th>Código ref.</th>
+                          <th class="d-none d-sm-table-cell">N° Interno</th>
+                          <th class="d-none d-lg-table-cell">Código ref.</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="it in oc.items || []" :key="it.__tempId || `${it.item}-${it.descripcion}`">
                           <td>{{ it.item }}</td>
-                          <td>{{ it.descripcion }}</td>
+                          <td class="break-any">{{ it.descripcion }}</td>
                           <td class="text-center">{{ it.cantidad ?? 0 }}</td>
                           <td class="text-center">{{ it.cantidad_cotizada ?? 0 }}</td>
                           <td class="text-center">
                             <span class="badge" :class="badgeItem(it.estado)">{{ it.estado || 'pendiente' }}</span>
                           </td>
-                          <td>{{ it.numero_interno || oc.centroCostoTexto || '—' }}</td>
-                          <td>{{ it.codigo_referencial || '—' }}</td>
+                          <td class="d-none d-sm-table-cell break-any">{{ it.numero_interno || oc.centroCostoTexto || '—' }}</td>
+                          <td class="d-none d-lg-table-cell break-any">{{ it.codigo_referencial || '—' }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -161,7 +192,7 @@
                   </div>
 
                   <!-- Botones acción -->
-                  <div class="d-flex gap-2">
+                  <div class="d-grid d-md-flex gap-2">
                     <button class="btn btn-success" :disabled="accionando" @click="aprobar(oc)">
                       <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
                       Aprobar
@@ -178,7 +209,7 @@
                   <div class="mt-3">
                     <div class="fw-semibold mb-2">🕓 Historial</div>
                     <ul class="list-unstyled small mb-0">
-                      <li v-for="(h,idx) in oc.historial || []" :key="idx">
+                      <li v-for="(h,idx) in oc.historial || []" :key="idx" class="break-any">
                         <strong>{{ h.usuario || '—' }}</strong> ·
                         <em>{{ h.estatus || '—' }}</em> ·
                         <span>{{ fmtFecha(h.fecha) }}</span>
@@ -202,11 +233,64 @@
         </div>
       </div>
     </div>
+
+    <!-- ===== VISOR FULLSCREEN DE ADJUNTOS ===== -->
+    <transition name="viewer">
+      <div v-if="viewerOpen" class="viewer-wrap" @keydown.esc="closeViewer" tabindex="0">
+        <div class="viewer-backdrop" @click="closeOnBackdrop && closeViewer()"></div>
+
+        <div class="viewer-panel" role="dialog" aria-modal="true" aria-label="Visor de adjunto">
+          <div class="viewer-header">
+            <div class="viewer-title text-truncate">
+              {{ viewerItem?.nombre || 'Adjunto' }}
+            </div>
+            <div class="d-flex gap-2">
+              <a
+                v-if="viewerItem?.url"
+                :href="viewerItem.url"
+                target="_blank" rel="noopener"
+                class="btn btn-sm btn-outline-light"
+                title="Abrir en nueva pestaña / Descargar"
+              >
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+              <div v-if="isImage(viewerItem)" class="btn-group btn-group-sm me-1" role="group" aria-label="Zoom">
+                <button class="btn btn-outline-light" @click="zoomOut" :disabled="zoom<=0.5"><i class="bi bi-zoom-out"></i></button>
+                <button class="btn btn-outline-light" @click="resetZoom"><i class="bi bi-aspect-ratio"></i></button>
+                <button class="btn btn-outline-light" @click="zoomIn" :disabled="zoom>=3"><i class="bi bi-zoom-in"></i></button>
+              </div>
+              <button class="btn btn-sm btn-light" @click="closeViewer" aria-label="Cerrar">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="viewer-body">
+            <!-- Imagen con zoom -->
+            <div v-if="isImage(viewerItem)" class="viewer-img-wrap">
+              <img
+                :src="viewerItem.url"
+                :alt="viewerItem.nombre || 'imagen'"
+                class="viewer-img"
+                :style="{ transform: `scale(${zoom})` }"
+                @dblclick="toggleZoom"
+              />
+            </div>
+
+            <!-- PDF a todo alto -->
+            <div v-else class="viewer-pdf-wrap">
+              <iframe :src="viewerItem?.url" class="viewer-pdf" title="PDF"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+    <!-- ===== FIN VISOR ===== -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
@@ -237,6 +321,33 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
+/** ====== Visor fullscreen (móvil/desktop) ====== */
+const isXs = window.matchMedia('(max-width: 576px)').matches;
+const viewerOpen = ref(false);
+const viewerItem = ref<{url:string,tipo?:string,nombre?:string}|null>(null);
+const zoom = ref(1);
+const closeOnBackdrop = true;
+
+const isPdf = (url?:string) => String(url||'').toLowerCase().endsWith('.pdf');
+const guessMime = (url?: string) => isPdf(url) ? 'application/pdf' : '';
+const isImage = (file:any) => {
+  const t = String(file?.tipo || '');
+  const u = String(file?.url || '').toLowerCase();
+  return t.includes('image') || u.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/);
+};
+const openViewer = (file:{url:string,tipo?:string,nombre?:string}) => {
+  viewerItem.value = file || null;
+  viewerOpen.value = !!viewerItem.value;
+  zoom.value = 1;
+  setTimeout(()=> { (document.querySelector('.viewer-wrap') as HTMLElement|undefined)?.focus(); }, 0);
+};
+const closeViewer = () => { viewerOpen.value = false; viewerItem.value = null; zoom.value = 1; };
+const zoomIn = () => { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2)); };
+const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)); };
+const resetZoom = () => { zoom.value = 1; };
+const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
+watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
+
 /** Mapea el nombre del usuario a un rol/aprobador esperado */
 const mapNombreARol = (fullName: string): Rol => {
   const n = (fullName || '').trim().toLowerCase();
@@ -254,7 +365,7 @@ const estatusFiltrado = computed(() => {
   return '';
 });
 
-/** Badge por estado */
+/** Badge por estado / utilidades */
 const estadoBadgeClass = (estatus: string) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -265,7 +376,6 @@ const estadoBadgeClass = (estatus: string) => {
   if (s.includes('proveedor')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
-
 const badgeItem = (estado?: string) => {
   const s = (estado || 'pendiente').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -274,7 +384,6 @@ const badgeItem = (estado?: string) => {
   if (s.includes('complet')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
-
 const fmtFecha = (f:any) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : new Date(f));
@@ -343,7 +452,6 @@ onMounted(async () => {
     cargando.value = false;
   }
 });
-
 onBeforeUnmount(()=>{ if (_unsub) _unsub(); });
 
 const accionando = ref(false);
@@ -355,26 +463,15 @@ const irASolped = (oc:any) => {
     addToast('warning','Esta OC no tiene SOLPED asociada.');
     return;
   }
-  try {
-    router.push({ name: 'SolpedTallerDetalle', params: { id } });
-  } catch {
-    router.push(`/solped-taller/${id}`);
-  }
+  try { router.push({ name: 'SolpedTallerDetalle', params: { id } }); }
+  catch { router.push(`/solped-taller/${id}`); }
 };
 
-/** Registrar SIEMPRE la acción de OC en el historial de la SOLPED_TALLER */
+/** Registrar acción en historial de la SOLPED_TALLER */
 const registrarHistorialSolpedAccionOC_Taller = async ({
-  solpedId,
-  ocNumero,
-  usuario,
-  estatusOC,
-  comentario
+  solpedId, ocNumero, usuario, estatusOC, comentario
 }: {
-  solpedId: string,
-  ocNumero?: number | string | null,
-  usuario: string,
-  estatusOC: string,
-  comentario: string
+  solpedId: string, ocNumero?: number|string|null, usuario: string, estatusOC: string, comentario: string
 }) => {
   if (!solpedId) return;
   try {
@@ -393,13 +490,8 @@ const registrarHistorialSolpedAccionOC_Taller = async ({
   }
 };
 
-/** ======= Actualiza la SOLPED_TALLER a partir de la OC aprobada ======= */
-const actualizarSolpedTallerConOC = async (
-  oc:any,
-  aprobador:string,
-  comentario:string,
-  estatusOC?: string
-) => {
+/** Actualiza la SOLPED_TALLER a partir de la OC aprobada */
+const actualizarSolpedTallerConOC = async (oc:any, aprobador:string, comentario:string, estatusOC?: string) => {
   const solpedId = oc?.solpedId;
   if (!solpedId) return;
 
@@ -410,7 +502,6 @@ const actualizarSolpedTallerConOC = async (
   const sdata:any = ss.data() || {};
   const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
 
-  // índices para match rápido
   const idxNI  = new Map<string, number>();
   const idxCR  = new Map<string, number>();
   const idxDesc= new Map<string, number>();
@@ -443,10 +534,8 @@ const actualizarSolpedTallerConOC = async (
 
     if (idx >= 0) {
       const sIt = { ...itemsSol[idx] };
-
       const cantSolic = Number(sIt.cantidad || 0);
       const ya = Number(sIt.cantidad_cotizada || 0);
-
       let nuevo = ya + delta;
       if (!isFinite(nuevo)) nuevo = ya;
       if (nuevo > cantSolic) nuevo = cantSolic;
@@ -505,34 +594,17 @@ const solicitarAclaracion = async (oc:any) => {
   if (accionando.value) return;
 
   const comentario = (oc._comentarioAccion || '').trim();
-  if (!comentario) {
-    addToast('warning', 'Escribe un comentario antes de solicitar aclaración.');
-    return;
-  }
+  if (!comentario) { addToast('warning', 'Escribe un comentario antes de solicitar aclaración.'); return; }
 
-  if (rolActual.value === 'GUILLERMO' && oc.estatus !== 'Revisión Guillermo') {
-    addToast('warning','No puedes solicitar aclaración en este estado.');
-    return;
-  }
-  if (rolActual.value === 'JUAN' && oc.estatus !== 'Preaprobado') {
-    addToast('warning','No puedes solicitar aclaración en este estado.');
-    return;
-  }
-  if (rolActual.value === 'ALEJANDRO' && oc.estatus !== 'Casi Aprobado') {
-    addToast('warning','No puedes solicitar aclaración en este estado.');
-    return;
-  }
+  if (rolActual.value === 'GUILLERMO' && oc.estatus !== 'Revisión Guillermo') { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
+  if (rolActual.value === 'JUAN' && oc.estatus !== 'Preaprobado') { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
+  if (rolActual.value === 'ALEJANDRO' && oc.estatus !== 'Casi Aprobado') { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
 
   accionando.value = true;
   try {
     const nuevoHistorial = [
       ...((oc.historial || [])),
-      {
-        usuario: usuarioNombre.value || '—',
-        estatus: 'Pendiente de Aprobación',
-        fecha: new Date().toISOString(),
-        comentario
-      }
+      { usuario: usuarioNombre.value || '—', estatus: 'Pendiente de Aprobación', fecha: new Date().toISOString(), comentario }
     ];
 
     await updateDoc(doc(db, 'ordenes_oc_taller', oc.__docId), {
@@ -541,11 +613,8 @@ const solicitarAclaracion = async (oc:any) => {
     });
 
     await registrarHistorialSolpedAccionOC_Taller({
-      solpedId: oc.solpedId,
-      ocNumero: oc.id,
-      usuario: usuarioNombre.value || '—',
-      estatusOC: 'Pendiente de Aprobación',
-      comentario
+      solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
+      estatusOC: 'Pendiente de Aprobación', comentario
     });
 
     addToast('warning', 'Solicitada aclaración: estado → Pendiente de Aprobación');
@@ -558,7 +627,6 @@ const solicitarAclaracion = async (oc:any) => {
   }
 };
 
-/** Aprobar (taller) */
 const aprobar = async (oc:any) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
@@ -571,7 +639,6 @@ const aprobar = async (oc:any) => {
   accionando.value = true;
   try {
     const monto = Number(oc.precioTotalConIVA || 0);
-
     let nuevoEstatus = oc.estatus;
     if (rolActual.value === 'GUILLERMO') {
       nuevoEstatus = (monto <= LIM_GUILLERMO) ? 'Aprobado' : 'Preaprobado';
@@ -581,10 +648,9 @@ const aprobar = async (oc:any) => {
       nuevoEstatus = 'Aprobado';
     }
 
-    const nuevosItems = (oc.items || []).map((it:any) => {
-      const s = (it.estado || '').toLowerCase();
-      return s.includes('revi') ? { ...it, estado: 'aprobado' } : it;
-    });
+    const nuevosItems = (oc.items || []).map((it:any) =>
+      (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
+    );
 
     const nuevoHistorial = [
       ...((oc.historial || [])),
@@ -599,19 +665,11 @@ const aprobar = async (oc:any) => {
     });
 
     if (nuevoEstatus === 'Aprobado') {
-      await actualizarSolpedTallerConOC(
-        { ...oc, items: nuevosItems },
-        usuarioNombre.value || '—',
-        comentario,
-        nuevoEstatus
-      );
+      await actualizarSolpedTallerConOC({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario, nuevoEstatus);
     } else {
       await registrarHistorialSolpedAccionOC_Taller({
-        solpedId: oc.solpedId,
-        ocNumero: oc.id,
-        usuario: usuarioNombre.value || '—',
-        estatusOC: nuevoEstatus,
-        comentario
+        solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
+        estatusOC: nuevoEstatus, comentario
       });
     }
 
@@ -625,7 +683,6 @@ const aprobar = async (oc:any) => {
   }
 };
 
-/** Rechazar (taller) */
 const rechazar = async (oc:any) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
@@ -637,20 +694,13 @@ const rechazar = async (oc:any) => {
 
   accionando.value = true;
   try {
-    const nuevosItems = (oc.items || []).map((it:any) => {
-      const s = (it.estado || '').toLowerCase();
-      if (s.includes('revi')) return { ...it, estado: 'pendiente' };
-      return it;
-    });
+    const nuevosItems = (oc.items || []).map((it:any) =>
+      (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'pendiente' } : it
+    );
 
     const nuevoHistorial = [
       ...((oc.historial || [])),
-      {
-        usuario: usuarioNombre.value || '—',
-        estatus: 'Rechazado',
-        fecha: new Date().toISOString(),
-        comentario
-      }
+      { usuario: usuarioNombre.value || '—', estatus: 'Rechazado', fecha: new Date().toISOString(), comentario }
     ];
 
     await updateDoc(doc(db, 'ordenes_oc_taller', oc.__docId), {
@@ -660,11 +710,8 @@ const rechazar = async (oc:any) => {
     });
 
     await registrarHistorialSolpedAccionOC_Taller({
-      solpedId: oc.solpedId,
-      ocNumero: oc.id,
-      usuario: usuarioNombre.value || '—',
-      estatusOC: 'Rechazado',
-      comentario
+      solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
+      estatusOC: 'Rechazado', comentario
     });
 
     addToast('danger', 'OC (taller) rechazada.');
@@ -679,13 +726,13 @@ const rechazar = async (oc:any) => {
 </script>
 
 <style scoped>
-.aprob-oc-page{
-  min-height:100vh;
-}
+.aprob-oc-page{ min-height:100vh; }
 
+/* Animación detalle */
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
+/* Toasts */
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -699,7 +746,7 @@ const rechazar = async (oc:any) => {
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* ====== ESTILOS RESUMEN DESTACADO ====== */
+/* Chips resumen */
 .oc-highlight{
   padding: .65rem .75rem;
   border: 1px solid var(--bs-border-color);
@@ -707,35 +754,87 @@ const rechazar = async (oc:any) => {
   background: var(--bs-body-bg);
   box-shadow: 0 2px 10px rgba(0,0,0,.04);
 }
-
 .oc-pill{
-  display: inline-flex;
-  align-items: center;
-  gap: .25rem;
-  padding: .35rem .6rem;
-  border-radius: 999px;
+  display: inline-flex; align-items: center; gap: .25rem;
+  padding: .35rem .6rem; border-radius: 999px;
   border: 1px solid var(--bs-border-color);
-  background: var(--bs-secondary-bg);
-  color: var(--bs-body-color);
-  font-size: .9rem;
-  line-height: 1;
-  white-space: nowrap;
+  background: var(--bs-secondary-bg); color: var(--bs-body-color);
+  font-size: .9rem; line-height: 1; white-space: nowrap;
 }
-
 .oc-pill-total{
   border-color: var(--bs-primary-border-subtle, var(--bs-border-color));
   background: var(--bs-primary-bg-subtle, var(--bs-secondary-bg));
-  color: var(--bs-primary-text);
-  font-weight: 600;
+  color: var(--bs-primary-text); font-weight: 600;
 }
+.oc-pill i{ font-size: 1rem; opacity: .9; }
 
-.oc-pill i{
-  font-size: 1rem;
-  opacity: .9;
-}
+/* Utilidades */
+.break-any{ word-break: break-word; overflow-wrap: anywhere; }
+.minw-0{ min-width: 0; }
+.maxw-180{ max-width: 180px; }
+.maxw-140{ max-width: 140px; }
 
+/* Responsive: en móvil, botones a ancho completo */
 @media (max-width: 576px){
   .oc-highlight{ padding: .55rem .6rem; }
   .oc-pill{ font-size: .88rem; }
+  .list-group-item .btn{ width: 100%; } /* acciones full-width */
 }
+
+/* ===== Visor Fullscreen (modal/lightbox) ===== */
+.viewer-enter-active, .viewer-leave-active { transition: opacity .18s ease; }
+.viewer-enter-from, .viewer-leave-to { opacity: 0; }
+
+.viewer-wrap{
+  position: fixed; inset: 0; z-index: 3000; /* sobre todo */
+  display: flex; align-items: center; justify-content: center;
+}
+.viewer-backdrop{
+  position: absolute; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(2px);
+}
+.viewer-panel{
+  position: relative; z-index: 1; display: flex; flex-direction: column;
+  width: min(96vw, 1200px); height: min(92vh, 900px);
+  background: #0b0f14; color: #fff; border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+.viewer-header{
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .75rem; padding: .6rem .75rem .6rem .9rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.viewer-title{ font-weight: 600; max-width: 60vw; }
+.viewer-body{
+  position: relative; flex: 1; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #0b0f14;
+}
+
+/* Imagen */
+.viewer-img-wrap{
+  width: 100%; height: 100%;
+  display: grid; place-items: center; overflow: auto;
+}
+.viewer-img{
+  max-width: 100%; max-height: 100%;
+  transition: transform .12s ease;
+  will-change: transform;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* PDF */
+.viewer-pdf-wrap{ width: 100%; height: 100%; }
+.viewer-pdf{ width: 100%; height: 100%; border: none; }
+
+/* Móvil: panel fullscreen */
+@media (max-width: 576px){
+  .viewer-panel{
+    width: 100vw; height: 100vh; border-radius: 0;
+  }
+  .viewer-title{ max-width: 50vw; }
+}
+
+/* cursor utilitario */
+:root { --cur-ptr: pointer; }
 </style>

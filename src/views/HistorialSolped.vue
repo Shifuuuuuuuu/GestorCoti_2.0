@@ -957,6 +957,7 @@ const hasActiveFilters = computed(() =>
 /* ---------- Centros de costo ---------- */
 const centrosMap = ref({});
 const centrosLocalFallback = {
+  "30858":"CONTRATO 30858 INFRA CHUQUICAMATA",
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
   "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
   "20915":"CONTRATO 20915 SUM. HORMIGON DAND",
