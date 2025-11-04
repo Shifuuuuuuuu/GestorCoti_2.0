@@ -11,9 +11,8 @@
         </button>
 
         <h1 class="h5 fw-semibold mb-0 text-truncate text-center flex-grow-1 d-none d-sm-block">
-          Generador de Cotización (OC)
+          Generador de Cotización
         </h1>
-        <h1 class="h6 fw-semibold mb-0 text-truncate d-sm-none">Generar OC</h1>
 
         <!-- Toggle Equipos -->
         <button
@@ -30,7 +29,7 @@
           @click="toggleMisOC"
           :aria-pressed="mostrarMisOC.toString()">
           <i class="bi bi-receipt-cutoff me-1"></i>
-          {{ mostrarMisOC ? 'Ocultar mis OC' : 'Mis OC' }}
+          {{ mostrarMisOC ? 'Ocultar mis Cotizaciones' : 'Mis Cotizaciones' }}
         </button>
       </div>
 
@@ -41,7 +40,7 @@
           <!-- Mis OC enviadas -->
           <div v-if="mostrarMisOC" class="card mb-3 card-elevated">
             <div class="card-header d-flex align-items-center justify-content-between">
-              <div class="fw-semibold">🧾 Mis OC enviadas (mes actual)</div>
+              <div class="fw-semibold">🧾 Mis Cotizaciones enviadas (mes actual)</div>
               <span class="badge bg-dark-subtle text-dark-emphasis">
                 {{ misOC.length }} en total
               </span>
@@ -234,11 +233,11 @@
                     </table>
                   </div>
 
-                  <!-- Autorización adjunta -->
+                  <!-- Documentos adjuntos -->
                   <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
                     <i class="bi bi-paperclip"></i>
                     <div class="me-auto ms-2">
-                      <div class="fw-semibold mb-0">Autorización adjunta</div>
+                      <div class="fw-semibold mb-0">Documentos adjuntos</div>
                       <div class="small">{{ autorizacionNombre || 'Archivo' }}</div>
                     </div>
                     <div class="d-flex gap-2">
@@ -1115,6 +1114,12 @@ const calcularAprobador = () => {
   } else if (empresa === "xtreme servicio") {
     if (totalCLP <= 250000) aprobadorSugerido.value = "Guillermo Manzor";
     else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
+    else aprobadorSugerido.value = "Alejandro Candia";
+  }
+  else if( empresa === "xtreme hormigones") {
+    if (totalCLP <= 1000000) aprobadorSugerido.value = "Felipe Gonzalez / Ricardo Santibañez";
+    else if (totalCLP <= 3000000) aprobadorSugerido.value = "Patricio Muñoz";
+    else if (totalCLP <= 7000000) aprobadorSugerido.value = "César Palma";
     else aprobadorSugerido.value = "Alejandro Candia";
   } else {
     aprobadorSugerido.value = "Empresa no reconocida";

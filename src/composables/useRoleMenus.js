@@ -47,9 +47,9 @@ export function useRoleMenus() {
         { name: "solped", text: "Crear SOLPED", icon: "bi-file-plus" },
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
         null,
-        { name: "GeneradorOC", text: "Generador OC", icon: "bi-cart-plus" },
-        { name: "historial-oc", text: "Historial OC", icon: "bi-journal-text" },
-        { name: "AprobacionOC", text: "Aprobador OC", icon: "bi-patch-check" },
+        { name: "GeneradorOC", text: "Generador Cotización", icon: "bi-cart-plus" },
+        { name: "historial-oc", text: "Historial Cotizaciones", icon: "bi-journal-text" },
+        { name: "AprobacionOC", text: "Aprobador Cotización", icon: "bi-patch-check" },
       ];
     } else if (isGenerador.value && !isTallerCMUser.value) {
       base = [
@@ -59,14 +59,14 @@ export function useRoleMenus() {
       ];
     } else if (isEditor.value) {
       base = [
-        { name: "GeneradorOC", text: "Generador OC", icon: "bi-cart-plus" },
-        { name: "historial-oc", text: "Historial OC", icon: "bi-journal-text" },
+        { name: "GeneradorOC", text: "Generador Cotización", icon: "bi-cart-plus" },
+        { name: "historial-oc", text: "Historial Cotizaciones", icon: "bi-journal-text" },
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
       ];
     } else if (isAprobadorEditor.value) {
       base = [
-        { name: "AprobacionOC", text: "Aprobador OC", icon: "bi-patch-check" },
-        { name: "historial-oc", text: "Historial OC", icon: "bi-journal-text" },
+        { name: "AprobacionOC", text: "Aprobador Cotización", icon: "bi-patch-check" },
+        { name: "historial-oc", text: "Historial Cotizaciones", icon: "bi-journal-text" },
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
       ];
     }
@@ -89,9 +89,9 @@ export function useRoleMenus() {
         { name: "SolpedTaller", text: "Crear SOLPED (Taller)", icon: "bi-wrench-adjustable-circle" },
         { name: "HistorialSolpedTaller", text: "Historial SOLPED (Taller)", icon: "bi-clock-history" },
         null,
-        { name: "GeneradorOCTaller", text: "Generador OC (Taller)", icon: "bi-bag-plus" },
-        { name: "HistorialOCTaller", text: "Historial OC (Taller)", icon: "bi-journal-text" },
-        { name: "AprobacionOCTaller", text: "Aprobador OC (Taller)", icon: "bi-patch-check" },
+        { name: "GeneradorOCTaller", text: "Generador Cotización (Taller)", icon: "bi-bag-plus" },
+        { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
+        { name: "AprobacionOCTaller", text: "Aprobador Cotización (Taller)", icon: "bi-patch-check" },
         { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver"},
         { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear"}
       ];
@@ -103,16 +103,16 @@ export function useRoleMenus() {
       ];
     } else if (isEditor.value) {
       base = [
-        { name: "GeneradorOCTaller", text: "Generador OC (Taller)", icon: "bi-bag-plus" },
-        { name: "HistorialOCTaller", text: "Historial OC (Taller)", icon: "bi-journal-text" },
+        { name: "GeneradorOCTaller", text: "Generador Cotización (Taller)", icon: "bi-bag-plus" },
+        { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
         { name: "HistorialSolpedTaller", text: "Historial SOLPED (Taller)", icon: "bi-clock-history" },
         { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver"},
         { name: "DashboardEstadisticas", text: "Dashboard", icon: "bi bi-bar-chart-line"}
       ];
     } else if (isAprobadorEditor.value) {
       base = [
-        { name: "AprobacionOCTaller", text: "Aprobador OC (Taller)", icon: "bi-patch-check" },
-        { name: "HistorialOCTaller", text: "Historial OC (Taller)", icon: "bi-journal-text" },
+        { name: "AprobacionOCTaller", text: "Aprobador Cotización (Taller)", icon: "bi-patch-check" },
+        { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
         { name: "HistorialSolpedTaller", text: "Historial SOLPED (Taller)", icon: "bi-clock-history" },
         { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver"},
         { name: "DashboardEstadisticas", text: "Dashboard", icon: "bi bi-bar-chart-line"}

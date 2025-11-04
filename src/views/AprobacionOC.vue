@@ -185,39 +185,81 @@
                     <!-- FIN BLOQUE ADJUNTOS -->
                   </div>
 
-                  <!-- ===== Documento de Autorización (desde SOLPED) ===== -->
+                  <!-- ===== Autorizaciones (desde SOLPED) ===== -->
                   <div class="mb-3">
-                    <div class="fw-semibold mb-2">📝 Autorización (desde SOLPED)</div>
+                    <div class="fw-semibold mb-2">📝 Autorizaciones (desde SOLPED)</div>
 
-                    <div v-if="getAuthFor(oc).loading" class="text-secondary small">Cargando documento…</div>
+                    <div v-if="getAuthState(oc).loading" class="text-secondary small">Cargando documentos…</div>
 
-                    <div v-else-if="getAuthFor(oc).url" class="card">
-                      <div class="card-body d-flex align-items-center flex-wrap gap-2">
-                        <i class="bi bi-file-earmark-check"></i>
-                        <span class="me-auto text-truncate">
-                          {{ getAuthFor(oc).nombre || 'Autorización' }}
-                        </span>
+                    <template v-else>
+                      <div v-if="getAuthList(oc).length" class="auth-list">
+                        <div
+                          v-for="(f, idx) in getAuthList(oc)"
+                          :key="f.url + '_' + idx"
+                          class="card auth-item mb-2"
+                        >
+                          <div class="card-body py-2">
+                            <div class="row g-2 align-items-start">
+                              <!-- Icono -->
+                              <div class="col-auto">
+                                <i :class="fileIcon(f)" class="fs-4"></i>
+                              </div>
 
-                        <button
-                          class="btn btn-sm btn-primary"
-                          @click="openViewer({ url: getAuthFor(oc).url!, tipo: guessMime(getAuthFor(oc).url!), nombre: getAuthFor(oc).nombre || 'Autorización' })">
-                          Ver
-                        </button>
+                              <!-- Info -->
+                              <div class="col minw-0">
+                                <div class="d-flex flex-wrap align-items-center gap-2 minw-0">
+                                  <span class="fw-semibold text-truncate flex-grow-1">{{ f.nombre || 'archivo' }}</span>
+                                  <span class="badge bg-light text-body border">{{ prettyExt(f) }}</span>
+                                  <span v-if="f.tamano" class="small text-secondary">· {{ fmtBytes(f.tamano) }}</span>
+                                </div>
 
-                        <a
-                          class="btn btn-sm btn-outline-secondary"
-                          :href="getAuthFor(oc).url!"
-                          target="_blank" rel="noopener">
-                          Descargar
-                        </a>
+                                <!-- Visor inline (responsive) -->
+                                <div v-if="authPreviewOpen[authKey(oc, idx)]" class="mt-2">
+                                  <div v-if="isPDF(f)" class="ratio ratio-16x9 auth-ratio">
+                                    <iframe :src="f.url + '#toolbar=0'"
+                                            class="auth-iframe"
+                                            loading="lazy"></iframe>
+                                  </div>
+                                  <div v-else-if="isImage(f)" class="text-center auth-img-wrap">
+                                    <img :src="f.url"
+                                        :alt="f.nombre || 'imagen'"
+                                        class="img-fluid rounded shadow-sm auth-img"
+                                        loading="lazy">
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Acciones -->
+                              <div class="col-12 col-sm-auto">
+                                <div class="d-grid d-sm-flex gap-2 justify-content-sm-end">
+                                  <button class="btn btn-sm btn-primary" @click="openViewer(f)">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> Abrir
+                                  </button>
+                                  <a class="btn btn-sm btn-outline-secondary" :href="f.url" target="_blank" rel="noopener">
+                                    <i class="bi bi-arrow-bar-down"></i> Descargar
+                                  </a>
+                                  <button
+                                    v-if="isPreviewable(f)"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    @click="toggleAuthPreview(oc, idx)"
+                                  >
+                                    <i class="bi" :class="authPreviewOpen[authKey(oc, idx)] ? 'bi-eye-slash' : 'bi-eye'"></i>
+                                    {{ authPreviewOpen[authKey(oc, idx)] ? 'Ocultar visor' : 'Ver en visor' }}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div> <!-- .auth-item -->
                       </div>
-                    </div>
 
-                    <div v-else class="text-secondary small">
-                      No hay documento de autorización en la SOLPED asociada.
-                    </div>
+                      <div v-else class="text-secondary small">
+                        No hay documentos de autorización en la SOLPED asociada.
+                      </div>
+                    </template>
                   </div>
-                  <!-- ===== Fin Autorización ===== -->
+                  <!-- ===== Fin Autorizaciones ===== -->
+
 
                   <!-- Ítems -->
                   <div class="fw-semibold mb-2">📦 Ítems</div>
@@ -469,42 +511,114 @@ const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
 watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
 
-/* ===== Autorización SOLPED (adjunto de la SOLPED visible en la OC) ===== */
-type SolpedAuth = { nombre: string | null, url: string | null, loading: boolean };
-const solpedAuthById = ref<Record<string, SolpedAuth>>({});
+/* ===== Autorizaciones SOLPED (nuevo: múltiples archivos en `autorizaciones[]`) ===== */
+type SolpedAuthFile = { nombre?: string, url: string, tipo?: string, tamano?: number };
+type SolpedAuthState = { loading: boolean, files: SolpedAuthFile[] };
 
-const getAuthFor = (oc:any): SolpedAuth => {
+const solpedAuthById = ref<Record<string, SolpedAuthState>>({});
+
+/** Clave única para toggle de preview inline por OC+índice */
+const authKey = (oc:any, idx:number) => `${oc.__docId || oc.solpedId || 'x'}_${idx}`;
+const authPreviewOpen = ref<Record<string, boolean>>({});
+const toggleAuthPreview = (oc:any, idx:number) => {
+  const k = authKey(oc, idx);
+  authPreviewOpen.value[k] = !authPreviewOpen.value[k];
+};
+
+/** Helpers de tipos de archivo */
+const getExt = (f: SolpedAuthFile) => {
+  const name = String(f?.nombre || f?.url || '').toLowerCase();
+  const m = name.match(/\.([a-z0-9]+)(?:\?|#|$)/i);
+  return (m?.[1] || '').trim();
+};
+const prettyExt = (f: SolpedAuthFile) => {
+  const ext = getExt(f);
+  if (ext) return ext.toUpperCase();
+  const t = String(f?.tipo || '').split('/').pop();
+  return (t || 'FILE').toUpperCase();
+};
+const isPDF = (f: SolpedAuthFile) => {
+  const ext = getExt(f);
+  if (ext === 'pdf') return true;
+  const t = String(f?.tipo || '').toLowerCase();
+  return t.includes('application/pdf');
+};
+const isPreviewable = (f: SolpedAuthFile) => isPDF(f) || isImage(f);
+const fileIcon = (f: SolpedAuthFile) => {
+  const ext = getExt(f);
+  if (isPDF(f)) return 'bi bi-file-earmark-pdf text-danger';
+  if (isImage(f)) return 'bi bi-file-earmark-image text-primary';
+  if (['xls','xlsx','csv'].includes(ext)) return 'bi bi-file-earmark-spreadsheet text-success';
+  if (['zip','rar','7z'].includes(ext)) return 'bi bi-file-earmark-zip';
+  if (['doc','docx'].includes(ext)) return 'bi bi-file-earmark-word text-primary';
+  if (['ppt','pptx'].includes(ext)) return 'bi bi-file-earmark-ppt text-warning';
+  return 'bi bi-file-earmark';
+};
+const fmtBytes = (bytes?: number) => {
+  const b = Number(bytes || 0);
+  if (!b) return '—';
+  const u = ['B','KB','MB','GB','TB'];
+  const i = Math.floor(Math.log(b) / Math.log(1024));
+  const v = (b / Math.pow(1024, i)).toFixed(i ? 1 : 0);
+  return `${v} ${u[i]}`;
+};
+
+/** Devuelve el estado (loading + files[]) para una OC */
+const getAuthState = (oc:any): SolpedAuthState => {
   const sid = String(oc?.solpedId || '');
-  return solpedAuthById.value[sid] || { nombre: null, url: null, loading: false };
+  return solpedAuthById.value[sid] || { loading: false, files: [] };
 };
-const guessMime = (url?: string) => {
-  const u = String(url||'').toLowerCase();
-  if (u.endsWith('.pdf')) return 'application/pdf';
-  if (u.match(/\.(png|jpg|jpeg|gif|webp|bmp|svg)$/)) return 'image/*';
-  return '';
-};
+/** Lista de archivos de autorización para una OC */
+const getAuthList = (oc:any): SolpedAuthFile[] => getAuthState(oc).files || [];
+
+/** Carga perezosa: trae la SOLPED y llena `files`:
+ *  - Preferencia: `autorizaciones` (array de {nombre,url,tipo,tamano})
+ *  - Fallback: `autorizacion_url` / `autorizacion_nombre`
+ */
 const ensureSolpedAuthLoaded = async (oc:any) => {
   const sid = String(oc?.solpedId || '');
   if (!sid) return;
-  if (solpedAuthById.value[sid]?.loading) return;
-  if (sid in solpedAuthById.value && !solpedAuthById.value[sid].loading) return;
 
-  solpedAuthById.value[sid] = { nombre: null, url: null, loading: true };
+  // Si ya cargamos y no está en loading, no repetir
+  const cached = solpedAuthById.value[sid];
+  if (cached && !cached.loading) return;
+
+  solpedAuthById.value[sid] = { loading: true, files: [] };
   try {
-    const sref = doc(db, 'solpes', sid); // Cambia 'solpes' -> 'solped' si corresponde
+    const sref = doc(db, 'solpes', sid);
     const snap = await getDoc(sref);
-    let nombre: string | null = null;
-    let url: string | null = null;
 
+    let files: SolpedAuthFile[] = [];
     if (snap.exists()) {
       const d:any = snap.data() || {};
-      nombre = d.autorizacion_nombre ?? null;
-      url    = d.autorizacion_url ?? null;
+
+      // 1) Nuevo esquema: array `autorizaciones`
+      if (Array.isArray(d.autorizaciones) && d.autorizaciones.length) {
+        files = d.autorizaciones
+          .filter((x:any) => x?.url)
+          .map((x:any) => ({
+            nombre: x?.nombre || '',
+            url: String(x?.url),
+            tipo: x?.tipo || '',
+            tamano: Number(x?.tamano || 0)
+          }));
+      }
+
+      // 2) Fallback antiguo: autorizacion_url / autorizacion_nombre
+      if (!files.length && d.autorizacion_url) {
+        files = [{
+          nombre: d.autorizacion_nombre || 'Autorización',
+          url: String(d.autorizacion_url),
+          tipo: 'application/pdf', // supuesto seguro (se corrige al abrir)
+          tamano: undefined
+        }];
+      }
     }
-    solpedAuthById.value[sid] = { nombre, url, loading: false };
+
+    solpedAuthById.value[sid] = { loading: false, files };
   } catch (e) {
-    console.error('Error cargando autorización de SOLPED:', e);
-    solpedAuthById.value[sid] = { nombre: null, url: null, loading: false };
+    console.error('Error cargando autorizaciones de SOLPED:', e);
+    solpedAuthById.value[sid] = { loading: false, files: [] };
   }
 };
 
@@ -1005,6 +1119,26 @@ const rechazar = async (oc:any) => {
   position: absolute; inset: 0;
   background: rgba(0,0,0,.45);
   backdrop-filter: blur(1px);
+}
+/* ===== Autorizaciones responsive ===== */
+.auth-list { width: 100%; }
+.auth-item .card-body { padding: .75rem .8rem; }
+.minw-0 { min-width: 0; }             /* permite truncado correcto */
+.auth-ratio { border-radius: .5rem; overflow: hidden; background: var(--bs-tertiary-bg, #0b0f14); }
+.auth-iframe { width: 100%; height: 100%; border: 0; }
+.auth-img-wrap { max-height: 420px; overflow: auto; }
+.auth-img { max-height: 100%; object-fit: contain; }
+.auth-item .badge { font-weight: 500; }
+
+/* Botones apilados en móvil */
+@media (max-width: 576px){
+  .auth-img-wrap { max-height: 300px; }
+  .auth-item .d-sm-flex > .btn { width: 100%; }
+}
+
+/* Tablet: visor un poco más bajo para no romper layout */
+@media (min-width: 577px) and (max-width: 991.98px){
+  .auth-img-wrap { max-height: 360px; }
 }
 
 .oc-panel{

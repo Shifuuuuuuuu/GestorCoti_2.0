@@ -81,30 +81,88 @@
                 <div class="fw-semibold">{{ docData.nombre_solped || '—' }}</div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Autorización adjunta: visor diferido -->
-            <div v-if="docData.autorizacion_url" class="alert d-flex align-items-center mt-3">
-              <i class="bi bi-paperclip me-2"></i>
-              <div class="me-auto">
-                <div class="fw-semibold mb-0">Autorización adjunta</div>
-                <div class="small">{{ docData.autorizacion_nombre || 'Archivo' }}</div>
-              </div>
-              <div class="d-flex gap-2">
-                <a :href="docData.autorizacion_url" target="_blank" rel="noopener" class="btn btn-sm btn-primary">Descargar / Abrir</a>
-                <button class="btn btn-sm btn-outline-secondary" @click="mostrarVisor = !mostrarVisor">
-                  {{ mostrarVisor ? 'Ocultar visor' : 'Ver en visor' }}
-                </button>
+        <!-- Adjuntos (desde docData.autorizaciones[]) -->
+        <div class="card mb-3" v-if="Array.isArray(adjuntos) && adjuntos.length">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <span class="fw-semibold">📎 Documentos adjuntos</span>
+            <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ adjuntos.length }}</span>
+          </div>
+
+          <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+              <div
+                v-for="(f, i) in adjuntos"
+                :key="f.url + '_' + i"
+                class="list-group-item d-flex align-items-start gap-3"
+              >
+                <div class="fs-5 lh-1 mt-1" :title="f.tipo">
+                  <i :class="fileIcon(f)"></i>
+                </div>
+
+                <div class="flex-grow-1 min-w-0">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a
+                      class="fw-semibold text-decoration-none text-truncate"
+                      :href="f.url"
+                      target="_blank"
+                      rel="noopener"
+                      :title="f.nombre || 'archivo'"
+                    >
+                      {{ f.nombre || 'archivo' }}
+                    </a>
+                    <span class="badge bg-light text-body border">{{ prettyExt(f) }}</span>
+                    <span v-if="f.tamano" class="small text-secondary">· {{ fmtBytes(f.tamano) }}</span>
+                  </div>
+
+                  <div class="mt-2 d-flex gap-2 flex-wrap">
+                    <a
+                      class="btn btn-sm btn-primary"
+                      :href="f.url"
+                      target="_blank"
+                      rel="noopener"
+                      title="Abrir / Descargar"
+                    >
+                      <i class="bi bi-box-arrow-up-right me-1"></i> Abrir
+                    </a>
+
+                    <button
+                      v-if="isPreviewable(f)"
+                      class="btn btn-sm btn-outline-secondary"
+                      @click="togglePreview(i)"
+                    >
+                      <i class="bi" :class="previewOpen[i] ? 'bi-eye-slash' : 'bi-eye'"></i>
+                      {{ previewOpen[i] ? 'Ocultar visor' : 'Ver en visor' }}
+                    </button>
+                  </div>
+
+                  <!-- Visor inline -->
+                  <div v-if="previewOpen[i]" class="mt-3">
+                    <!-- PDF -->
+                    <div v-if="isPDF(f)" class="ratio ratio-16x9">
+                      <iframe :src="f.url + '#toolbar=0'" style="border:none;"></iframe>
+                    </div>
+                    <!-- Imagen -->
+                    <div v-else-if="isImage(f)" class="text-center">
+                      <img :src="f.url" :alt="f.nombre || 'imagen'" class="img-fluid rounded shadow-sm" style="max-height:480px;object-fit:contain;">
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div v-if="docData.autorizacion_url && mostrarVisor" class="mt-2">
-              <div v-if="isPDF(docData.autorizacion_nombre || docData.autorizacion_url)" class="ratio ratio-16x9">
-                <iframe :src="docData.autorizacion_url + '#toolbar=0'" style="border:none;"></iframe>
-              </div>
-              <div v-else class="text-center">
-                <img :src="docData.autorizacion_url" alt="Autorización" class="img-fluid rounded shadow-sm" style="max-height:480px;object-fit:contain;">
-              </div>
-            </div>
+        <!-- Si no hay adjuntos -->
+        <div class="card mb-3" v-else>
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <span class="fw-semibold">📎 Documentos adjuntos</span>
+            <span class="badge bg-secondary-subtle text-secondary-emphasis">0</span>
+          </div>
+          <div class="card-body text-secondary">
+            No hay adjuntos en esta SOLPED.
           </div>
         </div>
 
@@ -262,7 +320,8 @@
                     <span class="small text-secondary">{{ fmtFecha(h.fecha) }}</span>
                   </div>
                   <div class="small mt-1" v-if="h.usuario"><strong>Usuario:</strong> {{ h.usuario }}</div>
-                  <div class="small text-secondary" v-if="h.detalle">{{ h.detalle }} </div><div class="small text-secondary" v-if="h.ocNumero">Cotización :{{ h.ocNumero }} </div>
+                  <div class="small text-secondary" v-if="h.detalle">{{ h.detalle }} </div>
+                  <div class="small text-secondary" v-if="h.ocNumero">Cotización :{{ h.ocNumero }} </div>
                 </div>
               </li>
             </ul>
@@ -287,7 +346,13 @@ const loadingDoc = ref(true);
 const error      = ref('');
 const docData    = ref(null);
 
-const mostrarVisor = ref(false);
+/** Adjuntos (visor inline por índice) */
+const previewOpen = ref({});
+
+/** Mostrar/ocultar visor de un adjunto */
+const togglePreview = (i) => {
+  previewOpen.value[i] = !previewOpen.value[i];
+};
 
 const historial = ref([]);
 const cargandoHistorial = ref(true);
@@ -472,7 +537,7 @@ const cargarCotizacionesVinculadas = async (token) => {
 
     if (token !== loadToken) return;
     cotizaciones.value = Array.from(resultadosMap.values())
-      .sort((a, b) => dateLikeToMillis(b?.fechaSubida || b?.created_at || b?.createdAt) - dateLikeToMillis(a?.fechaSubida || a?.created_at || a?.createdAt));
+      .sort((a, b) => dateLikeToMillis(b?.fechaSubida || b?.created_at || b?.createdAt) - dateLikeToMillis(a?.fechaSubida || a?.created_at || a?.CreatedAt));
   } catch (e) {
     console.error('Error cargando cotizaciones vinculadas:', e);
     if (token !== loadToken) return;
@@ -480,6 +545,65 @@ const cargarCotizacionesVinculadas = async (token) => {
   } finally {
     if (token === loadToken) cargandoCots.value = false;
   }
+};
+
+// ====== Adjuntos (desde docData.autorizaciones) ======
+const adjuntos = computed(() => {
+  const arr = Array.isArray(docData.value?.autorizaciones) ? docData.value.autorizaciones : [];
+  return arr
+    .map(a => ({
+      nombre: a?.nombre || '',
+      url: a?.url || '',
+      tipo: a?.tipo || '',
+      tamano: Number(a?.tamano || 0),
+    }))
+    .filter(a => a.url);
+});
+
+const getExt = (f) => {
+  const name = String(f?.nombre || f?.url || '').toLowerCase();
+  const m = name.match(/\.([a-z0-9]+)(?:\?|#|$)/i);
+  return (m?.[1] || '').trim();
+};
+const prettyExt = (f) => {
+  const ext = getExt(f);
+  if (ext) return ext.toUpperCase();
+  const t = String(f?.tipo || '').split('/').pop();
+  return (t || 'FILE').toUpperCase();
+};
+
+const isPDF = (f) => {
+  const ext = getExt(f);
+  if (ext === 'pdf') return true;
+  const t = String(f?.tipo || '').toLowerCase();
+  return t.includes('application/pdf');
+};
+const isImage = (f) => {
+  const ext = getExt(f);
+  if (['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) return true;
+  const t = String(f?.tipo || '').toLowerCase();
+  return t.startsWith('image/');
+};
+const isPreviewable = (f) => isPDF(f) || isImage(f);
+
+const fileIcon = (f) => {
+  const ext = getExt(f);
+  if (isPDF(f)) return 'bi bi-file-earmark-pdf text-danger';
+  if (isImage(f)) return 'bi bi-file-earmark-image text-primary';
+  if (['xls','xlsx','csv'].includes(ext)) return 'bi bi-file-earmark-spreadsheet text-success';
+  if (['zip','rar','7z'].includes(ext)) return 'bi bi-file-earmark-zip';
+  if (['doc','docx'].includes(ext)) return 'bi bi-file-earmark-word text-primary';
+  if (['ppt','pptx'].includes(ext)) return 'bi bi-file-earmark-ppt text-warning';
+  return 'bi bi-file-earmark';
+};
+
+const fmtBytes = (bytes) => {
+  const b = Number(bytes || 0);
+  if (!b) return '—';
+  const u = ['B','KB','MB','GB','TB'];
+  const i = Math.floor(Math.log(b) / Math.log(1024));
+  const v = (b / Math.pow(1024, i)).toFixed(i ? 1 : 0);
+  return `${v} ${u[i]}`;
 };
 
 // ===== Derivados / helpers =====
@@ -546,11 +670,6 @@ const itemEstadoBadge = (e) => {
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
-const isPDF = (nameOrUrl = '') => {
-  const x = String(nameOrUrl).toLowerCase();
-  return x.endsWith('.pdf') || x.includes('application/pdf');
-};
-
 /** Link al detalle de OC/cotización (ajústalo a tu router) */
 const linkOC = (c) => {
   return { name: 'oc-detalle', params: { id: c.__docId }, query: { from: 'solped', solped: volverRouteId.value } };
@@ -610,6 +729,11 @@ const linkOC = (c) => {
   border:1px solid #e5e7eb;
   border-radius:.5rem;
   padding:.5rem .75rem;
+}
+
+/* Adjuntos */
+.list-group-item .bi {
+  vertical-align: -0.1rem;
 }
 
 /* Bootstrap placeholders look nicer with rounded corners */

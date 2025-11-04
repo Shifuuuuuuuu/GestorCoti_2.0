@@ -128,7 +128,7 @@ const PRIMARY_OPTIONS = [
 
       <!-- Brand -->
       <router-link to="/" class="navbar-brand fw-semibold me-2 order-1">
-        Xtreme Disponibilidad
+        Xtreme Solped
       </router-link>
 
       <!-- Grupo derecho (móvil): hamburguesa + Ajustes -->

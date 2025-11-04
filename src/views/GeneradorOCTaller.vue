@@ -9,7 +9,7 @@
           <i class="bi bi-arrow-left"></i> Volver
         </button>
 
-        <h1 class="h4 fw-semibold mb-0">Generador OC (Taller)</h1>
+        <h1 class="h4 fw-semibold mb-0">Generador Cotización (Taller)</h1>
 
         <button
           class="btn btn-secondary btn-sm"
@@ -18,22 +18,20 @@
           <i class="bi bi-search me-1"></i> {{ mostrarEquipos ? 'Ocultar' : 'Buscar' }} equipos
         </button>
       </div>
-
-      <!-- Toggle: Historial OC Taller (mes actual) -->
       <div class="d-flex justify-content-end mb-2">
         <button
           class="btn btn-secondary btn-sm"
           @click="toggleOCTallerMes"
           :aria-pressed="mostrarOCTallerMes.toString()">
           <i class="bi bi-receipt-cutoff me-1"></i>
-          {{ mostrarOCTallerMes ? 'Ocultar OC del mes' : 'Mostrar mis OC' }}
+          {{ mostrarOCTallerMes ? 'Ocultar Cotizaciones del mes' : 'Mostrar mis Cotizaciones' }}
         </button>
       </div>
 
       <!-- Card: OC Taller del mes actual -->
       <div v-if="mostrarOCTallerMes" class="card mb-3">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">🧾 OC Taller (mes actual)</div>
+          <div class="fw-semibold">🧾 Cotizaciones Taller (mes actual)</div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ ocTallerMes.length }} en total</span>
         </div>
 

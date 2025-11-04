@@ -37,8 +37,7 @@
             <div class="card-body py-2 d-flex flex-wrap align-items-center justify-content-between">
               <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-hdd"></i>
-                <strong>Guardado local (opcional)</strong>
-                <span class="text-muted">— conserva tus cambios si se cae Internet o se recarga la página.</span>
+                <strong>Guardado local</strong>
               </div>
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" id="swLocal" v-model="localConsent" @change="persistLocalConsent">

@@ -379,30 +379,71 @@
                     </div>
                   </div>
 
-                  <!-- Documento adjunto de autorización -->
+                  <!-- 📎 Autorizaciones -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                      <label class="form-label mb-0">📎 Documento adjunto de autorización</label>
-                      <span v-if="s.autorizacion_nombre" class="badge bg-secondary-subtle text-secondary-emphasis">
-                        {{ extFromName(s.autorizacion_nombre).toUpperCase() }}
-                      </span>
+                      <label class="form-label mb-0">📎 Documentos Adjuntos</label>
+                      <button
+                        class="btn btn-sm btn-outline-primary"
+                        @click="_filesCache[s.id] = _filesCache[s.id]; /* no-op para mantener simetría con Recargar de adjuntos */"
+                        title="Recargar (no necesario si vienen en el documento)"
+                      >
+                        Actualizar
+                      </button>
                     </div>
 
-                    <template v-if="s.autorizacion_url">
-                      <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <i class="bi" :class="iconFromExt(extFromName(s.autorizacion_nombre))" aria-hidden="true"></i>
-                        <a class="link-primary" :href="s.autorizacion_url" target="_blank" rel="noopener">
-                          {{ s.autorizacion_nombre || 'Ver documento' }}
-                        </a>
-                        <a class="btn btn-sm btn-outline-secondary" :href="s.autorizacion_url" target="_blank" rel="noopener" download>
-                          ver
-                        </a>
+                    <div v-if="normalizarAutorizaciones(s).length === 0" class="text-secondary small">
+                      No hay documentos de autorización.
+                    </div>
+
+                    <div v-else class="list-group">
+                      <div
+                        v-for="file in normalizarAutorizaciones(s)"
+                        :key="file.__k"
+                        class="list-group-item d-flex align-items-center flex-wrap gap-2"
+                      >
+                        <i class="bi" :class="iconFromExt(file.ext)" aria-hidden="true"></i>
+
+                        <div class="me-auto">
+                          <div class="fw-semibold">
+                            {{ file.name }}
+                            <span class="badge bg-light text-dark border ms-2">{{ (file.ext || 'file').toUpperCase() }}</span>
+                          </div>
+                          <div class="small text-secondary">
+                            {{ file.mime || '—' }}
+                            <span v-if="file.size"> · {{ (file.size/1024/1024).toFixed(2) }} MB</span>
+                          </div>
+                        </div>
+
+                        <!-- Acciones -->
+                        <div class="d-flex gap-2">
+                          <a
+                            v-if="file.canView"
+                            class="btn btn-sm btn-outline-primary"
+                            :href="file.href"
+                            target="_blank"
+                            rel="noopener"
+                            aria-label="Ver autorización"
+                          >
+                          <i class="bi bi-box-arrow-up-right me-1"></i>
+                            Ver
+                          </a>
+                          <a
+                            v-else
+                            class="btn btn-sm btn-outline-secondary"
+                            :href="file.href"
+                            download
+                            aria-label="Descargar autorización"
+                          >
+                          <i class="bi bi-arrow-bar-down"></i>
+                            Descargar
+                          </a>
+                        </div>
                       </div>
-                    </template>
-                    <div v-else class="text-secondary small">No hay documento adjunto.</div>
+                    </div>
                   </div>
 
-                  <!-- Cotizaciones vinculadas -->
+                  <!-- 🧾 Cotizaciones vinculadas -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">🧾 Cotizaciones vinculadas</label>
@@ -1307,9 +1348,11 @@ const limpiarFiltros = () => {
 };
 const extFromName = (name = '') => { const m = String(name).match(/\.([a-z0-9]+)$/i); return m ? m[1].toLowerCase() : ''; };
 const iconFromExt = (ext) => {
-  if (ext === 'pdf') return 'bi-file-earmark-pdf-fill text-danger';
-  if (ext === 'xls' || ext === 'xlsx') return 'bi-file-earmark-excel-fill text-success';
-  if (['png','jpg','jpeg','webp','gif'].includes(ext)) return 'bi-file-earmark-image-fill';
+  const e = (ext||'').toLowerCase();
+  if (e === 'pdf') return 'bi-file-earmark-pdf-fill text-danger';
+  if (e === 'xls' || e === 'xlsx' || e === 'csv') return 'bi-file-earmark-excel-fill text-success';
+  if (['png','jpg','jpeg','webp','gif','bmp','svg'].includes(e)) return 'bi-file-earmark-image-fill';
+  if (['zip','rar','7z'].includes(e)) return 'bi-file-earmark-zip-fill';
   return 'bi-paperclip';
 };
 const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x=>x!==s); applyFilters(); };
@@ -1511,6 +1554,85 @@ const descargarExcel = (solpe) => {
   }catch(e){ console.error(e); addToast('danger','No se pudo generar el Excel.'); }
 };
 
+/* ---------- Adjuntos múltiples (normalización y acciones) ---------- */
+
+
+
+/** Decide si se puede abrir en el navegador (vista externa) */
+const isViewableInBrowser = (ext='') => {
+  const e = String(ext).toLowerCase();
+  return ['pdf','png','jpg','jpeg','webp','gif','bmp','svg'].includes(e);
+};
+
+/** Normaliza diferentes esquemas a un arreglo común de { __k, name, href, mime, ext, canView } */
+const normalizeFiles = (s) => {
+  const out = [];
+
+  // 1) Firebase Storage: s.archivosStorage: [{ name, url, contentType }]
+  if (Array.isArray(s?.archivosStorage)) {
+    s.archivosStorage.forEach((it, idx) => {
+      const name = String(it?.name || `archivo_${idx+1}`);
+      const href = String(it?.url || it?.href || '');
+      const mime = String(it?.contentType || it?.mime || '');
+      const ext  = extFromName(name) || (mime.includes('/') ? mime.split('/')[1] : '');
+      out.push({
+        __k: `stg_${idx}_${s.id}`,
+        name, href, mime, ext,
+        canView: isViewableInBrowser(ext)
+      });
+    });
+  }
+
+  // 2) Legacy base64: s.archivosBase64: [{ name, base64, mime }]
+  if (Array.isArray(s?.archivosBase64)) {
+    s.archivosBase64.forEach((it, idx) => {
+      const name = String(it?.name || `archivo_${idx+1}`);
+      const mime = String(it?.mime || '');
+      const ext  = extFromName(name) || (mime.includes('/') ? mime.split('/')[1] : '');
+      const href = `data:${mime || 'application/octet-stream'};base64,${it?.base64 || ''}`;
+      out.push({
+        __k: `b64_${idx}_${s.id}`,
+        name, href, mime, ext,
+        canView: isViewableInBrowser(ext)
+      });
+    });
+  }
+
+  // 3) Genérico: s.adjuntos: [{ name, url/href, mime }]
+  if (Array.isArray(s?.adjuntos)) {
+    s.adjuntos.forEach((it, idx) => {
+      const name = String(it?.name || it?.nombre || `archivo_${idx+1}`);
+      const href = String(it?.url || it?.href || '');
+      const mime = String(it?.mime || '');
+      const ext  = extFromName(name) || (mime.includes('/') ? mime.split('/')[1] : '');
+      out.push({
+        __k: `gen_${idx}_${s.id}`,
+        name, href, mime, ext,
+        canView: isViewableInBrowser(ext)
+      });
+    });
+  }
+
+  // 4) Compatibilidad simple
+  if (!out.length && s?.archivo_url) {
+    const name = s?.archivo_nombre || 'archivo';
+    const href = s?.archivo_url;
+    const mime = s?.archivo_mime || '';
+    const ext  = extFromName(name) || (mime.includes('/') ? mime.split('/')[1] : '');
+    out.push({
+      __k: `single_${s.id}`,
+      name, href, mime, ext,
+      canView: isViewableInBrowser(ext)
+    });
+  }
+
+  return out;
+};
+
+/** Cache simple por SOLPED para no recalcular */
+const _filesCache = ref({});
+
+
 /* ---------- Init ---------- */
 onMounted(async () => {
   computeIsDesktop();
@@ -1579,6 +1701,8 @@ const onExpandCard = async (s) => {
   if (solpeExpandidaId.value === s.id) {
     await marcarComentariosVistos(s);
     if (!ocBySolped.value[s.id]) await fetchOCs(s.id);
+    // Precalentar cache de archivos al expandir
+    if (!_filesCache.value[s.id]) _filesCache.value[s.id] = normalizeFiles(s);
   }
 };
 
@@ -1639,6 +1763,47 @@ function cloneSolpedForEdit(s){
     usuario: base.usuario || '',
   };
 }
+/** Normaliza las AUTORIZACIONES desde:
+ *  a) s.autorizaciones: [{ nombre, tipo, url, tamano }]
+ *  b) s.autorizacion_url + s.autorizacion_nombre (legacy single)
+ * Devuelve: [{ __k, name, href, mime, ext, size, canView }]
+ */
+const normalizarAutorizaciones = (s) => {
+  const out = [];
+
+  // a) arreglo s.autorizaciones
+  if (Array.isArray(s?.autorizaciones)) {
+    s.autorizaciones.forEach((it, idx) => {
+      const name = String(it?.nombre || `autorizacion_${idx+1}`);
+      const href = String(it?.url || '');
+      const mime = String(it?.tipo || '');
+      const ext  = extFromName(name) || (mime.includes('/') ? mime.split('/')[1] : '');
+      out.push({
+        __k: `auth_${idx}_${s.id}`,
+        name, href, mime, ext,
+        size: Number(it?.tamano || 0),
+        canView: isViewableInBrowser(ext) || (mime ? isViewableInBrowser(mime.split('/')[1] || '') : false),
+      });
+    });
+  }
+
+  // b) campos sueltos s.autorizacion_url + s.autorizacion_nombre
+  if (s?.autorizacion_url) {
+    const name = s?.autorizacion_nombre || 'documento_autorizacion.pdf';
+    const href = s.autorizacion_url;
+    const mime = 'application/pdf';
+    const ext  = extFromName(name) || 'pdf';
+    out.unshift({
+      __k: `auth_single_${s.id}`,
+      name, href, mime, ext,
+      size: 0,
+      canView: true
+    });
+  }
+
+  return out;
+};
+
 const abrirEditar = (s) => {
   if (!puedeEditarSolped(s)) { addToast('danger', 'No puedes editar: sólo el generador, mismo día y dentro de 24h desde la creación.'); return; }
   editForm.value = cloneSolpedForEdit(s);
@@ -1795,8 +1960,7 @@ async function guardarEdicion(){
 /* Botón flotante filtros en móvil */
 .floating-filters-btn{
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: 16px; bottom: 16px;
   z-index: 20;
   border-radius: 10px;
   width: 48px; height: 48px;
@@ -1889,4 +2053,10 @@ async function guardarEdicion(){
 .oc-header{ padding: .9rem .9rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
 .oc-body{ padding: .9rem; overflow: auto; }
 .oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
+
+/* ===== Lista de adjuntos ===== */
+.list-group-item .bi-file-earmark-pdf-fill { color:#dc2626; }
+.list-group-item .bi-file-earmark-excel-fill { color:#16a34a; }
+.list-group-item .bi-file-earmark-image-fill { color:#2563eb; }
+.list-group-item .bi-paperclip { color:#6b7280; }
 </style>

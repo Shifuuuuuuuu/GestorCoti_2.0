@@ -138,7 +138,7 @@ const PRIMARY_OPTIONS = [
       <div class="d-flex align-items-center gap-2 w-100">
         <!-- Brand -->
         <router-link to="/" class="brand text-white text-decoration-none" @click="ui.closeSidebar?.()">
-          Xtreme Disponibilidad
+          Xtreme Solped
         </router-link>
 
         <!-- Botón AJUSTES (único) -->
