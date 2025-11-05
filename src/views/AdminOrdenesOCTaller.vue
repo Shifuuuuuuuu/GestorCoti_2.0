@@ -310,7 +310,7 @@
 
             <div class="col-12 col-md-5">
               <label class="form-label">Fecha subida</label>
-              <input type="datetime-local" class="form-control" v-model="fechaSubidaLocal">
+              <input type="text" class="form-control" :value="prettyTS(edit.fechaSubida)" disabled>
             </div>
 
             <div class="col-12 col-md-5">
@@ -348,16 +348,66 @@
               <input class="form-control" v-model="edit.aprobadorSugerido" placeholder="Juan Cubillos">
             </div>
 
-            <!-- Asociación SOLPED -->
-            <div class="col-12 col-md-4">
-              <label class="form-label">Número SOLPED (asociar)</label>
-              <input class="form-control" v-model="edit.numero_solped" placeholder="p.ej. 29">
-              <div class="form-text">Solo referencia visual / vínculo.</div>
+            <!-- Asociación SOLPED (NUEVO) -->
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between">
+                <label class="form-label fw-semibold mb-0">Asociar SOLPED (Pendiente / Parcial)</label>
+                <div>
+                  <span v-if="edit.solpedId" class="badge bg-primary me-2">
+                    Asociada: #{{ edit.numero_solped }}
+                  </span>
+                  <button
+                    v-if="edit.solpedId"
+                    class="btn btn-sm btn-outline-danger"
+                    :disabled="guardandoSolped"
+                    @click="quitarAsociacionSolped">
+                    Quitar asociación
+                  </button>
+                </div>
+              </div>
+
+              <div class="row g-2 align-items-center mt-1">
+                <div class="col-12 col-md-8">
+                  <select
+                    class="form-select"
+                    :disabled="cargandoSolpeds || guardandoSolped"
+                    v-model="solpedSeleccionId"
+                    @change="onSeleccionarSolped"
+                  >
+                    <option value="">— Selecciona una SOLPED —</option>
+                    <option
+                      v-for="s in solpedsFiltradas"
+                      :key="s.id"
+                      :value="s.id"
+                    >
+                      #{{ s.numero_solpe }} · {{ s.tipo_solped ?? 'SIN TIPO' }} · {{ s.centroCostoTexto ?? 's/CC' }} · {{ s.estatus }}
+                    </option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <input
+                    v-model="solpedBusqueda"
+                    type="text"
+                    class="form-control"
+                    placeholder="Buscar por número, tipo o CC…"
+                    :disabled="cargandoSolpeds"
+                  />
+                </div>
+              </div>
+
+              <div class="small mt-1">
+                <span v-if="cargandoSolpeds" class="text-secondary">Cargando SOLPEDs…</span>
+                <span v-else-if="!solpedsFiltradas.length" class="text-secondary">No hay SOLPEDs pendientes/parciales para mostrar.</span>
+              </div>
             </div>
+
+            <!-- Tipo SOLPED (se mantiene tal cual) -->
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="edit.tipo_solped" placeholder="Sin SOLPED / REPUESTOS / ...">
             </div>
+
+            <!-- Tipo compra -->
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo compra</label>
               <input class="form-control" v-model="edit.tipoCompra" placeholder="stock / emergencia / ...">
@@ -586,25 +636,33 @@
                   <i class="bi bi-plus-lg me-1"></i> Agregar
                 </button>
               </div>
-              <div class="list-group">
-                <div class="list-group-item" v-for="(h, ix) in edit.historial" :key="'h'+ix">
-                  <div class="row g-2 align-items-center">
-                    <div class="col-md-3">
-                      <input class="form-control form-control-sm" v-model="h.fecha" placeholder="ISO 2025-09-26T13:03:53.878Z">
-                    </div>
-                    <div class="col-md-4">
-                      <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
-                    </div>
-                    <div class="col-md-5 d-flex">
-                      <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
-                      <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
-                        <i class="bi bi-trash3"></i>
-                      </button>
+                <div class="list-group">
+                  <div class="list-group-item" v-for="(h, ix) in edit.historial" :key="'h'+ix">
+                    <div class="row g-2 align-items-center">
+                      <div class="col-md-3">
+                        <label class="form-label small mb-1">Fecha</label>
+                        <!-- Mostrar como readonly: usa la real si ya existe, si no la preview -->
+                        <input class="form-control form-control-sm"
+                              :value="prettyTS(h.fecha || h._previewFecha)"
+                              disabled>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label small mb-1">Estatus</label>
+                        <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
+                      </div>
+                      <div class="col-md-5">
+                        <label class="form-label small mb-1">Usuario</label>
+                        <div class="d-flex">
+                          <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
+                          <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
+                            <i class="bi bi-trash3"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  <div v-if="!edit.historial?.length" class="list-group-item text-secondary small">Sin historial.</div>
                 </div>
-                <div v-if="!edit.historial?.length" class="list-group-item text-secondary small">Sin historial.</div>
-              </div>
             </div>
 
           </div>
@@ -636,7 +694,8 @@
             </div>
             <div class="col-6 col-md-5">
               <label class="form-label">Fecha subida</label>
-              <input type="datetime-local" class="form-control" v-model="nuevoFechaSubidaLocal">
+              <input type="text" class="form-control" :value="prettyTS(new Date())" disabled>
+              <div class="form-text">Se guardará automáticamente con la hora del servidor.</div>
             </div>
             <div class="col-6 col-md-4">
               <label class="form-label">Empresa</label>
@@ -785,7 +844,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { db } from "../stores/firebase";
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp
+  doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, getDocs, serverTimestamp
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -856,11 +915,28 @@ const badgeClass = (estatus) => {
 };
 const prettyTS = (v) => {
   if (!v) return "—";
-  if (v instanceof Timestamp) return v.toDate().toISOString().replace("T"," ").replace("Z","");
-  if (v?.seconds) return new Date(v.seconds*1000).toISOString().replace("T"," ").replace("Z","");
+  // Firestore Timestamp
+  if (v instanceof Timestamp) {
+    const d = v.toDate();
+    return d.toISOString().replace("T"," ").replace("Z","");
+  }
+  // Objeto tipo { seconds, nanoseconds }
+  if (v?.seconds) {
+    const d = new Date(v.seconds * 1000);
+    return d.toISOString().replace("T"," ").replace("Z","");
+  }
+  // Date nativa
+  if (v instanceof Date) {
+    return v.toISOString().replace("T"," ").replace("Z","");
+  }
+  // FieldValue.serverTimestamp() u otro objeto
+  if (typeof v === "object") {
+    return "⏳ pendiente (servidor)";
+  }
   if (typeof v === "string") return v.replace("T"," ").replace("Z","");
   return String(v);
 };
+
 
 /* ---------- Paginación (tiempo real) ---------- */
 const visiblePageButtons = computed(() => {
@@ -1029,9 +1105,143 @@ const nuevosStorageFiles = ref([]);
 function onArchivosStorage(e){ nuevosStorageFiles.value = Array.from(e.target.files || []); }
 function eliminarArchivoStorage(ix){ edit.value.archivosStorage.splice(ix, 1); }
 
+/* ====== NUEVO: Asociación SOLPED ====== */
+const cargandoSolpeds = ref(false);
+const guardandoSolped = ref(false);
+const solpeds = ref([]); // {id, numero_solped, estatus, tipo_solped?, centroCostoTexto?}
+const solpedBusqueda = ref("");
+const solpedSeleccionId = ref("");
+
+const solpedsFiltradas = computed(() => {
+  const q = solpedBusqueda.value.trim().toLowerCase();
+  if (!q) return solpeds.value;
+  return solpeds.value.filter(s => {
+    const num = String(s.numero_solped ?? "").toLowerCase();
+    const tipo = String(s.tipo_solped ?? "").toLowerCase();
+    const cc = String(s.centroCostoTexto ?? "").toLowerCase();
+    return num.includes(q) || tipo.includes(q) || cc.includes(q);
+  });
+});
+
+async function cargarSolpedsPendientes(){
+  cargandoSolpeds.value = true;
+  try {
+    const colRef = collection(db, "solped_taller");
+    // Considera mayúsculas/minúsculas y ordena por numero_solpe
+    const q1 = query(
+      colRef,
+      where("estatus", "in", ["Pendiente","Parcial","pendiente","parcial"]),
+      orderBy("numero_solpe", "desc"),
+      limit(300)
+    );
+    const snap = await getDocs(q1);
+    const items = [];
+    snap.forEach(d => {
+      const x = d.data();
+      // IMPORTANTE: en solped_taller es numero_solpe (sin "d")
+      if (typeof x.numero_solpe === "number") {
+        items.push({
+          id: d.id,
+          numero_solpe: x.numero_solpe,
+          estatus: x.estatus ?? "",
+          tipo_solped: x.tipo_solped,           // si tu colección usa "tipo_solped" o "tipo_solpe", ajústalo aquí
+          centroCostoTexto: x.centroCostoTexto
+        });
+      }
+    });
+    // Orden: Parcial primero, luego por número desc
+    items.sort((a,b) => {
+      const ap = String(a.estatus).toLowerCase()==="parcial";
+      const bp = String(b.estatus).toLowerCase()==="parcial";
+      if (ap!==bp) return ap ? -1 : 1;
+      return (b.numero_solpe ?? 0) - (a.numero_solpe ?? 0);
+    });
+    solpeds.value = items;
+  } catch (e) {
+    console.error("cargarSolpedsPendientes:", e);
+    addToast("danger","Error cargando SOLPEDs.");
+  } finally {
+    cargandoSolpeds.value = false;
+  }
+}
+// Clonador que respeta Firestore Timestamp y FieldValue
+function safeCloneFirestore(x) {
+  if (x === null || typeof x !== "object") return x;
+  // Respeta Date y Firestore Timestamp
+  if (x instanceof Date || x instanceof Timestamp) return x;
+  // Respeta arreglos
+  if (Array.isArray(x)) return x.map(safeCloneFirestore);
+  // Clona objetos comunes SIN stringify y sin _previewFecha
+  const out = {};
+  for (const [k, v] of Object.entries(x)) {
+    if (k === "_previewFecha") continue; // no subir previews
+    out[k] = safeCloneFirestore(v);      // mantiene serverTimestamp() tal cual
+  }
+  return out;
+}
+
+
+async function onSeleccionarSolped(){
+  if (!seleccion.value) return;
+  guardandoSolped.value = true;
+  try {
+    const sel = solpeds.value.find(s => s.id === solpedSeleccionId.value);
+    const dref = doc(db, "ordenes_oc_taller", seleccion.value.__id);
+
+    if (!sel) {
+      guardandoSolped.value = false;
+      return;
+    }
+
+    // Guardamos en la OC: numero_solped (con "d") tomando el numero_solpe de la SOLPED
+    await updateDoc(dref, {
+      solpedId: sel.id,
+      numero_solped: sel.numero_solpe
+    });
+
+    // Reflejar en UI local
+    edit.value.solpedId = sel.id;
+    edit.value.numero_solped = sel.numero_solpe;
+
+    addToast("success","SOLPED asociada.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger","No se pudo asociar la SOLPED.");
+  } finally {
+    guardandoSolped.value = false;
+  }
+}
+
+
+async function quitarAsociacionSolped(){
+  if (!seleccion.value) return;
+  if (!confirm("¿Quitar la SOLPED asociada de esta orden?")) return;
+  guardandoSolped.value = true;
+  try {
+    const dref = doc(db, "ordenes_oc_taller", seleccion.value.__id);
+    await updateDoc(dref, {
+      solpedId: null,
+      numero_solped: null
+    });
+    edit.value.solpedId = null;
+    edit.value.numero_solped = null;
+    solpedSeleccionId.value = "";
+    addToast("success","Asociación eliminada.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger","No se pudo quitar la asociación.");
+  } finally {
+    guardandoSolped.value = false;
+  }
+}
+/* ====== FIN Asociación SOLPED ====== */
+
 function abrirEditor(row){
+  // Guarda la fila seleccionada (incluye __id)
   seleccion.value = row;
-  edit.value = deepClone({
+
+  // Clona y normaliza el objeto de edición
+  const base = deepClone({
     aprobadoPor: row.aprobadoPor ?? "",
     aprobadorSugerido: row.aprobadorSugerido ?? "",
     archivoOC: row.archivoOC ?? null,
@@ -1050,28 +1260,55 @@ function abrirEditor(row){
     responsable: row.responsable ?? "",
     tipoCompra: row.tipoCompra ?? "",
     tipo_solped: row.tipo_solped ?? "Sin SOLPED",
-    numero_solped: row.numero_solped ?? "",
+    numero_solped: row.numero_solped ?? null,
+    solpedId: row.solpedId ?? null,
     items: Array.isArray(row.items) ? deepClone(row.items) : []
   });
 
-  // Pintar inputs datetime-local
+  // --- Limpieza del historial ---
+  // Si la fecha ya es un Timestamp real (o {seconds,...}), eliminamos cualquier _previewFecha
+  base.historial = (base.historial || []).map(h => {
+    const hh = { ...h };
+    const hasRealTs =
+      (typeof hh.fecha?.toDate === "function") || // Timestamp de Firestore
+      (hh.fecha && typeof hh.fecha.seconds === "number"); // {seconds, nanoseconds}
+    if (hasRealTs && "_previewFecha" in hh) {
+      delete hh._previewFecha;
+    }
+    return hh;
+  });
+
+  edit.value = base;
+
+  // Inputs datetime-local
   fechaSubidaLocal.value = toLocalInputValue(edit.value.fechaSubida);
   fechaAprobacionLocal.value = toLocalInputValue(edit.value.fechaAprobacion);
 
+  // Abre el panel de edición
   editorAbierto.value = true;
 
-  // reset inputs file
+  // Resetea inputs de archivos
   const a = document.getElementById("inputArchivoOC"); if (a) a.value = "";
   const b = document.getElementById("inputArchivosStorage"); if (b) b.value = "";
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
+
+  // Cargar SOLPEDs y prefijar selección si ya tiene
+  cargarSolpedsPendientes().then(() => {
+    solpedSeleccionId.value = edit.value.solpedId || "";
+  });
 }
+
 function cerrarEditor(){
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
+  // limpiar selecciones solped
+  solpeds.value = [];
+  solpedBusqueda.value = "";
+  solpedSeleccionId.value = "";
 }
 
 /* Sincroniza datetime-local -> Timestamp */
@@ -1079,6 +1316,7 @@ watch(fechaSubidaLocal, (val) => {
   const d = fromLocalInputValue(val);
   edit.value.fechaSubida = d ? Timestamp.fromDate(d) : null;
 });
+
 watch(fechaAprobacionLocal, (val) => {
   const d = fromLocalInputValue(val);
   edit.value.fechaAprobacion = d ? Timestamp.fromDate(d) : null;
@@ -1134,7 +1372,7 @@ async function guardarEdicion() {
     const idDoc = seleccion.value.__id;
     const dref = doc(db, "ordenes_oc_taller", idDoc);
 
-    // Reemplazar archivoOC si corresponde
+    // 1) Reemplazar archivo OC si corresponde (fecha del archivo en server)
     if (archivoOCFile.value) {
       const storage = getStorage();
       const path = `ordenes_oc_taller/${idDoc}/oc_enviada_${Date.now()}_${archivoOCFile.value.name}`;
@@ -1145,46 +1383,20 @@ async function guardarEdicion() {
         nombre: archivoOCFile.value.name,
         tipo: archivoOCFile.value.type || "application/octet-stream",
         url,
-        fechaSubida: Timestamp.fromDate(new Date())
+        fechaSubida: serverTimestamp()     // ← queda como Timestamp real
       };
       archivoOCFile.value = null;
     }
 
-    // Agregar archivosStorage nuevos
-    if (nuevosStorageFiles.value?.length) {
-      const storage = getStorage();
-      const uploads = [];
-      for (const f of nuevosStorageFiles.value) {
-        const path = `ordenes_oc_taller/${idDoc}/${Date.now()}_${f.name}`;
-        const sRef = sref(storage, path);
-        const up = await uploadBytes(sRef, f);
-        const url = await getDownloadURL(up.ref);
-        uploads.push({ nombre: f.name, tipo: f.type || "application/octet-stream", url });
-      }
-      if (!Array.isArray(edit.value.archivosStorage)) edit.value.archivosStorage = [];
-      edit.value.archivosStorage.push(...uploads);
-      nuevosStorageFiles.value = [];
-    }
+    // 2) Preparar payload SIN perder tipos de Firestore
+    const payload = safeCloneFirestore(edit.value);
 
-    // Normalizaciones
-    if (typeof edit.value.id === "string") {
-      const n = parseInt(edit.value.id, 10);
-      edit.value.id = isNaN(n) ? null : n;
-    }
-    if (typeof edit.value.precioTotalConIVA === "string") {
-      const n = parseInt(edit.value.precioTotalConIVA, 10);
-      edit.value.precioTotalConIVA = isNaN(n) ? 0 : n;
-    }
-    if (Array.isArray(edit.value.items)) {
-      edit.value.items = edit.value.items.map(it => ({
-        ...it,
-        item: Number(it.item ?? 0),
-        cantidad: Number(it.cantidad ?? 0),
-        cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
-      }));
-    }
+    // NUNCA tocar fechaSubida original
+    delete payload.fechaSubida;
 
-    await updateDoc(dref, deepClone(edit.value));
+    // 3) Guardar
+    await updateDoc(dref, payload);
+
     addToast("success", "Orden OC Taller actualizada.");
     cerrarEditor();
   } catch (e) {
@@ -1195,15 +1407,20 @@ async function guardarEdicion() {
   }
 }
 
+
+
 /* ---------- Historial ---------- */
 function agregarHistorial(){
   if (!Array.isArray(edit.value.historial)) edit.value.historial = [];
   edit.value.historial.push({
     estatus: edit.value.estatus || "Actualizado",
-    fecha: new Date().toISOString(),
+    fecha: serverTimestamp(),        // se guardará en Firestore
+    _previewFecha: new Date(),       // solo para mostrar mientras tanto
     usuario: edit.value.responsable || edit.value.aprobadoPor || ""
   });
 }
+
+
 function eliminarHistorial(ix){ edit.value.historial.splice(ix, 1); }
 
 /* ---------- Modal de confirmación de borrado ---------- */
@@ -1298,13 +1515,17 @@ async function crearNueva(){
     const d = fromLocalInputValue(nuevoFechaSubidaLocal.value);
     nuevo.value.fechaSubida = d ? Timestamp.fromDate(d) : null;
 
-    // 1) crea doc base
     const payload = deepClone(nuevo.value);
     payload.archivoOC = null;
     payload.archivosStorage = [];
+
+    // Fecha subida automática del servidor
+    payload.fechaSubida = serverTimestamp();  // ← aquí
+    payload.fechaAprobacion = null;
+
     const dref = await addDoc(collection(db, "ordenes_oc_taller"), payload);
 
-    // 2) subir archivoOC si hay
+    // archivoOC inicial (con fecha del servidor)
     if (archivoOCNuevo.value) {
       const storage = getStorage();
       const path = `ordenes_oc_taller/${dref.id}/oc_enviada_${Date.now()}_${archivoOCNuevo.value.name}`;
@@ -1316,7 +1537,7 @@ async function crearNueva(){
           nombre: archivoOCNuevo.value.name,
           tipo: archivoOCNuevo.value.type || "application/octet-stream",
           url,
-          fechaSubida: Timestamp.fromDate(new Date())
+          fechaSubida: serverTimestamp()  // ← aquí
         }
       });
     }

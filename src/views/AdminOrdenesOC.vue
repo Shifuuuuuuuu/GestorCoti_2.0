@@ -313,14 +313,16 @@
               <input class="form-control" v-model.number="edit.id" type="number" min="0">
             </div>
 
+            <!-- FECHAS NO EDITABLES -->
             <div class="col-12 col-md-5">
               <label class="form-label">Fecha subida</label>
-              <input type="datetime-local" class="form-control" v-model="fechaSubidaLocal">
+              <input type="text" class="form-control" :value="prettyTS(edit.fechaSubida)" disabled>
+              <div class="form-text">Se fija automáticamente y no se modifica.</div>
             </div>
 
             <div class="col-12 col-md-5">
               <label class="form-label">Fecha aprobación</label>
-              <input type="datetime-local" class="form-control" v-model="fechaAprobacionLocal">
+              <input type="text" class="form-control" :value="prettyTS(edit.fechaAprobacion)" disabled>
             </div>
 
             <div class="col-6 col-md-3">
@@ -358,11 +360,42 @@
             </div>
 
             <!-- Asociación SOLPED -->
-            <div class="col-12 col-md-4">
-              <label class="form-label">Número SOLPED (asociar)</label>
-              <input class="form-control" v-model="edit.numero_solped" placeholder="p.ej. 29">
-              <div class="form-text">Se guarda para vincular visualmente con la SOLPED.</div>
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between">
+                <label class="form-label fw-semibold mb-0">Asociar SOLPED (Pendiente / Parcial)</label>
+                <div>
+                  <span v-if="edit.solpedId" class="badge bg-primary me-2">
+                    Asociada: #{{ edit.numero_solped }}
+                  </span>
+                  <button v-if="edit.solpedId" class="btn btn-sm btn-outline-danger" :disabled="guardandoSolped" @click="quitarAsociacionSolped">
+                    Quitar asociación
+                  </button>
+                </div>
+              </div>
+
+              <div class="row g-2 align-items-center mt-1">
+                <div class="col-12 col-md-8">
+                  <select class="form-select" :disabled="cargandoSolpeds || guardandoSolped" v-model="solpedSeleccionId" @change="onSeleccionarSolped">
+                    <option value="">— Selecciona una SOLPED —</option>
+                    <option v-for="s in solpedsFiltradas" :key="s.id" :value="s.id">
+                      #{{ s.numero_solpe }} · {{ s.tipo_solped ?? 'SIN TIPO' }} · {{ s.centroCostoTexto ?? 's/CC' }} · {{ s.estatus }}
+                    </option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <input v-model="solpedBusqueda" type="text" class="form-control" placeholder="Buscar por número, tipo o CC…" :disabled="cargandoSolpeds"/>
+                </div>
+              </div>
+              <div class="form-text">
+                Se guardan automáticamente <strong>numero_solped</strong> (número) y <strong>solpedId</strong>.
+              </div>
+              <div class="small mt-1">
+                <span v-if="cargandoSolpeds" class="text-secondary">Cargando SOLPEDs…</span>
+                <span v-else-if="!solpedsFiltradas.length" class="text-secondary">No hay SOLPEDs pendientes/parciales.</span>
+              </div>
             </div>
+
+            <!-- Campos misceláneos -->
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="edit.tipo_solped" placeholder="Sin SOLPED / REPUESTOS / ...">
@@ -471,7 +504,7 @@
                 <div class="list-group-item" v-for="(h, ix) in edit.historial" :key="'h'+ix">
                   <div class="row g-2 align-items-center">
                     <div class="col-md-3">
-                      <input class="form-control form-control-sm" v-model="h.fecha" placeholder="ISO 2025-09-26T13:03:53.878Z">
+                      <input class="form-control form-control-sm" :value="prettyTS(h.fecha ?? h._previewFecha)" disabled>
                     </div>
                     <div class="col-md-4">
                       <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
@@ -515,10 +548,14 @@
               <label class="form-label">ID</label>
               <input class="form-control" v-model.number="nuevo.id" type="number" min="0">
             </div>
+
+            <!-- Fecha subida - solo lectura; se guarda con serverTimestamp() -->
             <div class="col-6 col-md-5">
               <label class="form-label">Fecha subida</label>
-              <input type="datetime-local" class="form-control" v-model="nuevoFechaSubidaLocal">
+              <input type="text" class="form-control" :value="prettyTS(new Date())" disabled>
+              <div class="form-text">Se guardará automáticamente con la hora del servidor.</div>
             </div>
+
             <div class="col-6 col-md-4">
               <label class="form-label">Empresa</label>
               <input class="form-control" v-model="nuevo.empresa" placeholder="Xtreme Servicio">
@@ -666,34 +703,36 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { db } from "../stores/firebase";
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp
+  doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, getDocs, serverTimestamp
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 /* ========== Helpers de fecha ========== */
-function toDate(val){
-  if (!val) return null;
-  if (typeof val === "object" && typeof val.toDate === "function") { try { return val.toDate(); } catch { return null; } }
-  if (val && typeof val.seconds === "number") { return new Date(val.seconds * 1000 + Math.floor((val.nanoseconds || 0)/1e6)); }
-  if (val instanceof Date) return val;
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d;
-}
-function toLocalInputValue(value){
-  const d = toDate(value);
-  if (!d) return "";
-  const pad = (n) => String(n).padStart(2,"0");
-  const yyyy = d.getFullYear(), mm = pad(d.getMonth()+1), dd = pad(d.getDate()), hh = pad(d.getHours()), mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-}
-function fromLocalInputValue(val){
-  if (!val) return null;
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d;
+
+const prettyTS = (v) => {
+  if (!v) return "—";
+  if (v instanceof Timestamp) return v.toDate().toISOString().replace("T"," ").replace("Z","");
+  if (v?.seconds) return new Date(v.seconds*1000).toISOString().replace("T"," ").replace("Z","");
+  if (v instanceof Date) return v.toISOString().replace("T"," ").replace("Z","");
+  if (typeof v === "string") return v.replace("T"," ").replace("Z","");
+  return String(v);
+};
+
+/* ========== Clon seguro para Firestore (preserva Timestamp/FieldValue y omite _previewFecha) ========== */
+function safeCloneFirestore(x) {
+  if (x === null || typeof x !== "object") return x;
+  if (x instanceof Date || x instanceof Timestamp) return x;
+  if (Array.isArray(x)) return x.map(safeCloneFirestore);
+  const out = {};
+  for (const [k, v] of Object.entries(x)) {
+    if (k === "_previewFecha") continue;
+    out[k] = safeCloneFirestore(v);
+  }
+  return out;
 }
 
 /* ---------- Constantes ---------- */
@@ -738,13 +777,6 @@ const badgeClass = (estatus) => {
   if (s.includes("rechaz") || s.includes("anul")) return "bg-danger-subtle text-danger-emphasis";
   if (s.includes("solicit")) return "bg-warning-subtle text-warning-emphasis";
   return "bg-secondary-subtle text-secondary-emphasis";
-};
-const prettyTS = (v) => {
-  if (!v) return "—";
-  if (v instanceof Timestamp) return v.toDate().toISOString().replace("T"," ").replace("Z","");
-  if (v?.seconds) return new Date(v.seconds*1000).toISOString().replace("T"," ").replace("Z","");
-  if (typeof v === "string") return v.replace("T"," ").replace("Z","");
-  return String(v);
 };
 
 /* ---------- Paginación (tiempo real) ---------- */
@@ -900,10 +932,6 @@ const seleccion = ref(null);
 const edit = ref({});
 const guardando = ref(false);
 
-/* Campos de calendario (editor) */
-const fechaSubidaLocal = ref("");     // YYYY-MM-DDTHH:mm
-const fechaAprobacionLocal = ref(""); // YYYY-MM-DDTHH:mm
-
 // Archivo OC (único) - edición
 const archivoOCFile = ref(null);
 function onArchivoOC(e){ const f = (e.target.files || [])[0]; archivoOCFile.value = f || null; }
@@ -914,8 +942,112 @@ const nuevosStorageFiles = ref([]);
 function onArchivosStorage(e){ nuevosStorageFiles.value = Array.from(e.target.files || []); }
 function eliminarArchivoStorage(ix){ edit.value.archivosStorage.splice(ix, 1); }
 
+/* ====== ASOCIAR SOLPED ====== */
+const SOLPEDS_COL = "solpes"; // cambia si tu colección tiene otro nombre
+const cargandoSolpeds = ref(false);
+const guardandoSolped = ref(false);
+const solpeds = ref([]);                 // [{id, numero_solpe, estatus, tipo_solped?, centroCostoTexto?}]
+const solpedBusqueda = ref("");
+const solpedSeleccionId = ref("");
+
+const solpedsFiltradas = computed(() => {
+  const q = solpedBusqueda.value.trim().toLowerCase();
+  if (!q) return solpeds.value;
+  return solpeds.value.filter(s => {
+    const num = String(s.numero_solpe ?? "").toLowerCase();
+    const tipo = String(s.tipo_solped ?? "").toLowerCase();
+    const cc  = String(s.centroCostoTexto ?? "").toLowerCase();
+    return num.includes(q) || tipo.includes(q) || cc.includes(q);
+  });
+});
+
+async function cargarSolpedsPendientes(){
+  cargandoSolpeds.value = true;
+  try {
+    const colRef = collection(db, SOLPEDS_COL);
+    const q1 = query(
+      colRef,
+      where("estatus", "in", ["Pendiente","Parcial","pendiente","parcial"]),
+      orderBy("numero_solpe", "desc"),
+      limit(300)
+    );
+    const snap = await getDocs(q1);
+    const items = [];
+    snap.forEach(d => {
+      const x = d.data();
+      if (typeof x.numero_solpe === "number") {
+        items.push({
+          id: d.id,
+          numero_solpe: x.numero_solpe,
+          estatus: x.estatus ?? "",
+          tipo_solped: x.tipo_solped,
+          centroCostoTexto: x.centroCostoTexto
+        });
+      }
+    });
+    // Parciales primero
+    items.sort((a,b) => {
+      const ap = String(a.estatus).toLowerCase()==="parcial";
+      const bp = String(b.estatus).toLowerCase()==="parcial";
+      if (ap!==bp) return ap ? -1 : 1;
+      return (b.numero_solpe ?? 0) - (a.numero_solpe ?? 0);
+    });
+    solpeds.value = items;
+  } catch (e) {
+    console.error(e);
+    addToast("danger","Error cargando SOLPEDs.");
+  } finally {
+    cargandoSolpeds.value = false;
+  }
+}
+
+async function onSeleccionarSolped(){
+  if (!seleccion.value) return;
+  const sel = solpeds.value.find(s => s.id === solpedSeleccionId.value);
+  if (!sel) return;
+  guardandoSolped.value = true;
+  try {
+    const dref = doc(db, "ordenes_oc", seleccion.value.__id);
+    // Guardamos solo vínculo, NO tocamos ninguna fecha
+    await updateDoc(dref, {
+      solpedId: sel.id,
+      numero_solped: sel.numero_solpe
+    });
+    // Reflejar en UI
+    edit.value.solpedId = sel.id;
+    edit.value.numero_solped = sel.numero_solpe;
+    addToast("success","SOLPED asociada.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger","No se pudo asociar la SOLPED.");
+  } finally {
+    guardandoSolped.value = false;
+  }
+}
+
+async function quitarAsociacionSolped(){
+  if (!seleccion.value) return;
+  if (!confirm("¿Quitar la SOLPED asociada de esta orden?")) return;
+  guardandoSolped.value = true;
+  try {
+    const dref = doc(db, "ordenes_oc", seleccion.value.__id);
+    await updateDoc(dref, { solpedId: null, numero_solped: null });
+    edit.value.solpedId = null;
+    edit.value.numero_solped = null;
+    solpedSeleccionId.value = "";
+    addToast("success","Asociación eliminada.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger","No se pudo quitar la asociación.");
+  } finally {
+    guardandoSolped.value = false;
+  }
+}
+
+/* ---------- Abrir/Cerrar editor ---------- */
 function abrirEditor(row){
   seleccion.value = row;
+
   edit.value = deepClone({
     aprobadoPor: row.aprobadoPor ?? "",
     aprobadorSugerido: row.aprobadorSugerido ?? "",
@@ -927,8 +1059,8 @@ function abrirEditor(row){
     destinoCompra: row.destinoCompra ?? "",
     empresa: row.empresa ?? "Xtreme Servicio",
     estatus: row.estatus ?? "Solicitado",
-    fechaAprobacion: row.fechaAprobacion ?? null,
-    fechaSubida: row.fechaSubida ?? null,
+    fechaAprobacion: row.fechaAprobacion ?? null,  // NO editable al guardar
+    fechaSubida: row.fechaSubida ?? null,          // NO editable al guardar
     historial: Array.isArray(row.historial) ? deepClone(row.historial) : [],
     id: row.id ?? null,
     moneda: row.moneda ?? "CLP",
@@ -937,36 +1069,45 @@ function abrirEditor(row){
     tipoCompra: row.tipoCompra ?? "",
     tipo_solped: row.tipo_solped ?? "Sin SOLPED",
     numero_solped: row.numero_solped ?? "",
+    solpedId: row.solpedId ?? null,
     items: Array.isArray(row.items) ? deepClone(row.items) : []
   });
 
-  fechaSubidaLocal.value = toLocalInputValue(edit.value.fechaSubida);
-  fechaAprobacionLocal.value = toLocalInputValue(edit.value.fechaAprobacion);
+  // Si ya hay fecha real, limpiamos posibles _previewFecha
+  edit.value.historial = (edit.value.historial || []).map(h => {
+    const hh = { ...h };
+    const hasRealTs =
+      (typeof hh.fecha?.toDate === "function") ||
+      (hh.fecha && typeof hh.fecha.seconds === "number");
+    if (hasRealTs && "_previewFecha" in hh) delete hh._previewFecha;
+    return hh;
+  });
 
   editorAbierto.value = true;
 
+  // Files
   const a = document.getElementById("inputArchivoOC"); if (a) a.value = "";
   const b = document.getElementById("inputArchivosStorage"); if (b) b.value = "";
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
+
+  // Cargar SOLPEDs y prefijar selección
+  cargarSolpedsPendientes().then(() => {
+    solpedSeleccionId.value = edit.value.solpedId || "";
+  });
 }
+
 function cerrarEditor(){
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
+  // limpiar búsqueda/selección SOLPED
+  solpeds.value = [];
+  solpedBusqueda.value = "";
+  solpedSeleccionId.value = "";
 }
-
-/* Sincroniza datetime-local -> Timestamp */
-watch(fechaSubidaLocal, (val) => {
-  const d = fromLocalInputValue(val);
-  edit.value.fechaSubida = d ? Timestamp.fromDate(d) : null;
-});
-watch(fechaAprobacionLocal, (val) => {
-  const d = fromLocalInputValue(val);
-  edit.value.fechaAprobacion = d ? Timestamp.fromDate(d) : null;
-});
 
 /* ---------- Guardar Edición ---------- */
 async function guardarEdicion() {
@@ -976,6 +1117,7 @@ async function guardarEdicion() {
     const idDoc = seleccion.value.__id;
     const dref = doc(db, "ordenes_oc", idDoc);
 
+    // Reemplazar archivo OC con serverTimestamp()
     if (archivoOCFile.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${idDoc}/oc_enviada_${Date.now()}_${archivoOCFile.value.name}`;
@@ -986,11 +1128,12 @@ async function guardarEdicion() {
         nombre: archivoOCFile.value.name,
         tipo: archivoOCFile.value.type || "application/octet-stream",
         url,
-        fechaSubida: Timestamp.fromDate(new Date())
+        fechaSubida: serverTimestamp()
       };
       archivoOCFile.value = null;
     }
 
+    // Adjuntos múltiples
     if (nuevosStorageFiles.value?.length) {
       const storage = getStorage();
       const uploads = [];
@@ -1024,7 +1167,14 @@ async function guardarEdicion() {
       }));
     }
 
-    await updateDoc(dref, deepClone(edit.value));
+    // Clonar preservando Timestamps/FieldValues
+    const payload = safeCloneFirestore(edit.value);
+
+    // No tocar estas fechas en Firestore (se mantienen como estaban)
+    delete payload.fechaSubida;
+    delete payload.fechaAprobacion;
+
+    await updateDoc(dref, payload);
     addToast("success", "Orden OC actualizada.");
     cerrarEditor();
   } catch (e) {
@@ -1040,7 +1190,8 @@ function agregarHistorial(){
   if (!Array.isArray(edit.value.historial)) edit.value.historial = [];
   edit.value.historial.push({
     estatus: edit.value.estatus || "Actualizado",
-    fecha: new Date().toISOString(),
+    fecha: serverTimestamp(),    // Timestamp real del servidor
+    _previewFecha: new Date(),   // Solo para mostrar mientras llega el server
     usuario: edit.value.responsable || edit.value.aprobadoPor || ""
   });
 }
@@ -1076,9 +1227,6 @@ const archivoOCNuevo = ref(null);
 const archivoOCNuevoNombre = ref("");
 const previewArchivosStorageNuevo = ref([]);
 
-/* Calendario para nueva */
-const nuevoFechaSubidaLocal = ref("");
-
 function defaultNuevo(){
   return {
     id: null,
@@ -1109,7 +1257,6 @@ function abrirModalNueva(){
   archivoOCNuevo.value = null;
   archivoOCNuevoNombre.value = "";
   previewArchivosStorageNuevo.value = [];
-  nuevoFechaSubidaLocal.value = toLocalInputValue(new Date());
   modalNueva.value = true;
 }
 function cerrarModalNueva(){ modalNueva.value = false; }
@@ -1129,11 +1276,16 @@ async function crearNueva(){
       nuevo.value.precioTotalConIVA = isNaN(n) ? 0 : n;
     }
 
-    const d = fromLocalInputValue(nuevoFechaSubidaLocal.value);
-    nuevo.value.fechaSubida = d ? Timestamp.fromDate(d) : null;
+    const payload = safeCloneFirestore({
+      ...defaultNuevo(),
+      ...nuevo.value,
+      archivoOC: null,
+      archivosStorage: [],
+      fechaSubida: serverTimestamp(), // hora del server
+      fechaAprobacion: null,
+      historial: []
+    });
 
-    const payload = deepClone(nuevo.value);
-    payload.archivoOC = null; payload.archivosStorage = [];
     const dref = await addDoc(collection(db, "ordenes_oc"), payload);
 
     if (archivoOCNuevo.value) {
@@ -1147,7 +1299,7 @@ async function crearNueva(){
           nombre: archivoOCNuevo.value.name,
           tipo: archivoOCNuevo.value.type || "application/octet-stream",
           url,
-          fechaSubida: Timestamp.fromDate(new Date())
+          fechaSubida: serverTimestamp()
         }
       });
     }
