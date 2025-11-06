@@ -1367,7 +1367,7 @@ const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario) => 
     return { ...it, cantidad_cotizada: final, estado: estadoVisual, estado_cotizacion: estadoCot };
   });
 
-  await updateDoc(sref, { items: actualizados, estatus: "Pendiente" });
+  await updateDoc(sref, { items: actualizados, estatus: "Parcial" });
 
   const hcoll = collection(db, "solpes", solpedId, "historialEstados");
   await addDoc(hcoll, {

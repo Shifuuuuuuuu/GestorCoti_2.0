@@ -28,7 +28,7 @@
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
 
-        <!-- Controles en móvil: botón offcanvas (custom) -->
+        <!-- Controles en móvil -->
         <div class="d-flex d-md-none align-items-center gap-2 ms-auto order-3">
           <button
             class="btn btn-outline-primary btn-sm"
@@ -149,7 +149,6 @@
                   <div v-if="(oc.archivosStorage||[]).length" class="mb-3">
                     <div class="fw-semibold mb-2">📂 Archivos Adjuntos</div>
 
-                    <!-- BLOQUE ADJUNTOS con botón "Ver grande" y click en XS -->
                     <div v-for="(a,i) in oc.archivosStorage" :key="a.url" class="card mb-2">
                       <div class="card-header d-flex align-items-center flex-wrap gap-2">
                         <div class="fw-semibold me-auto text-truncate">{{ a.nombre || ('archivo_'+(i+1)) }}</div>
@@ -182,13 +181,11 @@
                         </div>
                       </div>
                     </div>
-                    <!-- FIN BLOQUE ADJUNTOS -->
                   </div>
 
                   <!-- ===== Autorizaciones (desde SOLPED) ===== -->
                   <div class="mb-3">
                     <div class="fw-semibold mb-2">📝 Autorizaciones (desde SOLPED)</div>
-
                     <div v-if="getAuthState(oc).loading" class="text-secondary small">Cargando documentos…</div>
 
                     <template v-else>
@@ -200,12 +197,10 @@
                         >
                           <div class="card-body py-2">
                             <div class="row g-2 align-items-start">
-                              <!-- Icono -->
                               <div class="col-auto">
                                 <i :class="fileIcon(f)" class="fs-4"></i>
                               </div>
 
-                              <!-- Info -->
                               <div class="col minw-0">
                                 <div class="d-flex flex-wrap align-items-center gap-2 minw-0">
                                   <span class="fw-semibold text-truncate flex-grow-1">{{ f.nombre || 'archivo' }}</span>
@@ -213,23 +208,16 @@
                                   <span v-if="f.tamano" class="small text-secondary">· {{ fmtBytes(f.tamano) }}</span>
                                 </div>
 
-                                <!-- Visor inline (responsive) -->
                                 <div v-if="authPreviewOpen[authKey(oc, idx)]" class="mt-2">
                                   <div v-if="isPDF(f)" class="ratio ratio-16x9 auth-ratio">
-                                    <iframe :src="f.url + '#toolbar=0'"
-                                            class="auth-iframe"
-                                            loading="lazy"></iframe>
+                                    <iframe :src="f.url + '#toolbar=0'" class="auth-iframe" loading="lazy"></iframe>
                                   </div>
                                   <div v-else-if="isImage(f)" class="text-center auth-img-wrap">
-                                    <img :src="f.url"
-                                        :alt="f.nombre || 'imagen'"
-                                        class="img-fluid rounded shadow-sm auth-img"
-                                        loading="lazy">
+                                    <img :src="f.url" :alt="f.nombre || 'imagen'" class="img-fluid rounded shadow-sm auth-img" loading="lazy">
                                   </div>
                                 </div>
                               </div>
 
-                              <!-- Acciones -->
                               <div class="col-12 col-sm-auto">
                                 <div class="d-grid d-sm-flex gap-2 justify-content-sm-end">
                                   <button class="btn btn-sm btn-primary" @click="openViewer(f)">
@@ -250,7 +238,7 @@
                               </div>
                             </div>
                           </div>
-                        </div> <!-- .auth-item -->
+                        </div>
                       </div>
 
                       <div v-else class="text-secondary small">
@@ -259,7 +247,6 @@
                     </template>
                   </div>
                   <!-- ===== Fin Autorizaciones ===== -->
-
 
                   <!-- Ítems -->
                   <div class="fw-semibold mb-2">📦 Ítems</div>
@@ -344,10 +331,8 @@
     <!-- Offcanvas filtros (móvil / tablet) - CUSTOM -->
     <transition name="oc">
       <div v-if="showFiltersMobile" class="oc-wrap d-lg-none" id="offFiltrosCustom">
-        <!-- backdrop -->
         <div class="oc-backdrop" @click="closeFiltersMobile"></div>
 
-        <!-- panel -->
         <div
           class="oc-panel"
           role="dialog"
@@ -373,7 +358,6 @@
           </div>
 
           <div class="oc-body">
-            <!-- Empresa -->
             <div class="mb-3">
               <label class="form-label">Empresa</label>
               <select v-model="empresaFiltro" class="form-select">
@@ -383,8 +367,6 @@
                 <option value="HORMIGONES">Xtreme Hormigones</option>
               </select>
             </div>
-
-            <!-- (agrega más filtros aquí si quieres) -->
           </div>
         </div>
       </div>
@@ -422,7 +404,6 @@
           </div>
 
           <div class="viewer-body">
-            <!-- Imagen con zoom -->
             <div v-if="isImage(viewerItem)" class="viewer-img-wrap">
               <img
                 :src="viewerItem.url"
@@ -433,7 +414,6 @@
               />
             </div>
 
-            <!-- PDF a todo alto -->
             <div v-else class="viewer-pdf-wrap">
               <iframe :src="viewerItem?.url" class="viewer-pdf" title="PDF"></iframe>
             </div>
@@ -446,7 +426,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
@@ -455,54 +435,53 @@ import {
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
-type Rol = 'GUILLERMO' | 'JUAN' | 'ALEJANDRO' | null;
+/* ====== Constantes de rol/limites ====== */
 const LIM_GUILLERMO = 250_000;
 const LIM_JUAN = 5_000_000;
 
+/* ====== Router + Auth ====== */
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
 
+/* ====== Estado base ====== */
 const cargando = ref(true);
-const ocs = ref<any[]>([]);
-const usuarioNombre = ref<string>('');
-const rolActual = ref<Rol>(null);
-let _unsub: any = null;
+const ocs = ref([]);
+const usuarioNombre = ref('');
+const rolActual = ref(null); // 'GUILLERMO' | 'JUAN' | 'ALEJANDRO' | null
+let _unsub = null;
 
-/* Toasts */
-const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
-const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) => {
-  const id = Date.now()+Math.random();
-  toasts.value.push({id,type,text});
-  setTimeout(()=>closeToast(id), timeout);
+/* ====== Toasts ====== */
+const toasts = ref([]);
+const addToast = (type, text, timeout = 2800) => {
+  const id = Date.now() + Math.random();
+  toasts.value.push({ id, type, text });
+  setTimeout(() => closeToast(id), timeout);
 };
-const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
+const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ===== Offcanvas custom (estado + helpers) ===== */
+/* ===== Offcanvas custom (móvil) ===== */
 const showFiltersMobile = ref(false);
 const toggleFiltersResponsive = () => { showFiltersMobile.value = !showFiltersMobile.value; };
 const closeFiltersMobile = () => { showFiltersMobile.value = false; };
-const applyFilters = () => { /* empresaFiltro es reactivo, queda por si agregas más filtros */ };
-const limpiarFiltros = () => {
-  empresaFiltro.value = 'TODAS';
-  // aquí resetea otros filtros cuando los agregues
-};
+const applyFilters = () => {};
+const limpiarFiltros = () => { empresaFiltro.value = 'TODAS'; };
 
 /* ===== Visor fullscreen de adjuntos ===== */
 const isXs = window.matchMedia('(max-width: 576px)').matches;
 const viewerOpen = ref(false);
-const viewerItem = ref<{url:string,tipo?:string,nombre?:string}|null>(null);
+const viewerItem = ref(null);
 const zoom = ref(1);
 const closeOnBackdrop = true;
 
-const isImage = (file:any) => {
+const isImage = (file) => {
   const t = String(file?.tipo || '');
   return t.includes('image') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(file?.url||'')); };
-const openViewer = (file:{url:string,tipo?:string,nombre?:string}) => {
+const openViewer = (file) => {
   viewerItem.value = file || null;
   viewerOpen.value = !!viewerItem.value;
   zoom.value = 1;
-  setTimeout(()=> { (document.querySelector('.viewer-wrap') as HTMLElement|undefined)?.focus(); }, 0);
+  setTimeout(()=> { (document.querySelector('.viewer-wrap'))?.focus(); }, 0);
 };
 const closeViewer = () => { viewerOpen.value = false; viewerItem.value = null; zoom.value = 1; };
 const zoomIn = () => { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2)); };
@@ -511,40 +490,34 @@ const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
 watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
 
-/* ===== Autorizaciones SOLPED (nuevo: múltiples archivos en `autorizaciones[]`) ===== */
-type SolpedAuthFile = { nombre?: string, url: string, tipo?: string, tamano?: number };
-type SolpedAuthState = { loading: boolean, files: SolpedAuthFile[] };
-
-const solpedAuthById = ref<Record<string, SolpedAuthState>>({});
-
-/** Clave única para toggle de preview inline por OC+índice */
-const authKey = (oc:any, idx:number) => `${oc.__docId || oc.solpedId || 'x'}_${idx}`;
-const authPreviewOpen = ref<Record<string, boolean>>({});
-const toggleAuthPreview = (oc:any, idx:number) => {
+/* ===== Autorizaciones SOLPED ===== */
+const solpedAuthById = ref({});
+const authKey = (oc, idx) => `${oc.__docId || oc.solpedId || 'x'}_${idx}`;
+const authPreviewOpen = ref({});
+const toggleAuthPreview = (oc, idx) => {
   const k = authKey(oc, idx);
   authPreviewOpen.value[k] = !authPreviewOpen.value[k];
 };
 
-/** Helpers de tipos de archivo */
-const getExt = (f: SolpedAuthFile) => {
+const getExt = (f) => {
   const name = String(f?.nombre || f?.url || '').toLowerCase();
   const m = name.match(/\.([a-z0-9]+)(?:\?|#|$)/i);
   return (m?.[1] || '').trim();
 };
-const prettyExt = (f: SolpedAuthFile) => {
+const prettyExt = (f) => {
   const ext = getExt(f);
   if (ext) return ext.toUpperCase();
   const t = String(f?.tipo || '').split('/').pop();
   return (t || 'FILE').toUpperCase();
 };
-const isPDF = (f: SolpedAuthFile) => {
+const isPDF = (f) => {
   const ext = getExt(f);
   if (ext === 'pdf') return true;
   const t = String(f?.tipo || '').toLowerCase();
   return t.includes('application/pdf');
 };
-const isPreviewable = (f: SolpedAuthFile) => isPDF(f) || isImage(f);
-const fileIcon = (f: SolpedAuthFile) => {
+const isPreviewable = (f) => isPDF(f) || isImage(f);
+const fileIcon = (f) => {
   const ext = getExt(f);
   if (isPDF(f)) return 'bi bi-file-earmark-pdf text-danger';
   if (isImage(f)) return 'bi bi-file-earmark-image text-primary';
@@ -554,7 +527,7 @@ const fileIcon = (f: SolpedAuthFile) => {
   if (['ppt','pptx'].includes(ext)) return 'bi bi-file-earmark-ppt text-warning';
   return 'bi bi-file-earmark';
 };
-const fmtBytes = (bytes?: number) => {
+const fmtBytes = (bytes) => {
   const b = Number(bytes || 0);
   if (!b) return '—';
   const u = ['B','KB','MB','GB','TB'];
@@ -563,23 +536,16 @@ const fmtBytes = (bytes?: number) => {
   return `${v} ${u[i]}`;
 };
 
-/** Devuelve el estado (loading + files[]) para una OC */
-const getAuthState = (oc:any): SolpedAuthState => {
+const getAuthState = (oc) => {
   const sid = String(oc?.solpedId || '');
   return solpedAuthById.value[sid] || { loading: false, files: [] };
 };
-/** Lista de archivos de autorización para una OC */
-const getAuthList = (oc:any): SolpedAuthFile[] => getAuthState(oc).files || [];
+const getAuthList = (oc) => getAuthState(oc).files || [];
 
-/** Carga perezosa: trae la SOLPED y llena `files`:
- *  - Preferencia: `autorizaciones` (array de {nombre,url,tipo,tamano})
- *  - Fallback: `autorizacion_url` / `autorizacion_nombre`
- */
-const ensureSolpedAuthLoaded = async (oc:any) => {
+const ensureSolpedAuthLoaded = async (oc) => {
   const sid = String(oc?.solpedId || '');
   if (!sid) return;
 
-  // Si ya cargamos y no está en loading, no repetir
   const cached = solpedAuthById.value[sid];
   if (cached && !cached.loading) return;
 
@@ -588,15 +554,14 @@ const ensureSolpedAuthLoaded = async (oc:any) => {
     const sref = doc(db, 'solpes', sid);
     const snap = await getDoc(sref);
 
-    let files: SolpedAuthFile[] = [];
+    let files = [];
     if (snap.exists()) {
-      const d:any = snap.data() || {};
+      const d = snap.data() || {};
 
-      // 1) Nuevo esquema: array `autorizaciones`
       if (Array.isArray(d.autorizaciones) && d.autorizaciones.length) {
         files = d.autorizaciones
-          .filter((x:any) => x?.url)
-          .map((x:any) => ({
+          .filter((x) => x?.url)
+          .map((x) => ({
             nombre: x?.nombre || '',
             url: String(x?.url),
             tipo: x?.tipo || '',
@@ -604,12 +569,11 @@ const ensureSolpedAuthLoaded = async (oc:any) => {
           }));
       }
 
-      // 2) Fallback antiguo: autorizacion_url / autorizacion_nombre
       if (!files.length && d.autorizacion_url) {
         files = [{
           nombre: d.autorizacion_nombre || 'Autorización',
           url: String(d.autorizacion_url),
-          tipo: 'application/pdf', // supuesto seguro (se corrige al abrir)
+          tipo: 'application/pdf',
           tamano: undefined
         }];
       }
@@ -622,8 +586,8 @@ const ensureSolpedAuthLoaded = async (oc:any) => {
   }
 };
 
-/* Empresa */
-const normalizeCompany = (raw:string) => {
+/* ===== Empresa / etiquetas ===== */
+const normalizeCompany = (raw) => {
   const s = String(raw||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toUpperCase();
   if (!s) return '';
   if (s.includes('SERV')) return 'SERVICIOS';
@@ -631,7 +595,7 @@ const normalizeCompany = (raw:string) => {
   if (s.includes('HORMIG')) return 'HORMIGONES';
   return s;
 };
-const empresaFiltro = ref<'TODAS'|'SERVICIOS'|'MINING'|'HORMIGONES'>('TODAS');
+const empresaFiltro = ref('TODAS'); // 'TODAS'|'SERVICIOS'|'MINING'|'HORMIGONES'
 const etiquetaEmpresaFiltro = computed(() => {
   switch (empresaFiltro.value) {
     case 'SERVICIOS': return 'Xtreme Servicios';
@@ -641,8 +605,8 @@ const etiquetaEmpresaFiltro = computed(() => {
   }
 });
 
-/* Rol/estatus */
-const mapNombreARol = (fullName: string): Rol => {
+/* ===== Rol / estatus ===== */
+const mapNombreARol = (fullName) => {
   const n = (fullName || '').trim().toLowerCase();
   if (n === 'guillermo manzor') return 'GUILLERMO';
   if (n === 'juan cubillos') return 'JUAN';
@@ -656,8 +620,8 @@ const estatusFiltrado = computed(() => {
   return '';
 });
 
-/* Badges / util */
-const estadoBadgeClass = (estatus: string) => {
+/* ===== Badges / util ===== */
+const estadoBadgeClass = (estatus) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
   if (s.includes('preaprob')) return 'bg-info-subtle text-info-emphasis';
@@ -667,7 +631,7 @@ const estadoBadgeClass = (estatus: string) => {
   if (s.includes('proveedor')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
-const badgeItem = (estado?: string) => {
+const badgeItem = (estado) => {
   const s = (estado || 'pendiente').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
   if (s.includes('revis')) return 'bg-warning-subtle text-warning-emphasis';
@@ -675,7 +639,7 @@ const badgeItem = (estado?: string) => {
   if (s.includes('complet')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
-const fmtFecha = (f:any) => {
+const fmtFecha = (f) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : new Date(f));
     if (!d || isNaN(d.getTime())) return '—';
@@ -683,13 +647,13 @@ const fmtFecha = (f:any) => {
   } catch { return '—'; }
 };
 
-/* Derivados */
+/* ===== Derivados ===== */
 const ocsFiltradas = computed(() => {
   if (empresaFiltro.value === 'TODAS') return ocs.value;
   return ocs.value.filter(oc => normalizeCompany(oc.empresa) === empresaFiltro.value);
 });
 
-/* Suscripción */
+/* ===== Suscripción ===== */
 const subscribe = () => {
   if (_unsub) { _unsub(); _unsub = null; }
   cargando.value = true;
@@ -702,11 +666,11 @@ const subscribe = () => {
     orderBy('fechaSubida', 'desc')
   );
   _unsub = onSnapshot(qy, (snap) => {
-    const arr:any[] = [];
+    const arr = [];
     snap.forEach(d => {
-      const data:any = d.data();
+      const data = d.data();
       const archivos = Array.isArray(data.archivosStorage)
-        ? data.archivosStorage.map((a:any)=>({ ...a, ver:false }))
+        ? data.archivosStorage.map((a)=>({ ...a, ver:false }))
         : [];
       arr.push({
         __docId: d.id,
@@ -738,12 +702,10 @@ onMounted(async () => {
           const d = us.data() || {};
           fullName = d.fullName || fullName;
         }
-      } catch {}
+      } catch(e) {console.warn('No se pudo obtener nombre completo de usuario:', e);}
     }
     usuarioNombre.value = fullName || '';
-
     rolActual.value = mapNombreARol(usuarioNombre.value);
-
     if (!rolActual.value) {
       cargando.value = false;
       return;
@@ -755,107 +717,176 @@ onMounted(async () => {
     cargando.value = false;
   }
 });
-
 onBeforeUnmount(()=>{ if (_unsub) _unsub(); });
 watch(rolActual, () => { subscribe(); });
 
-/* Acciones */
-const accionando = ref(false);
-const irASolped = (oc:any) => {
+/* ===== Navegación a SOLPED ===== */
+const irASolped = (oc) => {
   const id = oc?.solpedId;
   if (!id) { addToast('warning','Esta OC no tiene SOLPED asociada.'); return; }
   try { router.push({ name: 'SolpedDetalle', params: { id } }); }
   catch { router.push(`/solped/${id}`); }
 };
 
-const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, estatusOC, comentario }:{
-  solpedId: string, ocNumero?: number|string|null, usuario: string, estatusOC: string, comentario: string
-}) => {
+/* ===== Historial en solpes/historialEstados (por cambio de estatus OC) ===== */
+const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, estatusOC, comentario }) => {
   if (!solpedId) return;
   try {
+    dlog('SOLPED:historialEstados:fromOC', {
+      solpedId, ocNumero, usuario, estatusOC, comentario
+    });
     const sref = doc(db, 'solpes', String(solpedId));
     await addDoc(collection(sref, 'historialEstados'), {
-      origen: 'Acción OC',
-      usuario: usuario || '—',
       estatus: estatusOC,
+      fecha: serverTimestamp(),
+      usuario: usuario || '—',
+      origen: 'Acción OC',
       detalle: comentario || '',
       comentario: comentario || '',
-      ocNumero: ocNumero ?? null,
-      fecha: serverTimestamp()
+      ocNumero: ocNumero ?? null
     });
-  } catch (e) { console.warn('No se pudo registrar acción de OC en historialEstados de la SOLPED:', e); }
+  } catch (e) {
+    console.warn('No se pudo registrar acción de OC en historialEstados de la SOLPED:', e);
+  }
 };
 
-const actualizarSolpedConOC = async (oc:any, aprobador:string, comentario:string, estatusOC?: string) => {
+
+/* ===== Actualizar SOLPED con los avances de esta OC (suma segura) =====
+   - Match: numero_interno → código referencial → item → (descripción única)
+   - Suma segura sin pasar cantidad.
+   - Recalcula SIEMPRE estado de cada ítem (completo/parcial/pendiente).
+   - Recalcula estatus global (Completado/Parcial/Pendiente).
+*/
+const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
   const solpedId = oc?.solpedId; if (!solpedId) return;
   const sref = doc(db, 'solpes', String(solpedId));
   const ss = await getDoc(sref); if (!ss.exists()) return;
 
-  const sdata:any = ss.data() || {};
-  const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
+  const sdata = ss.data() || {};
+  const itemsSol = Array.isArray(sdata.items) ? [...sdata.items] : [];
+  const ocItems = Array.isArray(oc.items) ? oc.items : [];
+  const ocKey = String(oc.id ?? oc.__docId ?? '');
+
+  dlog('SOLPED:update:init', {
+    solpedId, ocId: oc.id, ocKey,
+    itemsOC: s(ocItems),
+    itemsSolpedBefore: s(itemsSol.map(it => ({
+      item: it.item, desc: it.descripcion, cant: it.cantidad, cot: it.cantidad_cotizada, estado: it.estado, cotPorOC: it.cotPorOC
+    })))
+  });
+
   let huboAvance = false;
 
-  if (itemsSol.length) {
-    const idxNI = new Map<string, number>();
-    const idxCR = new Map<string, number>();
-    const idxDesc = new Map<string, number>();
-    const norm = (x:any) => String(x||'').trim().toLowerCase();
+  const norm = (x) => String(x||'').trim().toLowerCase();
+  const idxNI = new Map(), idxCR = new Map(), idxItemNum = new Map(), descCount = new Map();
 
-    itemsSol.forEach((it, i) => {
-      const ni = norm(it.numero_interno);
-      const cr = norm(it.codigo_referencial);
-      const ds = norm(it.descripcion);
-      if (ni) idxNI.set(ni, i);
-      if (cr) idxCR.set(cr, i);
-      if (ds) idxDesc.set(ds, i);
+  itemsSol.forEach((it, i) => {
+    const ni = norm(it.numero_interno);
+    const cr = norm(it.codigo_referencial);
+    const itn = (it.item != null) ? String(it.item) : '';
+    const ds = norm(it.descripcion);
+    if (ni) idxNI.set(ni, i);
+    if (cr) idxCR.set(cr, i);
+    if (itn) idxItemNum.set(itn, i);
+    if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
+  });
+
+  const findIndex = (ocIt) => {
+    const kNI = norm(ocIt.numero_interno);
+    const kCR = norm(ocIt.codigo_referencial);
+    const kIT = (ocIt.item != null) ? String(ocIt.item) : '';
+    const kDS = norm(ocIt.descripcion);
+    if (kNI && idxNI.has(kNI)) return idxNI.get(kNI);
+    if (kCR && idxCR.has(kCR)) return idxCR.get(kCR);
+    if (kIT && idxItemNum.has(kIT)) return idxItemNum.get(kIT);
+    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(s => norm(s.descripcion) === kDS);
+    return -1;
+  };
+
+  // 1) Aplicar deltas de esta OC (si los hay)
+  ocItems.forEach(ocIt => {
+    const idx = findIndex(ocIt);
+    if (idx < 0) { dlog('SOLPED:update:no-match', { ocIt: s(ocIt) }); return; }
+
+    const before = s(itemsSol[idx]);
+    const sIt = { ...itemsSol[idx] };
+
+    const cantSolic = Number(sIt.cantidad || 0);
+    const ya = Number(sIt.cantidad_cotizada || 0);
+    if (!sIt.cotPorOC || typeof sIt.cotPorOC !== 'object') sIt.cotPorOC = {};
+
+    const totalEnOC = Number(ocIt.cantidad_cotizada || 0);
+    const yaAportadoPorEstaOC = Number(sIt.cotPorOC[ocKey] || 0);
+
+    let delta = totalEnOC - yaAportadoPorEstaOC;
+    let nuevo = ya + delta;
+
+    dlog('SOLPED:update:calc-beforeClamp', {
+      matchIndex: idx, ocIt: s(ocIt), itemBefore: before,
+      cantSolic, ya, totalEnOC, yaAportadoPorEstaOC, delta, nuevo
     });
 
-    const ocItems:any[] = Array.isArray(oc.items) ? oc.items : [];
-    ocItems.forEach(ocIt => {
-      const delta = Number(ocIt.cantidad_cotizada ?? 0);
-      if (!isFinite(delta) || isNaN(delta) || delta <= 0) return;
+    if (!isFinite(delta) || isNaN(delta) || delta <= 0) {
+      dlog('SOLPED:update:skip-delta<=0', { idx, delta, totalEnOC, yaAportadoPorEstaOC });
+      return;
+    }
 
-      const kNI = norm(ocIt.numero_interno);
-      const kCR = norm(ocIt.codigo_referencial);
-      const kDS = norm(ocIt.descripcion);
+    if (nuevo > cantSolic) {
+      delta -= (nuevo - cantSolic);
+      nuevo = cantSolic;
+      dlog('SOLPED:update:clamped', { idx, delta, nuevo, cantSolic });
+      if (delta <= 0) return;
+    }
 
-      let idx = -1;
-      if (kNI && idxNI.has(kNI)) idx = idxNI.get(kNI)!;
-      else if (kCR && idxCR.has(kCR)) idx = idxCR.get(kCR)!;
-      else if (kDS && idxDesc.has(kDS)) idx = idxDesc.get(kDS)!;
+    sIt.cotPorOC[ocKey] = yaAportadoPorEstaOC + delta;
+    sIt.cantidad_cotizada = nuevo;
 
-      if (idx >= 0) {
-        const sIt = { ...itemsSol[idx] };
-        const cantSolic = Number(sIt.cantidad || 0);
-        const ya = Number(sIt.cantidad_cotizada || 0);
-        let nuevo = ya + delta;
-        if (!isFinite(nuevo)) nuevo = ya;
-        if (nuevo > cantSolic) nuevo = cantSolic;
+    itemsSol[idx] = sIt;
+    huboAvance = true;
 
-        if (nuevo !== ya) {
-          huboAvance = true;
-          sIt.cantidad_cotizada = nuevo;
+    dlog('SOLPED:update:item-after', { matchIndex: idx, itemAfter: s(itemsSol[idx]) });
+  });
 
-          if (cantSolic > 0 && nuevo >= cantSolic) sIt.estado = 'completo';
-          else if (nuevo > 0)                     sIt.estado = 'parcial';
-          else                                     sIt.estado = sIt.estado || 'pendiente';
-
-          itemsSol[idx] = sIt;
-        }
-      }
-    });
+  // 2) Recalcular SIEMPRE estado por ítem
+  let cambiosEstado = false;
+  for (let i = 0; i < itemsSol.length; i++) {
+    const it = itemsSol[i];
+    const cant = Number(it.cantidad || 0);
+    const cot  = Number(it.cantidad_cotizada || 0);
+    const nuevoEstado = (cot >= cant && cant > 0) ? 'completado'
+                     : (cot > 0) ? 'parcial'
+                     : 'pendiente';
+    if ((it.estado || '') !== nuevoEstado) {
+      itemsSol[i] = { ...it, estado: nuevoEstado };
+      cambiosEstado = true;
+    }
   }
 
-  if (huboAvance) {
-    const tot = itemsSol.length;
-    const completos = itemsSol.filter(x => String(x.estado||'').toLowerCase().includes('complet')).length;
-    const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Completado' : 'Parcial';
+  // 3) Recalcular estatus global
+  const allFull = itemsSol.every(x => Number(x.cantidad_cotizada || 0) >= Number(x.cantidad || 0));
+  const anyCot  = itemsSol.some(x => Number(x.cantidad_cotizada || 0) > 0);
+  const nuevoEstatusSol = allFull ? 'Completado' : (anyCot ? 'Parcial' : 'Pendiente');
+
+  dlog('SOLPED:update:huboAvance?', { huboAvance, cambiosEstado, nuevoEstatusSol });
+
+  // 4) Escribir sólo si hay algo que cambiar (delta o estados/estatus)
+  const debeActualizar = huboAvance || cambiosEstado || (String(sdata.estatus || '') !== String(nuevoEstatusSol));
+  if (debeActualizar) {
+    dlog('SOLPED:update:pre-updateDoc', {
+      solpedId,
+      nuevoEstatusSol,
+      resumenItems: s(itemsSol.map(it => ({
+        item: it.item, desc: it.descripcion, cant: it.cantidad, cot: it.cantidad_cotizada, estado: it.estado, aportadoOCActual: it.cotPorOC?.[ocKey] ?? 0
+      })))
+    });
 
     await updateDoc(sref, {
       items: itemsSol,
       estatus: nuevoEstatusSol,
       updated_at: new Date()
     });
+
+    dlog('SOLPED:update:post-updateDoc', { solpedId, nuevoEstatusSol });
 
     try {
       await addDoc(collection(sref, 'historialEstados'), {
@@ -867,12 +898,17 @@ const actualizarSolpedConOC = async (oc:any, aprobador:string, comentario:string
         ocNumero: oc?.id ?? null,
         fecha: serverTimestamp()
       });
+      dlog('SOLPED:update:historialEstados:ok', { solpedId, nuevoEstatusSol });
     } catch (e) {
       console.warn('No se pudo registrar historialEstados (operativo) de la SOLPED:', e);
     }
   }
 
+  // 5) Registrar el movimiento de la OC (Aprobado/Preaprobado/…)
   if (estatusOC) {
+    dlog('SOLPED:update:registrarHistorialSolpedAccionOC', {
+      solpedId, ocNumero: oc?.id, estatusOC, comentario
+    });
     await registrarHistorialSolpedAccionOC({
       solpedId,
       ocNumero: oc?.id,
@@ -883,7 +919,52 @@ const actualizarSolpedConOC = async (oc:any, aprobador:string, comentario:string
   }
 };
 
-const solicitarAclaracion = async (oc:any) => {
+// ===== DEBUG helper =====
+const DEBUG = true;
+const s = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
+const dlog = (tag, payload = {}) => {
+  if (!DEBUG) return;
+  try { console.groupCollapsed(`[AprobOC] ${tag}`); console.log(payload); }
+  finally { console.groupEnd?.(); }
+};
+
+
+/* ===== Cerrar SOLPED si todos los ítems completados ===== */
+const cerrarSolpedSiCompleta = async (solpedId) => {
+  if (!solpedId) return;
+  try {
+    const sref = doc(db, 'solpes', solpedId);
+    const ss = await getDoc(sref);
+    if (!ss.exists()) return;
+
+    const data = ss.data() || {};
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) return;
+
+    const resumen = items.map(it => ({
+      item: it.item, desc: it.descripcion, cant: it.cantidad, cot: it.cantidad_cotizada, estado: it.estado
+    }));
+    const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
+
+    dlog('SOLPED:cerrarSiCompleta:check', {
+      solpedId, estatusActual: data.estatus, todosCompletos, resumen
+    });
+
+    if (todosCompletos && (data.estatus || '').toLowerCase() !== 'completado') {
+      await updateDoc(sref, { estatus: 'Completado' });
+      dlog('SOLPED:cerrarSiCompleta:marcadaCompletada', { solpedId });
+      addToast('success', 'SOLPED completada ✔');
+    }
+  } catch (e) {
+    console.error('cerrarSolpedSiCompleta:', e);
+  }
+};
+
+
+/* ===== Acciones ===== */
+const accionando = ref(false);
+
+const solicitarAclaracion = async (oc) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de solicitar aclaración.'); return; }
@@ -919,28 +1000,7 @@ const solicitarAclaracion = async (oc:any) => {
   }
 };
 
-const cerrarSolpedSiCompleta = async (solpedId?: string) => {
-  if (!solpedId) return;
-  try {
-    const sref = doc(db, 'solpes', solpedId);
-    const ss = await getDoc(sref);
-    if (!ss.exists()) return;
-
-    const data:any = ss.data() || {};
-    const items:any[] = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) return;
-
-    const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
-    if (todosCompletos && (data.estatus || '').toLowerCase() !== 'completado') {
-      await updateDoc(sref, { estatus: 'Completado' });
-      addToast('success', 'SOLPED completada ✔');
-    }
-  } catch (e) {
-    console.error('cerrarSolpedSiCompleta:', e);
-  }
-};
-
-const aprobar = async (oc:any) => {
+const aprobar = async (oc) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de aprobar.'); return; }
@@ -961,7 +1021,15 @@ const aprobar = async (oc:any) => {
       nuevoEstatus = 'Aprobado';
     }
 
-    const nuevosItems = (oc.items || []).map((it:any) =>
+    const ocKey = String(oc.id ?? oc.__docId ?? '');
+
+    dlog('APROBAR:init', {
+      rol: rolActual.value, ocDocId: oc.__docId, ocId: oc.id, ocKey,
+      estatusAnterior: oc.estatus, monto, nuevoEstatusPropuesto: nuevoEstatus,
+      itemsAntes: s(oc.items)
+    });
+
+    const nuevosItems = (oc.items || []).map((it) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
     );
 
@@ -970,6 +1038,11 @@ const aprobar = async (oc:any) => {
       { usuario: usuarioNombre.value || '—', estatus: nuevoEstatus, fecha: new Date().toISOString(), comentario }
     ];
 
+    dlog('APROBAR:pre-updateDoc ordenes_oc', {
+      ocDocId: oc.__docId,
+      set: { estatus: nuevoEstatus, aprobadoPor: usuarioNombre.value || '', items: s(nuevosItems), historial: s(nuevoHistorial) }
+    });
+
     await updateDoc(doc(db, 'ordenes_oc', oc.__docId), {
       estatus: nuevoEstatus,
       historial: nuevoHistorial,
@@ -977,10 +1050,16 @@ const aprobar = async (oc:any) => {
       aprobadoPor: usuarioNombre.value || ''
     });
 
+    dlog('APROBAR:post-updateDoc ordenes_oc', { ocDocId: oc.__docId, nuevoEstatus });
+
     if (nuevoEstatus === 'Aprobado') {
+      dlog('APROBAR→actualizarSolpedConOC:call', { solpedId: oc.solpedId, ocId: oc.id, itemsOC: s(nuevosItems), comentario });
       await actualizarSolpedConOC({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario, nuevoEstatus);
+
+      dlog('APROBAR→cerrarSolpedSiCompleta:call', { solpedId: oc.solpedId });
       await cerrarSolpedSiCompleta(oc.solpedId);
     } else {
+      dlog('APROBAR:registrarHistorialSolpedAccionOC (no aprobado)', { solpedId: oc.solpedId, ocNumero: oc.id, nuevoEstatus, comentario });
       await registrarHistorialSolpedAccionOC({
         solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
         estatusOC: nuevoEstatus, comentario
@@ -997,7 +1076,8 @@ const aprobar = async (oc:any) => {
   }
 };
 
-const rechazar = async (oc:any) => {
+
+const rechazar = async (oc) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de rechazar.'); return; }
@@ -1008,7 +1088,7 @@ const rechazar = async (oc:any) => {
 
   accionando.value = true;
   try {
-    const nuevosItems = (oc.items || []).map((it:any) =>
+    const nuevosItems = (oc.items || []).map((it) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'pendiente' } : it
     );
 
@@ -1095,24 +1175,24 @@ const rechazar = async (oc:any) => {
 .maxw-180{ max-width: 180px; }
 .maxw-140{ max-width: 140px; }
 
-/* Responsive tweaks */
+/* Responsive */
 @media (max-width: 576px){
   .oc-highlight{ padding: .55rem .6rem; }
   .oc-pill{ font-size: .86rem; }
-  .list-group-item .btn{ width: 100%; } /* acciones full-width */
+  .list-group-item .btn{ width: 100%; }
 }
 @media (min-width: 768px) and (max-width: 991.98px){
   .maxw-180{ max-width: 240px; }
   .maxw-140{ max-width: 180px; }
 }
 
-/* ===== Offcanvas móvil CUSTOM ===== */
+/* Offcanvas móvil CUSTOM */
 .oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
 .oc-enter-from, .oc-leave-to { opacity: 0; }
 
 .oc-wrap{
   position: fixed; inset: 0;
-  z-index: 2050; /* por encima de header y toasts */
+  z-index: 2050;
 }
 
 .oc-backdrop{
@@ -1120,23 +1200,21 @@ const rechazar = async (oc:any) => {
   background: rgba(0,0,0,.45);
   backdrop-filter: blur(1px);
 }
-/* ===== Autorizaciones responsive ===== */
+
+/* Autorizaciones responsive */
 .auth-list { width: 100%; }
 .auth-item .card-body { padding: .75rem .8rem; }
-.minw-0 { min-width: 0; }             /* permite truncado correcto */
+.minw-0 { min-width: 0; }
 .auth-ratio { border-radius: .5rem; overflow: hidden; background: var(--bs-tertiary-bg, #0b0f14); }
 .auth-iframe { width: 100%; height: 100%; border: 0; }
 .auth-img-wrap { max-height: 420px; overflow: auto; }
 .auth-img { max-height: 100%; object-fit: contain; }
 .auth-item .badge { font-weight: 500; }
 
-/* Botones apilados en móvil */
 @media (max-width: 576px){
   .auth-img-wrap { max-height: 300px; }
   .auth-item .d-sm-flex > .btn { width: 100%; }
 }
-
-/* Tablet: visor un poco más bajo para no romper layout */
 @media (min-width: 577px) and (max-width: 991.98px){
   .auth-img-wrap { max-height: 360px; }
 }
@@ -1161,10 +1239,9 @@ const rechazar = async (oc:any) => {
   display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; background: var(--bs-body-bg, #fff); z-index: 1;
 }
-
 .oc-body{ padding: .9rem; overflow: auto; }
 
-/* ===== Visor Fullscreen (modal/lightbox) ===== */
+/* Visor Fullscreen */
 .viewer-enter-active, .viewer-leave-active { transition: opacity .18s ease; }
 .viewer-enter-from, .viewer-leave-to { opacity: 0; }
 
@@ -1210,7 +1287,6 @@ const rechazar = async (oc:any) => {
 .viewer-pdf-wrap{ width: 100%; height: 100%; }
 .viewer-pdf{ width: 100%; height: 100%; border: none; }
 
-/* Móvil: panel fullscreen */
 @media (max-width: 576px){
   .viewer-panel{
     width: 100vw; height: 100vh; border-radius: 0;
@@ -1220,7 +1296,5 @@ const rechazar = async (oc:any) => {
 
 /* cursor utilitario */
 :root { --cur-ptr: pointer; }
-
-/* Icono autorización */
 .bi-file-earmark-check { font-size: 1.1rem; opacity: .9; }
 </style>

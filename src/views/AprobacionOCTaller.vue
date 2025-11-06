@@ -176,7 +176,9 @@
                           <td class="text-center">{{ it.cantidad ?? 0 }}</td>
                           <td class="text-center">{{ it.cantidad_cotizada ?? 0 }}</td>
                           <td class="text-center">
-                            <span class="badge" :class="badgeItem(it.estado)">{{ it.estado || 'pendiente' }}</span>
+                            <span class="badge" :class="badgeItem(it.estado)">
+                              {{ it.estado === 'revision' ? 'en revisión' : (it.estado || 'pendiente') }}
+                            </span>
                           </td>
                           <td class="d-none d-sm-table-cell break-any">{{ it.numero_interno || oc.centroCostoTexto || '—' }}</td>
                           <td class="d-none d-lg-table-cell break-any">{{ it.codigo_referencial || '—' }}</td>
@@ -302,17 +304,19 @@ type Rol = 'GUILLERMO' | 'JUAN' | 'ALEJANDRO' | null;
 const LIM_GUILLERMO = 250_000;
 const LIM_JUAN = 5_000_000;
 
+/* ===== Router + Auth ===== */
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
 
+/* ===== Estado base ===== */
 const cargando = ref(true);
 const ocs = ref<any[]>([]);
 const usuarioNombre = ref<string>('');
 const rolActual = ref<Rol>(null);
 let _unsub: any = null;
 
-/** ====== UI: toasts ====== */
+/* ===== UI: toasts ===== */
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) => {
   const id = Date.now()+Math.random();
@@ -321,7 +325,7 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
-/** ====== Visor fullscreen (móvil/desktop) ====== */
+/* ===== Visor fullscreen ===== */
 const isXs = window.matchMedia('(max-width: 576px)').matches;
 const viewerOpen = ref(false);
 const viewerItem = ref<{url:string,tipo?:string,nombre?:string}|null>(null);
@@ -348,7 +352,7 @@ const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
 watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
 
-/** Mapea el nombre del usuario a un rol/aprobador esperado */
+/* ===== Rol / estatus ===== */
 const mapNombreARol = (fullName: string): Rol => {
   const n = (fullName || '').trim().toLowerCase();
   if (n === 'guillermo manzor') return 'GUILLERMO';
@@ -356,8 +360,6 @@ const mapNombreARol = (fullName: string): Rol => {
   if (n === 'alejandro candia') return 'ALEJANDRO';
   return null;
 };
-
-/** Según el rol, qué estatus filtrar */
 const estatusFiltrado = computed(() => {
   if (rolActual.value === 'GUILLERMO') return 'Revisión Guillermo';
   if (rolActual.value === 'JUAN') return 'Preaprobado';
@@ -365,7 +367,7 @@ const estatusFiltrado = computed(() => {
   return '';
 });
 
-/** Badge por estado / utilidades */
+/* ===== Badges / util ===== */
 const estadoBadgeClass = (estatus: string) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -392,7 +394,158 @@ const fmtFecha = (f:any) => {
   } catch { return '—'; }
 };
 
-/** Cargar nombre y rol, luego suscribir a la colección filtrada (TALLER) */
+/* ===== DEBUG helper (puedes poner en false) ===== */
+const DEBUG = false;
+const s = (obj:any) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
+const dlog = (tag:string, payload: any = {}) => {
+  if (!DEBUG) return;
+  try { console.groupCollapsed(`[AprobOCTaller] ${tag}`); console.log(payload); }
+  finally { console.groupEnd?.(); }
+};
+
+/* ===== Helpers previos ===== */
+const estadoItemRevision = (cant: number, cot: number) => {
+  const C = Number(cant||0), K = Math.min(Number(cot||0), C);
+  if (K <= 0) return 'pendiente';
+  return 'revision';
+};
+const calcularEstatusSolpedPorCotizacion = (items:any[]) => {
+  if (!Array.isArray(items) || !items.length) return 'Parcial';
+  const total = items.length;
+  const completos = items.filter(it => Number(it.cantidad_cotizada||0) >= Number(it.cantidad||0) && Number(it.cantidad||0) > 0).length;
+  const algunCot = items.some(it => Number(it.cantidad_cotizada||0) > 0);
+  if (completos === total && total > 0) return 'Completado';
+  return algunCot ? 'Parcial' : 'Parcial';
+};
+
+/* ===== Sincronización (ACTUALIZADA) ===== */
+const sincronizarRevisionOCySolped = async (oc:any) => {
+  try {
+    const estatus = String(oc?.estatus||'').toLowerCase();
+    const esRevision =
+      estatus.includes('revisión') ||
+      estatus.includes('revision') ||
+      estatus.includes('preaprob') ||
+      estatus.includes('casi');
+    if (!esRevision) return;
+    if (!oc?.solpedId) return;
+    if (oc?.sincronizadaRevision) return;
+
+    // 1) Normaliza items OC: las tres cantidades = delta; estado = revision si delta>0
+    const itemsOC = Array.isArray(oc.items) ? oc.items.map((it:any) => {
+      const cantTotal = Number(it.cantidad || 0);
+      const entrada = Math.max(
+        Number(it.cantidad_solicitada_oc ?? 0),
+        Number(it.cantidad_para_cotizar ?? 0),
+        Number(it.cantidad_cotizada ?? 0)
+      );
+      const delta = Math.max(0, Math.min(entrada, cantTotal));
+      const estado = delta > 0 ? 'revision' : 'pendiente';
+
+      return {
+        ...it,
+        cantidad_cotizada: delta,
+        cantidad_para_cotizar: delta,
+        cantidad_solicitada_oc: delta,
+        estado
+      };
+    }) : [];
+
+    const huboCambioOC =
+      JSON.stringify(oc.items||[]) !== JSON.stringify(itemsOC) || !oc.sincronizadaRevision;
+
+    if (huboCambioOC) {
+      await updateDoc(doc(db, 'ordenes_oc_taller', oc.__docId), {
+        items: itemsOC,
+        sincronizadaRevision: true
+      });
+    }
+
+    // 2) Refleja en solped_taller
+    const sref = doc(db, 'solped_taller', String(oc.solpedId));
+    const ss = await getDoc(sref);
+    if (!ss.exists()) return;
+
+    const sdata:any = ss.data() || {};
+    const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
+
+    const norm = (x:any) => String(x||'').trim().toLowerCase();
+    const idxNI  = new Map<string, number>();
+    const idxCR  = new Map<string, number>();
+    const idxItem= new Map<string, number>();
+    const descCount = new Map<string, number>();
+    itemsSol.forEach((it, i) => {
+      const ni = norm(it.numero_interno);
+      const cr = norm(it.codigo_referencial);
+      const itn= (it.item != null) ? String(it.item) : '';
+      const ds = norm(it.descripcion);
+      if (ni) idxNI.set(ni, i);
+      if (cr) idxCR.set(cr, i);
+      if (itn) idxItem.set(itn, i);
+      if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
+    });
+
+    const findIndex = (ocIt:any) => {
+      const kNI = norm(ocIt.numero_interno);
+      const kCR = norm(ocIt.codigo_referencial);
+      const kIT = (ocIt.item != null) ? String(ocIt.item) : '';
+      const kDS = norm(ocIt.descripcion);
+      if (kNI && idxNI.has(kNI)) return idxNI.get(kNI)!;
+      if (kCR && idxCR.has(kCR)) return idxCR.get(kCR)!;
+      if (kIT && idxItem.has(kIT)) return idxItem.get(kIT)!;
+      if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(sIt => norm(sIt.descripcion) === kDS);
+      return -1;
+    };
+
+    let huboAvance = false;
+
+    itemsOC.forEach((ocIt:any) => {
+      const idx = findIndex(ocIt);
+      if (idx < 0) return;
+
+      const sIt = { ...itemsSol[idx] };
+      const cant = Number(sIt.cantidad || 0);
+
+      const delta = Math.max(0, Math.min(Number(ocIt.cantidad_cotizada ?? 0), cant));
+
+      // Triple espejo en SOLPED (fase revisión)
+      sIt.cantidad_cotizada       = delta;
+      sIt.cantidad_para_cotizar   = delta;
+      sIt.cantidad_solicitada_oc  = delta;
+
+      sIt.estado = (delta >= cant && cant > 0) ? 'completo'
+                 : (delta > 0) ? 'parcial'
+                 : 'pendiente';
+      sIt.estado_cotizacion = delta > 0 ? 'revision' : 'pendiente';
+
+      if (delta === 0 && sIt.pendienteRevisionPorOC) {
+        delete sIt.pendienteRevisionPorOC;
+      }
+
+      if (JSON.stringify(itemsSol[idx]) !== JSON.stringify(sIt)) {
+        itemsSol[idx] = sIt;
+        huboAvance = true;
+      }
+    });
+
+    if (huboAvance) {
+      const tot = itemsSol.length;
+      const completos = itemsSol.filter(x => Number(x.cantidad||0) > 0 && Number(x.cantidad_cotizada||0) >= Number(x.cantidad||0)).length;
+      const algunDelta = itemsSol.some(x => Number(x.cantidad_cotizada||0) > 0);
+      const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Completado' : (algunDelta ? 'Parcial' : 'Pendiente');
+
+      await updateDoc(sref, {
+        items: itemsSol,
+        estatus: nuevoEstatusSol,
+        updated_at: new Date()
+      });
+    }
+  } catch (e) {
+    console.error('sincronizarRevisionOCySolped:', e);
+  }
+};
+
+/* ===== Suscripción a ordenes_oc_taller ===== */
 onMounted(async () => {
   try {
     const uid = auth?.user?.uid;
@@ -421,25 +574,37 @@ onMounted(async () => {
       orderBy('fechaSubida', 'desc')
     );
 
-    _unsub = onSnapshot(qy, (snap) => {
+    _unsub = onSnapshot(qy, async (snap) => {
       const arr:any[] = [];
+      const ops: Promise<any>[] = [];
+
       snap.forEach(d => {
         const data:any = d.data();
         const archivos = Array.isArray(data.archivosStorage)
           ? data.archivosStorage.map((a:any)=>({ ...a, ver:false }))
           : [];
-        arr.push({
+        const ocRow = {
           __docId: d.id,
           ...data,
           archivosStorage: archivos,
           expandido: false,
           _comentarioAccion: ''
-        });
+        };
+        arr.push(ocRow);
+
+        // Sincroniza si está en Revisión/Preaprobado/Casi (incluye "Revisión Guillermo")
+        const est = String(ocRow.estatus||'').toLowerCase();
+        if (est.includes('revisión') || est.includes('revision') || est.includes('preaprob') || est.includes('casi')) {
+          ops.push(sincronizarRevisionOCySolped(ocRow));
+        }
       });
+
       arr.sort((a,b)=> (b.fechaSubida?.toMillis?.() ?? new Date(b.fechaSubida||0).getTime())
                     - (a.fechaSubida?.toMillis?.() ?? new Date(a.fechaSubida||0).getTime()));
       ocs.value = arr;
       cargando.value = false;
+
+      Promise.allSettled(ops).catch(()=>{});
     }, (err)=> {
       console.error(err);
       addToast('danger','Error al cargar OCs (taller).');
@@ -454,9 +619,10 @@ onMounted(async () => {
 });
 onBeforeUnmount(()=>{ if (_unsub) _unsub(); });
 
+/* ===== Acciones base ===== */
 const accionando = ref(false);
 
-/** Ir al detalle de la SOLPED (taller) */
+/* ===== Navegación a SOLPED_TALLER ===== */
 const irASolped = (oc:any) => {
   const id = oc?.solpedId;
   if (!id) {
@@ -467,7 +633,7 @@ const irASolped = (oc:any) => {
   catch { router.push(`/solped-taller/${id}`); }
 };
 
-/** Registrar acción en historial de la SOLPED_TALLER */
+/* ===== Historial en solped_taller (por cambio de estatus OC) ===== */
 const registrarHistorialSolpedAccionOC_Taller = async ({
   solpedId, ocNumero, usuario, estatusOC, comentario
 }: {
@@ -490,98 +656,135 @@ const registrarHistorialSolpedAccionOC_Taller = async ({
   }
 };
 
-/** Actualiza la SOLPED_TALLER a partir de la OC aprobada */
-const actualizarSolpedTallerConOC = async (oc:any, aprobador:string, comentario:string, estatusOC?: string) => {
-  const solpedId = oc?.solpedId;
+/* ===== Cerrar SOLPED_TALLER si todos completos ===== */
+const cerrarSolpedTallerSiCompleta = async (solpedId: string) => {
   if (!solpedId) return;
+  try {
+    const sref = doc(db, 'solped_taller', solpedId);
+    const ss = await getDoc(sref);
+    if (!ss.exists()) return;
+
+    const data:any = ss.data() || {};
+    const items:any[] = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) return;
+
+    const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
+    if (todosCompletos && String(data.estatus||'').toLowerCase() !== 'completado') {
+      await updateDoc(sref, { estatus: 'Completado' });
+      addToast('success', 'SOLPED (taller) completada ✔');
+    }
+  } catch (e) {
+    console.error('cerrarSolpedTallerSiCompleta:', e);
+  }
+};
+
+/* ===== Actualizar SOLPED_TALLER con avances al APROBAR (ACTUALIZADA) ===== */
+const actualizarSolpedTallerConOC = async (oc:any, aprobador:string, comentario:string, estatusOC?: string) => {
+  const solpedId = oc?.solpedId; if (!solpedId) return;
 
   const sref = doc(db, 'solped_taller', String(solpedId));
-  const ss = await getDoc(sref);
-  if (!ss.exists()) return;
+  const ss = await getDoc(sref); if (!ss.exists()) return;
 
   const sdata:any = ss.data() || {};
   const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
+  const ocItems:any[] = Array.isArray(oc.items) ? oc.items : [];
+  const ocKey = String(oc.id ?? oc.__docId ?? '');
 
+  let huboCambio = false;
+
+  const norm = (x:any) => String(x||'').trim().toLowerCase();
   const idxNI  = new Map<string, number>();
   const idxCR  = new Map<string, number>();
-  const idxDesc= new Map<string, number>();
-  const norm = (x:any) => String(x||'').trim().toLowerCase();
+  const idxItem= new Map<string, number>();
+  const descCount = new Map<string, number>();
 
   itemsSol.forEach((it, i) => {
     const ni = norm(it.numero_interno);
     const cr = norm(it.codigo_referencial);
+    const itn= (it.item != null) ? String(it.item) : '';
     const ds = norm(it.descripcion);
     if (ni) idxNI.set(ni, i);
     if (cr) idxCR.set(cr, i);
-    if (ds) idxDesc.set(ds, i);
+    if (itn) idxItem.set(itn, i);
+    if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
   });
 
-  let huboAvance = false;
-
-  const ocItems:any[] = Array.isArray(oc.items) ? oc.items : [];
-  ocItems.forEach(ocIt => {
-    const delta = Number(ocIt.cantidad_cotizada ?? 0);
-    if (!isFinite(delta) || isNaN(delta) || delta <= 0) return;
-
+  const findIndex = (ocIt:any) => {
     const kNI = norm(ocIt.numero_interno);
     const kCR = norm(ocIt.codigo_referencial);
+    const kIT = (ocIt.item != null) ? String(ocIt.item) : '';
     const kDS = norm(ocIt.descripcion);
+    if (kNI && idxNI.has(kNI)) return idxNI.get(kNI)!;
+    if (kCR && idxCR.has(kCR)) return idxCR.get(kCR)!;
+    if (kIT && idxItem.has(kIT)) return idxItem.get(kIT)!;
+    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(sIt => norm(sIt.descripcion) === kDS);
+    return -1;
+  };
 
-    let idx = -1;
-    if (kNI && idxNI.has(kNI)) idx = idxNI.get(kNI)!;
-    else if (kCR && idxCR.has(kCR)) idx = idxCR.get(kCR)!;
-    else if (kDS && idxDesc.has(kDS)) idx = idxDesc.get(kDS)!;
+  ocItems.forEach((ocIt:any) => {
+    const idx = findIndex(ocIt);
+    if (idx < 0) return;
 
-    if (idx >= 0) {
-      const sIt = { ...itemsSol[idx] };
-      const cantSolic = Number(sIt.cantidad || 0);
-      const ya = Number(sIt.cantidad_cotizada || 0);
-      let nuevo = ya + delta;
-      if (!isFinite(nuevo)) nuevo = ya;
-      if (nuevo > cantSolic) nuevo = cantSolic;
+    const sIt = { ...itemsSol[idx] };
+    const cantSolic = Number(sIt.cantidad || 0);
 
-      if (nuevo !== ya) {
-        huboAvance = true;
-        sIt.cantidad_cotizada = nuevo;
+    const deltaOC = Math.max(0, Number(ocIt.cantidad_cotizada ?? ocIt.cantidad_solicitada_oc ?? ocIt.cantidad_para_cotizar ?? 0));
 
-        if (cantSolic > 0 && nuevo >= cantSolic) sIt.estado = 'completo';
-        else if (nuevo > 0)                     sIt.estado = 'parcial';
-        else                                     sIt.estado = sIt.estado || 'pendiente';
+    if (!sIt.cotPorOC || typeof sIt.cotPorOC !== 'object') sIt.cotPorOC = {};
+    sIt.cotPorOC[ocKey] = deltaOC;
 
-        itemsSol[idx] = sIt;
-      }
+    const sumaOCs = Object.values(sIt.cotPorOC).reduce((a:number,b:any)=> a + Number(b||0), 0) as number;
+    const nuevo = Math.min(cantSolic, sumaOCs);
+
+    // Acumulado aprobado
+    sIt.cantidad_cotizada      = nuevo;
+    sIt.cantidad_para_cotizar  = 0;
+    sIt.cantidad_solicitada_oc = 0;
+
+    sIt.estado = (cantSolic > 0 && nuevo >= cantSolic) ? 'completado'
+               : (nuevo > 0) ? 'parcial'
+               : 'pendiente';
+    sIt.estado_cotizacion = (nuevo > 0)
+      ? ((nuevo >= cantSolic) ? 'aprobado' : 'aprobado-parcial')
+      : 'pendiente';
+
+    if (sIt.pendienteRevisionPorOC) delete sIt.pendienteRevisionPorOC;
+
+    if (JSON.stringify(itemsSol[idx]) !== JSON.stringify(sIt)) {
+      itemsSol[idx] = sIt;
+      huboCambio = true;
     }
   });
 
-  if (!huboAvance) return;
+  if (huboCambio) {
+    const tot = itemsSol.length;
+    const completos = itemsSol.filter(x => Number(x.cantidad||0) > 0 && Number(x.cantidad_cotizada||0) >= Number(x.cantidad||0)).length;
+    const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Completado' : 'Parcial';
 
-  const tot = itemsSol.length;
-  const completos = itemsSol.filter(x => String(x.estado||'').toLowerCase().includes('complet')).length;
-  const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Completado' : 'Parcial';
-
-  await updateDoc(sref, {
-    items: itemsSol,
-    estatus: nuevoEstatusSol,
-    updated_at: new Date()
-  });
-
-  try {
-    await addDoc(collection(sref, 'historialEstados'), {
-      origen: 'Aprobación OC (Taller)',
-      usuario: aprobador || '—',
+    await updateDoc(sref, {
+      items: itemsSol,
       estatus: nuevoEstatusSol,
-      detalle: comentario || '',
-      comentario: comentario || '',
-      ocNumero: oc?.id ?? null,
-      fecha: serverTimestamp()
+      updated_at: new Date()
     });
-  } catch (e) {
-    console.warn('No se pudo registrar historialEstados (operativo, taller):', e);
+
+    try {
+      await addDoc(collection(sref, 'historialEstados'), {
+        origen: 'Aprobación OC (Taller)',
+        usuario: aprobador || '—',
+        estatus: nuevoEstatusSol,
+        detalle: comentario || '',
+        comentario: comentario || '',
+        ocNumero: oc?.id ?? null,
+        fecha: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn('No se pudo registrar historialEstados (operativo, taller):', e);
+    }
   }
 
   if (estatusOC) {
     await registrarHistorialSolpedAccionOC_Taller({
-      solpedId,
+      solpedId: solpedId,
       ocNumero: oc?.id,
       usuario: aprobador || '—',
       estatusOC,
@@ -590,6 +793,7 @@ const actualizarSolpedTallerConOC = async (oc:any, aprobador:string, comentario:
   }
 };
 
+/* ===== Acciones ===== */
 const solicitarAclaracion = async (oc:any) => {
   if (accionando.value) return;
 
@@ -648,6 +852,7 @@ const aprobar = async (oc:any) => {
       nuevoEstatus = 'Aprobado';
     }
 
+    // Items de la OC: si estaban en 'revision', pasan a 'aprobado' dentro del documento de la OC
     const nuevosItems = (oc.items || []).map((it:any) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
     );
@@ -666,6 +871,7 @@ const aprobar = async (oc:any) => {
 
     if (nuevoEstatus === 'Aprobado') {
       await actualizarSolpedTallerConOC({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario, nuevoEstatus);
+      await cerrarSolpedTallerSiCompleta(oc.solpedId);
     } else {
       await registrarHistorialSolpedAccionOC_Taller({
         solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
@@ -774,19 +980,19 @@ const rechazar = async (oc:any) => {
 .maxw-180{ max-width: 180px; }
 .maxw-140{ max-width: 140px; }
 
-/* Responsive: en móvil, botones a ancho completo */
+/* Responsive */
 @media (max-width: 576px){
   .oc-highlight{ padding: .55rem .6rem; }
   .oc-pill{ font-size: .88rem; }
-  .list-group-item .btn{ width: 100%; } /* acciones full-width */
+  .list-group-item .btn{ width: 100%; }
 }
 
-/* ===== Visor Fullscreen (modal/lightbox) ===== */
+/* ===== Visor Fullscreen ===== */
 .viewer-enter-active, .viewer-leave-active { transition: opacity .18s ease; }
 .viewer-enter-from, .viewer-leave-to { opacity: 0; }
 
 .viewer-wrap{
-  position: fixed; inset: 0; z-index: 3000; /* sobre todo */
+  position: fixed; inset: 0; z-index: 3000;
   display: flex; align-items: center; justify-content: center;
 }
 .viewer-backdrop{

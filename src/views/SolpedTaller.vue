@@ -384,7 +384,7 @@ export default {
     // Draft local
     const DRAFT_KEY = "solped_taller_draft_v1";
     const JUST_SENT_KEY = "solped_taller_just_sent";
-
+    const IMPORT_KEY = 'solped_taller_import';
     const hasMeaningfulState = (s) => {
       const nombreOk = !!(s.nombre_solicitante||"").trim();
       const ccOk = !!(s.centro_costo||"").trim();
@@ -438,6 +438,61 @@ export default {
       } else {
         addToast("success","Guardado local activado.");
         triggerAutoSave();
+      }
+    };
+    function sanitizeUpper(v) {
+      return (v || '').toString().toUpperCase();
+    }
+    const aplicarImportacionDesdeHistorial = async () => {
+      try {
+        const raw = sessionStorage.getItem(IMPORT_KEY);
+        if (!raw) return false;
+
+        const imp = JSON.parse(raw);
+        sessionStorage.removeItem(IMPORT_KEY); // consumir una sola vez
+
+        // Forzamos fecha de hoy y correlativo nuevo (se calcula luego)
+        const hoy = formatDate(new Date());
+
+        // Precargamos los campos principales
+        Object.assign(solpe, {
+          numero_solpe: null,           // se calculará después
+          fecha: hoy,                   // hoy
+          empresa: imp.empresa || 'Xtreme Servicios',
+          nombre_solicitante: sanitizeUpper(imp.nombre_solicitante || ''),
+          cotizadores: solpe.cotizadores, // mantenemos la lista default
+          tipo_solped: imp.tipo_solped || 'REPUESTOS',
+          centro_costo: sanitizeUpper(imp.centro_costo || ''),
+          items: (Array.isArray(imp.items) ? imp.items : []).map((it, idx) => ({
+            id: idx + 1,
+            descripcion: sanitizeUpper(it.descripcion || ''),
+            codigo_referencial: sanitizeUpper(it.codigo_referencial || ''),
+            cantidad: Number(it.cantidad || 1),
+            numero_interno: sanitizeUpper(it.numero_interno || ''),
+            imagen_url: it.imagen_url || '',
+            editando: true
+          })),
+          estatus: 'Pendiente'
+        });
+
+        // Validación del nombre (tu lógica existente)
+        onNombreSolicitanteChange();
+
+        // Correlativo nuevo si aún no lo tiene
+        if (!solpe.numero_solpe) {
+          solpe.numero_solpe = await obtenerSiguienteNumeroDesdeColeccion();
+        }
+
+        // Guardamos borrador si está activado
+        triggerAutoSave();
+
+        // Aviso al usuario
+        addToast('success', 'Se importó la SOLPED desde historial. Revisa y envía.');
+        return true;
+      } catch (e) {
+        console.error(e);
+        addToast('danger', 'No se pudo importar la SOLPED desde historial.');
+        return false;
       }
     };
 
@@ -872,19 +927,24 @@ export default {
         const saved = localStorage.getItem(LS_LOCAL_CONSENT);
         if (saved === "0") localConsent.value = false;
         if (saved === "1") localConsent.value = true;
-      } catch (e){console.error(e);}
+      } catch (e){ console.error(e); }
 
       try {
         await loadSesionName();
         solpe.fecha = formatDate(new Date());
 
+        // 1) Si venimos desde "Historial" con importación, lo aplicamos primero
+        const imported = await aplicarImportacionDesdeHistorial();
+
+        // 2) Si NO hubo importación, intentamos restaurar borrador local
         const justSent = sessionStorage.getItem(JUST_SENT_KEY) === "1";
         if (justSent) {
           sessionStorage.removeItem(JUST_SENT_KEY);
-        } else if (localConsent.value) {
+        } else if (!imported && localConsent.value) {
           tryRestoreDraft();
         }
 
+        // 3) Si aún no hay correlativo, lo pedimos
         if (!solpe.numero_solpe) {
           solpe.numero_solpe = await obtenerSiguienteNumeroDesdeColeccion();
           triggerAutoSave();
@@ -896,6 +956,7 @@ export default {
         error.value = "No se pudo inicializar la vista.";
       }
     });
+
 
     return {
       // estado

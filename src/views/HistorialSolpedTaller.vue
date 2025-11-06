@@ -15,7 +15,6 @@
         </div>
 
         <div class="col-6 col-sm-auto order-2 order-sm-3 d-flex justify-content-end gap-2">
-          <!-- Desktop/tablet: alterna sidebar fijo (≥lg) -->
           <button
             class="btn btn-outline-primary btn-sm d-none d-lg-inline-flex"
             @click="toggleSidebar"
@@ -24,7 +23,6 @@
             <span class="ms-1">{{ showSidebar ? 'Ocultar filtros' : 'Mostrar filtros' }}</span>
           </button>
 
-          <!-- Móvil/Tablet: abre Offcanvas por JS (evita conflicto con hamburguesa) -->
           <button
             class="btn btn-outline-primary btn-sm d-inline-flex d-lg-none"
             type="button"
@@ -227,8 +225,8 @@
                     <button
                       v-if="canCopySolped"
                       class="btn btn-sm btn-outline-primary"
-                      @click.stop="prepararCopiaYEditar(s)"
-                      title="Copiar y editar"
+                      @click.stop="prepararCopiaParaCrear(s)"
+                      title="Copiar en Crear SOLPED"
                     >
                       <i class="bi bi-files"></i>
                     </button>
@@ -392,14 +390,13 @@
                     </div>
                   </div>
 
-                  <!-- Órdenes de Compra asociadas -->
+                  <!-- Órdenes de Compra asociadas (tiempo real) -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">🧾 Órdenes de Compra asociadas</label>
-
                       <button
                         class="btn btn-sm btn-outline-primary"
-                        @click="fetchOCs(s.id)"
+                        @click="ensureOCListener(s.id)"
                         :disabled="isLoadingOC(s.id)"
                       >
                         <span v-if="isLoadingOC(s.id)" class="spinner-border spinner-border-sm me-1"></span>
@@ -407,7 +404,7 @@
                       </button>
                     </div>
 
-                    <div v-if="isLoadingOC(s.id)" class="text-secondary small">Buscando en “ordenes_oc_taller”…</div>
+                    <div v-if="isLoadingOC(s.id)" class="text-secondary small">Escuchando “ordenes_oc_taller”…</div>
                     <div v-else-if="ocListFor(s.id).length === 0" class="text-secondary small">
                       No hay órdenes asociadas a esta SOLPED.
                     </div>
@@ -543,7 +540,7 @@
           </aside>
         </div>
 
-        <!-- Offcanvas Filtros (móvil/tablet) - controlado por JS -->
+        <!-- Offcanvas Filtros (móvil/tablet) -->
         <div
           class="offcanvas offcanvas-end offcanvas-filtros d-lg-none"
           tabindex="-1"
@@ -597,26 +594,6 @@
               </div>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label">Centro de costo</label>
-              <input class="form-control mb-2" placeholder="Buscar CC o nombre" v-model="ccSearch">
-              <div class="border rounded p-2" style="max-height: 200px; overflow:auto;">
-                <div
-                  class="form-check"
-                  v-for="opt in ccFiltered"
-                  :key="opt.code"
-                >
-                  <input class="form-check-input" type="checkbox"
-                         :id="'cc_m_'+opt.code"
-                         :checked="selectedCC.includes(opt.code)"
-                         @change="(e)=>{ e.target.checked ? selectedCC.push(opt.code) : removeCC(opt.code); }">
-                  <label class="form-check-label" :for="'cc_m_'+opt.code">
-                    <strong>{{ opt.code }}</strong> — <span class="text-secondary">{{ opt.name }}</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
             <div class="form-check mb-3">
               <input class="form-check-input" type="checkbox" id="chkOnlyMineMob" v-model="onlyMine" @change="persistOnlyMine">
               <label class="form-check-label" for="chkOnlyMineMob">Ver sólo mis SOLPED</label>
@@ -636,7 +613,7 @@
           </div>
         </div>
 
-        <!-- FAB (botón flotante de filtros) - solo móvil -->
+        <!-- FAB filtros (móvil) -->
         <button
           class="filter-fab btn btn-primary d-lg-none"
           type="button"
@@ -760,7 +737,7 @@ import { useRouter } from "vue-router";
 import { db } from "@/stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy,
-  updateDoc, addDoc, setDoc, limit, serverTimestamp, startAfter
+  updateDoc, addDoc, setDoc, limit, onSnapshot
 } from "firebase/firestore";
 import { useAuthStore } from "../stores/authService";
 import * as XLSX from "xlsx-js-style";
@@ -775,16 +752,26 @@ export default {
     const error = ref("");
 
     const loading = ref(true);
-    const loadingMore = ref(false);
     const loadingSearch = ref(false);
 
     // Buscar exacto
     const numeroBusqueda = ref(null);
     const solpeEncontrada = ref(null);
 
-    // OCs por SOLPED
+    // =========================
+    // Tiempo real: SOLPED Taller
+    // =========================
+    const REALTIME_LIMIT = 800; // escucha los más recientes (ajusta si necesitas más)
+    let solpesUnsub = null;
+
+    // Datos y filtros
+    const solpesOriginal = ref([]);
+
+    // OCs por SOLPED (tiempo real por tarjeta expandida)
     const _ocBySolped = ref(new Map());
     const _ocLoading = ref(new Set());
+    const _ocUnsubs = new Map(); // solpedId -> unsubscribe
+
     const isLoadingOC = (solpedId) => _ocLoading.value.has(solpedId);
     const ocListFor = (solpedId) => _ocBySolped.value.get(solpedId) || [];
 
@@ -904,10 +891,7 @@ export default {
     const listaSolicitantes = ref([]);
     const tempSolicitanteSelSet = ref(new Set());
 
-    // Datos base
-    const solpesOriginal = ref([]);
-    const lastDocRef = ref(null);
-    const hasMore = ref(true);
+    // Otros estados
     const solpeExpandidaId = ref(null);
     const ordenAscendente = ref(false);
 
@@ -989,107 +973,74 @@ export default {
     };
 
     const getColorByStatus = (estatus) => {
-      switch ((estatus||"").toLowerCase()) {
-        case "completado": return "#28a745";
-        case "rechazado": return "#dc3545";
-        case "solicitado": return "#fd7e14";
-        case "tránsito a faena": return "#007bff";
-        case "preaprobado": return "#ffc107";
-        case "oc enviada a proveedor": return "#17a2b8";
-        case "por importación": return "#6f42c1";
-        case "cotizando": return "#0ea5e9";
-        case "pendiente": return "#6c757d";
-        case "parcial": return "#6c757d";
-        default: return "#6c757d";
+      const e = (estatus||'').toString().toLowerCase();
+      switch(e){
+        case 'completado': return '#28a745';
+        case 'rechazado': return '#dc3545';
+        case 'pendiente': return '#fd7e14';
+        case 'revisión': return '#007bff';
+        case 'parcial': return '#fd7e14';
+        case 'preaprobado': return '#ffc107';
+        case 'oc enviada a proveedor': return '#17a2b8';
+        case 'aprobado': return '#28a745';
+        default: return '#6c757d';
       }
     };
     const estadoChipStyle = (s) => ({ background: getColorByStatus(s?.estatus), color: "#fff", padding: "4px 10px", fontWeight: "bold" });
     const getBadgeColor = (e) => getColorByStatus(e);
 
-    // ===== Carga SOLPED TALLER en lotes =====
-    const BATCH_SIZE = 200;
+    // ======== REALTIME LISTENER ========
+    const startRealtimeSolpes = () => {
+      if (solpesUnsub) { solpesUnsub(); solpesUnsub = null; }
+      loading.value = true;
 
-    const cargarSolpes = async (reset = true) => {
-      try {
-        if (reset) {
-          loading.value = true;
-          solpesOriginal.value = [];
-          lastDocRef.value = null;
-          hasMore.value = true;
-          page.value = 1;
-          solpeExpandidaId.value = null;
-        } else {
-          loadingMore.value = true;
-        }
+      const qy = query(
+        collection(db, "solped_taller"),
+        orderBy("numero_solpe", "desc"),
+        limit(REALTIME_LIMIT)
+      );
 
-        if (!hasMore.value) {
-          loading.value = false;
-          loadingMore.value = false;
-          return;
-        }
-
-        let qy = query(
-          collection(db, "solped_taller"),
-          orderBy("numero_solpe", "desc"),
-          limit(BATCH_SIZE)
-        );
-        if (lastDocRef.value) {
-          qy = query(
-            collection(db, "solped_taller"),
-            orderBy("numero_solpe", "desc"),
-            startAfter(lastDocRef.value),
-            limit(BATCH_SIZE)
-          );
-        }
-
-        const snap = await getDocs(qy);
-
-        if (snap.empty) {
-          hasMore.value = false;
-        } else {
-          const list = snap.docs.map(d => {
-            const data = d.data() || {};
-            return {
-              id: d.id,
-              comentarios: Array.isArray(data.comentarios) ? data.comentarios.map(c => ({
-                ...c,
-                fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
-                vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : []
-              })) : [],
-              ...data
-            };
+      solpesUnsub = onSnapshot(qy, (snap) => {
+        const list = [];
+        snap.forEach((d) => {
+          const data = d.data() || {};
+          const comentarios = Array.isArray(data.comentarios) ? data.comentarios.map(c => ({
+            ...c,
+            fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+            vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : []
+          })) : [];
+          list.push({
+            id: d.id,
+            ...data,
+            comentarios
           });
+        });
 
-          solpesOriginal.value = [...solpesOriginal.value, ...list];
+        // orden y asignación
+        list.sort((a,b)=> (b.numero_solpe||0) - (a.numero_solpe||0));
+        solpesOriginal.value = list;
 
-          const setSol = new Set(solpesOriginal.value.map(x => (x.nombre_solicitante || "").toString().toUpperCase()).filter(Boolean));
-          listaSolicitantes.value = Array.from(setSol).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+        // construir lista de solicitantes
+        const setSol = new Set(list.map(x => (x.nombre_solicitante || "").toString().toUpperCase()).filter(Boolean));
+        listaSolicitantes.value = Array.from(setSol).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
 
-          lastDocRef.value = snap.docs[snap.docs.length - 1];
-          if (snap.docs.length < BATCH_SIZE) hasMore.value = false;
-        }
-      } catch {
-        error.value = "No se pudieron cargar SOLPED de taller.";
-      } finally {
         loading.value = false;
-        loadingMore.value = false;
-      }
+      }, (err) => {
+        console.error(err);
+        error.value = "No se pudieron escuchar las SOLPED de taller.";
+        loading.value = false;
+      });
     };
 
-    const loadMore = async () => {
-      await cargarSolpes(false);
+    const stopRealtimeSolpes = () => {
+      if (solpesUnsub) { solpesUnsub(); solpesUnsub = null; }
     };
 
-    const hasUnreadForMe = (s) => {
-      const uid = myUid.value;
-      if (!uid) return false;
-      const arr = Array.isArray(s.comentarios) ? s.comentarios : [];
-      return arr.some(c => !Array.isArray(c.vistoPor) || !c.vistoPor.includes(uid));
-    };
-
-    // ===== Órdenes de compra asociadas =====
-    const fetchOCs = async (solpedId) => {
+    // ===== Órdenes de compra asociadas en tiempo real =====
+    const ensureOCListener = async (solpedId) => {
       if (!solpedId) return;
+      if (_ocUnsubs.has(solpedId)) return; // ya escuchando
+
       try {
         _ocLoading.value.add(solpedId);
 
@@ -1098,28 +1049,50 @@ export default {
           where("solpedId", "==", solpedId)
         );
 
-        const snap = await getDocs(q1);
-        const list = [];
-        snap.forEach((d) => {
-          const data = d.data() || {};
-          let fsub = data.fechaSubida;
-          if (fsub?.toDate) fsub = fsub.toDate();
-          else if (typeof fsub === "string" && !isNaN(Date.parse(fsub))) fsub = new Date(fsub);
-
-          list.push({
-            __docId: d.id,
-            id: data.id ?? null,
-            fechaSubida: fsub || data.fechaSubida || null,
-            estatus: data.estatus || null
+        const unsub = onSnapshot(q1, (snap) => {
+          const list = [];
+          snap.forEach((d) => {
+            const data = d.data() || {};
+            let fsub = data.fechaSubida;
+            if (fsub?.toDate) fsub = fsub.toDate();
+            else if (typeof fsub === "string" && !isNaN(Date.parse(fsub))) fsub = new Date(fsub);
+            list.push({
+              __docId: d.id,
+              id: data.id ?? null,
+              fechaSubida: fsub || data.fechaSubida || null,
+              estatus: data.estatus || null
+            });
           });
+          list.sort((a,b)=>(a.id||0)-(b.id||0));
+          _ocBySolped.value.set(solpedId, list);
+        }, (err) => {
+          console.error(err);
+          _ocBySolped.value.set(solpedId, []);
         });
 
-        _ocBySolped.value.set(solpedId, list.sort((a,b)=>(a.id||0)-(b.id||0)));
-      } catch {
-        _ocBySolped.value.set(solpedId, []);
+        _ocUnsubs.set(solpedId, unsub);
       } finally {
         _ocLoading.value.delete(solpedId);
       }
+    };
+
+    const stopOCListener = (solpedId) => {
+      const unsub = _ocUnsubs.get(solpedId);
+      if (unsub) {
+        try { unsub(); } catch(e) {console.error(e);}
+        _ocUnsubs.delete(solpedId);
+      }
+      _ocBySolped.value.delete(solpedId);
+      _ocLoading.value.delete(solpedId);
+    };
+
+    const stopAllOCListeners = () => {
+      for (const unsub of _ocUnsubs.values()) {
+        try { unsub(); } catch(e) {console.error(e);}
+      }
+      _ocUnsubs.clear();
+      _ocBySolped.value = new Map();
+      _ocLoading.value = new Set();
     };
 
     const goOC = (oc) => {
@@ -1153,12 +1126,18 @@ export default {
     };
 
     const onExpandCard = async (s) => {
-      solpeExpandidaId.value = (solpeExpandidaId.value === s.id) ? null : s.id;
+      const newId = (solpeExpandidaId.value === s.id) ? null : s.id;
+
+      // si se colapsa, corta listener de OC
+      if (solpeExpandidaId.value && solpeExpandidaId.value !== newId) {
+        stopOCListener(solpeExpandidaId.value);
+      }
+
+      solpeExpandidaId.value = newId;
+
       if (solpeExpandidaId.value === s.id) {
         await marcarComentariosVistos(s);
-        if (!ocListFor(s.id).length && !isLoadingOC(s.id)) {
-          fetchOCs(s.id);
-        }
+        await ensureOCListener(s.id); // arranca realtime de OCs
       }
     };
 
@@ -1188,16 +1167,6 @@ export default {
     const applySolicitantesFiltro = () => {
       filtroSolicitante.value = Array.from(tempSolicitanteSelSet.value);
       persistFilters();
-      goPage(1);
-    };
-
-    const quickStatus = [
-      "Solicitado","Cotizando","OC enviada a proveedor","Por importación","Tránsito a Faena","Preaprobado","Completado","Rechazado"
-    ];
-    const toggleQuickStatus = (opt) => {
-      const arr = new Set(filtroEstatus.value);
-      arr.has(opt) ? arr.delete(opt) : arr.add(opt);
-      filtroEstatus.value = Array.from(arr);
       goPage(1);
     };
 
@@ -1276,30 +1245,14 @@ export default {
       if (p < 1) p = 1;
       if (p > totalPages.value) p = totalPages.value;
       page.value = p;
-      solpeExpandidaId.value = null;
-
-      if (p === totalPages.value && hasMore.value && !loadingMore.value) {
-        // opcional: loadMore();
-      }
+      solpeExpandidaId.value = null; // colapsa al paginar
+      // al colapsar, corta listeners de OCs
+      stopAllOCListeners();
     };
     const nextPage = () => goPage(page.value + 1);
     const prevPage = () => goPage(page.value - 1);
     const goFirst = () => goPage(1);
     const goLast = () => goPage(totalPages.value);
-
-    const visiblePageNumbers = computed(() => {
-      const maxShown = 7;
-      const total = totalPages.value;
-      const current = page.value;
-      if (total <= maxShown) return Array.from({length: total}, (_,i)=>i+1);
-      const half = Math.floor(maxShown/2);
-      let start = Math.max(1, current - half);
-      let end = Math.min(total, start + maxShown - 1);
-      if (end - start + 1 < maxShown) start = Math.max(1, end - maxShown + 1);
-      const arr = [];
-      for (let p=start; p<=end; p++) arr.push(p);
-      return arr;
-    });
 
     const ordenarSolpes = () => { ordenAscendente.value = !ordenAscendente.value; goPage(1); };
     const limpiarFiltros = () => {
@@ -1350,7 +1303,8 @@ export default {
         await addDoc(collection(db, "solped_taller", s.id, "historialEstados"), { fecha: new Date(), estatus, usuario });
 
         restoreScrollSoon();
-      } catch {
+      } catch (e) {
+        console.error(e);
         error.value = "Error al actualizar estatus.";
       }
     };
@@ -1369,10 +1323,12 @@ export default {
         );
         await updateDoc(refd, { items: itemsUpd });
 
+        // el listener de SOLPED lo actualizará igual; esto es para feedback inmediato
         solpe.items = itemsUpd;
 
         restoreScrollSoon();
-      } catch {
+      } catch (e) {
+        console.error(e);
         error.value = "No se pudo cambiar el estado del ítem.";
       }
     };
@@ -1391,107 +1347,51 @@ export default {
         await setDoc(refd, { comentarios: curr }, { merge: true });
         s.comentarios = curr;
         s.nuevoComentario = "";
-      } catch {
+      } catch (e) {
+        console.error(e);
         error.value = "Error al guardar el comentario.";
       }
     };
 
-    // Copiar / Reutilizar
-    const obtenerSiguienteNumeroDesdeColeccion = async () => {
-      try {
-        const qy = query(collection(db, "solped_taller"), orderBy("numero_solpe","desc"), limit(1));
-        const snap = await getDocs(qy);
-        if (snap.empty) return 1;
-        const maxNum = Number(snap.docs[0].data()?.numero_solpe) || 0;
-        return maxNum + 1;
-      } catch {
-        return 1;
-      }
+
+
+// Enviar la SOLPED seleccionada a la pantalla de creación (sin guardar nada en Firestore)
+const prepararCopiaParaCrear = (s) => {
+  try {
+    // Armamos un payload "ligero" para inicializar el formulario de creación
+    const payload = {
+      from: 'historial',
+      fecha: todayStr(),
+      empresa: s.empresa || 'Xtreme Servicios',
+      nombre_solicitante: s.nombre_solicitante || '',
+      tipo_solped: s.tipo_solped || 'REPUESTOS',
+      centro_costo: s.centro_costo || '',
+      // Los ítems se mapean a la estructura que usa el formulario de creación
+      items: (Array.isArray(s.items) ? s.items : []).map((it, idx) => ({
+        id: idx + 1,
+        descripcion: (it.descripcion || '').toString().toUpperCase(),
+        codigo_referencial: (it.codigo_referencial || '').toString().toUpperCase(),
+        cantidad: Number(it.cantidad || 1),
+        numero_interno: (it.numero_interno || '').toString().toUpperCase(),
+        imagen_url: it.imagen_url || '',
+        editando: true
+      }))
     };
 
-    const copiarSolped = async (s) => {
-      try {
-        const nuevoNumero = await obtenerSiguienteNumeroDesdeColeccion();
-        const payload = {
-          numero_solpe: nuevoNumero,
-          fecha: todayStr(),
-          empresa: s.empresa || "Xtreme Servicios",
-          nombre_solicitante: s.nombre_solicitante || "",
-          cotizadores: Array.isArray(s.cotizadores) ? s.cotizadores : [],
-          tipo_solped: s.tipo_solped || "REPUESTOS",
-          centro_costo: s.centro_costo || "",
-          estatus: "Solicitado",
-          items: (s.items || []).map((it, idx) => ({
-            item: idx + 1,
-            descripcion: it.descripcion || "",
-            codigo_referencial: it.codigo_referencial || "",
-            cantidad: it.cantidad || 1,
-            numero_interno: it.numero_interno || "",
-            imagen_url: it.imagen_url || null,
-            estado: "pendiente",
-          })),
-          creado_en: serverTimestamp(),
-          usuario_sesion: myFullName.value || auth?.user?.displayName || auth?.user?.email || null,
-          comentarios: []
-        };
+    // Guardamos temporalmente en sessionStorage para que lo lea la vista de creación
+    sessionStorage.setItem('solped_taller_import', JSON.stringify(payload));
 
-        const docRef = await addDoc(collection(db, "solped_taller"), payload);
-        await addDoc(collection(db, "solped_taller", docRef.id, "historialEstados"), {
-          fecha: new Date(),
-          estatus: "Solicitado",
-          usuario: payload.usuario_sesion || "Sistema"
-        });
-
-        await cargarSolpes(true);
-        goPage(1);
-        alert(`SOLPED copiada como #${nuevoNumero}`);
-      } catch {
-        error.value = "No se pudo copiar la SOLPED.";
-      }
-    };
-
-    const prepararCopiaYEditar = (s) => {
-      if (!canCopySolped.value) {
-        error.value = "No tienes permisos para copiar/editar SOLPED (sólo Generador Solped).";
-        return;
-      }
-      try {
-        const draft = {
-          ts: Date.now(),
-          data: {
-            numero_solpe: null,
-            fecha: todayStr(),
-            empresa: s.empresa || "Xtreme Servicios",
-            nombre_solicitante: (s.nombre_solicitante || "").toString().toUpperCase(),
-            cotizadores: Array.isArray(s.cotizadores)
-              ? s.cotizadores
-              : ["Guillermo Manzor","Luis Orellana","María José Ballesteros"],
-            tipo_solped: s.tipo_solped || "REPUESTOS",
-            centro_costo: s.centro_costo || "",
-            estatus: "Solicitado",
-            items: (Array.isArray(s.items) ? s.items : []).map((it, idx) => ({
-              id: idx + 1,
-              descripcion: (it.descripcion || "").toString().toUpperCase(),
-              codigo_referencial: (it.codigo_referencial || "").toString().toUpperCase(),
-              cantidad: Number(it.cantidad || 1),
-              numero_interno: (it.numero_interno || "").toString().toUpperCase(),
-              imagen_url: it.imagen_url || "",
-              editando: true
-            }))
-          }
-        };
-
-        localStorage.setItem("solped_taller_draft_v1", JSON.stringify(draft));
-
-        if (router.hasRoute("SolpedTaller")) {
-          router.push({ name: "SolpedTaller" });
-        } else {
-          router.push("/solped-taller");
-        }
-      } catch {
-        error.value = "No se pudo preparar la copia para edición.";
-      }
-    };
+    // Navegamos a la vista de creación
+    if (router.hasRoute('SolpedTaller')) {
+      router.push({ name: 'SolpedTaller', query: { import: '1' } });
+    } else {
+      router.push({ path: '/solped-taller', query: { import: '1' } });
+    }
+  } catch (e) {
+    console.error(e);
+    error.value = 'No se pudo preparar la copia para Crear SOLPED.';
+  }
+};
 
     // Buscar exacto
     const buscarSolpeExacta = async () => {
@@ -1511,21 +1411,12 @@ export default {
             comentarios: Array.isArray(data.comentarios) ? data.comentarios : []
           };
         }
-      } catch {
+      } catch (e) {
+        console.error(e);
         error.value = "No se pudo realizar la búsqueda.";
       } finally {
         loadingSearch.value = false;
       }
-    };
-
-    const expandEncontrada = () => {
-      if (!solpeEncontrada.value) return;
-      const idx = solpesOriginal.value.findIndex(x => x.id === solpeEncontrada.value.id);
-      const base = solpesOriginal.value.slice();
-      if (idx >= 0) base.splice(idx,1);
-      solpesOriginal.value = [solpeEncontrada.value, ...base];
-      goPage(1);
-      solpeExpandidaId.value = solpeEncontrada.value.id;
     };
 
     // Imágenes
@@ -1536,7 +1427,7 @@ export default {
     };
     const abrirImagenNuevaPestana = (it) => abrirImagen(it);
 
-    // Excel (… mismas funciones) //
+    // Excel (idéntico a tu versión)
     const setStyle = (ws, addr, s) => { if (!ws[addr]) ws[addr] = { t:'s', v:'' }; ws[addr].s = { ...(ws[addr].s||{}), ...s }; };
     const styleCell = (ws, r, c, s) => { const addr = XLSX.utils.encode_cell({ r, c }); setStyle(ws, addr, s); };
     const rangeBorder = (ws, r1, c1, r2, c2, border) => {
@@ -1612,7 +1503,8 @@ export default {
 
         const hoy = new Date().toISOString().slice(0,10);
         XLSX.writeFile(wb, `SOLPED_TALLER_${solpe.numero_solpe || ''}_${hoy}.xlsx`);
-      } catch {
+      } catch (e) {
+        console.error(e);
         error.value = "No se pudo generar el Excel.";
       }
     };
@@ -1630,7 +1522,7 @@ export default {
       } catch { /* noop */ }
     };
 
-    // ====== Offcanvas (móvil) sin conflicto con hamburguesa ======
+    // ====== Offcanvas (móvil) ======
     const filtersOffcanvasEl = ref(null);
     const filtersOffcanvasId = `filtersOffcanvas-${Math.random().toString(36).slice(2)}`;
     let OffcanvasClass = null;
@@ -1639,7 +1531,6 @@ export default {
     const ensureOffcanvasInstance = async () => {
       if (!OffcanvasClass) {
         try {
-          // Carga dinámica (funciona con Vite)
           OffcanvasClass = (await import('bootstrap/js/dist/offcanvas')).default;
         } catch {
           OffcanvasClass = window?.bootstrap?.Offcanvas || null;
@@ -1652,7 +1543,6 @@ export default {
           keyboard: true
         });
 
-        // Al abrir: cierra cualquier otro offcanvas y colapsa navbar abierto
         filtersOffcanvasEl.value.addEventListener('show.bs.offcanvas', () => {
           document.querySelectorAll('.offcanvas.show').forEach(el => {
             if (el !== filtersOffcanvasEl.value) {
@@ -1662,7 +1552,6 @@ export default {
           document.querySelectorAll('.navbar-collapse.show').forEach(el => { el.classList.remove('show'); });
         });
 
-        // Marcar body para ocultar hamburguesa/botones móviles
         filtersOffcanvasEl.value.addEventListener('shown.bs.offcanvas', () => {
           document.body.classList.add('filters-open');
         });
@@ -1675,7 +1564,6 @@ export default {
     const openFiltersOffcanvas = async () => {
       await ensureOffcanvasInstance();
       if (!offcanvasInstance) return;
-      // Asegura cierre de otros componentes abiertos antes de abrir
       document.querySelectorAll('.offcanvas.show').forEach(el => {
         if (el !== filtersOffcanvasEl.value) {
           try { OffcanvasClass.getOrCreateInstance(el).hide(); } catch (e) { console.error(e);}
@@ -1820,16 +1708,10 @@ export default {
 
         await updateDoc(refCheck, payload);
 
-        const idx = solpesOriginal.value.findIndex(x => x.id === editForm.value.id);
-        if (idx >= 0) {
-          solpesOriginal.value[idx] = {
-            ...solpesOriginal.value[idx],
-            ...payload
-          };
-        }
-
+        // no hace falta mutar local: el listener realtime actualizará
         cerrarEditar();
-      } catch{
+      } catch(e){
+        console.error(e);
         error.value = 'No se pudo guardar la edición.';
         savingEdit.value = false;
       }
@@ -1852,8 +1734,9 @@ export default {
       }
 
       await loadMyName();
-      await cargarSolpes(true);
-      goPage(1);
+
+      // Arranca TIEMPO REAL
+      startRealtimeSolpes();
 
       // Offcanvas listo
       await ensureOffcanvasInstance();
@@ -1865,6 +1748,8 @@ export default {
     onUnmounted(() => {
       window.removeEventListener("storage", syncFromStorageEvent);
       try { if (offcanvasInstance) offcanvasInstance.dispose?.(); } catch (e) { console.error(e); }
+      stopAllOCListeners();
+      stopRealtimeSolpes();
     });
 
     // Recalcular/persistir filtros
@@ -1892,23 +1777,26 @@ export default {
 
     return {
       // estado
-      error, loading, loadingMore, loadingSearch,
+      error, loading, loadingSearch,
       numeroBusqueda, solpeEncontrada,
+
+      // filtros
       filtroTexto, fechaDesde, fechaHasta,
       filtroEstatus, filtroSolicitante, busquedaSolicitante,
       listaEstatus, listaSolicitantes, tempSolicitanteSelSet, onlyMine,
+
+      // data
       solpesOriginal, solpeExpandidaId, ordenAscendente,
+
+      // UI
       showSidebar,
 
-      // Centro de costo
+      // CC
       centrosCosto, ccAll, ccSearch, selectedCC, ccFiltered, removeCC,
-
-      // batching
-      hasMore, loadMore,
 
       // paginación
       page, pageSize, pageSizeOptions, filteredAll, pagedList,
-      totalPages, visiblePageNumbers, pageFrom, pageTo,
+      totalPages, pageFrom, pageTo,
 
       // permisos
       userRole, canChangeStatus, canCopySolped,
@@ -1919,19 +1807,25 @@ export default {
       ordenarSolpes, limpiarFiltros, toggleSidebar,
       persistOnlyMine, persistPageSize,
       toggleTempSolicitante, clearTempSolicitantes, applySolicitantesFiltro,
-      removeEstatus, removeSolicitante, toggleQuickStatus,
+      removeEstatus, removeSolicitante,
       abrirImagen, abrirImagenNuevaPestana,
       setStatus, setItemStatus,
-      descargarExcel, volver,
-      copiarSolped, prepararCopiaYEditar, onExpandCard, marcarComentariosVistos,
+      descargarExcel, volver, onExpandCard, marcarComentariosVistos,
       abrirAutorizacion, descargarAutorizacion, agregarComentario,
-      buscarSolpeExacta, expandEncontrada, goOC,
-      isLoadingOC, ocListFor, fetchOCs,
-      verDetalleSolped,
+      buscarSolpeExacta, goOC, verDetalleSolped,
 
       // helpers
       formatDateTime, estadoChipStyle, getBadgeColor, solicitantesFiltrados, normalize,
-      hasUnreadForMe, quickStatus, hasActiveFilters,
+      hasUnreadForMe: (s) => {
+        const uid = myUid.value;
+        if (!uid) return false;
+        const arr = Array.isArray(s.comentarios) ? s.comentarios : [];
+        return arr.some(c => !Array.isArray(c.vistoPor) || !c.vistoPor.includes(uid));
+      },
+      hasActiveFilters,
+
+      // OCs realtime
+      isLoadingOC, ocListFor, ensureOCListener,
 
       // nuevos
       canGenerateOC, irAGenerarOCTaller,
@@ -1941,12 +1835,10 @@ export default {
       puedeEditarSolped, puedeEditarPorRol, abrirEditar, cerrarEditar,
       agregarItem, eliminarItem, guardarEdicion,
 
-      // roles que pueden editar sin ser dueños
-      canEditAnyByRole,
-
       // offcanvas
       filtersOffcanvasEl, filtersOffcanvasId,
       openFiltersOffcanvas, closeFiltersOffcanvas, applyAndClose,
+      prepararCopiaParaCrear
     };
   }
 };
@@ -2065,6 +1957,11 @@ export default {
 .ghost-bottom{ position:absolute; bottom:-12px; left:0; right:0; display:flex; justify-content:space-between; padding:0 6px; }
 .ghost-text{ margin-top:1rem; font-weight:500; }
 
+@keyframes floaty{
+  0%,100%{ transform: translateY(0); }
+  50%{ transform: translateY(-6px); }
+}
+
 /* ===== Chips / badges ===== */
 .mark-pill{
   display:inline-block; background:#eef2ff; color:#3730a3; padding:.1rem .5rem; border-radius:999px;
@@ -2086,30 +1983,26 @@ export default {
 /* ===== Offcanvas base ===== */
 .offcanvas{
   --bs-offcanvas-width: min(92vw, 420px);
-  z-index: 1040; /* menor que modal (1050) y suficientemente alto para navbar */
+  z-index: 1040;
 }
 
-/* ---------- Offcanvas de filtros: subirlo, redondeos y z-index ---------- */
 .offcanvas-filtros{
-  top: 56px; /* ajusta según altura de tu header (44–64px típico) */
+  top: 56px;
   max-height: calc(100vh - 56px);
   border-top-left-radius: 12px;
   border-bottom-left-radius: 12px;
   z-index: 1065;
 }
 
-/* Backdrop más clarito (en vez de gris oscuro) */
 :global(.offcanvas-backdrop.show){
   opacity: .18;
 }
 
-/* Cuando el offcanvas está abierto, ocultamos la hamburguesa/botones móviles */
 :global(body.filters-open .topbar .d-lg-none .btn){
   visibility: hidden;
   pointer-events: none;
 }
 
-/* Si tienes otros botones flotantes móviles, también ocultarlos en abierto */
 :global(body.filters-open .btn-menu-flotante),
 :global(body.filters-open .btn-hamburguesa){
   visibility: hidden;
@@ -2125,22 +2018,12 @@ export default {
   height: 48px;
   border-radius: 999px;
   box-shadow: 0 10px 24px rgba(0,0,0,.20);
-  z-index: 1066; /* sobre contenido, bajo modales */
+  z-index: 1066;
 }
 
-/* Da aire al final para que el FAB no tape acciones del listado en móvil */
 @media (max-width: 991.98px){
   .historial-taller-page .container{
     padding-bottom: 84px;
   }
-}
-
-/* ===== Media Queries ===== */
-@media (max-width: 575.98px){
-  .sticky-pager{ top: 0; border-radius: 0; }
-}
-
-@media (min-width: 768px) and (max-width: 991.98px){
-  .card-header .small.text-secondary{ display: block; }
 }
 </style>

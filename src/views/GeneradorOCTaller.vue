@@ -193,7 +193,7 @@
                           <th>Descripción</th>
                           <th class="text-center">Cant. total</th>
                           <th class="text-center">Cotizado antes</th>
-                          <th style="width: 160px;">Cant. a cotizar</th>
+                          <th style="width: 180px;">Cant. a cotizar</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -207,10 +207,13 @@
                               type="number"
                               class="form-control form-control-sm"
                               min="0"
-                              :max="Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0))"
-                              v-model.number="it.cantidad_para_cotizar" />
+                              :max="restante(it)"
+                              v-model.number="it.cantidad_para_cotizar"
+                              @input="clampCantidad(it)"
+                              @blur="clampCantidad(it)"
+                            />
                             <div class="form-text">
-                              Máx: {{ Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0)) }}
+                              Restan: {{ restante(it) }}
                             </div>
                           </td>
                         </tr>
@@ -624,7 +627,6 @@ const archivos = ref([]);
 const centrosCostoDict = {
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
   "23302-CARPETAS":"CONTRATO 23302 CARPETAS",
-  // agrega aquí el resto si quieres hints
 };
 const centroCostoTextoAyuda = computed(() => {
   const v = (centroCostoTexto.value || '').trim();
@@ -673,13 +675,11 @@ onMounted(async () => {
   await cargarSolpedSolicitadas();
   await cargarSiguienteNumero();
 
-  // Si vienes desde el historial con ?fromSolpedId=...
   const preId = (route?.query?.fromSolpedId || '').toString();
   if (preId) {
     usarSolped.value = true;
     solpedSeleccionadaId.value = preId;
-    // ⚠️ Sólo cargamos la SOLPED. NO autollenamos "cantidad_para_cotizar".
-    await onChangeSolped(); // deja cantidad_para_cotizar = 0 para cada ítem
+    await onChangeSolped();
   }
 });
 
@@ -688,7 +688,6 @@ const obtenerNombreUsuario = async () => {
     const uid = myUid.value;
     if (!uid) return;
 
-    // 1° prioridad: Usuarios/{uid}.fullName
     const dref = doc(db, "Usuarios", uid);
     const snap = await getDoc(dref);
 
@@ -697,11 +696,9 @@ const obtenerNombreUsuario = async () => {
       usuarioActual.value = data.fullName || "";
     }
 
-    // 2° fallback: auth.displayName
     if (!usuarioActual.value) {
       usuarioActual.value = auth?.user?.displayName || "";
     }
-    // 3° fallback: auth.email
     if (!usuarioActual.value) {
       usuarioActual.value = auth?.user?.email || "";
     }
@@ -722,6 +719,20 @@ const onToggleUsarSolped = () => {
   calcularAprobador();
 };
 
+const restante = (it) => {
+  const total = Number(it.cantidad || 0);
+  const cot   = Number(it.cantidad_cotizada || 0);
+  return Math.max(0, total - cot);
+};
+
+const clampCantidad = (it) => {
+  let v = Number(it.cantidad_para_cotizar || 0);
+  const max = restante(it);
+  if (v < 0) v = 0;
+  if (v > max) v = max;
+  it.cantidad_para_cotizar = v;
+};
+
 const onChangeSolped = async () => {
   if (!solpedSeleccionadaId.value) {
     solpedSeleccionada.value = null;
@@ -735,7 +746,6 @@ const onChangeSolped = async () => {
     if (snap.exists()) {
       const data = snap.data() || {};
 
-      // Validar estado: sólo Pendiente o Parcial
       const st = (data.estatus || '').toString().trim().toLowerCase();
       if (!(st === 'pendiente' || st === 'parcial')) {
         addToast('warning', 'Esta SOLPED no está en estado Pendiente o Parcial.');
@@ -748,29 +758,47 @@ const onChangeSolped = async () => {
 
       solpedSeleccionada.value = data;
 
-      // === AUTOCOMPLETAR: Centro de Costo (texto) ===
       centroCostoTexto.value =
         (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
 
-      // Autorización (si existe)
       autorizacionNombre.value = data.autorizacion_nombre || null;
       autorizacionUrlRaw.value = data.autorizacion_url || null;
       const guess = ((autorizacionNombre.value || autorizacionUrlRaw.value || "") + "").toLowerCase();
       autorizacionEsPDF.value = guess.endsWith(".pdf");
       autorizacionEsImagen.value = /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(guess);
 
-      // Ítems no completados
       const todos = Array.isArray(data.items) ? data.items : [];
-      itemsSolped.value = todos
-        .filter(it => (it.estado || "").toLowerCase() !== "completado")
+
+      // 🔧 Normalización: rederivar "cantidad_cotizada" desde mapas por OC cuando aplique
+      const normalizados = todos.map(it => {
+        const total = Number(it.cantidad || 0);
+        const sumPend = sumMapNumbers(it.pendienteRevisionPorOC);
+        const sumAprob = sumMapNumbers(it.cotPorOC);
+        const plano = Number(it.cantidad_cotizada || 0);
+        const derivado = Math.min(total, sumPend + sumAprob);
+        const cotizadoFinal = Math.max(plano, derivado);
+        return {
+          ...it,
+          cantidad: total,
+          cantidad_cotizada: cotizadoFinal
+        };
+      });
+
+      itemsSolped.value = normalizados
+        .filter(it => {
+          const stIt = String(it.estado || '').toLowerCase();
+          // ✅ ahora mostramos también 'revision'
+          const esMostrar = (stIt === 'pendiente' || stIt === 'parcial' || stIt === '' || stIt === 'revision');
+          const rest = Math.max(0, Number(it.cantidad || 0) - Number(it.cantidad_cotizada || 0));
+          return esMostrar && rest > 0;
+        })
         .map(it => ({
           ...it,
-          cantidad_cotizada: it.cantidad_cotizada || 0,
+          cantidad_cotizada: Number(it.cantidad_cotizada || 0),
           cantidad_para_cotizar: 0,
           __tempId: `${it.item}-${it.descripcion}`
         }));
 
-      // Empresa sugerida desde la SOLPED
       if (data.empresa) {
         empresaSeleccionada.value = data.empresa;
       }
@@ -818,30 +846,38 @@ const calcularAprobador = () => {
 };
 
 /* ===== Helpers ===== */
-function mapearItemsReglaRevision(itemsOrigen, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel) {
+function mapearItemsReglaRevision(
+  itemsOrigen, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel
+) {
   const salida = [];
   for (const it of itemsOrigen) {
-    const cantAnt   = Number(it.cantidad_cotizada || 0);
-    const cantNueva = Number(it.cantidad_para_cotizar || 0);
-    const cantAct   = cantAnt + cantNueva;
+    const cantTotal = Number(it.cantidad || 0);
 
-    const estado            = cantNueva > 0 ? 'revision' : 'pendiente';
-    const estado_cotizacion = cantNueva > 0 ? 'revision' : 'ninguno';
+    const cantNuevaSolicitada = Number(it.cantidad_para_cotizar || 0);
+    const delta = Math.max(0, Math.min(cantNuevaSolicitada, cantTotal)); // clamp a cantidad
+
+    // 🔖 todos los ítems con delta > 0 quedan en "revision"
+    const estadoOC = delta > 0 ? 'revision' : 'pendiente';
 
     salida.push({
       ...it,
-      cantidad: Number(it.cantidad || 0),
-      cantidad_cotizada: cantAct,
-      cantidad_para_cotizar: cantNueva,
-      estado,
-      estado_cotizacion,
+      cantidad: cantTotal,
+
+      // ✨ Las tres iguales al delta (lo que se va a cotizar en ESTA OC)
+      cantidad_cotizada: delta,
+      cantidad_para_cotizar: delta,
+      cantidad_solicitada_oc: delta,
+
+      estado: estadoOC,
+      estado_cotizacion: estadoOC,
+
       codigo_referencial: it.codigo_referencial || 'SIN CÓDIGO',
       imagen_url: it.imagen_url ?? null,
       numero_interno: numeroInternoTexto || it.numero_interno || '',
       numero_solped: solpedSel?.numero_solpe || it.numero_solped || 0,
       moneda,
       precioTotalConIVA: totalConIVA,
-      responsable,                  // << fullName
+      responsable,      // fullName
       solpedId,
       tipo_solped: solpedSel?.tipo_solped || it.tipo_solped || 'No definido',
       __tempId: it.__tempId
@@ -850,7 +886,15 @@ function mapearItemsReglaRevision(itemsOrigen, numeroInternoTexto, moneda, total
   return salida;
 }
 
+// Suma segura de valores numéricos en objetos { [ocId]: numero }
+function sumMapNumbers(obj) {
+  if (!obj || typeof obj !== 'object') return 0;
+  return Object.values(obj)
+    .map(v => Number(v || 0))
+    .reduce((a, b) => a + b, 0);
+}
 
+// --- ✅ solo actualiza ítems (no cambia estatus global de la SOLPED) ---
 async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUsuario, ocNumero, ocDocId) {
   if (!solpedId) return;
 
@@ -861,26 +905,77 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUs
   const dataSol = ss.data() || {};
   const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-  const actualizados = originales.map((it) => {
-    const clave = `${it.item}-${it.descripcion}`;
-    const upd = itemsIngresados.find((x) => x.__tempId === clave);
-    if (!upd) return it;
+  const keyOf = (x) => x.__tempId || `${x.item}-${x.descripcion}`;
+  const idxByKey = new Map(originales.map((it, i) => [keyOf(it), i]));
+  const actualizados = [...originales];
 
-    const ant = Number(it.cantidad_cotizada || 0);
-    const nueva = Number(upd.cantidad_para_cotizar || 0);
-    const final = ant + nueva;
+  for (const ocIt of (itemsIngresados || [])) {
+    const i = idxByKey.get(keyOf(ocIt));
+    if (i == null) continue;
 
-    const estado = nueva > 0 ? 'pendiente' : 'pendiente';
-    const estado_cotizacion = nueva > 0 ? 'revision' : 'ninguno';
+    const base = { ...actualizados[i] };
+    const cantTotal = Number(base.cantidad || 0);
 
-    return { ...it, cantidad_cotizada: final, estado, estado_cotizacion };
+    // Delta de esta OC (lo que se cotiza ahora)
+    const delta = Math.max(
+      0,
+      Math.min(Number(ocIt.cantidad_cotizada ?? 0), cantTotal)
+    );
+
+    // Valores previos acumulados
+    const prevCot = Number(base.cantidad_cotizada || 0);
+    const prevPara = Number(base.cantidad_para_cotizar || 0);
+    const prevSolic = Number(base.cantidad_solicitada_oc || 0);
+
+    // Nuevo acumulado (clampeado al total requerido)
+    const nuevoCot     = Math.min(cantTotal, prevCot + delta);
+    const nuevoPara    = Math.min(cantTotal, prevPara + delta);
+    const nuevoSolicOC = Math.min(cantTotal, prevSolic + delta);
+
+    base.cantidad_cotizada      = nuevoCot;
+    base.cantidad_para_cotizar  = nuevoPara;
+    base.cantidad_solicitada_oc = nuevoSolicOC;
+
+    // Registrar por OC (traza fina por N° OC)
+    base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
+    if (delta > 0) {
+      base.pendienteRevisionPorOC[String(ocNumero)] =
+        Number(base.pendienteRevisionPorOC[String(ocNumero)] || 0) + delta;
+    }
+
+    // Mantener cotPorOC en 0 por ahora (fase revisión)
+    base.cotPorOC = base.cotPorOC || {};
+    if (base.cotPorOC[String(ocNumero)] == null) {
+      base.cotPorOC[String(ocNumero)] = 0;
+    }
+
+    // Estados a nivel de ítem según acumulado
+    if (cantTotal > 0 && nuevoCot >= cantTotal) {
+      // ✅ Ya se cubrió el total requerido: queda COMPLETO
+      base.estado = 'completado';
+      base.estado_cotizacion = 'completado';
+    } else if (nuevoCot > 0) {
+      // ✅ Hay avance pero no total: queda en REVISIÓN
+      base.estado = 'revision';
+      base.estado_cotizacion = 'revision';
+    } else {
+      // ✅ Sin avance: PENDIENTE
+      base.estado = 'pendiente';
+      base.estado_cotizacion = 'pendiente';
+    }
+
+
+    actualizados[i] = base;
+  }
+
+  // ✅ No tocamos dataSol.estatus (se mantiene tal cual)
+  await updateDoc(dref, {
+    items: actualizados,
+    updated_at: new Date()
   });
 
-  await updateDoc(dref, { items: actualizados, estatus: 'Pendiente' });
-
-  // Registro en subcolección historialEstados
-  const hcoll = collection(db, 'solped_taller', solpedId, 'historialEstados');
-  await addDoc(hcoll, {
+  // Historial informativo (no cambia estatus global)
+  await addDoc(collection(db, 'solped_taller', solpedId, 'historialEstados'), {
     usuario: nombreUsuario,
     fecha: serverTimestamp(),
     estatus: 'Cotizando - Revisión Guillermo',
@@ -890,39 +985,42 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUs
   });
 }
 
+
 /* ====== Guardar OC (Taller) ====== */
 const enviarOC = async () => {
   if (enviando.value) return;
 
-  // Validaciones
   if (!centroCostoTexto.value.trim()) { addToast("warning","Ingresa Centro de Costo (texto)"); return; }
   if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning","Precio inválido"); return; }
   if (!monedaSeleccionada.value) { addToast("warning","Selecciona moneda"); return; }
   if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning","Selecciona una SOLPED o desactiva la opción"); return; }
   if (archivos.value.length === 0) { addToast("warning","Debes subir al menos un archivo de cotización"); return; }
 
-  // Responsable: fullName desde obtenerNombreUsuario()
+  if (usarSolped.value && solpedSeleccionadaId.value) {
+    const hayAlgoPorCotizar = (itemsSolped.value || []).some(it => Number(it.cantidad_para_cotizar || 0) > 0);
+    if (!hayAlgoPorCotizar) {
+      addToast("warning", "Debes ingresar cantidad a cotizar en al menos un ítem.");
+      return;
+    }
+  }
+
   const nombreUsuario = (usuarioActual.value || "").trim();
   if (!nombreUsuario) { addToast("danger", "No se encontró tu nombre (fullName)."); return; }
 
-  // Comentario EXACTO del usuario (sin textos añadidos)
   const comentarioFinal = (comentario.value || "").trim();
 
   enviando.value = true;
 
   try {
-    // Nuevo ID correlativo
     const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
     const newId = Number(lastId) + 1;
 
-    // Aprobador / estatus inicial
     calcularAprobador();
     const aprobador = aprobadorSugerido.value || "";
     const estatusInicial = "Revisión Guillermo";
 
-    // Subir archivos
     const storage = getStorage();
     const subidos = [];
     for (const a of archivos.value) {
@@ -937,7 +1035,6 @@ const enviarOC = async () => {
       subidos.push({ nombre: a.name, tipo: a.tipo, url });
     }
 
-    // Ítems (si hay SOLPED)
     let itemsFinal = [];
     if (usarSolped.value && solpedSeleccionadaId.value && solpedSeleccionada.value) {
       itemsFinal = mapearItemsReglaRevision(
@@ -951,7 +1048,6 @@ const enviarOC = async () => {
       );
     }
 
-    // Historial inicial (incluye el comentario del usuario)
     const historialEntry = {
       usuario: nombreUsuario,
       estatus: estatusInicial,
@@ -959,7 +1055,6 @@ const enviarOC = async () => {
       comentario: comentarioFinal
     };
 
-    // Documento a guardar
     const dataToSave = {
       id: newId,
       empresa: empresaSeleccionada.value,
@@ -986,14 +1081,12 @@ const enviarOC = async () => {
       })
     };
 
-    // Guardar
     const newRef = await addDoc(collection(db, "ordenes_oc_taller"), dataToSave);
 
-    // Actualizar SOLPED (si aplica)
     if (usarSolped.value && solpedSeleccionadaId.value) {
       await actualizarSolpedTaller_postOC(
         solpedSeleccionadaId.value,
-        itemsSolped.value,
+        itemsFinal,
         nombreUsuario,
         newId,
         newRef.id
@@ -1093,7 +1186,7 @@ const variantesDe = (s) => {
   return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
 };
 
-/* Levenshtein light (recortado) */
+/* Levenshtein light */
 function lev(a, b){
   a = (a||'').slice(0,64); b = (b||'').slice(0,64);
   const m = Array.from({length: a.length+1}, (_,i)=>[i]);
@@ -1130,7 +1223,7 @@ function scoreEquipo(e, qNorm){
 /* Debounce + cancelación + caché */
 let debounce = null;
 let lastSearchToken = 0;
-const cacheResultados = new Map(); // key = query normalizada -> array
+const cacheResultados = new Map();
 
 const aplicarFiltrosEquiposDebounced = () => {
   if (debounce) clearTimeout(debounce);
@@ -1142,7 +1235,7 @@ const aplicarFiltrosEquiposDebounced = () => {
       resultadosEquipos.value = [];
       currentPage.value = 1;
     }
-  }, 450); // un poco más largo mejora UX y reduce lecturas
+  }, 450);
 };
 
 
@@ -1150,13 +1243,11 @@ const buscarEquipos = async (q) => {
   const qNorm = norm(q);
   currentPage.value = 1;
 
-  // Caché
   if (cacheResultados.has(qNorm)) {
     resultadosEquipos.value = cacheResultados.get(qNorm);
     return;
   }
 
-  // Reutiliza resultados de un prefijo ya cacheado si existe (filtrado local)
   const pref = [...cacheResultados.keys()].find(k => qNorm.startsWith(k) && k.length >= 2);
   if (pref) {
     const base = cacheResultados.get(pref) || [];
@@ -1177,7 +1268,6 @@ const buscarEquipos = async (q) => {
     }
   }
 
-  // Cancelación
   const token = ++lastSearchToken;
   cargandoEquipos.value = true;
 
@@ -1194,7 +1284,7 @@ const buscarEquipos = async (q) => {
             orderBy(campo),
             startAt(v),
             endAt(v + "\uf8ff"),
-            limit(25) // más pequeño que antes
+            limit(25)
           );
           const snap = await getDocs(qref);
           for (const d of snap.docs) {
@@ -1211,19 +1301,16 @@ const buscarEquipos = async (q) => {
       await Promise.all(promesas);
     };
 
-    // Campos críticos primero
     const criticos = ["codigo","patente","modelo","numero_chasis","equipo"];
     const secundarios = camposBusqueda.filter(c => !criticos.includes(c));
     await Promise.all(criticos.map(perCampo));
 
-    // Complementa si quedó corto
     if (acumulado.length < 60) {
       await Promise.all(secundarios.map(perCampo));
     }
 
-    if (token !== lastSearchToken) return; // petición obsoleta
+    if (token !== lastSearchToken) return;
 
-    // Ranking y recorte
     const rankeados = acumulado
       .map(r => ({ r, s: scoreEquipo(r, qNorm) }))
       .filter(x => x.s > 0)
@@ -1252,7 +1339,6 @@ const buscarEquipos = async (q) => {
 
 const cargarSolpedSolicitadas = async () => {
   try {
-    // Mostrar sólo Pendiente / Parcial para asociar
     let arr = [];
     try {
       const qy = query(
@@ -1262,7 +1348,6 @@ const cargarSolpedSolicitadas = async () => {
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch {
-      // Fallback sin índice
       const snap = await getDocs(collection(db, "solped_taller"));
       arr = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
