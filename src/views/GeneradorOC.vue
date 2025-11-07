@@ -3,6 +3,7 @@
 <template>
   <div class="generador-oc-page">
     <div class="container py-4 py-md-5">
+
       <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
@@ -31,6 +32,35 @@
           <i class="bi bi-receipt-cutoff me-1"></i>
           {{ mostrarMisOC ? 'Ocultar mis Cotizaciones' : 'Mis Cotizaciones' }}
         </button>
+
+        <!-- Switch Resumen OC (sólo md+) -->
+        <button
+          class="btn btn-outline-primary btn-sm d-none d-md-inline-flex"
+          @click="toggleResumenOC"
+          :aria-pressed="mostrarResumenOC.toString()">
+          <i class="bi bi-graph-up-arrow me-1"></i>
+          {{ mostrarResumenOC ? 'Ocultar resumen OC' : 'Resumen OC' }}
+        </button>
+
+      </div>
+
+      <!-- ===== Bloqueo por OCs Aprobadas (rol Editor) ===== -->
+      <div
+        v-if="bloqueoPorAprobadas"
+        class="alert alert-danger d-flex align-items-start gap-2 mb-3"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <div>
+          <div class="fw-semibold">
+            Límite alcanzado: tienes {{ totalAprobadasDelUsuario }} cotizaciones en estado
+            <u>Aprobado</u>.
+          </div>
+          <div class="small">
+            Para continuar generando nuevas cotizaciones, primero debes <strong>subir</strong> o gestionar las aprobadas.
+            Ve al detalle de tus cotizaciones y completa el proceso.
+          </div>
+        </div>
       </div>
 
       <!-- Layout principal -->
@@ -40,7 +70,7 @@
           <!-- Mis OC enviadas -->
           <div v-if="mostrarMisOC" class="card mb-3 card-elevated">
             <div class="card-header d-flex align-items-center justify-content-between">
-              <div class="fw-semibold">🧾 Mis Cotizaciones enviadas (mes actual)</div>
+              <div class="fw-semibold">🧾 Mis Cotizaciones</div>
               <span class="badge bg-dark-subtle text-dark-emphasis">
                 {{ misOC.length }} en total
               </span>
@@ -98,7 +128,7 @@
                     <button class="page-link" @click="misOCGoTo(n)">{{ n }}</button>
                   </li>
                   <li class="page-item" :class="{ disabled: misOCCurrentPage === misOCTotalPages }">
-                    <button class="page-link" @click="misOCGoTo(misOCCurrentPage + 1)" :disabled="misOCCurrentPage === misOCTotalPages" aria-label="Siguiente">»</button>
+                    <button class="page-link" @click="misOCGoTo(misOCCurrentPage + 1)" :disabled="misOCTotalPages===misOCCurrentPage" aria-label="Siguiente">»</button>
                   </li>
                 </ul>
               </nav>
@@ -106,10 +136,105 @@
           </div>
           <!-- /Mis OC -->
 
-          <!-- Card principal: Subir Cotización -->
-          <div class="card card-elevated position-relative overflow-hidden">
+          <!-- ===== Resumen OC (mes actual) ===== -->
+          <div v-if="mostrarResumenOC" class="card mb-3 card-elevated">
             <div class="card-header d-flex align-items-center justify-content-between">
-              <div class="fw-semibold">Subir Cotización</div>
+              <div class="fw-semibold">📊 Resumen de mis Cotizaciones</div>
+              <span class="badge bg-dark-subtle text-dark-emphasis">
+                {{ resumenOC.length }} fila
+              </span>
+            </div>
+
+            <div class="card-body p-0">
+              <div v-if="cargandoResumenOC" class="p-3 text-center">
+                <div class="spinner-border" role="status" aria-hidden="true"></div>
+                <div class="small mt-2">Cargando…</div>
+              </div>
+
+              <div v-else-if="!resumenOC.length" class="p-3 text-secondary text-center">
+                Sin datos en este mes.
+              </div>
+
+              <div v-else class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Responsable</th>
+                      <th class="text-center">Aprobado</th>
+                      <th class="text-center">Rechazado</th>
+                      <th class="text-center">Preaprobado</th>
+                      <th class="text-center">Pend. Aprob.</th>
+                      <th class="text-center">Rev. Guillermo</th>
+                      <th class="text-center">Env. Prove.</th>
+                      <th class="text-center">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in resumenOCPaged" :key="row.responsable">
+                      <td class="fw-semibold">{{ row.responsable }}</td>
+                      <td class="text-center">
+                        <span class="badge bg-success-subtle text-success-emphasis">{{ row.aprobado }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-danger-subtle text-danger-emphasis">{{ row.rechazado }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-info-subtle text-info-emphasis">{{ row.preaprobado }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-warning-subtle text-warning-emphasis">{{ row.pendiente }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ row.revision }}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-info-subtle text-info-emphasis">{{ row.proveedor }}</span>
+                      </td>
+                      <td class="text-center fw-semibold">{{ row.total }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Paginación (casi siempre 1 página) -->
+            <div v-if="!cargandoResumenOC && resumenOCTotalPages > 1" class="card-footer bg-white">
+              <nav aria-label="Paginación resumen oc">
+                <ul class="pagination justify-content-center mb-0">
+                  <li class="page-item" :class="{ disabled: resumenOCCurrentPage === 1 }">
+                    <button class="page-link" @click="resumenOCGoTo(resumenOCCurrentPage - 1)" :disabled="resumenOCCurrentPage === 1">«</button>
+                  </li>
+                  <li
+                    class="page-item"
+                    v-for="n in resumenOCVisiblePages"
+                    :key="'pg-resumen-oc-'+n"
+                    :class="{ active: resumenOCCurrentPage === n }">
+                    <button class="page-link" @click="resumenOCGoTo(n)">{{ n }}</button>
+                  </li>
+                  <li class="page-item" :class="{ disabled: resumenOCCurrentPage === resumenOCTotalPages }">
+                    <button class="page-link" @click="resumenOCGoTo(resumenOCCurrentPage + 1)" :disabled="resumenOCCurrentPage === resumenOCTotalPages">»</button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          </div>
+          <!-- ===== /Resumen OC ===== -->
+
+          <!-- ================== Card principal: Subir Cotización ================== -->
+          <div
+            class="card card-elevated position-relative overflow-hidden"
+            :class="{ 'is-locked': bloqueoPorAprobadas }"
+          >
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <div class="fw-semibold d-flex align-items-center gap-2">
+                <span>Subir Cotización</span>
+                <!-- Candado en header cuando bloqueado -->
+                <span v-if="bloqueoPorAprobadas"
+                      class="badge bg-danger-subtle text-danger-emphasis d-inline-flex align-items-center gap-1"
+                      title="Debes subir las OC de tus cotizaciones Aprobadas">
+                  <i class="bi bi-lock-fill"></i> Bloqueado
+                </span>
+              </div>
 
               <!-- Accesos rápidos (xs-sm) -->
               <div class="d-flex gap-2 d-lg-none">
@@ -120,6 +245,12 @@
                   <i class="bi bi-receipt-cutoff"></i>
                 </button>
                 <button
+                  class="btn btn-outline-primary btn-sm"
+                  @click="toggleResumenOC"
+                  :aria-pressed="mostrarResumenOC.toString()">
+                  <i class="bi bi-graph-up-arrow"></i>
+                </button>
+                <button
                   class="btn btn-secondary btn-sm"
                   @click="toggleEquiposResponsive"
                   :aria-pressed="mostrarEquipos.toString()">
@@ -128,230 +259,253 @@
               </div>
             </div>
 
-            <div class="card-body">
-              <!-- Nº de Cotización -->
-              <div class="mb-3">
-                <label class="form-label">N° de Cotización</label>
-                <div class="input-group">
-                  <span class="input-group-text">N°</span>
-                  <input
-                    class="form-control fw-semibold"
-                    :class="{'border-primary': !!nuevoIdVisual}"
-                    type="text"
-                    :value="(nuevoIdVisual ?? '—').toString()"
-                    readonly>
-                </div>
-                <div class="form-text">Se asigna automáticamente y es de solo lectura.</div>
-              </div>
-
-              <!-- Asociar SOLPED -->
-              <div class="form-check form-switch mb-3">
-                <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped">
-                <label class="form-check-label" for="swSolped">¿Asociar a una SOLPED?</label>
-              </div>
-
-              <!-- Selector SOLPED -->
-              <div v-if="usarSolped" class="row g-2 align-items-end">
-                <div class="col-12">
-                  <label class="form-label">SOLPED asociada</label>
-                  <select class="form-select" v-model="solpedSeleccionadaId" @change="onChangeSolped">
-                    <option value="">— Selecciona —</option>
-                    <option
-                      v-for="solpe in solpedDisponibles"
-                      :key="solpe.id"
-                      :value="solpe.id">
-                      #{{ solpe.numero_solpe }} - {{ solpe.nombre_solped }} ({{ solpe.tipo_solped }}) ·
-                      {{ solpe.nombre_centro_costo }} · {{ solpe.usuario || '—' }} · {{ solpe.empresa || '—' }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Ficha SOLPED -->
-              <div v-if="usarSolped && solpedSeleccionada" class="row g-3 mt-1">
-                <div class="col-12 col-md-6">
-                  <div class="small text-secondary">N° SOLPED</div>
-                  <div class="fw-semibold">{{ solpedSeleccionada.numero_solpe }}</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="small text-secondary">Centro de Costo</div>
-                  <div class="fw-semibold">
-                    {{ solpedSeleccionada.numero_contrato }} — {{ solpedSeleccionada.nombre_centro_costo }}
-                  </div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="small text-secondary">Empresa</div>
-                  <div class="fw-semibold">{{ solpedSeleccionada.empresa }}</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="small text-secondary">Tipo / Nombre</div>
-                  <div class="fw-semibold">
-                    {{ solpedSeleccionada.tipo_solped }} — {{ solpedSeleccionada.nombre_solped }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Ítems de SOLPED -->
-              <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
-                <div class="card-header bg-white d-flex align-items-center justify-content-between">
-                  <span class="fw-semibold">📦 Ítems de la SOLPED</span>
-                  <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
-                </div>
-
-                <div class="card-body">
-                  <!-- Tabla normal + stacked en xs -->
-                  <div class="table-responsive table-stacked-sm">
-                    <table class="table table-sm align-middle">
-                      <thead class="table-light">
-                        <tr>
-                          <th style="width: 60px;">Ítem</th>
-                          <th>Descripción</th>
-                          <th class="text-center">Cant. total</th>
-                          <th class="text-center">Cotizado antes</th>
-                          <th style="width: 180px;">Cant. a cotizar</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="it in itemsSolped" :key="it.__tempId">
-                          <td data-label="Ítem">{{ it.item }}</td>
-                          <td data-label="Descripción" class="w-50">{{ it.descripcion }}</td>
-                          <td data-label="Cant. total" class="text-center">{{ it.cantidad }}</td>
-                          <td data-label="Cotizado antes" class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
-                          <td data-label="Cant. a cotizar">
-                            <input
-                              type="number"
-                              class="form-control form-control-sm"
-                              min="0"
-                              :max="Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0))"
-                              v-model.number="it.cantidad_para_cotizar" />
-                            <div class="form-text">
-                              Máx: {{ Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0)) }}
-                            </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <!-- Documentos adjuntos -->
-                  <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
-                    <i class="bi bi-paperclip"></i>
-                    <div class="me-auto ms-2">
-                      <div class="fw-semibold mb-0">Documentos adjuntos</div>
-                      <div class="small">{{ autorizacionNombre || 'Archivo' }}</div>
-                    </div>
-                    <div class="d-flex gap-2">
-                      <a :href="autorizacionUrlRaw" target="_blank" rel="noopener" class="btn btn-sm btn-primary">Ver</a>
-                      <a :href="autorizacionUrlRaw" :download="autorizacionNombre || 'autorizacion'" class="btn btn-sm btn-outline-secondary">Descargar</a>
-                    </div>
-                  </div>
-
-                  <div v-if="autorizacionEsPDF" class="ratio ratio-16x9 mt-2">
-                    <iframe :src="autorizacionUrlRaw + '#toolbar=0'" style="border:none;"></iframe>
-                  </div>
-                  <div v-else-if="autorizacionEsImagen" class="text-center mt-2">
-                    <img :src="autorizacionUrlRaw" alt="Autorización" class="img-fluid rounded shadow-sm" style="max-height:500px; object-fit:contain;">
-                  </div>
-                </div>
-              </div>
-
-              <hr class="my-4">
-
-              <!-- Centro de costo -->
-              <div class="mb-3">
-                <label class="form-label">Centro de Costo</label>
-                <div class="input-group">
-                  <input class="form-control" :value="nombreCentroCosto || ''" placeholder="Selecciona un centro…" readonly>
-                  <button class="btn btn-outline-primary" @click="modalCentroAbierto = true" aria-label="Seleccionar Centro de Costo">
-                    <i class="bi bi-search"></i>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Tipo compra -->
-              <div class="row g-3">
-                <div class="col-12 col-md-6">
-                  <label class="form-label">N° Patente / Stock</label>
-                  <select class="form-select" v-model="tipoCompra">
-                    <option value="stock">Stock</option>
-                    <option value="patente">Patente</option>
-                  </select>
-                </div>
-                <div class="col-12 col-md-6" v-if="tipoCompra==='patente'">
-                  <label class="form-label">Patente destino</label>
-                  <input class="form-control" v-model="destinoCompra" placeholder="Escribe la patente">
-                </div>
-              </div>
-
-              <!-- Moneda + Precio -->
-              <div class="row g-3 mt-1">
-                <div class="col-12 col-md-4">
-                  <label class="form-label">Moneda</label>
-                  <select class="form-select" v-model="monedaSeleccionada" @change="onCambioMoneda">
-                    <option value="CLP">CLP</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="UF">UF</option>
-                  </select>
-                </div>
-                <div class="col-12 col-md-8">
-                  <label class="form-label">Precio Total con IVA</label>
-                  <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0" inputmode="numeric">
-                  <div class="form-text">Se formatea automáticamente según moneda seleccionada.</div>
-                </div>
-              </div>
-
-              <!-- Aprobador sugerido -->
-              <div v-if="aprobadorSugerido" class="alert alert-info d-flex align-items-center mt-3">
-                <i class="bi bi-person-check me-2"></i>
-                <div><strong>Aprobador sugerido:</strong> {{ aprobadorSugerido }}</div>
-              </div>
-
-              <!-- Comentario -->
-              <div class="mb-3">
-                <label class="form-label">Comentario</label>
-                <textarea class="form-control" rows="3" v-model="comentario" placeholder="Agrega un comentario opcional…"></textarea>
-              </div>
-
-              <!-- Archivos -->
-              <div class="mb-3">
-                <label class="form-label">Archivos PDF o Imagen</label>
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                  <input id="inputArchivo" type="file" multiple accept="application/pdf,image/*" class="d-none" @change="onMultipleFilesSelected">
-                  <button class="btn btn-outline-primary" @click="abrirSelectorArchivos">
-                    <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
-                  </button>
-                  <small class="text-secondary">Puedes subir más de uno.</small>
-                </div>
-              </div>
-
-              <!-- Previews -->
-              <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
-                <div class="card-header d-flex align-items-center">
-                  <div class="fw-semibold me-auto text-truncate">{{ archivo.name }}</div>
-                  <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)" aria-label="Eliminar archivo">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
-                <div class="card-body">
-                  <div v-if="archivo.tipo?.includes('pdf')" class="ratio ratio-16x9">
-                    <iframe v-if="archivo.previewUrl" :src="archivo.previewUrl" style="border:none;"></iframe>
-                  </div>
-                  <div v-else class="text-center">
-                    <img v-if="archivo.previewUrl" :src="archivo.previewUrl" alt="Vista previa" class="img-fluid rounded shadow-sm" style="max-height:700px; object-fit:contain;">
-                  </div>
-                </div>
-              </div>
-
-              <!-- Enviar -->
-              <div class="d-grid mt-3">
-                <button class="btn btn-danger btn-lg" :disabled="enviando" @click="enviarOC">
-                  <span v-if="enviando" class="spinner-border spinner-border-sm me-2"></span>
-                  Enviar Cotización
+            <!-- Overlay de bloqueo -->
+            <div v-if="bloqueoPorAprobadas" class="lock-overlay">
+              <div class="lock-box text-center">
+                <i class="bi bi-lock-fill display-6 d-block mb-2"></i>
+                <div class="fw-semibold">Formulario bloqueado</div>
+                <div class="small text-secondary">Debes gestionar tus cotizaciones <strong>Aprobadas</strong> y subir la orden de compra correspondiente antes de continuar con el proceso.</div>
+                <button class="btn btn-sm btn-dark mt-3" @click="router.push('/historial-oc')">
+                  Ver mis cotizaciones
                 </button>
               </div>
             </div>
+
+            <div class="card-body">
+              <!-- Fieldset para deshabilitar todo de una -->
+              <fieldset :disabled="formDisabled" style="border:0;padding:0;margin:0">
+
+                <!-- Nº de Cotización -->
+                <div class="mb-3">
+                  <label class="form-label">N° de Cotización</label>
+                  <div class="input-group">
+                    <span class="input-group-text">N°</span>
+                    <input
+                      class="form-control fw-semibold"
+                      :class="{'border-primary': !!nuevoIdVisual}"
+                      type="text"
+                      :value="(nuevoIdVisual ?? '—').toString()"
+                      readonly>
+                  </div>
+                  <div class="form-text">Se asigna automáticamente y es de solo lectura.</div>
+                </div>
+
+                <!-- Asociar SOLPED -->
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped">
+                  <label class="form-check-label" for="swSolped">¿Asociar a una SOLPED?</label>
+                </div>
+
+                <!-- Selector SOLPED -->
+                <div v-if="usarSolped" class="row g-2 align-items-end">
+                  <div class="col-12">
+                    <label class="form-label">SOLPED asociada</label>
+                    <select class="form-select" v-model="solpedSeleccionadaId" @change="onChangeSolped">
+                      <option value="">— Selecciona —</option>
+                      <option
+                        v-for="solpe in solpedDisponibles"
+                        :key="solpe.id"
+                        :value="solpe.id">
+                        #{{ solpe.numero_solpe }} - {{ solpe.nombre_solped }} ({{ solpe.tipo_solped }}) ·
+                        {{ solpe.nombre_centro_costo }} · {{ solpe.usuario || '—' }} · {{ solpe.empresa || '—' }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Ficha SOLPED -->
+                <div v-if="usarSolped && solpedSeleccionada" class="row g-3 mt-1">
+                  <div class="col-12 col-md-6">
+                    <div class="small text-secondary">N° SOLPED</div>
+                    <div class="fw-semibold">{{ solpedSeleccionada.numero_solpe }}</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-secondary">Centro de Costo</div>
+                    <div class="fw-semibold">
+                      {{ solpedSeleccionada.numero_contrato }} — {{ solpedSeleccionada.nombre_centro_costo }}
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-secondary">Empresa</div>
+                    <div class="fw-semibold">{{ solpedSeleccionada.empresa }}</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="small text-secondary">Tipo / Nombre</div>
+                    <div class="fw-semibold">
+                      {{ solpedSeleccionada.tipo_solped }} — {{ solpedSeleccionada.nombre_solped }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Ítems de SOLPED -->
+                <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
+                  <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                    <span class="fw-semibold">📦 Ítems de la SOLPED</span>
+                    <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
+                  </div>
+
+                  <div class="card-body">
+                    <!-- Tabla normal + stacked en xs -->
+                    <div class="table-responsive table-stacked-sm">
+                      <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                          <tr>
+                            <th style="width: 60px;">Ítem</th>
+                            <th>Descripción</th>
+                            <th class="text-center">Cant. total</th>
+                            <th class="text-center">Cotizado antes</th>
+                            <th style="width: 180px;">Cant. a cotizar</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="it in itemsSolped" :key="it.__tempId">
+                            <td data-label="Ítem">{{ it.item }}</td>
+                            <td data-label="Descripción" class="w-50">{{ it.descripcion }}</td>
+                            <td data-label="Cant. total" class="text-center">{{ it.cantidad }}</td>
+                            <td data-label="Cotizado antes" class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
+                            <td data-label="Cant. a cotizar">
+                              <input
+                                type="number"
+                                class="form-control form-control-sm"
+                                min="0"
+                                :max="Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0))"
+                                v-model.number="it.cantidad_para_cotizar" />
+                              <div class="form-text">
+                                Máx: {{ Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0)) }}
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- Documentos adjuntos -->
+                    <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
+                      <i class="bi bi-paperclip"></i>
+                      <div class="me-auto ms-2">
+                        <div class="fw-semibold mb-0">Documentos adjuntos</div>
+                        <div class="small">{{ autorizacionNombre || 'Archivo' }}</div>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <a :href="autorizacionUrlRaw" target="_blank" rel="noopener" class="btn btn-sm btn-primary">Ver</a>
+                        <a :href="autorizacionUrlRaw" :download="autorizacionNombre || 'autorizacion'" class="btn btn-sm btn-outline-secondary">Descargar</a>
+                      </div>
+                    </div>
+
+                    <div v-if="autorizacionEsPDF" class="ratio ratio-16x9 mt-2">
+                      <iframe :src="autorizacionUrlRaw + '#toolbar=0'" style="border:none;"></iframe>
+                    </div>
+                    <div v-else-if="autorizacionEsImagen" class="text-center mt-2">
+                      <img :src="autorizacionUrlRaw" alt="Autorización" class="img-fluid rounded shadow-sm" style="max-height:500px; object-fit:contain;">
+                    </div>
+                  </div>
+                </div>
+
+                <hr class="my-4">
+
+                <!-- Centro de costo -->
+                <div class="mb-3">
+                  <label class="form-label">Centro de Costo</label>
+                  <div class="input-group">
+                    <input class="form-control" :value="nombreCentroCosto || ''" placeholder="Selecciona un centro…" readonly>
+                    <button class="btn btn-outline-primary" @click="modalCentroAbierto = true" aria-label="Seleccionar Centro de Costo">
+                      <i class="bi bi-search"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Tipo compra -->
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label">N° Patente / Stock</label>
+                    <select class="form-select" v-model="tipoCompra">
+                      <option value="stock">Stock</option>
+                      <option value="patente">Patente</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-6" v-if="tipoCompra==='patente'">
+                    <label class="form-label">Patente destino</label>
+                    <input class="form-control" v-model="destinoCompra" placeholder="Escribe la patente">
+                  </div>
+                </div>
+
+                <!-- Moneda + Precio -->
+                <div class="row g-3 mt-1">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label">Moneda</label>
+                    <select class="form-select" v-model="monedaSeleccionada" @change="onCambioMoneda">
+                      <option value="CLP">CLP</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="UF">UF</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-8">
+                    <label class="form-label">Precio Total con IVA</label>
+                    <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0" inputmode="numeric">
+                    <div class="form-text">Se formatea automáticamente según moneda seleccionada.</div>
+                  </div>
+                </div>
+
+                <!-- Aprobador sugerido -->
+                <div v-if="aprobadorSugerido" class="alert alert-info d-flex align-items-center mt-3">
+                  <i class="bi bi-person-check me-2"></i>
+                  <div><strong>Aprobador sugerido:</strong> {{ aprobadorSugerido }}</div>
+                </div>
+
+                <!-- Comentario -->
+                <div class="mb-3">
+                  <label class="form-label">Comentario</label>
+                  <textarea class="form-control" rows="3" v-model="comentario" placeholder="Agrega un comentario opcional…"></textarea>
+                </div>
+
+                <!-- Archivos -->
+                <div class="mb-3">
+                  <label class="form-label">Archivos PDF o Imagen</label>
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <input id="inputArchivo" type="file" multiple accept="application/pdf,image/*" class="d-none" @change="onMultipleFilesSelected">
+                    <button class="btn btn-outline-primary" @click="abrirSelectorArchivos">
+                      <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
+                    </button>
+                    <small class="text-secondary">Puedes subir más de uno.</small>
+                  </div>
+                </div>
+
+                <!-- Previews -->
+                <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
+                  <div class="card-header d-flex align-items-center">
+                    <div class="fw-semibold me-auto text-truncate">{{ archivo.name }}</div>
+                    <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)" aria-label="Eliminar archivo">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                  <div class="card-body">
+                    <div v-if="archivo.tipo?.includes('pdf')" class="ratio ratio-16x9">
+                      <iframe v-if="archivo.previewUrl" :src="archivo.previewUrl" style="border:none;"></iframe>
+                    </div>
+                    <div v-else class="text-center">
+                      <img v-if="archivo.previewUrl" :src="archivo.previewUrl" alt="Vista previa" class="img-fluid rounded shadow-sm" style="max-height:700px; object-fit:contain;">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Enviar -->
+                <div class="d-grid mt-3">
+                  <button
+                    class="btn btn-danger btn-lg"
+                    :disabled="enviando || bloqueoPorAprobadas"
+                    :title="bloqueoPorAprobadas ? 'No puedes enviar nuevas cotizaciones: límite de aprobadas alcanzado' : ''"
+                    @click="enviarOC"
+                  >
+                    <span v-if="enviando" class="spinner-border spinner-border-sm me-2"></span>
+                    Enviar Cotización
+                  </button>
+                </div>
+
+              </fieldset>
+            </div>
           </div>
+          <!-- ================== /Card principal ================== -->
         </div>
 
         <!-- Panel Equipos (sticky en desktop) -->
@@ -589,26 +743,63 @@ import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  startAt, endAt, onSnapshot, Timestamp, serverTimestamp
+  startAt, endAt, onSnapshot, Timestamp, serverTimestamp, getCountFromServer
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
 
+/* =================== Router / Auth =================== */
 const router = useRouter();
 const route = useRoute();
 const volver = () => router.back();
 const auth = useAuthStore();
 
-/* ======= Estado base ======= */
+/* =================== Bloqueo por Aprobadas (2 meses) =================== */
+/**
+ * REGLA:
+ * - Aplica sólo a roles listados en APPLY_TO_ROLES
+ * - Bloquea si el COUNT de OC "Aprobado" del usuario en los ÚLTIMOS 2 MESES
+ *   (mes actual + mes anterior) es >= MAX_OC_APROBADAS
+ */
+const APPLY_TO_ROLES = ['editor']; // agrega más roles si corresponde
+const MAX_OC_APROBADAS = Number(import.meta.env.VITE_MAX_OC_APROBADAS ?? 10);
+
+const userRole = ref(''); // se carga desde Usuarios.role
+const totalAprobadasDelUsuario = ref(0);
+const bloqueoPorAprobadas = computed(() => {
+  const roleLower = (userRole.value || '').toString().toLowerCase();
+  if (!APPLY_TO_ROLES.includes(roleLower)) return false;
+  return totalAprobadasDelUsuario.value >= MAX_OC_APROBADAS;
+});
+const formDisabled = computed(() => bloqueoPorAprobadas.value || enviando.value);
+
+/** Rango de "últimos 2 meses" por fechaSubida:
+ *  - from: 1° del mes anterior 00:00:00
+ *  - to:   1° del mes siguiente 00:00:00 (exclusivo)
+ *  Ej: si hoy es Nov 2025, cuenta: Oct 1 00:00:00 -> Dic 1 00:00:00
+ */
+const rangeUltimosDosMeses = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0..11
+  const inicio = new Date(y, m - 1, 1, 0, 0, 0, 0);
+  const fin    = new Date(y, m + 1, 1, 0, 0, 0, 0);
+  return {
+    from: Timestamp.fromDate(inicio),
+    to:   Timestamp.fromDate(fin),
+  };
+};
+
+/* =================== Estado base =================== */
 const enviando = ref(false);
 const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
 const comentario = ref("");
 
-/* Responsive helpers */
+/* ===== Responsive helpers ===== */
 const isDesktop = ref(false);
 const showEquiposMobile = ref(false);
-const mostrarEquipos = ref(false); // desktop sidebar (lg)
+const mostrarEquipos = ref(false); // sidebar desktop (lg)
 
 const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 const openEquiposMobile = () => {
@@ -633,7 +824,7 @@ const onResize = () => {
   if (isDesktop.value && wasOpen) cerrarEquiposMobile();
 };
 
-/* Equipos */
+/* =================== Equipos (buscador) =================== */
 const busquedaEquipo = ref("");
 const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);
@@ -811,7 +1002,8 @@ Clasificación: ${e.clasificacion1 || '—'}`;
   }
 };
 
-/* ====== SOLPED & Centro de costo ====== */
+/* =================== SOLPED & Centro de costo =================== */
+/* Query optimizada: trae SOLPEDs dirigidas al usuario y con estatus permitido */
 const solpedDisponibles = ref([]);
 const solpedSeleccionadaId = ref("");
 const solpedSeleccionada = ref(null);
@@ -892,7 +1084,7 @@ const tipoCambioEUR = 1050;
 const myUid = computed(() => auth?.user?.uid || null);
 const usuarioActual = ref("");
 
-/* Archivos */
+/* =================== Archivos =================== */
 const archivos = ref([]); // { file, name, tipo, previewUrl, __k }
 const abrirSelectorArchivos = () => {
   const input = document.getElementById("inputArchivo");
@@ -920,7 +1112,7 @@ const eliminarArchivo = (idx) => {
   addToast("success", "Archivo eliminado.");
 };
 
-/* Toasts */
+/* =================== Toasts =================== */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2800) => {
   const id = Date.now() + Math.random();
@@ -929,13 +1121,19 @@ const addToast = (type, text, timeout = 2800) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ====== Carga inicial ====== */
+/* =================== Carga inicial =================== */
 onMounted(async () => {
   computeIsDesktop();
   window.addEventListener('resize', onResize);
 
-  await obtenerNombreUsuario();
-  await cargarSolpedSolicitadas();
+  await obtenerNombreUsuario();      // carga usuarioActual y role
+
+  // ✅ contador de Aprobadas en últimos 2 meses
+  await refrescarAprobadasConCount();
+  // ✅ escucha liviana con el mismo rango de 2 meses
+  suscribirAprobadasLiveMinima();
+
+  await cargarSolpedSolicitadasOptimizada();
   await cargarSiguienteNumero();
 
   // Autoselección desde query
@@ -957,13 +1155,184 @@ onMounted(async () => {
     addToast("success","SOLPED preseleccionada desde el historial.");
   }
 });
+/* =================== Resumen OC (mes actual, collection: ordenes_oc) =================== */
+const mostrarResumenOC = ref(false);
+const cargandoResumenOC = ref(false);
+const resumenOC = ref([]); // [{ responsable, aprobado, rechazado, preaprobado, pendiente, revision, proveedor, otros, total }]
+const resumenOCPageSize = 10;
+const resumenOCCurrentPage = ref(1);
+let _unsubResumenOC = null;
 
+const resumenOCTotalPages = computed(() =>
+  Math.max(1, Math.ceil(resumenOC.value.length / resumenOCPageSize))
+);
+const resumenOCVisiblePages = computed(() => {
+  const maxButtons = 8;
+  const pages = [];
+  let start = Math.max(1, resumenOCCurrentPage.value - Math.floor(maxButtons / 2));
+  let end = Math.min(resumenOCTotalPages.value, start + maxButtons - 1);
+  start = Math.max(1, end - maxButtons + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+  return pages;
+});
+const resumenOCPaged = computed(() => {
+  const start = (resumenOCCurrentPage.value - 1) * resumenOCPageSize;
+  return resumenOC.value.slice(start, start + resumenOCPageSize);
+});
+const resumenOCGoTo = (n) => {
+  if (n < 1 || n > resumenOCTotalPages.value) return;
+  resumenOCCurrentPage.value = n;
+};
+
+/** Normaliza el estatus a categorías visuales del resumen */
+function mapEstatusCategoriaOC(estatusRaw) {
+  const s = String(estatusRaw || "").toLowerCase().trim();
+  if (s.includes("proveedor")) return "Enviada a proveedor";
+  if (s.includes("aprobado") && !s.includes("preaprob")) return "Aprobado";
+  if (s.includes("preaprob")) return "Preaprobado";
+  if (s.includes("rechaz") || s.includes("escala")) return "Rechazado";
+  if (s.includes("pendiente")) return "Pendiente de Aprobación";
+  if (s.includes("revisión") || s.includes("revision")) return "Revisión Guillermo";
+  return "Otros";
+}
+function desuscribirResumenOC(){
+  if (_unsubResumenOC) { _unsubResumenOC(); _unsubResumenOC = null; }
+  resumenOC.value = [];
+  resumenOCCurrentPage.value = 1;
+  cargandoResumenOC.value = false;
+}
+
+
+function suscribirResumenOC(nombre){
+  desuscribirResumenOC();
+  cargandoResumenOC.value = true;
+
+  if (!nombre) { cargandoResumenOC.value = false; return; }
+
+  // ✅ Rango de los últimos 2 meses (mes actual + anterior)
+  const { from, to } = rangeUltimosDosMeses();
+
+  try {
+    const qy = query(
+      collection(db, "ordenes_oc"),
+      where("responsable", "==", nombre),
+      where("fechaSubida", ">=", from),
+      where("fechaSubida", "<",  to),
+      orderBy("fechaSubida", "desc")
+    );
+
+    _unsubResumenOC = onSnapshot(qy, (snap) => {
+      const row = {
+        responsable: nombre,
+        aprobado: 0,
+        rechazado: 0,
+        preaprobado: 0,
+        pendiente: 0,
+        revision: 0,
+        proveedor: 0,
+        otros: 0,
+        total: 0
+      };
+
+      snap.forEach((d) => {
+        const x = d.data() || {};
+        const cat = mapEstatusCategoriaOC(x.estatus);
+        if      (cat === "Aprobado")                row.aprobado++;
+        else if (cat === "Rechazado")               row.rechazado++;
+        else if (cat === "Preaprobado")             row.preaprobado++;
+        else if (cat === "Pendiente de Aprobación") row.pendiente++;
+        else if (cat === "Revisión Guillermo")      row.revision++;
+        else if (cat === "Enviada a proveedor")     row.proveedor++;
+        else                                        row.otros++;
+        row.total++;
+      });
+
+      resumenOC.value = row.total > 0 ? [row] : [];
+      resumenOCCurrentPage.value = 1;
+      cargandoResumenOC.value = false;
+    }, (err) => {
+      console.error("onSnapshot resumen OC (2 meses):", err);
+      cargandoResumenOC.value = false;
+    });
+  } catch (e) {
+    console.error("suscribirResumenOC (2 meses) error:", e);
+    cargandoResumenOC.value = false;
+  }
+}
+
+const toggleResumenOC = () => {
+  mostrarResumenOC.value = !mostrarResumenOC.value;
+  if (mostrarResumenOC.value) suscribirResumenOC(usuarioActual.value);
+  else desuscribirResumenOC();
+};
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize);
   document.documentElement.style.overflow = '';
   if (_unsubMisOC) _unsubMisOC();
+  if (_unsubAprobadasLive) _unsubAprobadasLive();
+
 });
 
+/* =================== Aprobadas (COUNT + Live) - 2 meses =================== */
+async function refrescarAprobadasConCount(){
+  try{
+    const nombre = (usuarioActual.value || '').trim();
+    if (!nombre) { totalAprobadasDelUsuario.value = 0; return; }
+
+    const { from, to } = rangeUltimosDosMeses();
+
+    // Cuenta SOLO las aprobadas con fechaSubida en el rango de 2 meses
+    const qy = query(
+      collection(db, "ordenes_oc"),
+      where("responsable", "==", nombre),
+      where("estatus", "==", "Aprobado"),
+      where("fechaSubida", ">=", from),
+      where("fechaSubida", "<",  to)
+    );
+    const snap = await getCountFromServer(qy);
+    totalAprobadasDelUsuario.value = snap.data().count || 0;
+  }catch(e){
+    console.error("getCountFromServer error:", e);
+    totalAprobadasDelUsuario.value = 0;
+  }
+}
+
+let _unsubAprobadasLive = null;
+function suscribirAprobadasLiveMinima(){
+  const nombre = (usuarioActual.value || '').trim();
+  if (!nombre) return;
+  try{
+    const { from, to } = rangeUltimosDosMeses();
+
+    // Live mínima dentro del rango 2M (para "detectar cambios" y recalc COUNT)
+    const qy = query(
+      collection(db, "ordenes_oc"),
+      where("responsable", "==", nombre),
+      where("estatus", "==", "Aprobado"),
+      where("fechaSubida", ">=", from),
+      where("fechaSubida", "<",  to),
+      orderBy("fechaSubida", "desc"),
+      limit(1)
+    );
+    _unsubAprobadasLive = onSnapshot(qy, async () => {
+      await refrescarAprobadasConCount();
+    });
+  }catch(e){
+    console.error("suscribirAprobadasLiveMinima:", e);
+  }
+}
+// Si cambia el usuario y está abierto el resumen, re-suscribe:
+watch(usuarioActual, (nv) => { if (nv && mostrarResumenOC.value) suscribirResumenOC(nv); });
+
+watch(() => usuarioActual.value, async (nv) => {
+  if (nv) {
+    await refrescarAprobadasConCount();
+    suscribirAprobadasLiveMinima();
+    if (mostrarMisOC.value) suscribirMisOC(); // esto muestra solo el mes actual (puedes dejarlo así)
+  }
+});
+
+/* =================== Usuario =================== */
 const obtenerNombreUsuario = async () => {
   try {
     const uid = myUid.value;
@@ -972,29 +1341,29 @@ const obtenerNombreUsuario = async () => {
     const snap = await getDoc(dref);
     if (snap.exists()) {
       const data = snap.data() || {};
-      usuarioActual.value = data.fullName || "";
+      usuarioActual.value = data.fullName || auth?.user?.displayName || auth?.user?.email || "";
+      userRole.value = data.role || ""; // rol desde Usuarios
     }
   } catch(e){ console.error(e); }
 };
 
-const cargarSolpedSolicitadas = async () => {
+/* =================== SOLPED: carga optimizada =================== */
+const cargarSolpedSolicitadasOptimizada = async () => {
   try {
     let arr = [];
+    const estatusValidos = ["Solicitado", "Pendiente", "Parcial"];
     if (usuarioActual.value) {
       const qy = query(
         collection(db, "solpes"),
-        where("estatus", "in", ["Solicitado", "Pendiente", "Parcial"])
+        where("dirigidoA", "array-contains", usuarioActual.value),
+        where("estatus", "in", estatusValidos)
       );
       const snap = await getDocs(qy);
       arr = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(s => {
-          const da = Array.isArray(s.dirigidoA) ? s.dirigidoA : [];
-          return da.includes(usuarioActual.value);
-        })
         .sort((a,b) => (a.numero_solpe||0)-(b.numero_solpe||0));
     } else {
-      const qy = query(collection(db, "solpes"), where("estatus", "in", ["Solicitado", "Pendiente", "Parcial"]));
+      const qy = query(collection(db, "solpes"), where("estatus", "in", estatusValidos));
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ id: d.id, ...d.data() }))
                      .sort((a,b) => (a.numero_solpe||0)-(b.numero_solpe||0));
@@ -1014,7 +1383,7 @@ const cargarSiguienteNumero = async () => {
   }
 };
 
-/* ====== SOLPED ====== */
+/* =================== Cambios SOLPED en UI =================== */
 const onToggleUsarSolped = () => {
   if (!usarSolped.value) {
     solpedSeleccionada.value = null;
@@ -1069,7 +1438,7 @@ const onChangeSolped = async () => {
   } catch(e){ console.error(e); }
 };
 
-/* ====== Moneda / precio / aprobador ====== */
+/* =================== Moneda / precio / aprobador =================== */
 const onCambioMoneda = () => { formatearPrecConValor(precioTotalConIVA.value); };
 const formatearPrecio = (ev) => {
   const input = (ev?.target?.value ?? "").toString();
@@ -1126,9 +1495,18 @@ const calcularAprobador = () => {
   }
 };
 
-/* ====== Guardar OC ====== */
+/* =================== Guardar OC =================== */
 const enviarOC = async () => {
   if (enviando.value) return;
+
+  // 🔒 Bloqueo por OCs aprobadas (rol Editor) con rangos de 2 meses
+  if (bloqueoPorAprobadas.value) {
+    addToast(
+      "warning",
+      `Tienes ${totalAprobadasDelUsuario.value} cotizaciones en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`
+    );
+    return;
+  }
 
   // Validaciones
   if (!centroCosto.value.trim())                  { addToast("warning","Selecciona Centro de Costo"); return; }
@@ -1267,7 +1645,8 @@ const enviarOC = async () => {
   }
 };
 
-/* ====== Mis OC enviadas ====== */
+/* =================== Mis OC enviadas (mes actual) =================== */
+// *Esto lo dejo como lo tenías: SOLO mes actual. Si quieres 2 meses, dime y te lo paso igual.*
 const mostrarMisOC = ref(false);
 const cargandoMisOC = ref(false);
 const misOC = ref([]);
@@ -1304,29 +1683,25 @@ const estadoBadgeClass = (estatus) => {
 const irADetalleOC = (oc) => { router.push(`/oc/${oc.__docId}`); };
 
 let _unsubMisOC = null;
-const rangeMesActual = () => {
-  const now = new Date();
-  const from = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0));
-  const to   = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0));
-  return { from, to };
-};
-const suscribirMisOC = () => {
-  if (_unsubMisOC) { _unsubMisOC(); _unsubMisOC = null; }
-  const nombre = usuarioActual.value; if (!nombre) return;
-  const { from, to } = rangeMesActual();
-  const qy = query(
-    collection(db, "ordenes_oc"),
-    where("responsable", "==", nombre),
-    where("fechaSubida", ">=", from),
-    where("fechaSubida", "<", to),
-    orderBy("fechaSubida", "desc")
-  );
-  _unsubMisOC = onSnapshot(qy, (snap) => {
-    const arr = []; snap.forEach(docu => arr.push({ __docId: docu.id, ...docu.data() }));
-    arr.sort((a,b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
-    misOC.value = arr; misOCCurrentPage.value = 1;
-  }, (err) => { console.error("onSnapshot mes actual:", err); });
-};
+
+ const suscribirMisOC = () => {
+   if (_unsubMisOC) { _unsubMisOC(); _unsubMisOC = null; }
+   const nombre = usuarioActual.value; if (!nombre) return;
+   const { from, to } = rangeUltimosDosMeses(); // ← ahora 2 meses
+   const qy = query(
+     collection(db, "ordenes_oc"),
+     where("responsable", "==", nombre),
+     where("fechaSubida", ">=", from),
+     where("fechaSubida", "<", to),
+     orderBy("fechaSubida", "desc")
+   );
+   _unsubMisOC = onSnapshot(qy, (snap) => {
+     const arr = []; snap.forEach(docu => arr.push({ __docId: docu.id, ...docu.data() }));
+     arr.sort((a,b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
+     misOC.value = arr; misOCCurrentPage.value = 1;
+  }, (err) => { console.error("onSnapshot últimos 2 meses:", err); });
+ };
+
 const desuscribirMisOC = () => {
   if (_unsubMisOC) { _unsubMisOC(); _unsubMisOC = null; }
   misOC.value = []; misOCCurrentPage.value = 1; cargandoMisOC.value = false;
@@ -1338,7 +1713,7 @@ const toggleMisOC = () => {
 };
 watch(usuarioActual, (nv) => { if (nv && mostrarMisOC.value) suscribirMisOC(); });
 
-/* ====== Actualizar SOLPED vinculada ====== */
+/* =================== Actualizar SOLPED vinculada =================== */
 const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario) => {
   if (!solpedId) return;
   const sref = doc(db, "solpes", solpedId);
@@ -1416,6 +1791,30 @@ const mapearItemsSegunRegla = (itemsFuente) => {
   border-radius: .9rem !important;
 }
 
+/* 🔒 Estado bloqueado */
+.card.is-locked{
+  position: relative;
+  filter: none;
+}
+/* 🔒 Overlay de bloqueo */
+.lock-overlay{
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(2px);
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.lock-box{
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: .85rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  max-width: 420px;
+}
 /* Sidebar/Panel sticky en desktop */
 .sticky-panel{ position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: hidden; }
 .sticky-panel .card-body{ overflow: auto; }

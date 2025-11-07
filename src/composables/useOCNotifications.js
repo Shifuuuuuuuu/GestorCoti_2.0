@@ -115,13 +115,11 @@ export function useOCNotifications() {
       if (!u) return
 
       const fullName = (auth?.profile?.fullName || u.displayName || '').trim()
-      const email = (u.email || '').trim().toLowerCase()
       const uid = u.uid
 
       // Montamos listeners según lo que guardes en 'ordenes_oc'
       if (fullName) startFor('responsable', fullName)      // por nombre visible
-      startFor('responsableUid', uid)                      // por UID
-      if (email) startFor('responsableEmail', email)       // por email
+      startFor('responsable', uid)                      // por UID
     },
     { immediate: true }
   )

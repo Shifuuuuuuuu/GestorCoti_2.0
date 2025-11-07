@@ -109,13 +109,11 @@ export function useOCNotificationTaller() {
       if (!u) return
 
       const fullName = (auth?.profile?.fullName || u.displayName || '').trim()
-      const email = (u.email || '').trim().toLowerCase()
       const uid = u.uid
 
       // Escuchas según cómo guardes al responsable en 'ordenes_oc_taller'
       if (fullName) startFor('responsable', fullName)
-      startFor('responsableUid', uid)
-      if (email) startFor('responsableEmail', email)
+      startFor('responsable', uid)
     },
     { immediate: true }
   )

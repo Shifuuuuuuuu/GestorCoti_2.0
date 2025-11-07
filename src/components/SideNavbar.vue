@@ -24,6 +24,10 @@ const photoUrl = computed(() =>
 const isDark   = computed(() => ui.isDark);
 const isNavbar = computed(() => ui.isNavbar);
 
+/* ---------- Versión de la app (SemVer desde vite define) ---------- */
+// eslint-disable-next-line no-undef
+const appVersion = computed(() => (typeof __APP_VERSION__ !== 'undefined' && __APP_VERSION__) || '3.0.0');
+
 // -------- Navegación / cierre automático en móvil
 const go = (loc) => {
   router.push(loc);
@@ -141,6 +145,12 @@ const PRIMARY_OPTIONS = [
           Xtreme Solped
         </router-link>
 
+        <!-- Versión (compacta, en header) -->
+        <span class="badge badge-version ms-1 d-inline-flex align-items-center gap-1" title="Versión">
+          <i class="bi bi-tag"></i>
+          v{{ appVersion }}
+        </span>
+
         <!-- Botón AJUSTES (único) -->
         <button
           class="btn btn-sm btn-light ms-auto"
@@ -219,6 +229,10 @@ const PRIMARY_OPTIONS = [
 
     <!-- Footer -->
     <div class="sidebar-footer">
+      <div class="small text-white-60 mb-2 d-flex align-items-center gap-1">
+        <i class="bi bi-tag"></i> <span>v{{ appVersion }}</span>
+      </div>
+
       <a href="#" class="item" @click.prevent="go({ name: 'PerfilUsuario' })">
         <i class="bi bi-person-gear me-2"></i> Perfil
       </a>
@@ -336,6 +350,16 @@ const PRIMARY_OPTIONS = [
 /* Utilidades */
 .bg-xtreme { background-color: var(--xt-red) !important; }
 .text-white-75{ color: var(--xt-white-75) !important; }
+.text-white-60{ color: var(--xt-white-60) !important; }
+
+/* Badge versión en header del sidebar */
+.badge-version{
+  background: rgba(255,255,255,.22);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.28);
+  font-weight: 600;
+  letter-spacing: .2px;
+}
 </style>
 
 <!-- 🎯 BLOQUE SCOPED del componente -->
@@ -462,7 +486,6 @@ const PRIMARY_OPTIONS = [
   margin: 10px 0 12px;
 }
 
-/* Pills (radios bonitos) */
 /* Pills (radios bonitos) */
 .settings-pill{
   background: #f3f4f6;

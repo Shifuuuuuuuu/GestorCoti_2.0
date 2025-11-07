@@ -290,7 +290,27 @@
               <h2 class="h6 mb-0 fw-semibold">Tabla de ítems</h2>
               <small class="text-secondary">Descripción, cantidades y datos referenciales.</small>
             </div>
-            <div class="d-flex gap-2 w-auto">
+
+            <!-- Acciones tabla -->
+            <div class="d-flex gap-2 w-auto align-items-center flex-wrap">
+              <!-- Carga masiva -->
+              <input
+                ref="inputExcel"
+                type="file"
+                class="d-none"
+                accept=".xlsx,.xls,.csv"
+                @change="onExcelSeleccionado"
+              />
+              <button
+                class="btn btn-outline-dark btn-sm"
+                type="button"
+                :disabled="importandoExcel"
+                @click="$refs.inputExcel.click()"
+                title="Carga masiva (Excel/CSV)"
+              >
+                <i class="bi bi-filetype-xlsx me-1"></i> Carga masiva
+              </button>
+
               <button class="btn btn-outline-secondary btn-sm" @click="agregarFila" title="Agregar fila">
                 <i class="bi bi-plus-lg"></i>
               </button>
@@ -304,7 +324,25 @@
           </div>
         </div>
 
-        <div class="card-body p-0">
+        <div class="card-body p-0 position-relative">
+          <!-- Overlay importación -->
+          <transition name="fade">
+            <div v-if="importandoExcel" class="import-overlay">
+              <div class="import-box">
+                <div class="spinner-border me-2" role="status"></div>
+                <div class="flex-grow-1">
+                  <div class="small fw-semibold">Cargando ítems desde Excel…</div>
+                  <div class="small text-secondary">
+                    Procesados: {{ importProgreso.procesados }} / {{ importProgreso.total }} · Agregados: {{ importProgreso.agregados }} · Duplicados: {{ importProgreso.duplicados }}
+                  </div>
+                  <div class="progress mt-2" style="height:6px;">
+                    <div class="progress-bar" role="progressbar" :style="{ width: importProgresoPct + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </transition>
+
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 responsive-stack">
               <thead>
@@ -472,6 +510,7 @@ import {
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
 import { useRouter } from "vue-router";
+import * as XLSX from "xlsx"; // npm i xlsx
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -602,7 +641,7 @@ export default {
 
     /* ===== Toasts ===== */
     const toasts = ref([]);
-    const addToast = (type, text, timeout = 3000) => {
+    const addToast = (type, text, timeout = 3500) => {
       const id = Date.now() + Math.random();
       toasts.value.push({ id, type, text });
       setTimeout(() => closeToast(id), timeout);
@@ -633,6 +672,139 @@ export default {
       getRowUpload(i).dragover = false;
     };
 
+    /* ===== CARGA MASIVA (Excel/CSV) ===== */
+    const inputExcel = ref(null);
+    const importandoExcel = ref(false);
+    const importProgreso = reactive({ total: 0, procesados: 0, agregados: 0, duplicados: 0 });
+    const importProgresoPct = computed(() => {
+      if (!importProgreso.total) return 0;
+      const pct = Math.round((importProgreso.procesados / importProgreso.total) * 100);
+      return isFinite(pct) ? pct : 0;
+    });
+
+    const normalizeHeader = (h) => {
+      const s = (h || "")
+        .toString()
+        .trim()
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .replace(/\s+/g, " ")
+        .replace(/[^\w\s\/°#.-]/g, "")
+        .trim();
+      if (/^desc(ripcion)?|^description|^desc\b/.test(s)) return "descripcion";
+      if (/^cod(igo)?|^code\b/.test(s)) return "codigo";
+      if (/^cant(idad)?|^qty\b|solicitada/.test(s)) return "cantidad";
+      if (/^stock|existenc/.test(s)) return "stock";
+      if (/(n|num|numero)\s*interno/.test(s)) return "numero_interno";
+      if (/patente|placa/.test(s)) return "numero_interno";
+      if (/interno\/?patente|n°\s*interno/.test(s)) return "numero_interno";
+      return s;
+    };
+
+    const leerSheetComoObjetos = (wb) => {
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+      if (!rows.length) return [];
+      const headersRaw = rows[0].map(normalizeHeader);
+      const idx = {
+        descripcion: headersRaw.findIndex(h => h === "descripcion"),
+        codigo: headersRaw.findIndex(h => h === "codigo"),
+        cantidad: headersRaw.findIndex(h => h === "cantidad"),
+        stock: headersRaw.findIndex(h => h === "stock"),
+        numero_interno: headersRaw.findIndex(h => h === "numero_interno"),
+      };
+      const data = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const get = (i) => (i >= 0 && i < row.length) ? row[i] : "";
+        const descripcion = String(get(idx.descripcion) || "").trim();
+        const codigo = String(get(idx.codigo) || "").trim();
+        const cantidad = Number(String(get(idx.cantidad) || "").toString().replace(",", "."));
+        const stock = Number(String(get(idx.stock) || "").toString().replace(",", "."));
+        const numero_interno = String(get(idx.numero_interno) || "").trim();
+        const vacia = !descripcion && !codigo && !numero_interno && !cantidad && !stock;
+        if (vacia) continue;
+        data.push({
+          descripcion,
+          codigo,
+          cantidad: isNaN(cantidad) ? null : cantidad,
+          stock: isNaN(stock) ? null : stock,
+          numero_interno
+        });
+      }
+      return data;
+    };
+
+    const onExcelSeleccionado = async (ev) => {
+      const file = ev?.target?.files?.[0];
+      ev.target.value = "";
+      if (!file) return;
+
+      try {
+        importandoExcel.value = true;
+        Object.assign(importProgreso, { total: 0, procesados: 0, agregados: 0, duplicados: 0 });
+
+        const ab = await file.arrayBuffer();
+        const wb = XLSX.read(ab, { type: "array" });
+
+        const objetos = leerSheetComoObjetos(wb);
+        importProgreso.total = objetos.length;
+
+        if (!objetos.length) {
+          addToast("danger", "El archivo no contiene filas válidas.");
+          importandoExcel.value = false;
+          return;
+        }
+
+        const codExist = new Set(
+          (form.items || [])
+            .map(i => (i.codigo_referencial || "").toUpperCase().trim())
+            .filter(Boolean)
+        );
+
+        for (const obj of objetos) {
+          const desc = (obj.descripcion || "").toString().toUpperCase();
+          const cod  = (obj.codigo || "").toString().toUpperCase();
+          const nro  = (obj.numero_interno || "").toString().toUpperCase();
+          const cant = (obj.cantidad != null && obj.cantidad !== "") ? Number(obj.cantidad) : null;
+          const stk  = (obj.stock != null && obj.stock !== "") ? Number(obj.stock) : null;
+
+          if (!desc && !nro) { importProgreso.procesados++; continue; }
+
+          if (cod && codExist.has(cod)) {
+            importProgreso.duplicados++;
+            importProgreso.procesados++;
+            continue;
+          }
+
+          const nid = form.items.length ? (form.items[form.items.length - 1].id + 1) : 1;
+          form.items.push({
+            id: nid,
+            descripcion: desc,
+            codigo_referencial: cod,
+            cantidad: isNaN(cant) ? null : cant,
+            stock: isNaN(stk) ? null : stk,
+            numero_interno: nro,
+            imagen_url: ""
+          });
+
+          if (cod) codExist.add(cod);
+          importProgreso.agregados++;
+          importProgreso.procesados++;
+        }
+
+        addToast(
+          "success",
+          `Carga masiva: ${importProgreso.agregados} agregado(s), ${importProgreso.duplicados} duplicado(s) por código.`
+        );
+      } catch (e) {
+        console.error(e);
+        addToast("danger", "No se pudo procesar el archivo. Verifica el formato.");
+      } finally {
+        importandoExcel.value = false;
+      }
+    };
+
     /* ===== Cotizadores ===== */
     const cotizadoresServicios = ["Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
     const cotizadoresMining   = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
@@ -654,11 +826,9 @@ export default {
     const onEmpresaChange = async () => {
       if (!form.empresa) return;
       await actualizarNumeroSolpePorEmpresa();
-      scheduleLocalSave();
-      // Antes forzaba siempre un save; ahora solo si el autosave está encendido
+      scheduleLocalSave();         // guarda TODO MENOS numero_solpe/fecha
       if (localSaveEnabled.value) saveLocalNow();
     };
-
 
     const actualizarNumeroSolpePorEmpresa = async () => {
       try {
@@ -673,8 +843,6 @@ export default {
         form.numero_solpe = snap.empty ? 1 : (Number(snap.docs[0].data()?.numero_solpe) || 0) + 1;
       } catch (e) {
         console.error("Error al obtener número de SOLPED:", e);
-        // ⬇️ antes: form.numero_solpe = form.numero_solpe || 1;
-        // ahora: no toques el valor si falla; déjalo null para que no muestre nada
         form.numero_solpe = null;
         error.value = "No se pudo obtener el número de SOLPED (ver índice).";
       } finally {
@@ -701,8 +869,8 @@ export default {
           imagen_url: it.imagen_url || "",
         }));
         if (!form.items.length) agregarFila();
-        setNow();
-        if (form.empresa) await actualizarNumeroSolpePorEmpresa();
+        setNow(); // fecha siempre nueva
+        if (form.empresa) await actualizarNumeroSolpePorEmpresa(); // preview nuevo
         asegurarContratoPermitido();
       } catch (e) {
         console.error("No se pudo aplicar el borrador:", e);
@@ -732,7 +900,6 @@ export default {
         saveLocalNow();
         addToast("success", "Autosave activado.");
       } else {
-        // Limpia claves más comunes para evitar que reaparezcan datos
         try {
           localStorage.removeItem(perCompanyKey.value);
           localStorage.removeItem(lastKey.value);
@@ -741,15 +908,19 @@ export default {
       }
     };
 
-
+    // ⬇️ Serializa EXCLUYENDO numero_solpe y fecha
     const serializeForm = () => {
       const base = {
-        ...form,
-        // IMPORTANTE: nunca persistir numero_solpe si aún no hay empresa
-        numero_solpe: form.empresa ? form.numero_solpe : null,
-        savedEmpresa: form.empresa || "gen",
-        updatedAt: Date.now(),
-        items: form.items.map(it => ({
+        // numero_solpe: ❌ (excluido)
+        // fecha: ❌ (excluida)
+        empresa: form.empresa || "",
+        nombre_solped: form.nombre_solped || "",
+        tipo_solped: form.tipo_solped || "",
+        dirigidoA: Array.isArray(form.dirigidoA) ? form.dirigidoA : [],
+        numero_contrato: form.numero_contrato || "",
+        nombre_centro_costo: form.nombre_centro_costo || "",
+        autorizaciones: Array.isArray(form.autorizaciones) ? form.autorizaciones : [],
+        items: (Array.isArray(form.items) ? form.items : []).map(it => ({
           id: it.id,
           descripcion: it.descripcion,
           codigo_referencial: it.codigo_referencial,
@@ -757,26 +928,30 @@ export default {
           stock: it.stock,
           numero_interno: it.numero_interno,
           imagen_url: it.imagen_url
-        }))
+        })),
+        estatus: form.estatus || "Pendiente",
+        savedEmpresa: form.empresa || "gen",
+        updatedAt: Date.now()
       };
       return JSON.stringify(base);
     };
 
+    // ⬇️ Aplica borrador SIN restaurar numero_solpe ni fecha
     const applySerialized = (raw) => {
       try {
         const data = JSON.parse(raw || "{}");
-
-        // Solo aplica empresa si viene en el borrador
         if (data.empresa) form.empresa = data.empresa;
 
-        // Nunca traigas número si no hay empresa
-        form.numero_solpe = data.empresa ? (data.numero_solpe ?? null) : null;
+        // numero_solpe NO se restablece desde local (evita repetidos)
+        form.numero_solpe = null;
 
         form.numero_contrato      = data.numero_contrato      || "";
         form.nombre_centro_costo  = data.nombre_centro_costo  || "";
         form.tipo_solped          = data.tipo_solped          || "";
         form.nombre_solped        = (data.nombre_solped || "").toUpperCase();
         form.dirigidoA            = Array.isArray(data.dirigidoA) ? data.dirigidoA : [];
+        form.autorizaciones       = Array.isArray(data.autorizaciones) ? data.autorizaciones : [];
+
         form.items = Array.isArray(data.items) && data.items.length
           ? data.items.map((it,i)=>({
               id: it.id ?? (i+1),
@@ -789,7 +964,8 @@ export default {
             }))
           : [];
         if (!form.items.length) agregarFila();
-        setNow();
+
+        setNow();              // fecha siempre nueva al cargar
         asegurarContratoPermitido();
       } catch (e) {
         console.error("No se pudo parsear borrador local:", e);
@@ -831,7 +1007,7 @@ export default {
     };
 
     const saveLocalNow = () => {
-      if (!localSaveEnabled.value) return; // <- clave
+      if (!localSaveEnabled.value) return;
       try {
         const payload = serializeForm();
         localStorage.setItem(perCompanyKey.value, payload);
@@ -842,11 +1018,7 @@ export default {
       }
     };
 
-
     const loadLocalNow = async () => {
-      // Permite restaurar manualmente aunque el autosave esté apagado:
-      // NO hacemos early return. (Así el botón "Recuperar" funciona siempre)
-
       try {
         const uidNow = uid.value || "anon";
         const candidates = new Set();
@@ -878,11 +1050,9 @@ export default {
         if (!bestRaw) { addToast("danger","No hay borrador local para recuperar."); return; }
 
         await runWithoutAutosave(async () => {
-          // Asegura empresa ANTES de refrescar número
           if (!form.empresa && bestEmpresa) form.empresa = bestEmpresa;
-          applySerialized(bestRaw);
-          if (form.empresa) await actualizarNumeroSolpePorEmpresa();
-          // Solo re-graba si el autosave está encendido
+          applySerialized(bestRaw);                // NO trae numero_solpe/fecha
+          if (form.empresa) await actualizarNumeroSolpePorEmpresa(); // preview nuevo
           if (localSaveEnabled.value) saveLocalNow();
         });
 
@@ -911,8 +1081,6 @@ export default {
         form.numero_solpe = null; // limpia si quita empresa
       }
     });
-
-
 
     /* ===== Sugerencias ===== */
     const onDescInput = (i) => {
@@ -1253,7 +1421,7 @@ export default {
       const msg = validarAntesDeGuardar(); if (msg) { error.value = msg; addToast("danger", msg); return; }
 
       try {
-        enviandoSolpe.value = true; setNow();
+        enviandoSolpe.value = true; setNow(); // fecha al momento de enviar
 
         const numeroAsignado = await getNextNumeroTransaccional(form.empresa);
 
@@ -1322,6 +1490,7 @@ export default {
           })
         });
 
+        // Catálogo de sugerencias por descripción (normalizado)
         for (const it of form.items) {
           const original = (it.descripcion || "").trim();
           const norm = normalize(original);
@@ -1442,16 +1611,15 @@ export default {
       addToast("success", `Imagen del ítem #${i+1} eliminada.`);
     }
 
-    // Save “último snap” al cerrar/recargar pestaña
-    const beforeUnload = (e) => { console.error(e);
-      if (!localSaveEnabled.value) return; // <- respeta el switch
+    // Guardar “último snap” al cerrar/recargar pestaña (SIN numero_solpe/fecha)
+    const beforeUnload = (e) => { console.error(e)
+      if (!localSaveEnabled.value) return;
       try {
         const payload = serializeForm();
         localStorage.setItem(perCompanyKey.value, payload);
         localStorage.setItem(lastKey.value, payload);
       } catch(e) { console.error("No se pudo guardar local al salir:", e); }
     };
-
 
     onMounted(async () => {
       setNow();
@@ -1469,9 +1637,8 @@ export default {
         }
       } catch (e) { console.warn("Borrador inválido:", e); }
 
-      // ⬇️ Solo auto-recupera si el autosave está encendido
       if (localSaveEnabled.value) {
-        await loadLocalNow();
+        await loadLocalNow(); // NO traerá numero_solpe/fecha
       }
 
       if (form.empresa) await actualizarNumeroSolpePorEmpresa();
@@ -1480,7 +1647,6 @@ export default {
 
       window.addEventListener("beforeunload", beforeUnload);
     });
-
 
     onUnmounted(() => {
       window.removeEventListener("beforeunload", beforeUnload);
@@ -1518,13 +1684,16 @@ export default {
       // imágenes por ítem
       subirImagenItem, getRowUpload, onImgDragOver, onImgDragLeave, onImgDrop,
 
+      // carga masiva
+      inputExcel, importandoExcel, importProgreso, importProgresoPct,
+      onExcelSeleccionado,
+
       // final
       guardarSolped, irHistorial, eliminarImagenItem,
     };
   },
 };
 </script>
-
 
 <style scoped>
 /* ----- Layout general ----- */
@@ -1727,4 +1896,21 @@ export default {
 :global(html.theme-dark) .img-loading-box{
   background: rgba(31,41,55,.95); color:#e5e7eb;
 }
+
+/* Overlay de importación Excel */
+.import-overlay{
+  position:absolute; inset:0; background: rgba(255,255,255,.86);
+  display:flex; align-items:center; justify-content:center; z-index: 5;
+}
+.import-box{
+  display:flex; align-items:center; gap:.75rem; width:100%; max-width:560px;
+  background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; padding:.8rem 1rem;
+  box-shadow: 0 10px 28px rgba(0,0,0,.16);
+}
+:global(html.theme-dark) .import-overlay{ background: rgba(17,24,39,.8); }
+:global(html.theme-dark) .import-box{ background:#111827; color:#e5e7eb; border-color: rgba(255,255,255,.1); }
+
+/* Transición fade */
+.fade-enter-active,.fade-leave-active{ transition: opacity .15s ease; }
+.fade-enter-from,.fade-leave-to{ opacity:0; }
 </style>

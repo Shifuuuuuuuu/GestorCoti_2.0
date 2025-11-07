@@ -4,55 +4,101 @@
   <div class="generador-oc-page">
     <div class="container py-4 py-md-5">
       <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
-          <i class="bi bi-arrow-left"></i> Volver
+          <i class="bi bi-arrow-left"></i>
+          <span class="d-none d-sm-inline ms-1">Volver</span>
         </button>
 
-        <h1 class="h4 fw-semibold mb-0">Generador Cotización (Taller)</h1>
+        <h1 class="h5 fw-semibold mb-0 text-truncate text-center flex-grow-1 d-none d-sm-block">
+          Generador Cotización (Taller)
+        </h1>
 
         <button
           class="btn btn-secondary btn-sm"
           @click="toggleEquiposPanel"
           :aria-pressed="mostrarEquipos.toString()">
-          <i class="bi bi-search me-1"></i> {{ mostrarEquipos ? 'Ocultar' : 'Buscar' }} equipos
-        </button>
-      </div>
-      <div class="d-flex justify-content-end mb-2">
-        <button
-          class="btn btn-secondary btn-sm"
-          @click="toggleOCTallerMes"
-          :aria-pressed="mostrarOCTallerMes.toString()">
-          <i class="bi bi-receipt-cutoff me-1"></i>
-          {{ mostrarOCTallerMes ? 'Ocultar Cotizaciones del mes' : 'Mostrar mis Cotizaciones' }}
+          <i class="bi bi-search me-1"></i>
+          {{ mostrarEquipos ? 'Ocultar' : 'Buscar' }} equipos
         </button>
       </div>
 
-      <!-- Card: OC Taller del mes actual -->
-      <div v-if="mostrarOCTallerMes" class="card mb-3">
+      <!-- Alert: requiere sesión -->
+      <div v-if="!isAuthReady || !usuarioActual" class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+        <i class="bi bi-info-circle fs-5"></i>
+        <div>
+          <div class="fw-semibold">Debes iniciar sesión para ver tu información.</div>
+          <div class="small">Esta vista muestra únicamente tus cotizaciones y tu resumen del mes.</div>
+        </div>
+      </div>
+
+      <!-- Botonera superior -->
+      <div class="d-flex justify-content-end flex-wrap gap-2 mb-2">
+        <button
+          class="btn btn-outline-dark btn-sm"
+          @click="toggleOCTallerMes"
+          :disabled="!usuarioActual"
+          :aria-pressed="mostrarOCTallerMes.toString()">
+          <i class="bi bi-receipt-cutoff me-1"></i>
+          {{ mostrarOCTallerMes ? 'Ocultar mis cotizaciones' : 'Mis Cotizaciones' }}
+        </button>
+
+        <!-- Mi resumen (solo el usuario logeado) -->
+        <button
+          class="btn btn-outline-primary btn-sm"
+          @click="toggleResumenUsuarios"
+          :disabled="!usuarioActual"
+          :aria-pressed="mostrarResumenUsuarios.toString()">
+          <i class="bi bi-person-lines-fill me-1"></i>
+          {{ mostrarResumenUsuarios ? 'Ocultar mi resumen' : 'Mi resumen (mes actual)' }}
+        </button>
+
+      </div>
+
+      <!-- ===== Bloqueo por OCs Aprobadas (rol Editor) ===== -->
+      <div
+        v-if="bloqueoPorAprobadasTaller"
+        class="alert alert-danger d-flex align-items-start gap-2 mb-3"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <div>
+          <div class="fw-semibold">
+            Límite alcanzado: tienes {{ totalAprobadasDelUsuarioTaller }} cotizaciones del Taller en estado
+            <u>Aprobado</u> (últimos 2 meses).
+          </div>
+          <div class="small">
+            Para continuar generando nuevas cotizaciones, primero debes <strong>subir</strong> o gestionar las aprobadas.
+            Ve al detalle de tus cotizaciones y completa el proceso.
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Mis OC Taller del mes actual -->
+      <div v-if="mostrarOCTallerMes" class="card mb-3 card-elevated">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">🧾 Cotizaciones Taller (mes actual)</div>
+          <div class="fw-semibold">🧾 Mis cotizaciones </div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ ocTallerMes.length }} en total</span>
         </div>
 
         <div class="card-body p-0">
           <div v-if="cargandoOCTallerMes" class="p-3 text-center">
-            <div class="spinner-border" role="status"></div>
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
             <div class="small mt-2">Cargando…</div>
           </div>
 
           <div v-else-if="ocTallerMes.length === 0" class="p-3 text-secondary text-center">
-            No hay órdenes enviadas este mes.
+            No tienes órdenes enviadas este mes.
           </div>
 
           <div v-else class="list-group list-group-flush">
             <div
-              class="list-group-item d-flex align-items-start"
+              class="list-group-item d-flex align-items-start flex-wrap gap-2"
               v-for="oc in ocTallerMesPaged"
               :key="oc.__docId"
             >
               <div class="me-auto">
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
                   <span class="fw-semibold">N° {{ oc.id ?? '—' }}</span>
                   <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus || '—' }}</span>
                 </div>
@@ -71,7 +117,7 @@
                 </div>
               </div>
 
-              <div class="ms-2">
+              <div class="ms-auto">
                 <button class="btn btn-sm btn-outline-primary" @click="irADetalleOCTaller(oc)">
                   Ver detalle
                 </button>
@@ -102,14 +148,133 @@
         </div>
       </div>
 
+      <!-- NUEVA Card: Mi resumen (mes actual) -->
+      <div v-if="mostrarResumenUsuarios" class="card mb-3 card-elevated">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">📊 Resumen de mis Cotizaciones</div>
+        </div>
+
+        <div class="card-body p-0">
+          <div v-if="cargandoResumenUsuarios" class="p-3 text-center">
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
+            <div class="small mt-2">Cargando…</div>
+          </div>
+
+          <div v-else-if="!resumenUsuarios.length" class="p-3 text-secondary text-center">
+            Sin datos en este mes.
+          </div>
+
+          <div v-else class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Responsable</th>
+                  <th class="text-center">Aprobado</th>
+                  <th class="text-center">Rechazado</th>
+                  <th class="text-center">Preaprobado</th>
+                  <th class="text-center">Pend. Aprob.</th>
+                  <th class="text-center">Rev. Guillermo</th>
+                  <th class="text-center">Env. Prove.</th>
+                  <th class="text-center">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in resumenUsuariosPaged" :key="row.responsable">
+                  <td class="fw-semibold">{{ row.responsable }}</td>
+                  <td class="text-center">
+                    <span class="badge bg-success-subtle text-success-emphasis">{{ row.aprobado }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-danger-subtle text-danger-emphasis">{{ row.rechazado }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-info-subtle text-info-emphasis">{{ row.preaprobado }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-warning-subtle text-warning-emphasis">{{ row.pendiente }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-primary-subtle text-primary-emphasis">{{ row.revision }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-info-subtle text-info-emphasis">{{ row.proveedor }}</span>
+                  </td>
+                  <td class="text-center fw-semibold">{{ row.total }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Paginación Resumen (normalmente 1 página) -->
+        <div v-if="!cargandoResumenUsuarios && resumenTotalPages > 1" class="card-footer bg-white">
+          <nav aria-label="Paginación resumen usuarios">
+            <ul class="pagination justify-content-center mb-0">
+              <li class="page-item" :class="{ disabled: resumenCurrentPage === 1 }">
+                <button class="page-link" @click="resumenGoTo(resumenCurrentPage - 1)" :disabled="resumenCurrentPage === 1">«</button>
+              </li>
+              <li
+                class="page-item"
+                v-for="n in resumenVisiblePages"
+                :key="'pg-resumen-'+n"
+                :class="{ active: resumenCurrentPage === n }">
+                <button class="page-link" @click="resumenGoTo(n)">{{ n }}</button>
+              </li>
+              <li class="page-item" :class="{ disabled: resumenCurrentPage === resumenTotalPages }">
+                <button class="page-link" @click="resumenGoTo(resumenCurrentPage + 1)" :disabled="resumenCurrentPage === resumenTotalPages">»</button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+
       <!-- Layout principal -->
       <div class="row g-3">
         <!-- Columna izquierda -->
         <div class="col-12" :class="mostrarEquipos ? 'col-lg-8' : 'col-lg-12'">
           <!-- Card principal -->
           <div class="card card-elevated position-relative overflow-hidden">
-            <div class="card-header  d-flex align-items-center justify-content-between">
-              <div class="fw-semibold">Subir Cotización (Taller)</div>
+            <!-- 🔒 Overlay con candado cuando hay bloqueo -->
+            <div v-if="bloqueoPorAprobadasTaller" class="lock-overlay">
+              <div class="lock-box text-center">
+                <i class="bi bi-lock-fill display-6 d-block mb-2"></i>
+                <div class="fw-semibold">Formulario bloqueado</div>
+                <div class="small text-muted mt-1">
+                  Debes gestionar tus cotizaciones <strong>Aprobadas</strong> y subir la orden de compra correspondiente antes de continuar con el proceso.
+                </div>
+
+                <div class="mt-3">
+                  <button
+                    class="btn btn-dark btn-sm"
+                    @click="router.push({ name: 'HistorialOCTaller' })">
+                    Ver mis cotizaciones (Taller)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <div class="fw-semibold d-flex align-items-center gap-2">
+                <i v-if="bloqueoPorAprobadasTaller" class="bi bi-lock-fill text-danger"></i>
+                <span>Subir Cotización (Taller)</span>
+              </div>
+
+              <!-- Accesos rápidos (xs-sm) -->
+              <div class="d-flex gap-2 d-lg-none">
+                <button
+                  class="btn btn-outline-dark btn-sm"
+                  @click="toggleOCTallerMes"
+                  :aria-pressed="mostrarOCTallerMes.toString()"
+                  :disabled="!usuarioActual">
+                  <i class="bi bi-receipt-cutoff"></i>
+                </button>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  @click="toggleEquiposPanel"
+                  :aria-pressed="mostrarEquipos.toString()">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
             </div>
 
             <div class="card-body">
@@ -143,8 +308,8 @@
                       v-for="solpe in solpedDisponibles"
                       :key="solpe.id"
                       :value="solpe.id">
-                      #{{ solpe.numero_solpe }} - {{ solpe.nombre_solped }} ({{ solpe.tipo_solped }}) ·
-                      {{ solpe.nombre_centro_costo }} · {{ solpe.usuario || '—' }} · {{ solpe.empresa || '—' }}
+                      #{{ solpe.numero_solpe }} - {{ solpe.nombre_solped || solpe.tipo_solped }} ·
+                      {{ solpe.nombre_centro_costo || solpe.centro_costo }} · {{ solpe.usuario || '—' }} · {{ solpe.empresa || '—' }}
                     </option>
                   </select>
                 </div>
@@ -173,16 +338,15 @@
                 </div>
                 <div class="col-12 col-md-6">
                   <div class="small text-secondary">Tipo / Nombre</div>
-                  <div class="fw-semibold">
-                    {{ solpedSeleccionada.tipo_solped }}
-                  </div>
+                  <div class="fw-semibold">{{ solpedSeleccionada.tipo_solped }}</div>
                 </div>
               </div>
 
               <!-- Ítems de SOLPED -->
               <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex align-items-center justify-content-between">
                   <span class="fw-semibold">📦 Ítems de la SOLPED</span>
+                  <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
                 </div>
                 <div class="card-body">
                   <div class="table-responsive">
@@ -212,19 +376,17 @@
                               @input="clampCantidad(it)"
                               @blur="clampCantidad(it)"
                             />
-                            <div class="form-text">
-                              Restan: {{ restante(it) }}
-                            </div>
+                            <div class="form-text">Restan: {{ restante(it) }}</div>
                           </td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
 
-                  <!-- Autorización adjunta de la SOLPED -->
-                  <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3">
-                    <i class="bi bi-paperclip me-2"></i>
-                    <div class="me-auto">
+                  <!-- Autorización -->
+                  <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
+                    <i class="bi bi-paperclip"></i>
+                    <div class="me-auto ms-2">
                       <div class="fw-semibold mb-0">Autorización adjunta</div>
                       <div class="small">{{ autorizacionNombre || 'Archivo' }}</div>
                     </div>
@@ -275,10 +437,8 @@
                 </div>
                 <div class="col-12 col-md-8">
                   <label class="form-label">Precio Total con IVA</label>
-                  <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0">
-                  <div>
-                    Se formatea automáticamente según moneda seleccionada.
-                  </div>
+                  <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0" inputmode="numeric" aria-describedby="precioHelp">
+                  <div id="precioHelp" class="form-text">Se formatea automáticamente según moneda seleccionada.</div>
                 </div>
               </div>
 
@@ -297,19 +457,20 @@
               <!-- Archivos (PDF/Imágenes) -> archivosStorage[] -->
               <div class="mb-3">
                 <label class="form-label">Archivos PDF o Imagen (cotizaciones)</label>
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
                   <input id="inputArchivo" type="file" multiple accept="application/pdf,image/*" class="d-none" @change="onMultipleFilesSelected">
                   <button class="btn btn-outline-primary" @click="abrirSelectorArchivos">
                     <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
                   </button>
+                  <small class="text-secondary">Puedes subir más de uno.</small>
                 </div>
               </div>
 
               <!-- Previews -->
               <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
-                <div class="card-header  d-flex align-items-center">
-                  <div class="fw-semibold me-auto">{{ archivo.name }}</div>
-                  <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)">
+                <div class="card-header d-flex align-items-center">
+                  <div class="fw-semibold me-auto text-truncate">{{ archivo.name }}</div>
+                  <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)" aria-label="Eliminar archivo">
                     <i class="bi bi-trash"></i>
                   </button>
                 </div>
@@ -325,7 +486,12 @@
 
               <!-- Enviar -->
               <div class="d-grid mt-3">
-                <button class="btn btn-danger btn-lg" :disabled="enviando" @click="enviarOC">
+                <button
+                  class="btn btn-danger btn-lg"
+                  :disabled="enviando || bloqueoPorAprobadasTaller || !usuarioActual"
+                  :title="bloqueoPorAprobadasTaller ? 'No puedes enviar nuevas cotizaciones: límite de Aprobadas alcanzado' : ''"
+                  @click="enviarOC"
+                >
                   <span v-if="enviando" class="spinner-border spinner-border-sm me-2"></span>
                   Enviar Cotización (Taller)
                 </button>
@@ -335,8 +501,8 @@
         </div>
 
         <!-- Columna derecha: Panel de Equipos -->
-        <div class="col-12 col-lg-4" v-if="mostrarEquipos">
-          <div class="card h-100">
+        <aside class="col-12 col-lg-4 d-none d-lg-block" v-if="mostrarEquipos">
+          <div class="card h-100 card-elevated sticky-panel">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">🔎 Buscar equipos</div>
               <button class="btn btn-sm btn-outline-secondary d-lg-none" @click="mostrarEquipos=false">
@@ -353,12 +519,12 @@
                   @input="aplicarFiltrosEquiposDebounced" />
               </div>
 
-              <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3">
+              <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3 small">
                 Escribe para buscar. No se muestran datos hasta que ingreses al menos 2 caracteres.
               </div>
 
               <div v-if="cargandoEquipos" class="text-center py-3">
-                <div class="spinner-border" role="status"></div>
+                <div class="spinner-border" role="status" aria-hidden="true"></div>
                 <div class="mt-2">Buscando…</div>
               </div>
 
@@ -366,33 +532,25 @@
                 No se encontraron resultados.
               </div>
 
-              <div
-                class="list-group equipos-list flex-grow-1"
-                v-if="pagedEquipos.length"
-                style="max-height:72vh"
-              >
+              <div class="list-group equipos-list flex-grow-1" v-if="pagedEquipos.length">
                 <div class="list-group-item p-3" v-for="e in pagedEquipos" :key="e.id || e.codigo">
                   <div class="d-flex align-items-start">
                     <div class="flex-grow-1">
-                      <div class="d-flex align-items-center mb-2">
-                        <h6 class="mb-0 me-2">
-                          <strong>{{ e.codigo || 'SIN CÓDIGO' }}</strong>
-                        </h6>
+                      <div class="d-flex align-items-center mb-2 flex-wrap gap-2">
+                        <h6 class="mb-0"><strong>{{ e.codigo || 'SIN CÓDIGO' }}</strong></h6>
                         <span class="badge bg-secondary-subtle text-secondary-emphasis">
                           {{ e.tipo_equipo || 'Tipo?' }}
                         </span>
                       </div>
 
-                      <div class="row g-2 text-secondary small">
-                        <div class="col-12 col-md-12">
-                          <div><strong>Año:</strong> {{ e.ano || '—' }}</div>
-                          <div><strong>Clasificación:</strong> {{ e.clasificacion1 || '—' }}</div>
-                          <div><strong>Equipo:</strong> {{ e.equipo || '—' }}</div>
-                          <div><strong>Localización:</strong> {{ e.localizacion || '—' }}</div>
-                          <div><strong>Marca:</strong> {{ e.marca || '—' }}</div>
-                          <div><strong>Modelo:</strong> {{ e.modelo || '—' }}</div>
-                          <div><strong>N° Chasis:</strong> {{ e.numero_chasis || '—' }}</div>
-                        </div>
+                      <div class="text-secondary small">
+                        <div><strong>Año:</strong> {{ e.ano || '—' }}</div>
+                        <div><strong>Clasificación:</strong> {{ e.clasificacion1 || '—' }}</div>
+                        <div><strong>Equipo:</strong> {{ e.equipo || '—' }}</div>
+                        <div><strong>Localización:</strong> {{ e.localizacion || '—' }}</div>
+                        <div><strong>Marca:</strong> {{ e.marca || '—' }}</div>
+                        <div><strong>Modelo:</strong> {{ e.modelo || '—' }}</div>
+                        <div><strong>N° Chasis:</strong> {{ e.numero_chasis || '—' }}</div>
                       </div>
                     </div>
 
@@ -405,7 +563,7 @@
                 </div>
               </div>
 
-              <!-- Paginación Bootstrap -->
+              <!-- Paginación -->
               <nav v-if="totalPages > 1" class="mt-3">
                 <ul class="pagination justify-content-center mb-0">
                   <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -421,12 +579,12 @@
               </nav>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
 
     <!-- Toasts -->
-    <div class="toast-stack">
+    <div class="toast-stack" aria-live="polite" aria-atomic="true">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
         <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
         <span class="me-3">{{ t.text }}</span>
@@ -437,17 +595,43 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  startAt, endAt, serverTimestamp, onSnapshot
+  startAt, endAt, serverTimestamp, onSnapshot, Timestamp, getCountFromServer
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
 
-/* ====== OC Taller del mes (tiempo real + paginación) ====== */
+/* ===== Config bloqueo por Aprobadas (Taller) ===== */
+const APPLY_TO_ROLES = ['editor']; // agrega roles si aplica
+const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 10);
+
+const userRole = ref('');
+const totalAprobadasDelUsuarioTaller = ref(0);
+const bloqueoPorAprobadasTaller = computed(() => {
+  const roleLower = (userRole.value || '').toString().toLowerCase();
+  if (!APPLY_TO_ROLES.includes(roleLower)) return false;
+  return totalAprobadasDelUsuarioTaller.value >= MAX_OC_APROBADAS_TALLER;
+});
+
+/** Rango "últimos 2 meses" por fechaSubida */
+const rangeUltimosDosMeses = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0..11
+  const inicio = new Date(y, m - 1, 1, 0, 0, 0, 0);
+  const fin    = new Date(y, m + 1, 1, 0, 0, 0, 0);
+  return {
+    from: Timestamp.fromDate(inicio),
+    to:   Timestamp.fromDate(fin),
+  };
+};
+
+
+/* ====== OC Taller del mes (solo del usuario) ====== */
 const mostrarOCTallerMes = ref(false);
 const cargandoOCTallerMes = ref(false);
 const ocTallerMes = ref([]);
@@ -476,69 +660,45 @@ const ocTallerMesGoTo = (n) => {
   ocTallerMesCurrentPage.value = n;
 };
 
-const rangoMesActual = () => {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  const to   = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
-  return { from, to };
-};
-
-const suscribirOCTallerMes = () => {
+function suscribirOCTallerMes(nombre){
   if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
+  ocTallerMes.value = [];
+  ocTallerMesCurrentPage.value = 1;
   cargandoOCTallerMes.value = true;
 
-  const { from, to } = rangoMesActual();
+  if (!nombre) { cargandoOCTallerMes.value = false; return; }
+
+  // ✅ Rango: últimos 2 meses (mes actual + anterior)
+  const { from, to } = rangeUltimosDosMeses();
 
   try {
     const qy = query(
       collection(db, "ordenes_oc_taller"),
-      where("estatus", "==", "Enviada a proveedor"),
+      where("responsable", "==", nombre),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<", to),
+      where("fechaSubida", "<",  to),
       orderBy("fechaSubida", "desc")
     );
 
     _unsubOCTallerMes = onSnapshot(qy, (snap) => {
-      const arr = [];
+      let arr = [];
       snap.forEach(docu => arr.push({ __docId: docu.id, ...docu.data() }));
+      // Mantener sólo “Enviada a proveedor”
+      arr = arr.filter(x => (x.estatus || '').toLowerCase().includes('proveedor'));
       arr.sort((a,b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
       ocTallerMes.value = arr;
       ocTallerMesCurrentPage.value = 1;
       cargandoOCTallerMes.value = false;
     }, (err) => {
-      console.warn("Index requerido o error en query con estatus==Enviada a proveedor:", err?.message || err);
-      suscribirOCTallerMesFallback();
+      console.warn("onSnapshot mis OC (2 meses) error:", err);
+      cargandoOCTallerMes.value = false;
     });
   } catch (e) {
-    console.warn("Fallo query principal, se usa fallback:", e?.message || e);
-    suscribirOCTallerMesFallback();
+    console.warn("Fallo suscripción mis OC (2 meses):", e?.message || e);
+    cargandoOCTallerMes.value = false;
   }
-};
+}
 
-const suscribirOCTallerMesFallback = () => {
-  if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
-
-  const { from, to } = rangoMesActual();
-  const qy2 = query(
-    collection(db, "ordenes_oc_taller"),
-    where("fechaSubida", ">=", from),
-    where("fechaSubida", "<", to),
-    orderBy("fechaSubida", "desc")
-  );
-
-  _unsubOCTallerMes = onSnapshot(qy2, (snap) => {
-    let arr = [];
-    snap.forEach(docu => arr.push({ __docId: docu.id, ...docu.data() } ));
-    arr = arr.filter(x => (x.estatus || "").toLowerCase() === "enviada a proveedor");
-    arr.sort((a,b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
-    ocTallerMes.value = arr;
-    ocTallerMesCurrentPage.value = 1;
-    cargandoOCTallerMes.value = false;
-  }, (err) => {
-    console.error("onSnapshot fallback:", err);
-    cargandoOCTallerMes.value = false;
-  });
-};
 
 const desuscribirOCTallerMes = () => {
   if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
@@ -549,10 +709,121 @@ const desuscribirOCTallerMes = () => {
 
 const toggleOCTallerMes = () => {
   mostrarOCTallerMes.value = !mostrarOCTallerMes.value;
-  if (mostrarOCTallerMes.value) suscribirOCTallerMes();
+  if (mostrarOCTallerMes.value) suscribirOCTallerMes(usuarioActual.value);
   else desuscribirOCTallerMes();
 };
 
+/* ====== MI Resumen (mes actual, una sola fila del usuario) ====== */
+const mostrarResumenUsuarios = ref(false);
+const cargandoResumenUsuarios = ref(false);
+const resumenUsuarios = ref([]); // [{ responsable, ...totales del usuario }]
+const resumenPageSize = 10;
+const resumenCurrentPage = ref(1);
+let _unsubResumenUsuarios = null;
+
+const resumenTotalPages = computed(() =>
+  Math.max(1, Math.ceil(resumenUsuarios.value.length / resumenPageSize))
+);
+const resumenVisiblePages = computed(() => {
+  const maxButtons = 8;
+  const pages = [];
+  let start = Math.max(1, resumenCurrentPage.value - Math.floor(maxButtons / 2));
+  let end = Math.min(resumenTotalPages.value, start + maxButtons - 1);
+  start = Math.max(1, end - maxButtons + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+  return pages;
+});
+const resumenUsuariosPaged = computed(() => {
+  const start = (resumenCurrentPage.value - 1) * resumenPageSize;
+  return resumenUsuarios.value.slice(start, start + resumenPageSize);
+});
+const resumenGoTo = (n) => {
+  if (n < 1 || n > resumenTotalPages.value) return;
+  resumenCurrentPage.value = n;
+};
+
+function mapEstatusCategoria(estatusRaw) {
+  const s = String(estatusRaw || "").toLowerCase().trim();
+  if (s.includes("proveedor")) return "Enviada a proveedor";
+  if (s.includes("aprobado")) return "Aprobado";
+  if (s.includes("preaprob")) return "Preaprobado";
+  if (s.includes("rechaz") || s.includes("escala")) return "Rechazado";
+  if (s.includes("pendiente")) return "Pendiente de Aprobación";
+  if (s.includes("revisión") || s.includes("revision")) return "Revisión Guillermo";
+  return "Otros";
+}
+
+function desuscribirResumenUsuarios(){
+  if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
+  resumenUsuarios.value = [];
+  resumenCurrentPage.value = 1;
+  cargandoResumenUsuarios.value = false;
+}
+
+function suscribirResumenUsuarios(nombre){
+  desuscribirResumenUsuarios();
+  cargandoResumenUsuarios.value = true;
+
+  if (!nombre) { cargandoResumenUsuarios.value = false; return; }
+
+  // ✅ Rango: últimos 2 meses (mes actual + anterior)
+  const { from, to } = rangeUltimosDosMeses();
+
+  try {
+    const qy = query(
+      collection(db, "ordenes_oc_taller"),
+      where("responsable", "==", nombre),
+      where("fechaSubida", ">=", from),
+      where("fechaSubida", "<",  to),
+      orderBy("fechaSubida", "desc")
+    );
+
+    _unsubResumenUsuarios = onSnapshot(qy, (snap) => {
+      const row = {
+        responsable: nombre,
+        aprobado: 0,
+        rechazado: 0,
+        preaprobado: 0,
+        pendiente: 0,
+        revision: 0,
+        proveedor: 0,
+        otros: 0,
+        total: 0
+      };
+
+      snap.forEach((d) => {
+        const x = d.data() || {};
+        const cat = mapEstatusCategoria(x.estatus);
+        if      (cat === "Aprobado")                row.aprobado++;
+        else if (cat === "Rechazado")               row.rechazado++;
+        else if (cat === "Preaprobado")             row.preaprobado++;
+        else if (cat === "Pendiente de Aprobación") row.pendiente++;
+        else if (cat === "Revisión Guillermo")      row.revision++;
+        else if (cat === "Enviada a proveedor")     row.proveedor++;
+        else                                        row.otros++;
+        row.total++;
+      });
+
+      resumenUsuarios.value = row.total > 0 ? [row] : [];
+      resumenCurrentPage.value = 1;
+      cargandoResumenUsuarios.value = false;
+    }, (err) => {
+      console.error("onSnapshot mi resumen (2 meses):", err);
+      cargandoResumenUsuarios.value = false;
+    });
+  } catch (e) {
+    console.error("suscribirResumenUsuarios (2 meses) error:", e);
+    cargandoResumenUsuarios.value = false;
+  }
+}
+
+const toggleResumenUsuarios = () => {
+  mostrarResumenUsuarios.value = !mostrarResumenUsuarios.value;
+  if (mostrarResumenUsuarios.value) suscribirResumenUsuarios(usuarioActual.value);
+  else desuscribirResumenUsuarios();
+};
+
+/* ====== Utils formato/estado ====== */
 const fmtFecha = (f) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : null);
@@ -599,6 +870,7 @@ const tipoCambioUSD = 950;
 const tipoCambioEUR = 1050;
 
 /* Usuario actual */
+const isAuthReady = ref(false);
 const myUid = computed(() => auth?.user?.uid || null);
 const usuarioActual = ref("");
 
@@ -623,7 +895,7 @@ const theAutorizacionReset = () => {
 /* ====== Archivos ====== */
 const archivos = ref([]);
 
-/* ===== Diccionario opcional código -> nombre legible (para hint) ===== */
+/* ===== Diccionario opcional código -> nombre legible ===== */
 const centrosCostoDict = {
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
   "23302-CARPETAS":"CONTRATO 23302 CARPETAS",
@@ -669,44 +941,76 @@ const addToast = (type, text, timeout = 2800) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ====== Carga inicial ====== */
-onMounted(async () => {
-  await obtenerNombreUsuario();
-  await cargarSolpedSolicitadas();
-  await cargarSiguienteNumero();
+/* =================== Bloqueo Taller (COUNT + Live) - 2 meses =================== */
+let _unsubAprobadasLiveTaller = null;
 
-  const preId = (route?.query?.fromSolpedId || '').toString();
-  if (preId) {
-    usarSolped.value = true;
-    solpedSeleccionadaId.value = preId;
-    await onChangeSolped();
+async function refrescarAprobadasConCountTaller(){
+  try{
+    const nombre = (usuarioActual.value || '').trim();
+    if (!nombre) { totalAprobadasDelUsuarioTaller.value = 0; return; }
+
+    const { from, to } = rangeUltimosDosMeses();
+    const qy = query(
+      collection(db, "ordenes_oc_taller"),
+      where("responsable", "==", nombre),
+      where("estatus", "==", "Aprobado"),
+      where("fechaSubida", ">=", from),
+      where("fechaSubida", "<",  to)
+    );
+    const snap = await getCountFromServer(qy);
+    totalAprobadasDelUsuarioTaller.value = snap.data().count || 0;
+  }catch(e){
+    console.error("getCountFromServer (taller) error:", e);
+    totalAprobadasDelUsuarioTaller.value = 0;
   }
-});
+}
 
+function suscribirAprobadasLiveMinimaTaller(){
+  if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
+  const nombre = (usuarioActual.value || '').trim();
+  if (!nombre) return;
+
+  try{
+    const { from, to } = rangeUltimosDosMeses();
+    const qy = query(
+      collection(db, "ordenes_oc_taller"),
+      where("responsable", "==", nombre),
+      where("estatus", "==", "Aprobado"),
+      where("fechaSubida", ">=", from),
+      where("fechaSubida", "<",  to),
+      orderBy("fechaSubida", "desc"),
+      limit(1)
+    );
+    _unsubAprobadasLiveTaller = onSnapshot(qy, async () => {
+      await refrescarAprobadasConCountTaller();
+    });
+  }catch(e){
+    console.error("suscribirAprobadasLiveMinimaTaller:", e);
+  }
+}
+
+/* ===== Helpers usuario ===== */
 const obtenerNombreUsuario = async () => {
   try {
     const uid = myUid.value;
-    if (!uid) return;
-
-    const dref = doc(db, "Usuarios", uid);
-    const snap = await getDoc(dref);
-
-    if (snap.exists()) {
-      const data = snap.data() || {};
-      usuarioActual.value = data.fullName || "";
-    }
-
-    if (!usuarioActual.value) {
-      usuarioActual.value = auth?.user?.displayName || "";
+    if (uid) {
+      const dref = doc(db, "Usuarios", uid);
+      const snap = await getDoc(dref);
+      if (snap.exists()) {
+        const data = snap.data() || {};
+        usuarioActual.value = data.fullName || auth?.user?.displayName || auth?.user?.email || "";
+        userRole.value = data.role || "";
+      }
     }
     if (!usuarioActual.value) {
-      usuarioActual.value = auth?.user?.email || "";
+      usuarioActual.value = auth?.user?.displayName || auth?.user?.email || "";
     }
   } catch (e) {
     console.error(e);
+  } finally {
+    isAuthReady.value = true;
   }
 };
-
 
 /* ====== SOLPED ====== */
 const onToggleUsarSolped = () => {
@@ -758,8 +1062,7 @@ const onChangeSolped = async () => {
 
       solpedSeleccionada.value = data;
 
-      centroCostoTexto.value =
-        (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
+      centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
 
       autorizacionNombre.value = data.autorizacion_nombre || null;
       autorizacionUrlRaw.value = data.autorizacion_url || null;
@@ -769,7 +1072,6 @@ const onChangeSolped = async () => {
 
       const todos = Array.isArray(data.items) ? data.items : [];
 
-      // 🔧 Normalización: rederivar "cantidad_cotizada" desde mapas por OC cuando aplique
       const normalizados = todos.map(it => {
         const total = Number(it.cantidad || 0);
         const sumPend = sumMapNumbers(it.pendienteRevisionPorOC);
@@ -777,17 +1079,12 @@ const onChangeSolped = async () => {
         const plano = Number(it.cantidad_cotizada || 0);
         const derivado = Math.min(total, sumPend + sumAprob);
         const cotizadoFinal = Math.max(plano, derivado);
-        return {
-          ...it,
-          cantidad: total,
-          cantidad_cotizada: cotizadoFinal
-        };
+        return { ...it, cantidad: total, cantidad_cotizada: cotizadoFinal };
       });
 
       itemsSolped.value = normalizados
         .filter(it => {
           const stIt = String(it.estado || '').toLowerCase();
-          // ✅ ahora mostramos también 'revision'
           const esMostrar = (stIt === 'pendiente' || stIt === 'parcial' || stIt === '' || stIt === 'revision');
           const rest = Math.max(0, Number(it.cantidad || 0) - Number(it.cantidad_cotizada || 0));
           return esMostrar && rest > 0;
@@ -852,32 +1149,25 @@ function mapearItemsReglaRevision(
   const salida = [];
   for (const it of itemsOrigen) {
     const cantTotal = Number(it.cantidad || 0);
-
     const cantNuevaSolicitada = Number(it.cantidad_para_cotizar || 0);
-    const delta = Math.max(0, Math.min(cantNuevaSolicitada, cantTotal)); // clamp a cantidad
-
-    // 🔖 todos los ítems con delta > 0 quedan en "revision"
+    const delta = Math.max(0, Math.min(cantNuevaSolicitada, cantTotal));
     const estadoOC = delta > 0 ? 'revision' : 'pendiente';
 
     salida.push({
       ...it,
       cantidad: cantTotal,
-
-      // ✨ Las tres iguales al delta (lo que se va a cotizar en ESTA OC)
       cantidad_cotizada: delta,
       cantidad_para_cotizar: delta,
       cantidad_solicitada_oc: delta,
-
       estado: estadoOC,
       estado_cotizacion: estadoOC,
-
       codigo_referencial: it.codigo_referencial || 'SIN CÓDIGO',
       imagen_url: it.imagen_url ?? null,
       numero_interno: numeroInternoTexto || it.numero_interno || '',
       numero_solped: solpedSel?.numero_solpe || it.numero_solped || 0,
       moneda,
       precioTotalConIVA: totalConIVA,
-      responsable,      // fullName
+      responsable,
       solpedId,
       tipo_solped: solpedSel?.tipo_solped || it.tipo_solped || 'No definido',
       __tempId: it.__tempId
@@ -886,7 +1176,6 @@ function mapearItemsReglaRevision(
   return salida;
 }
 
-// Suma segura de valores numéricos en objetos { [ocId]: numero }
 function sumMapNumbers(obj) {
   if (!obj || typeof obj !== 'object') return 0;
   return Object.values(obj)
@@ -894,7 +1183,7 @@ function sumMapNumbers(obj) {
     .reduce((a, b) => a + b, 0);
 }
 
-// --- ✅ solo actualiza ítems (no cambia estatus global de la SOLPED) ---
+// --- actualiza ítems (no cambia estatus global de la SOLPED) ---
 async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUsuario, ocNumero, ocDocId) {
   if (!solpedId) return;
 
@@ -916,18 +1205,12 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUs
     const base = { ...actualizados[i] };
     const cantTotal = Number(base.cantidad || 0);
 
-    // Delta de esta OC (lo que se cotiza ahora)
-    const delta = Math.max(
-      0,
-      Math.min(Number(ocIt.cantidad_cotizada ?? 0), cantTotal)
-    );
+    const delta = Math.max(0, Math.min(Number(ocIt.cantidad_cotizada ?? 0), cantTotal));
 
-    // Valores previos acumulados
     const prevCot = Number(base.cantidad_cotizada || 0);
     const prevPara = Number(base.cantidad_para_cotizar || 0);
     const prevSolic = Number(base.cantidad_solicitada_oc || 0);
 
-    // Nuevo acumulado (clampeado al total requerido)
     const nuevoCot     = Math.min(cantTotal, prevCot + delta);
     const nuevoPara    = Math.min(cantTotal, prevPara + delta);
     const nuevoSolicOC = Math.min(cantTotal, prevSolic + delta);
@@ -936,45 +1219,36 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUs
     base.cantidad_para_cotizar  = nuevoPara;
     base.cantidad_solicitada_oc = nuevoSolicOC;
 
-    // Registrar por OC (traza fina por N° OC)
     base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
     if (delta > 0) {
       base.pendienteRevisionPorOC[String(ocNumero)] =
         Number(base.pendienteRevisionPorOC[String(ocNumero)] || 0) + delta;
     }
 
-    // Mantener cotPorOC en 0 por ahora (fase revisión)
     base.cotPorOC = base.cotPorOC || {};
     if (base.cotPorOC[String(ocNumero)] == null) {
       base.cotPorOC[String(ocNumero)] = 0;
     }
 
-    // Estados a nivel de ítem según acumulado
     if (cantTotal > 0 && nuevoCot >= cantTotal) {
-      // ✅ Ya se cubrió el total requerido: queda COMPLETO
       base.estado = 'completado';
       base.estado_cotizacion = 'completado';
     } else if (nuevoCot > 0) {
-      // ✅ Hay avance pero no total: queda en REVISIÓN
       base.estado = 'revision';
       base.estado_cotizacion = 'revision';
     } else {
-      // ✅ Sin avance: PENDIENTE
       base.estado = 'pendiente';
       base.estado_cotizacion = 'pendiente';
     }
 
-
     actualizados[i] = base;
   }
 
-  // ✅ No tocamos dataSol.estatus (se mantiene tal cual)
   await updateDoc(dref, {
     items: actualizados,
     updated_at: new Date()
   });
 
-  // Historial informativo (no cambia estatus global)
   await addDoc(collection(db, 'solped_taller', solpedId, 'historialEstados'), {
     usuario: nombreUsuario,
     fecha: serverTimestamp(),
@@ -985,10 +1259,18 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUs
   });
 }
 
-
 /* ====== Guardar OC (Taller) ====== */
 const enviarOC = async () => {
   if (enviando.value) return;
+
+  if (bloqueoPorAprobadasTaller.value) {
+    addToast(
+      "warning",
+      `Tienes ${totalAprobadasDelUsuarioTaller.value} cotizaciones del Taller en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`
+    );
+    return;
+  }
+  if (!usuarioActual.value) { addToast("warning","Debes iniciar sesión."); return; }
 
   if (!centroCostoTexto.value.trim()) { addToast("warning","Ingresa Centro de Costo (texto)"); return; }
   if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning","Precio inválido"); return; }
@@ -1005,8 +1287,6 @@ const enviarOC = async () => {
   }
 
   const nombreUsuario = (usuarioActual.value || "").trim();
-  if (!nombreUsuario) { addToast("danger", "No se encontró tu nombre (fullName)."); return; }
-
   const comentarioFinal = (comentario.value || "").trim();
 
   enviando.value = true;
@@ -1109,7 +1389,6 @@ const enviarOC = async () => {
   }
 };
 
-
 const irADetalleOCTaller = (ocOrId) => {
   const id = typeof ocOrId === 'string' ? ocOrId : (ocOrId?.__docId || ocOrId?.id || '');
   if (!id) {
@@ -1157,36 +1436,10 @@ const pagedEquipos = computed(() => {
 });
 const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
 
-/* Campos a cubrir (más amplio) */
 const camposBusqueda = [
-  "codigo",
-  "equipo",
-  "clasificacion1",
-  "tipo_equipo",
-  "marca",
-  "modelo",
-  "descripcion",
-  "patente",
-  "numero_chasis",
-  "localizacion"
+  "codigo","equipo","clasificacion1","tipo_equipo","marca","modelo","descripcion","patente","numero_chasis","localizacion"
 ];
-
-/* Normalización */
-const norm = (s) => String(s||'')
-  .normalize('NFD')
-  .replace(/\p{Diacritic}/gu,'')
-  .toLowerCase()
-  .trim();
-
-/* Variantes de entrada (para prefix-search) */
-const variantesDe = (s) => {
-  const t = (s || "").trim();
-  const v = norm(t);
-  const start = v.charAt(0).toUpperCase() + v.slice(1);
-  return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
-};
-
-/* Levenshtein light */
+const norm = (s) => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 function lev(a, b){
   a = (a||'').slice(0,64); b = (b||'').slice(0,64);
   const m = Array.from({length: a.length+1}, (_,i)=>[i]);
@@ -1199,28 +1452,19 @@ function lev(a, b){
   }
   return m[a.length][b.length];
 }
-
-/* Ranking: exacto > empieza-con > incluye > parecido */
 function scoreEquipo(e, qNorm){
   const vals = [
     e.codigo, e.patente, e.descripcion, e.equipo,
     e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
   ].filter(Boolean).map(v => norm(v));
-
   if (vals.includes(qNorm)) return 1000;
-
   const crit = ['codigo','patente','modelo','numero_chasis','equipo'].map(k => norm(e[k]||''));
   if (crit.some(v => v.startsWith(qNorm))) return 700;
-
   if (vals.some(v => v.includes(qNorm))) return 400;
-
   const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
   if (near <= 2) return 300 - (near * 50);
-
   return 0;
 }
-
-/* Debounce + cancelación + caché */
 let debounce = null;
 let lastSearchToken = 0;
 const cacheResultados = new Map();
@@ -1237,7 +1481,6 @@ const aplicarFiltrosEquiposDebounced = () => {
     }
   }, 450);
 };
-
 
 const buscarEquipos = async (q) => {
   const qNorm = norm(q);
@@ -1272,7 +1515,7 @@ const buscarEquipos = async (q) => {
   cargandoEquipos.value = true;
 
   try {
-    const variantes = variantesDe(q);
+    const variantes = [ (q || "").trim(), qNorm, (q || "").trim().toUpperCase(), qNorm.charAt(0).toUpperCase()+qNorm.slice(1) ].filter(Boolean);
     const vistos = new Set();
     const acumulado = [];
 
@@ -1336,7 +1579,6 @@ const buscarEquipos = async (q) => {
   }
 };
 
-
 const cargarSolpedSolicitadas = async () => {
   try {
     let arr = [];
@@ -1386,10 +1628,43 @@ Clasificación: ${e.clasificacion1 || '—'}`;
   }
 };
 
-/* Cleanup */
+/* ===== Carga inicial y reacciones ===== */
+onMounted(async () => {
+  await obtenerNombreUsuario();
+
+  // Bloqueo por aprobadas (2 meses)
+  if (usuarioActual.value) {
+    await refrescarAprobadasConCountTaller();
+    suscribirAprobadasLiveMinimaTaller();
+  }
+
+  await cargarSolpedSolicitadas();
+  await cargarSiguienteNumero();
+
+  const preId = (route?.query?.fromSolpedId || '').toString();
+  if (preId) {
+    usarSolped.value = true;
+    solpedSeleccionadaId.value = preId;
+    await onChangeSolped();
+  }
+});
+
 onBeforeUnmount(() => {
   if (debounce) clearTimeout(debounce);
   if (_unsubOCTallerMes) _unsubOCTallerMes();
+  if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
+  if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
+});
+
+watch(usuarioActual, async (nv, ov) => {
+  // Re-suscribir vistas dependientes del usuario
+  if (nv && nv !== ov) {
+    await refrescarAprobadasConCountTaller();
+    suscribirAprobadasLiveMinimaTaller();
+
+    if (mostrarOCTallerMes.value) suscribirOCTallerMes(nv);
+    if (mostrarResumenUsuarios.value) suscribirResumenUsuarios(nv);
+  }
 });
 </script>
 
@@ -1397,24 +1672,73 @@ onBeforeUnmount(() => {
 .generador-oc-page{
   min-height:100vh;
 }
+
 .card-elevated{
   border:1px solid #e5e7eb !important;
-  box-shadow:
-    0 10px 20px rgba(0,0,0,.08),
-    0 3px  6px rgba(0,0,0,.06) !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06) !important;
   border-radius: .9rem !important;
 }
-.equipos-list{ max-height: 50vh; overflow: auto; }
+
+/* Sidebar/Panel sticky en desktop */
+.sticky-panel{ position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: hidden; }
+.sticky-panel .card-body{ overflow: auto; }
+
+/* Lista de equipos scrollable */
+.equipos-list{
+  max-height: 55vh;
+  overflow: auto;
+}
+
+/* Toasts abajo-derecha */
 .toast-stack{
-  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
-  display: flex; flex-direction: column; gap: 10px;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .toast-box{
-  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  display: flex;
+  align-items: center;
+  padding: .6rem .8rem;
+  border-radius: .5rem;
+  color: #fff;
+  min-width: 260px;
+  max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
+
+/* 🔒 Overlay de bloqueo */
+.lock-overlay{
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(2px);
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.lock-box{
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: .85rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  max-width: 420px;
+}
+
+/* Tabla: que respire y no salte */
+.table td, .table th { vertical-align: middle; }
+
+/* Pequeños ajustes en xs */
+@media (max-width: 420px){
+  .card-header .small{ font-size: .8rem; }
+}
 </style>

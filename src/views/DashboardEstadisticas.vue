@@ -230,17 +230,33 @@
 
           <div class="col-12">
             <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">Gasto por Contrato (mes)</div></div>
+              <div class="card-header"><div class="fw-medium">Gasto por Contrato </div></div>
               <div class="card-body chart-fixed-h"><canvas ref="cGastoContratoH"></canvas></div>
             </div>
           </div>
 
           <div class="col-12">
             <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">OC por Contrato ( mes)</div></div>
+              <div class="card-header"><div class="fw-medium">OC por Contrato </div></div>
               <div class="card-body chart-fixed-h"><canvas ref="cConteoContratoH"></canvas></div>
             </div>
           </div>
+
+          <div class="col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="fw-medium">Cotizaciones aprobadas vs Órdenes subidas </div>
+                <span class="badge bg-dark-subtle text-dark-emphasis" v-if="vsEditorsPayload?.labels?.length">
+                  {{ vsEditorsPayload.labels.length }} usuarios
+                </span>
+              </div>
+              <div class="card-body chart-fixed-h">
+                <canvas ref="cVsAprobadasSubidas"></canvas>
+              </div>
+            </div>
+          </div>
+          <!-- /NUEVO -->
+
         </div>
 
         <!-- Tabla “Hoy” -->
@@ -292,8 +308,6 @@
               <label class="form-label">Mes</label>
               <input type="month" class="form-control" v-model="filtroMes" @change="onFiltroChange" :disabled="isLoading" />
             </div>
-
-            <!-- Empresa NO se muestra aquí (el usuario pidió el segmento rápido). -->
 
             <div class="col-12" v-if="segmento==='empresa'">
               <label class="form-label">Contrato</label>
@@ -454,11 +468,15 @@ const cConteoContratoH = ref(null);
 const cSolpedPendH = ref(null);
 const cSolpedPendAll = ref(null);
 
+// NUEVO: canvas para VS
+const cVsAprobadasSubidas = ref(null);
+
 // Instancias Chart
 let charts = {
   topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
   tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
-  solpedPend: null, solpedPendAll: null
+  solpedPend: null, solpedPendAll: null,
+  vsEditors: null, // NUEVO
 };
 
 // Snap anterior
@@ -566,6 +584,9 @@ function setCache(payload) { try { sessionStorage.setItem(cacheKey(), JSON.strin
 function _normTxt(v='') {
   return String(v).normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase();
 }
+
+/* ====== VS payload visible ====== */
+const vsEditorsPayload = ref({ labels: [], aprobadas: [], subidas: [] });
 
 /* ====== Carga / agregaciones ====== */
 async function cargarTodo(force=false) {
@@ -892,6 +913,52 @@ async function cargarTodo(force=false) {
     const pendAllLabels = pendAllEntries.map(([k]) => k);
     const pendAllValues = pendAllEntries.map(([,v]) => v);
 
+    /* ===== NUEVO: VS Cotizaciones Aprobadas vs Órdenes Subidas (solo EDITORS) ===== */
+    // Traer 'Usuarios' con role editor
+    let editorsSet = new Set();
+    try {
+      const usersQ = query(collection(db, "Usuarios"), where("role", "in", ["editor", "Editor"]));
+      const usersSnap = await getDocs(usersQ);
+      usersSnap.forEach(d => {
+        const u = d.data() || {};
+        const name = (u.fullName || u.displayName || u.email || "").toString().trim();
+        if (name) editorsSet.add(name);
+      });
+    } catch (e) {
+      console.warn("No se pudo cargar Usuarios (role=editor). VS quedará vacío.", e);
+    }
+
+    // Reglas de estatus para las dos series
+    const isAprobadaLike = (s) => {
+      const n = _normTxt(s || "");
+      // Incluye Aprobado, Preaprobado, Revisión Guillermo (como pediste)
+      return n === "aprobado" || n === "preaprobado" || n.includes("revision") || n.includes("revisión");
+    };
+    const isSubidaProveedor = (s) => _normTxt(s || "").includes("proveedor");
+
+    // Agrupar por responsable, solo si está en editorsSet
+    const porResp = new Map(); // resp -> { aprobadas: n, subidas: n }
+    for (const o of ocFiltradas) {
+      const resp = (o.responsable || "—").toString().trim();
+      if (!resp || !editorsSet.has(resp)) continue;
+
+      const est = o.estatus || "";
+      const cur = porResp.get(resp) || { aprobadas: 0, subidas: 0 };
+      if (isAprobadaLike(est)) cur.aprobadas += 1;
+      if (isSubidaProveedor(est)) cur.subidas += 1;
+      porResp.set(resp, cur);
+    }
+
+    // Ordenar por actividad total (o por déficit si prefieres)
+    const entriesVS = [...porResp.entries()]
+      .sort((a,b) => (b[1].aprobadas + b[1].subidas) - (a[1].aprobadas + a[1].subidas))
+      .slice(0, 20);
+
+    const vsLabels = entriesVS.map(([k]) => k);
+    const vsAprobadas = entriesVS.map(([,v]) => v.aprobadas);
+    const vsSubidas = entriesVS.map(([,v]) => v.subidas);
+    /* ===== /NUEVO ===== */
+
     const payload = {
       kpis: { ...kpis.value },
       kpisExtra: { ...kpisExtra.value },
@@ -903,7 +970,14 @@ async function cargarTodo(force=false) {
       topAprobadores,
       topHoy: topHoy.value,
       solpedPend: { labels: pendLabels, values: pendValues },
-      solpedPendAll: { labels: pendAllLabels, values: pendAllValues }
+      solpedPendAll: { labels: pendAllLabels, values: pendAllValues },
+
+      // NUEVO payload VS
+      vsEditors: {
+        labels: vsLabels,
+        aprobadas: vsAprobadas,
+        subidas: vsSubidas,
+      }
     };
 
     const thisKey = cacheKey();
@@ -925,7 +999,11 @@ async function cargarTodo(force=false) {
 /* ====== Charts ====== */
 function destroyAll() {
   Object.values(charts).forEach(ch => { try { ch && ch.destroy && ch.destroy(); } catch(e) {console.error(e)} });
-  charts = { topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null, tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null, solpedPend: null, solpedPendAll: null };
+  charts = {
+    topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
+    tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
+    solpedPend: null, solpedPendAll: null, vsEditors: null
+  };
 }
 function drawBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipCb) {
   if (!window.Chart || !canvas) return;
@@ -1000,6 +1078,43 @@ function drawLineMoney(canvas, key, labels, values, dsLabel) {
     }
   });
 }
+// NUEVO: barras agrupadas (dos datasets)
+function drawGroupedBar(canvas, key, labels, series, formatters = {}) {
+  if (!window.Chart || !canvas) return;
+  charts[key]?.destroy?.();
+  charts[key] = new window.Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: series.map((s) => ({
+        label: s.label,
+        data: s.data,
+        maxBarThickness: 28,
+        borderWidth: 1
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              const fmt = formatters[ctx.datasetIndex];
+              return `${ctx.dataset.label}: ${fmt ? fmt(v) : v}`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: (v) => v } },
+        x: { ticks: { autoSkip: false } }
+      }
+    }
+  });
+}
 
 function pintarDesdePayload(p){
   // KPIs/tabla
@@ -1007,7 +1122,7 @@ function pintarDesdePayload(p){
   kpisExtra.value = { ...p.kpisExtra };
   topHoy.value = p.topHoy || [];
 
-  // Gráficos
+  // Gráficos existentes
   drawBar(cTopCreadores.value, 'topCread', (p.topCreadores||[]).map(([k])=>k), (p.topCreadores||[]).map(([,v])=>v), 'Creadas');
   drawPie(cEstatusPie.value, 'estatusPie', Object.keys(p.distEstatus || {}), Object.values(p.distEstatus || {}));
   drawLineMoney(cGastoLine.value, 'gastoLine', p.serieGasto.labels, p.serieGasto.values, 'Gasto diario');
@@ -1034,6 +1149,20 @@ function pintarDesdePayload(p){
   }
   if (p.solpedPendAll) {
     drawBar(cSolpedPendAll.value, 'solpedPendAll', p.solpedPendAll.labels, p.solpedPendAll.values, 'Pendientes', null);
+  }
+
+  // NUEVO: VS data visible + chart
+  vsEditorsPayload.value = p.vsEditors || { labels: [], aprobadas: [], subidas: [] };
+  if (p.vsEditors && Array.isArray(p.vsEditors.labels)) {
+    drawGroupedBar(
+      cVsAprobadasSubidas.value,
+      'vsEditors',
+      p.vsEditors.labels,
+      [
+        { label: 'Cotizaciones aprobadas', data: p.vsEditors.aprobadas },
+        { label: 'Órdenes subidas', data: p.vsEditors.subidas },
+      ]
+    );
   }
 }
 </script>

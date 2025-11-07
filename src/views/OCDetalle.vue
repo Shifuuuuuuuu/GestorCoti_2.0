@@ -91,11 +91,11 @@
         </div>
       </div>
 
-      <!-- Re-subir cotización (solo Editor) para Rechazado o Pendiente de Aprobación -->
+      <!-- Re-subir cotización (solo Editor) -> ahora soporta MÚLTIPLES archivos -->
       <div v-if="canResubmitEditor" class="card border-2 border-danger-subtle">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold text-danger">Subir nueva cotización</div>
-          <span class="small text-secondary">Actualiza archivosStorage, precio y comentario. Estado pasa a “Revisión Guillermo”.</span>
+          <span class="small text-secondary">Puedes seleccionar múltiples PDF o imágenes. Estado pasa a “Revisión Guillermo”.</span>
         </div>
         <div class="card-body">
           <div v-if="submitError" class="alert alert-danger py-2 mb-3">{{ submitError }}</div>
@@ -103,9 +103,20 @@
 
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label class="form-label">Archivo de cotización (PDF/imagen)</label>
-              <input id="fileNuevaCoti" class="form-control" type="file"
-                     accept="application/pdf,image/*" @change="onFileNuevaCoti">
+              <label class="form-label">Archivos de cotización (PDF/imagen)</label>
+              <input
+                id="fileNuevaCoti"
+                class="form-control"
+                type="file"
+                multiple
+                accept="application/pdf,image/*"
+                @change="onFilesNuevaCoti"
+              >
+              <ul v-if="filesNuevaCoti.length" class="small mt-2 mb-0 list-unstyled">
+                <li v-for="(f, i) in filesNuevaCoti" :key="'nc-'+i">
+                  • {{ f.name }} <span class="text-muted">({{ (f.size/1024/1024).toFixed(2) }} MB)</span>
+                </li>
+              </ul>
             </div>
 
             <div class="col-12 col-md-3">
@@ -134,27 +145,39 @@
         <div class="card-footer d-flex justify-content-end gap-2">
           <button class="btn btn-outline-secondary" @click="resetForm" :disabled="submitting">Limpiar</button>
           <button class="btn btn-danger" @click="subirNuevaCotizacion"
-                  :disabled="submitting || !nuevoArchivo">
+                  :disabled="submitting || !filesNuevaCoti.length">
             <span v-if="submitting" class="spinner-border spinner-border-sm me-2"></span>
             Subir y actualizar
           </button>
         </div>
       </div>
 
-      <!-- Subir OC ya aprobada (solo Editor) -> cambia a 'Enviada a proveedor' -->
+      <!-- Subir OC ya aprobada (solo Editor) -> múltiples archivos (ya implementado) -->
       <div v-if="canUploadOCProveedorEditor" class="card border-2 border-primary-subtle">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold text-primary">Subir Archivo OC (Aprobada)</div>
+          <div class="fw-semibold text-primary">Subir Archivos OC (Aprobada)</div>
+          <span class="small text-secondary">Puedes seleccionar múltiples PDF o imágenes. El estado pasará a “Enviada a proveedor”.</span>
         </div>
         <div class="card-body">
           <div v-if="sendError" class="alert alert-danger py-2 mb-3">{{ sendError }}</div>
-          <div v-if="sendOk" class="alert alert-success py-2 mb-3">Archivo OC subido y estado actualizado.</div>
+          <div v-if="sendOk" class="alert alert-success py-2 mb-3">Archivo(s) subido(s) y estado actualizado.</div>
 
           <div class="row g-3">
             <div class="col-12 col-md-8">
-              <label class="form-label">Archivo OC (PDF/imagen)</label>
-              <input id="fileOCProveedor" class="form-control" type="file"
-                     accept="application/pdf,image/*" @change="onFileOCProveedor">
+              <label class="form-label">Archivos OC (PDF/imagen)</label>
+              <input
+                id="fileOCProveedor"
+                class="form-control"
+                type="file"
+                multiple
+                accept="application/pdf,image/*"
+                @change="onFilesOCProveedor"
+              >
+              <ul v-if="filesOCProveedor.length" class="small mt-2 mb-0 list-unstyled">
+                <li v-for="(f, i) in filesOCProveedor" :key="'sel-'+i">
+                  • {{ f.name }} <span class="text-muted">({{ (f.size/1024/1024).toFixed(2) }} MB)</span>
+                </li>
+              </ul>
             </div>
 
             <div class="col-12 col-md-4">
@@ -166,7 +189,7 @@
         <div class="card-footer d-flex justify-content-end gap-2">
           <button class="btn btn-outline-secondary" @click="resetEnvio" :disabled="sending">Limpiar</button>
           <button class="btn btn-primary" @click="subirOCProveedor"
-                  :disabled="sending || !archivoOCProveedor">
+                  :disabled="sending || !filesOCProveedor.length">
             <span v-if="sending" class="spinner-border spinner-border-sm me-2"></span>
             Subir OC
           </button>
@@ -251,7 +274,7 @@
         <div class="card-header fw-semibold">📎 Archivos adjuntos</div>
         <div class="card-body">
           <div class="list-group">
-            <!-- Archivo OC principal -->
+            <!-- Archivo OC principal (compat) -->
             <a
               v-if="docData.archivoOC?.url"
               class="list-group-item list-group-item-action d-flex align-items-center"
@@ -266,7 +289,7 @@
               <i class="bi bi-box-arrow-up-right ms-2"></i>
             </a>
 
-            <!-- archivosStorage -->
+            <!-- archivosStorage (cotizaciones) -->
             <a
               v-for="(a, idx) in (docData.archivosStorage || [])"
               :key="'att-'+idx"
@@ -277,6 +300,22 @@
               <i class="bi bi-paperclip me-2"></i>
               <div class="me-auto">
                 <div class="fw-semibold">{{ a.nombre || 'Adjunto' }}</div>
+                <div class="small text-secondary">{{ a.tipo || '—' }}</div>
+              </div>
+              <i class="bi bi-box-arrow-up-right ms-2"></i>
+            </a>
+
+            <!-- archivosOCProveedor (múltiples) -->
+            <a
+              v-for="(a, idx) in (docData.archivosOCProveedor || [])"
+              :key="'prov-'+idx"
+              class="list-group-item list-group-item-action d-flex align-items-center"
+              :href="a.url"
+              target="_blank" rel="noopener"
+            >
+              <i class="bi bi-file-earmark-arrow-up me-2"></i>
+              <div class="me-auto">
+                <div class="fw-semibold">{{ a.nombre || 'OC Enviada' }}</div>
                 <div class="small text-secondary">{{ a.tipo || '—' }}</div>
               </div>
               <i class="bi bi-box-arrow-up-right ms-2"></i>
@@ -344,10 +383,10 @@ function titleCase(s='') {
     .join(' ');
 }
 
-/* ====== Rol + datos del usuario (desde colección Usuarios) ====== */
-const userRole = ref(''); // e.g. 'Editor', 'Admin', 'Aprobador/Editor'
+/* ====== Rol + datos del usuario ====== */
+const userRole = ref(''); // 'Editor', 'Admin', etc.
 const isEditor = computed(() => norm(userRole.value) === 'editor');
-const userDocData = ref(null); // para extraer fullName/nombres/apellidos desde BD
+const userDocData = ref(null);
 
 async function loadUserData() {
   try {
@@ -365,35 +404,23 @@ async function loadUserData() {
   }
 }
 
-/** Resuelve el mejor nombre posible del usuario actual */
 function getUsuarioNombre() {
-  // 1) profile.fullName del store
   const fromProfile = (auth?.profile?.fullName || '').trim();
   if (fromProfile) return fromProfile;
-
-  // 2) Documento en 'Usuarios' (varios campos posibles)
   const d = userDocData.value || {};
-  const fromDoc =
-    (d.fullName || d.fullname || d.nombreCompleto || '').toString().trim();
+  const fromDoc = (d.fullName || d.fullname || d.nombreCompleto || '').toString().trim();
   if (fromDoc) return fromDoc;
-
   const nombres = (d.nombres || d.nombre || d.firstName || '').toString().trim();
   const apellidos = (d.apellidos || d.apellido || d.lastName || '').toString().trim();
   const combined = `${nombres} ${apellidos}`.trim();
   if (combined) return combined;
-
-  // 3) displayName de Firebase Auth
   const disp = (auth?.user?.displayName || '').trim();
   if (disp) return disp;
-
-  // 4) local-part del email (capitalizado bonito)
   const email = (auth?.user?.email || '').trim();
   if (email && email.includes('@')) {
     const local = email.split('@')[0].replace(/[._-]+/g,' ');
     return titleCase(local);
   }
-
-  // 5) fallback
   return 'Sistema';
 }
 
@@ -415,6 +442,7 @@ onMounted(async () => {
     } else {
       const data = { __docId: snap.id, ...snap.data() };
       if (!Array.isArray(data.archivosStorage)) data.archivosStorage = [];
+      if (!Array.isArray(data.archivosOCProveedor)) data.archivosOCProveedor = [];
       if (!Array.isArray(data.items)) data.items = [];
       docData.value = data;
     }
@@ -429,36 +457,30 @@ onMounted(async () => {
 // ===== Flags de UI =====
 const canResubmitBase = computed(() => {
   const s = norm(docData.value?.estatus);
-  return s.includes('rechaz') || s.includes('pendiente'); // Rechazado o Pendiente de Aprobación
+  return s.includes('rechaz') || s.includes('pendiente');
 });
-
-// Sólo si es exactamente “Aprobado”
-const canUploadOCProveedorBase = computed(() => {
-  const s = norm(docData.value?.estatus);
-  return s === 'aprobado';
-});
+const canUploadOCProveedorBase = computed(() => norm(docData.value?.estatus) === 'aprobado');
 
 const canResubmitEditor = computed(() => isEditor.value && canResubmitBase.value);
 const canUploadOCProveedorEditor = computed(() => isEditor.value && canUploadOCProveedorBase.value);
 
-// ===== Re-subir cotización =====
-const nuevoArchivo = ref(null);
-const nuevoPrecio = ref(null);
-const nuevoComentario = ref('');
-const nuevoEstatus = ref('Pendiente de Aprobación'); // se ignora, queda 'Revisión Guillermo'
+// ===== Re-subir cotización (MÚLTIPLES archivos cuando Rechazado o Pendiente) =====
+const filesNuevaCoti   = ref([]);   // múltiples archivos
+const nuevoPrecio      = ref(null);
+const nuevoComentario  = ref('');
+const nuevoEstatus     = ref('Pendiente de Aprobación');
 
 const submitting = ref(false);
-const submitOk = ref(false);
-const submitError = ref('');
+const submitOk   = ref(false);
+const submitError= ref('');
 
-const onFileNuevaCoti = (e) => {
-  const f = (e.target.files || [])[0];
-  nuevoArchivo.value = f || null;
+const onFilesNuevaCoti = (e) => {
+  filesNuevaCoti.value = Array.from(e.target.files || []);
   submitOk.value = false;
   submitError.value = '';
 };
 const resetForm = () => {
-  nuevoArchivo.value = null;
+  filesNuevaCoti.value = [];
   nuevoPrecio.value = null;
   nuevoComentario.value = '';
   nuevoEstatus.value = 'Pendiente de Aprobación';
@@ -477,16 +499,15 @@ const subirNuevaCotizacion = async () => {
       submitError.value = 'No tienes permisos para realizar esta acción.';
       return;
     }
-
     if (!docData.value?.__docId) {
       submitError.value = 'Documento no cargado.';
       return;
     }
-    if (!nuevoArchivo.value) {
-      submitError.value = 'Debes seleccionar un archivo de cotización.';
+    if (!filesNuevaCoti.value.length) {
+      submitError.value = 'Debes seleccionar al menos un archivo de cotización.';
       return;
     }
-    const precioNum = Number(nuevoPrecio.value);
+    const precioNum = Number(nuevoPrecio.value ?? 0);
     if (Number.isNaN(precioNum) || precioNum < 0) {
       submitError.value = 'El precio debe ser un número válido.';
       return;
@@ -494,21 +515,25 @@ const subirNuevaCotizacion = async () => {
 
     submitting.value = true;
 
-    // 1) Subir archivo a Storage
     const storage = getStorage();
-    const path = `ordenes_oc/${docData.value.__docId}/cotizacion_${Date.now()}_${nuevoArchivo.value.name}`;
-    const sRef = sref(storage, path);
-    const up = await uploadBytes(sRef, nuevoArchivo.value);
-    const url = await getDownloadURL(up.ref);
 
-    const nuevoAdj = {
-      nombre: nuevoArchivo.value.name,
-      tipo: nuevoArchivo.value.type || 'application/octet-stream',
-      url,
-      fechaSubida: new Date().toISOString()
-    };
+    // Sube en paralelo
+    const uploaded = await Promise.all(
+      filesNuevaCoti.value.map(async (f) => {
+        const path = `ordenes_oc/${docData.value.__docId}/cotizacion_${Date.now()}_${f.name}`;
+        const sRef = sref(storage, path);
+        const up = await uploadBytes(sRef, f);
+        const url = await getDownloadURL(up.ref);
+        return {
+          nombre: f.name,
+          tipo: f.type || 'application/octet-stream',
+          url,
+          fechaSubida: new Date().toISOString()
+        };
+      })
+    );
 
-    // Historial: “Revisión Guillermo”
+    // Historial (una entrada por el lote)
     const usuario = getUsuarioNombre();
     const nuevoHist = Array.isArray(docData.value.historial) ? [...docData.value.historial] : [];
     nuevoHist.push({
@@ -518,9 +543,9 @@ const subirNuevaCotizacion = async () => {
       comentario: (nuevoComentario.value || '').trim()
     });
 
-    // Actualización
-    const archivosStorage = Array.isArray(docData.value.archivosStorage)
-      ? [nuevoAdj, ...docData.value.archivosStorage] : [nuevoAdj];
+    // Acumular en archivosStorage
+    const prev = Array.isArray(docData.value.archivosStorage) ? docData.value.archivosStorage : [];
+    const archivosStorage = [...uploaded, ...prev];
 
     const dref = doc(db, 'ordenes_oc', docData.value.__docId);
     const updates = {
@@ -538,27 +563,26 @@ const subirNuevaCotizacion = async () => {
     resetForm();
   } catch (e) {
     console.error(e);
-    submitError.value = 'No se pudo subir la nueva cotización. Intenta nuevamente.';
+    submitError.value = 'No se pudo subir la(s) nueva(s) cotización(es). Intenta nuevamente.';
   } finally {
     submitting.value = false;
   }
 };
 
-// ===== Subir OC aprobada =====
-const archivoOCProveedor = ref(null);
-const comentarioEnvio = ref('');
-const sending = ref(false);
-const sendOk = ref(false);
-const sendError = ref('');
+// ===== Subir OC aprobada (MÚLTIPLES archivos) =====
+const filesOCProveedor  = ref([]);
+const comentarioEnvio   = ref('');
+const sending           = ref(false);
+const sendOk            = ref(false);
+const sendError         = ref('');
 
-const onFileOCProveedor = (e) => {
-  const f = (e.target.files || [])[0];
-  archivoOCProveedor.value = f || null;
+const onFilesOCProveedor = (e) => {
+  filesOCProveedor.value = Array.from(e.target.files || []);
   sendOk.value = false;
   sendError.value = '';
 };
 const resetEnvio = () => {
-  archivoOCProveedor.value = null;
+  filesOCProveedor.value = [];
   comentarioEnvio.value = '';
   sendOk.value = false;
   sendError.value = '';
@@ -575,46 +599,52 @@ const subirOCProveedor = async () => {
       sendError.value = 'No tienes permisos para realizar esta acción.';
       return;
     }
-
     if (!docData.value?.__docId) {
       sendError.value = 'Documento no cargado.';
       return;
     }
-    if (!archivoOCProveedor.value) {
-      sendError.value = 'Debes seleccionar el archivo OC.';
+    if (!filesOCProveedor.value.length) {
+      sendError.value = 'Debes seleccionar al menos un archivo.';
       return;
     }
 
     sending.value = true;
 
-    // 1) Subir archivo a Storage
     const storage = getStorage();
-    const path = `ordenes_oc/${docData.value.__docId}/oc_enviada_${Date.now()}_${archivoOCProveedor.value.name}`;
-    const sRef = sref(storage, path);
-    const up = await uploadBytes(sRef, archivoOCProveedor.value);
-    const url = await getDownloadURL(up.ref);
+    const uploaded = await Promise.all(
+      filesOCProveedor.value.map(async (f) => {
+        const path = `ordenes_oc/${docData.value.__docId}/oc_enviada_${Date.now()}_${f.name}`;
+        const sRef = sref(storage, path);
+        const up = await uploadBytes(sRef, f);
+        const url = await getDownloadURL(up.ref);
+        return {
+          nombre: f.name,
+          tipo: f.type || 'application/octet-stream',
+          url,
+          fechaSubida: new Date().toISOString()
+        };
+      })
+    );
 
-    const archivoOC = {
-      nombre: archivoOCProveedor.value.name,
-      tipo: archivoOCProveedor.value.type || 'application/octet-stream',
-      url,
-      fechaSubida: new Date().toISOString()
-    };
-
-    // Historial
     const usuario = getUsuarioNombre();
     const nuevoHist = Array.isArray(docData.value.historial) ? [...docData.value.historial] : [];
     nuevoHist.push({
-      estatus: 'Archivo OC subido (enviado a proveedor)',
+      estatus: 'Archivo(s) OC subido(s) (enviado a proveedor)',
       fecha: new Date().toISOString(),
       usuario,
       comentario: (comentarioEnvio.value || '').trim()
     });
 
-    // Actualización
+    // Compat: archivoOC = primer archivo del lote
+    const archivoOC = uploaded[0] || docData.value.archivoOC || null;
+
+    const prev = Array.isArray(docData.value.archivosOCProveedor) ? docData.value.archivosOCProveedor : [];
+    const archivosOCProveedor = [...uploaded, ...prev];
+
     const dref = doc(db, 'ordenes_oc', docData.value.__docId);
     const updates = {
       archivoOC,
+      archivosOCProveedor,
       historial: nuevoHist,
       estatus: 'Enviada a proveedor'
     };
@@ -626,7 +656,7 @@ const subirOCProveedor = async () => {
     resetEnvio();
   } catch (e) {
     console.error(e);
-    sendError.value = 'No se pudo subir el archivo OC. Intenta nuevamente.';
+    sendError.value = 'No se pudieron subir los archivos OC. Intenta nuevamente.';
   } finally {
     sending.value = false;
   }
@@ -655,14 +685,12 @@ const fmtMoneda = (n, c = 'CLP') => {
 
 const estadoBadgeClass = (estatus) => {
   const s = norm(estatus);
-
   if (s === 'aprobado') return 'bg-success-subtle text-success-emphasis';
   if (s === 'preaprobado') return 'bg-info-subtle text-info-emphasis';
   if (s === 'pendiente de aprobacion' || s === 'pendiente') return 'bg-warning-subtle text-warning-emphasis';
   if (s.includes('rechaz')) return 'bg-danger-subtle text-danger-emphasis';
   if (s.includes('revision')) return 'bg-warning-subtle text-warning-emphasis';
   if (s.includes('proveedor') || s.includes('enviada')) return 'bg-primary-subtle text-primary-emphasis';
-
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
@@ -695,7 +723,8 @@ const dateLikeToMillis = (x) => {
 const tieneArchivos = computed(() => {
   const a = (docData.value?.archivosStorage || []).length > 0;
   const b = !!docData.value?.archivoOC?.url;
-  return a || b;
+  const c = (docData.value?.archivosOCProveedor || []).length > 0;
+  return a || b || c;
 });
 </script>
 
@@ -708,36 +737,13 @@ const tieneArchivos = computed(() => {
   border-radius:.9rem !important;
 }
 
-/* Timeline sencillo */
-.timeline{
-  position: relative;
-  padding-left: 1.25rem;
-}
-.timeline::before{
-  content:"";
-  position:absolute;
-  left:.44rem;
-  top:0;
-  bottom:0;
-  width:2px;
-  background: #e5e7eb;
-}
-.timeline-item{
-  position: relative;
-  margin-bottom:1rem;
-}
+/* Timeline */
+.timeline{ position: relative; padding-left: 1.25rem; }
+.timeline::before{ content:""; position:absolute; left:.44rem; top:0; bottom:0; width:2px; background:#e5e7eb; }
+.timeline-item{ position: relative; margin-bottom:1rem; }
 .timeline-dot{
-  position:absolute;
-  left:-.03rem;
-  width:.75rem;
-  height:.75rem;
-  border-radius:50%;
-  background:#ef4444;
-  border:2px solid #fff;
-  box-shadow:0 0 0 2px #e5e7eb;
-  transform: translateY(.35rem);
+  position:absolute; left:-.03rem; width:.75rem; height:.75rem; border-radius:50%;
+  background:#ef4444; border:2px solid #fff; box-shadow:0 0 0 2px #e5e7eb; transform: translateY(.35rem);
 }
-.timeline-content{
-  padding-left:.75rem;
-}
+.timeline-content{ padding-left:.75rem; }
 </style>
