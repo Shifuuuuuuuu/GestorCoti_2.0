@@ -775,6 +775,59 @@ export default {
     const isLoadingOC = (solpedId) => _ocLoading.value.has(solpedId);
     const ocListFor = (solpedId) => _ocBySolped.value.get(solpedId) || [];
 
+    // ===== Dropdowns (Bootstrap) =====
+    let _dropdownMap = new Map();
+    let DropdownClass = null;
+    const ensureDropdownClass = async () => {
+      if (DropdownClass) return;
+      try {
+        DropdownClass = (await import('bootstrap/js/dist/dropdown')).default;
+      } catch {
+        DropdownClass = window?.bootstrap?.Dropdown || null;
+      }
+    };
+
+    function initDropdownsIn(el = document) {
+      const Dropdown = DropdownClass || (window?.bootstrap && window.bootstrap.Dropdown) || null;
+      if (!Dropdown) return;
+
+      const toggles = el.querySelectorAll('[data-bs-toggle="dropdown"]');
+      toggles.forEach((btn) => {
+        if (_dropdownMap.has(btn)) return; // ya instanciado
+        const instance = new Dropdown(btn, { boundary: 'viewport', display: 'static' });
+        _dropdownMap.set(btn, instance);
+
+        const tableWrap = btn.closest('.table-responsive');
+        const ddRoot = btn.closest('.dropdown, .dropup');
+
+        const onShow = () => {
+          tableWrap?.classList.add('dropdown-open');
+          if (ddRoot) {
+            ddRoot.classList.remove('dropup');
+            const rect = btn.getBoundingClientRect();
+            const espacioAbajo = window.innerHeight - rect.bottom;
+            const ALTURA_MENU_ESTIMADA = 240;
+            if (espacioAbajo < ALTURA_MENU_ESTIMADA) ddRoot.classList.add('dropup');
+          }
+        };
+        const onHide = () => {
+          tableWrap?.classList.remove('dropdown-open');
+          ddRoot?.classList.remove('dropup');
+        };
+
+        btn.addEventListener('show.bs.dropdown', onShow);
+        btn.addEventListener('hide.bs.dropdown', onHide);
+      });
+    }
+
+    function disposeDropdowns() {
+      try {
+        _dropdownMap.forEach((inst) => { try { inst.dispose?.(); } catch(e) {console.error(e)} });
+      } finally {
+        _dropdownMap = new Map();
+      }
+    }
+
     // Filtros base
     const filtroTexto = ref("");
     const fechaDesde = ref("");
@@ -1138,6 +1191,11 @@ export default {
       if (solpeExpandidaId.value === s.id) {
         await marcarComentariosVistos(s);
         await ensureOCListener(s.id); // arranca realtime de OCs
+        // reinit dropdowns por cambio de DOM al expandir
+        await nextTick();
+        disposeDropdowns();
+        await ensureDropdownClass();
+        initDropdownsIn();
       }
     };
 
@@ -1241,21 +1299,30 @@ export default {
     const pageTo = computed(() => Math.min(filteredAll.value.length, page.value * pageSize.value));
     const pagedList = computed(() => filteredAll.value.slice(pageFrom.value - 1, pageTo.value));
 
-    const goPage = (p) => {
+    const goPage = async (p) => {
       if (p < 1) p = 1;
       if (p > totalPages.value) p = totalPages.value;
       page.value = p;
       solpeExpandidaId.value = null; // colapsa al paginar
       // al colapsar, corta listeners de OCs
       stopAllOCListeners();
+
+      // reinicia dropdowns por cambio de DOM
+      await nextTick();
+      disposeDropdowns();
+      await ensureDropdownClass();
+      initDropdownsIn();
     };
     const nextPage = () => goPage(page.value + 1);
     const prevPage = () => goPage(page.value - 1);
     const goFirst = () => goPage(1);
     const goLast = () => goPage(totalPages.value);
 
-    const ordenarSolpes = () => { ordenAscendente.value = !ordenAscendente.value; goPage(1); };
-    const limpiarFiltros = () => {
+    const ordenarSolpes = async () => {
+      ordenAscendente.value = !ordenAscendente.value;
+      await goPage(1);
+    };
+    const limpiarFiltros = async () => {
       filtroTexto.value = "";
       fechaDesde.value = "";
       fechaHasta.value = "";
@@ -1266,7 +1333,7 @@ export default {
       ccSearch.value = "";
       onlyMine.value = false;
       persistFilters();
-      goPage(1);
+      await goPage(1);
     };
 
     const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x!==s); persistFilters(); goPage(1) ;};
@@ -1353,45 +1420,38 @@ export default {
       }
     };
 
+    // Enviar la SOLPED seleccionada a la pantalla de creación (sin guardar nada en Firestore)
+    const prepararCopiaParaCrear = (s) => {
+      try {
+        const payload = {
+          from: 'historial',
+          fecha: todayStr(),
+          empresa: s.empresa || 'Xtreme Servicios',
+          nombre_solicitante: s.nombre_solicitante || '',
+          tipo_solped: s.tipo_solped || 'REPUESTOS',
+          centro_costo: s.centro_costo || '',
+          items: (Array.isArray(s.items) ? s.items : []).map((it, idx) => ({
+            id: idx + 1,
+            descripcion: (it.descripcion || '').toString().toUpperCase(),
+            codigo_referencial: (it.codigo_referencial || '').toString().toUpperCase(),
+            cantidad: Number(it.cantidad || 1),
+            numero_interno: (it.numero_interno || '').toString().toUpperCase(),
+            imagen_url: it.imagen_url || '',
+            editando: true
+          }))
+        };
+        sessionStorage.setItem('solped_taller_import', JSON.stringify(payload));
 
-
-// Enviar la SOLPED seleccionada a la pantalla de creación (sin guardar nada en Firestore)
-const prepararCopiaParaCrear = (s) => {
-  try {
-    // Armamos un payload "ligero" para inicializar el formulario de creación
-    const payload = {
-      from: 'historial',
-      fecha: todayStr(),
-      empresa: s.empresa || 'Xtreme Servicios',
-      nombre_solicitante: s.nombre_solicitante || '',
-      tipo_solped: s.tipo_solped || 'REPUESTOS',
-      centro_costo: s.centro_costo || '',
-      // Los ítems se mapean a la estructura que usa el formulario de creación
-      items: (Array.isArray(s.items) ? s.items : []).map((it, idx) => ({
-        id: idx + 1,
-        descripcion: (it.descripcion || '').toString().toUpperCase(),
-        codigo_referencial: (it.codigo_referencial || '').toString().toUpperCase(),
-        cantidad: Number(it.cantidad || 1),
-        numero_interno: (it.numero_interno || '').toString().toUpperCase(),
-        imagen_url: it.imagen_url || '',
-        editando: true
-      }))
+        if (router.hasRoute('SolpedTaller')) {
+          router.push({ name: 'SolpedTaller', query: { import: '1' } });
+        } else {
+          router.push({ path: '/solped-taller', query: { import: '1' } });
+        }
+      } catch (e) {
+        console.error(e);
+        error.value = 'No se pudo preparar la copia para Crear SOLPED.';
+      }
     };
-
-    // Guardamos temporalmente en sessionStorage para que lo lea la vista de creación
-    sessionStorage.setItem('solped_taller_import', JSON.stringify(payload));
-
-    // Navegamos a la vista de creación
-    if (router.hasRoute('SolpedTaller')) {
-      router.push({ name: 'SolpedTaller', query: { import: '1' } });
-    } else {
-      router.push({ path: '/solped-taller', query: { import: '1' } });
-    }
-  } catch (e) {
-    console.error(e);
-    error.value = 'No se pudo preparar la copia para Crear SOLPED.';
-  }
-};
 
     // Buscar exacto
     const buscarSolpeExacta = async () => {
@@ -1472,7 +1532,7 @@ const prepararCopiaParaCrear = (s) => {
 
         if (!ws['!merges']) ws['!merges'] = [];
         ws['!merges'].push({ s:{r:titleRow,c:0}, e:{r:titleRow,c:totalCols-1} });
-        setStyle(ws, XLSX.utils.encode_cell({ r:titleRow, c:0 }), { font:{ bold:true, sz:18, color:{rgb:'FF111827'} }, alignment:{ horizontal:'center', vertical:'center' } });
+        setStyle(ws, XLSX.utils.encode_cell({ r:titleRow, c:0 }), { font:{ bold:true, sz:18, color:{rgb:'FF111827'} }, alignment:{ horizontal:'center', vertical:'center'} });
         ws['!rows'] = ws['!rows'] || []; ws['!rows'][titleRow] = { hpt:28 };
 
         for (let r=infoStart; r<=infoEnd; r++) {
@@ -1555,8 +1615,13 @@ const prepararCopiaParaCrear = (s) => {
         filtersOffcanvasEl.value.addEventListener('shown.bs.offcanvas', () => {
           document.body.classList.add('filters-open');
         });
-        filtersOffcanvasEl.value.addEventListener('hidden.bs.offcanvas', () => {
+        filtersOffcanvasEl.value.addEventListener('hidden.bs.offcanvas', async () => {
           document.body.classList.remove('filters-open');
+          // Reinicializa dropdowns tras cerrar filtros (DOM pudo cambiar)
+          await nextTick();
+          disposeDropdowns();
+          await ensureDropdownClass();
+          initDropdownsIn();
         });
       }
     };
@@ -1653,6 +1718,12 @@ const prepararCopiaParaCrear = (s) => {
         numero_interno: it.numero_interno || ''
       }));
       showEditModal.value = true;
+      // reinit dentro del modal por nuevos dropdowns si aparecen
+      nextTick().then(async () => {
+        disposeDropdowns();
+        await ensureDropdownClass();
+        initDropdownsIn();
+      });
     }
 
     function cerrarEditar(){
@@ -1660,6 +1731,12 @@ const prepararCopiaParaCrear = (s) => {
       savingEdit.value = false;
       editForm.value = {};
       editItems.value = [];
+      // reinit por cambios en DOM
+      nextTick().then(async () => {
+        disposeDropdowns();
+        await ensureDropdownClass();
+        initDropdownsIn();
+      });
     }
 
     function agregarItem(){
@@ -1708,7 +1785,6 @@ const prepararCopiaParaCrear = (s) => {
 
         await updateDoc(refCheck, payload);
 
-        // no hace falta mutar local: el listener realtime actualizará
         cerrarEditar();
       } catch(e){
         console.error(e);
@@ -1738,8 +1814,13 @@ const prepararCopiaParaCrear = (s) => {
       // Arranca TIEMPO REAL
       startRealtimeSolpes();
 
-      // Offcanvas listo
+      // Bootstrap Offcanvas + Dropdown
       await ensureOffcanvasInstance();
+      await ensureDropdownClass();
+
+      // Inicializa dropdowns tras primer render
+      await nextTick();
+      initDropdownsIn();
 
       // Sincroniza preferencias entre pestañas
       window.addEventListener("storage", syncFromStorageEvent);
@@ -1750,17 +1831,26 @@ const prepararCopiaParaCrear = (s) => {
       try { if (offcanvasInstance) offcanvasInstance.dispose?.(); } catch (e) { console.error(e); }
       stopAllOCListeners();
       stopRealtimeSolpes();
+      disposeDropdowns();
     });
 
     // Recalcular/persistir filtros
-    watch([filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine], () => {
+    watch([filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine], async () => {
       persistFilters();
-      goPage(1);
+      await goPage(1);
     }, { deep: true });
 
-    watch([pageSize], () => {
+    watch([pageSize], async () => {
       persistFilters();
-      goPage(1);
+      await goPage(1);
+    });
+
+    // Reinicialización de dropdowns ante cambios relevantes
+    watch([pagedList, solpeExpandidaId, showEditModal], async () => {
+      await nextTick();
+      disposeDropdowns();
+      await ensureDropdownClass();
+      initDropdownsIn();
     });
 
     // Constantes
@@ -1932,6 +2022,11 @@ const prepararCopiaParaCrear = (s) => {
 /* Dropdown en móvil: que no se salga de pantalla */
 .dropup .dropdown-menu{
   inset: auto auto 100% 0 !important;
+}
+
+/* Permitir que el menú se muestre por fuera del contenedor scrollable de la tabla */
+.table-responsive.dropdown-open{
+  overflow: visible;
 }
 
 /* ===== Loading ===== */

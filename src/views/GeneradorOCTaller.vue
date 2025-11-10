@@ -607,7 +607,7 @@ import { useAuthStore } from "../stores/authService";
 
 /* ===== Config bloqueo por Aprobadas (Taller) ===== */
 const APPLY_TO_ROLES = ['editor']; // agrega roles si aplica
-const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 10);
+const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 50);
 
 const userRole = ref('');
 const totalAprobadasDelUsuarioTaller = ref(0);

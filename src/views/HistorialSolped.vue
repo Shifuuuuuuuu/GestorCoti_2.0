@@ -231,11 +231,20 @@
                   <div class="d-flex align-items-center gap-2 flex-shrink-0">
                     <span class="badge" :style="estadoChipStyle(s)">{{ s.estatus }}</span>
 
-                    <div v-if="canChangeStatus" class="dropdown">
-                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <!-- Dropdown ESTADO (con corte de burbujeo + boundary/strategy) -->
+                    <div v-if="canChangeStatus" class="dropdown" @click.stop>
+                      <button
+                        class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                        data-bs-toggle="dropdown"
+                        data-bs-display="static"
+                        data-bs-offset="0,6"
+                        data-bs-boundary="viewport"
+                        aria-expanded="false"
+                        @click.stop
+                      >
                         Cambiar estado
                       </button>
-                      <ul class="dropdown-menu dropdown-menu-end">
+                      <ul class="dropdown-menu dropdown-menu-end" @click.stop>
                         <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Parcial')">Parcial</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
@@ -331,17 +340,29 @@
                             </span>
                           </td>
                           <td class="text-end d-none d-sm-table-cell">
-                            <div v-if="canChangeStatus" class="dropdown">
-                              <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Cambiar ítem</button>
-                              <ul class="dropdown-menu dropdown-menu-end">
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'rechazado')">Rechazado</button></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">Pendiente</button></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'revisión')">Revisión</button></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'en bodega')">En bodega</button></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">Completado</button></li>
-                              </ul>
-                            </div>
+                            <!-- Dropdown ÍTEM (corte de burbujeo + position-static) -->
+                              <!-- Antes: class="dropdown position-static"  ... data-bs-display="static" data-bs-boundary="viewport" -->
+                              <div v-if="canChangeStatus" class="dropdown dropdown-keep" @click.stop>
+                                <button
+                                  class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                  data-bs-toggle="dropdown"
+                                  data-bs-reference="parent"
+                                  data-bs-offset="0,8"
+                                  aria-expanded="false"
+                                  @click.stop
+                                >
+                                  Cambiar ítem
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" @click.stop>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'rechazado')">Rechazado</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">Pendiente</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'revisión')">Revisión</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'en bodega')">En bodega</button></li>
+                                  <li><hr class="dropdown-divider"></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">Completado</button></li>
+                                </ul>
+                              </div>
+
                           </td>
                         </tr>
                         <tr v-if="(s.items||[]).length===0">
@@ -385,7 +406,7 @@
                       <label class="form-label mb-0">📎 Documentos Adjuntos</label>
                       <button
                         class="btn btn-sm btn-outline-primary"
-                        @click="_filesCache[s.id] = _filesCache[s.id]; /* no-op para mantener simetría con Recargar de adjuntos */"
+                        @click="_filesCache[s.id] = _filesCache[s.id]; /* no-op */"
                         title="Recargar (no necesario si vienen en el documento)"
                       >
                         Actualizar
@@ -874,7 +895,7 @@
 </template>
 
 <script setup>
-/* === mismo script que vienes usando, con micro-mejoras === */
+/* === mismo script con micro-mejoras + dropdowns robustos === */
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
@@ -883,6 +904,8 @@ import {
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 import * as XLSX from 'xlsx-js-style';
+/* 👇 Import explícito de Bootstrap para instanciar Dropdowns en DOM dinámico */
+import * as bootstrap from 'bootstrap';
 
 /* ---------- Router / Auth ---------- */
 const router = useRouter();
@@ -1205,6 +1228,56 @@ const hasUnreadForMe = (s) => {
   return arr.some(c => !Array.isArray(c?.vistoPor) || !c.vistoPor.includes(uid));
 };
 
+/* ===== Dropdown bootstrap "a prueba de Vue" ===== */
+let _dropdownMap = new Map();
+
+function initDropdownsIn(el = document) {
+  // Si Bootstrap no está cargado, aborta
+  if (!bootstrap || !bootstrap.Dropdown) return;
+
+  const toggles = el.querySelectorAll('[data-bs-toggle="dropdown"]');
+  toggles.forEach((btn) => {
+    if (_dropdownMap.has(btn)) return;
+
+    const instance = new bootstrap.Dropdown(btn, {
+      boundary: 'viewport',
+      display: 'static',
+    });
+    _dropdownMap.set(btn, instance);
+
+    // Manejo de overflow para tablas
+    const tableWrap = btn.closest('.table-responsive');
+    btn.addEventListener('show.bs.dropdown', () => tableWrap?.classList.add('dropdown-open'));
+    btn.addEventListener('hide.bs.dropdown', () => tableWrap?.classList.remove('dropdown-open'));
+
+    // Dropup automático si no hay espacio abajo
+    const ddRoot = btn.closest('.dropdown');
+    const onShow = () => {
+      if (tableWrap) tableWrap.classList.add('dropdown-open');
+      if (ddRoot) {
+        ddRoot.classList.remove('dropup');
+        const rect = btn.getBoundingClientRect();
+        const espacioAbajo = window.innerHeight - rect.bottom;
+        const ALTURA_MENU_ESTIMADA = 240;
+        if (espacioAbajo < ALTURA_MENU_ESTIMADA) ddRoot.classList.add('dropup');
+      }
+    };
+    const onHide = () => {
+      tableWrap?.classList.remove('dropdown-open');
+      ddRoot?.classList.remove('dropup');
+    };
+    btn.addEventListener('show.bs.dropdown', onShow);
+    btn.addEventListener('hide.bs.dropdown', onHide);
+  });
+}
+
+function disposeDropdowns() {
+  try {
+    _dropdownMap.forEach((inst) => { try { inst.dispose(); } catch(e) {console.error(e)} });
+  } finally {
+    _dropdownMap = new Map();
+  }
+}
 /* ---------- Query builder ---------- */
 const buildWhere = () => {
   const wh = [];
@@ -1243,46 +1316,80 @@ const makePageQuery = (pageNumber=1) => {
 
 /* ---------- Suscripción + conteo ---------- */
 const subscribePage = () => {
-  if (typeof unsubscribe === 'function') { unsubscribe(); unsubscribe = null; }
+  // Corta cualquier suscripción previa
+  if (typeof unsubscribe === 'function') {
+    unsubscribe();
+    unsubscribe = null;
+  }
   loading.value = true;
 
   const qy = makePageQuery(page.value);
-  unsubscribe = onSnapshot(qy, async (snap) => {
-    let docs = snap.docs.map(d => {
-      const data = d.data() || {};
-      const comentarios = Array.isArray(data.comentarios) ? data.comentarios.map(c => ({
-        ...c,
-        fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
-        vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : []
-      })) : [];
-      return { id: d.id, ...data, comentarios };
-    });
 
-    // filtros cliente
-    if (onlyMine.value && myFullName.value) docs = docs.filter(s => String(s.usuario||'').trim() === myFullName.value);
-    if (onlyDirectedToMe.value) docs = docs.filter(isDirectedToMe);
-    if (clientCentrosOverflow.value) {
-      const set = new Set(selectedCentros.value);
-      docs = docs.filter(s => set.has(s.numero_contrato));
+  unsubscribe = onSnapshot(
+    qy,
+    async (snap) => {
+      let docs = snap.docs.map((d) => {
+        const data = d.data() || {};
+        const comentarios = Array.isArray(data.comentarios)
+          ? data.comentarios.map((c) => ({
+              ...c,
+              fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+              vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
+            }))
+          : [];
+        return { id: d.id, ...data, comentarios };
+      });
+
+      // --- Filtros cliente (idénticos a los que ya tienes)
+      if (onlyMine.value && myFullName.value) {
+        docs = docs.filter((s) => String(s.usuario || '').trim() === myFullName.value);
+      }
+      if (onlyDirectedToMe.value) {
+        docs = docs.filter(isDirectedToMe);
+      }
+      if (clientCentrosOverflow.value) {
+        const set = new Set(selectedCentros.value);
+        docs = docs.filter((s) => set.has(s.numero_contrato));
+      }
+      if (clientUsuariosOverflow.value) {
+        const setU = new Set(
+          filtroUsuario.value.length ? filtroUsuario.value : Array.from(tempUsuarioSelSet.value)
+        );
+        if (setU.size) {
+          docs = docs.filter((s) => setU.has(s.usuario));
+        }
+      }
+
+      // 1) Limpia dropdowns ANTES de actualizar el DOM
+      disposeDropdowns();
+
+      // 2) Reemplaza data de página
+      pageDocs.value = docs;
+
+      // Cursor para paginación
+      const last = snap.docs[snap.docs.length - 1] || null;
+      cursors.value[page.value] = last || null;
+
+      loading.value = false;
+
+      // 3) Espera render y re-instancia dropdowns de forma segura
+      await nextTick();
+      initDropdownsIn(document);
+
+      // 4) Restaura el scroll si aplica
+      window.scrollTo(0, savedScrollY.value);
+    },
+    (e) => {
+      console.error(e);
+      error.value = 'No se pudieron cargar las SOLPED de la página.';
+      loading.value = false;
+
+      // Limpieza por si falló a mitad de ciclo
+      disposeDropdowns();
     }
-    if (clientUsuariosOverflow.value) {
-      const setU = new Set(filtroUsuario.value.length ? filtroUsuario.value : Array.from(tempUsuarioSelSet.value));
-      if (setU.size) docs = docs.filter(s => setU.has(s.usuario));
-    }
-
-    pageDocs.value = docs;
-
-    const last = snap.docs[snap.docs.length - 1] || null;
-    cursors.value[page.value] = last || null;
-
-    loading.value = false;
-    await nextTick();
-    window.scrollTo(0, savedScrollY.value);
-  }, (e) => { console.error(e);
-    error.value = 'No se pudieron cargar las SOLPED de la página.';
-    loading.value = false;
-  });
+  );
 };
+
 const refreshCount = async () => {
   try {
     const wh = buildWhere();
@@ -1556,8 +1663,6 @@ const descargarExcel = (solpe) => {
 
 /* ---------- Adjuntos múltiples (normalización y acciones) ---------- */
 
-
-
 /** Decide si se puede abrir en el navegador (vista externa) */
 const isViewableInBrowser = (ext='') => {
   const e = String(ext).toLowerCase();
@@ -1673,6 +1778,7 @@ onBeforeUnmount(() => {
   if (typeof unsubscribe === 'function') unsubscribe();
   window.removeEventListener('resize', handleResize);
   document.documentElement.style.overflow = '';
+  disposeDropdowns(); // 👈 limpieza segura
 });
 
 /* ---------- Watchers ---------- */
@@ -1703,6 +1809,8 @@ const onExpandCard = async (s) => {
     if (!ocBySolped.value[s.id]) await fetchOCs(s.id);
     // Precalentar cache de archivos al expandir
     if (!_filesCache.value[s.id]) _filesCache.value[s.id] = normalizeFiles(s);
+    await nextTick();
+    initDropdownsIn(); // 👈 asegura dropdowns listos dentro del detalle
   }
 };
 
@@ -1763,15 +1871,10 @@ function cloneSolpedForEdit(s){
     usuario: base.usuario || '',
   };
 }
-/** Normaliza las AUTORIZACIONES desde:
- *  a) s.autorizaciones: [{ nombre, tipo, url, tamano }]
- *  b) s.autorizacion_url + s.autorizacion_nombre (legacy single)
- * Devuelve: [{ __k, name, href, mime, ext, size, canView }]
- */
+/** Normaliza AUTORIZACIONES */
 const normalizarAutorizaciones = (s) => {
   const out = [];
 
-  // a) arreglo s.autorizaciones
   if (Array.isArray(s?.autorizaciones)) {
     s.autorizaciones.forEach((it, idx) => {
       const name = String(it?.nombre || `autorizacion_${idx+1}`);
@@ -1787,7 +1890,6 @@ const normalizarAutorizaciones = (s) => {
     });
   }
 
-  // b) campos sueltos s.autorizacion_url + s.autorizacion_nombre
   if (s?.autorizacion_url) {
     const name = s?.autorizacion_nombre || 'documento_autorizacion.pdf';
     const href = s.autorizacion_url;
@@ -2059,4 +2161,23 @@ async function guardarEdicion(){
 .list-group-item .bi-file-earmark-excel-fill { color:#16a34a; }
 .list-group-item .bi-file-earmark-image-fill { color:#2563eb; }
 .list-group-item .bi-paperclip { color:#6b7280; }
+.table-responsive.dropdown-open {
+  overflow: visible !important;
+}
+
+/* Cuando forzamos dropup */
+.dropup .dropdown-menu {
+  top: auto !important;
+  bottom: 100% !important;
+  margin-bottom: .5rem;
+}
+/* El menú se posiciona relativo al propio .dropdown */
+.dropdown-keep{ position: relative; }
+
+/* Si tu tabla recorta, ábrela mientras el dropdown está visible (ya lo tienes) */
+.table-responsive.dropdown-open{ overflow: visible !important; }
+
+/* Por si acaso hay poco espacio abajo, soporta dropup también */
+.dropup .dropdown-menu{ top:auto!important; bottom:100%!important; margin-bottom:.5rem; }
+
 </style>
