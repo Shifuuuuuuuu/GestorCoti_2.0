@@ -320,7 +320,7 @@
                     <span class="small text-secondary">{{ fmtFecha(h.fecha) }}</span>
                   </div>
                   <div class="small mt-1" v-if="h.usuario"><strong>Usuario:</strong> {{ h.usuario }}</div>
-                  <div class="small text-secondary" v-if="h.detalle">{{ h.detalle }} </div>
+                  <div class="small text-secondary" v-if="h.comentario">{{ h.comentario }} </div>
                   <div class="small text-secondary" v-if="h.ocNumero">Cotización :{{ h.ocNumero }} </div>
                 </div>
               </li>

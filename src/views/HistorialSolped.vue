@@ -205,7 +205,7 @@
                       <div class="fw-semibold text-truncate">📄 SOLPED #{{ s.numero_solpe }}</div>
                       <div class="small text-secondary">
                         <span class="d-block d-md-inline">
-                          Fecha: {{ prettyFecha(s.fecha) }} ·
+                          Fecha: {{ prettyFecha(s.createdAt) }}·
                           Contrato: {{ s.nombre_centro_costo }} ·
                           Tipo: {{ s.tipo_solped }} ·
                           Nombre: {{ s.nombre_solped }}

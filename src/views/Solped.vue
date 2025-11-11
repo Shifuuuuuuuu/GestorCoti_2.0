@@ -389,11 +389,18 @@
                            @input="item.codigo_referencial = (item.codigo_referencial||'').toUpperCase()"
                            placeholder="Opcional" />
                   </td>
-
                   <td :data-label="'Cantidad'">
-                    <input type="number" min="0" class="form-control form-control-sm" v-model.number="item.cantidad" placeholder="0" />
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      class="form-control form-control-sm"
+                      v-model.number="item.cantidad"
+                      placeholder="1"
+                      @input="clampCantidad(i)"
+                      @blur="ensureCantidad(i)"
+                    />
                   </td>
-
                   <td :data-label="'Stock'">
                     <input type="number" min="0" class="form-control form-control-sm" v-model.number="item.stock" placeholder="0" />
                   </td>
@@ -491,7 +498,11 @@
     <!-- TOASTS (abajo-derecha) -->
     <div class="toast-stack">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
-        <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'"></i>
+        <i class="me-2"
+          :class="t.type==='success' ? 'bi bi-check-circle-fill'
+                  : t.type==='warning' ? 'bi bi-exclamation-triangle-fill'
+                  : 'bi bi-x-circle-fill'">
+        </i>
         <span class="me-3">{{ t.text }}</span>
         <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
       </div>
@@ -505,7 +516,7 @@ import { db, storage } from "../stores/firebase";
 import {
   collection, addDoc, serverTimestamp, query, where,
   orderBy, limit, getDocs, setDoc, doc, increment, arrayUnion, getDoc,
-  startAt, endAt, runTransaction, updateDoc, Timestamp
+  startAt, endAt, runTransaction
 } from "firebase/firestore";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -782,7 +793,7 @@ export default {
             id: nid,
             descripcion: desc,
             codigo_referencial: cod,
-            cantidad: isNaN(cant) ? null : cant,
+            cantidad: isNaN(cant) ? 1 : Math.max(1, Math.floor(cant)),
             stock: isNaN(stk) ? null : stk,
             numero_interno: nro,
             imagen_url: ""
@@ -934,6 +945,27 @@ export default {
         updatedAt: Date.now()
       };
       return JSON.stringify(base);
+    };
+    // Fuerza que la cantidad nunca sea < 1 mientras el usuario escribe
+    const clampCantidad = (i) => {
+      const v = Number(form.items[i]?.cantidad ?? 1);
+      if (!Number.isFinite(v) || v < 1) form.items[i].cantidad = 1;
+      else form.items[i].cantidad = Math.floor(v); // sin decimales
+    };
+
+    // Al salir del input, avisa si se corrigió
+    const ensureCantidad = (i) => {
+      let v = Number(form.items[i]?.cantidad ?? 1);
+      if (!Number.isFinite(v) || v < 1) {
+        form.items[i].cantidad = 1;
+        addToast("warning", `La cantidad del ítem #${i + 1} se ajustó a 1 (mínimo permitido).`);
+        return;
+      }
+      const floored = Math.floor(v);
+      if (floored !== v) {
+        form.items[i].cantidad = floored;
+        addToast("warning", `La cantidad del ítem #${i + 1} se redondeó a ${floored}.`);
+      }
     };
 
     // ⬇️ Aplica borrador SIN restaurar numero_solpe ni fecha
@@ -1335,7 +1367,7 @@ export default {
         id: nid,
         descripcion: "",
         codigo_referencial: "",
-        cantidad: null,
+        cantidad: 1,      // <- antes era null
         stock: null,
         numero_interno: "",
         imagen_url: ""
@@ -1481,14 +1513,6 @@ export default {
           comentario: "Creación de SOLPED"
         });
 
-        await updateDoc(docRef, {
-          historialEstados: arrayUnion({
-            fecha: Timestamp.now(),
-            usuario: usuarioNombre.value || "",
-            estatus: "Pendiente",
-            comentario: "Creación de SOLPED"
-          })
-        });
 
         // Catálogo de sugerencias por descripción (normalizado)
         for (const it of form.items) {
@@ -1689,7 +1713,7 @@ export default {
       onExcelSeleccionado,
 
       // final
-      guardarSolped, irHistorial, eliminarImagenItem,
+      guardarSolped, irHistorial, eliminarImagenItem, clampCantidad, ensureCantidad,
     };
   },
 };
@@ -1825,6 +1849,7 @@ export default {
     box-shadow: 0 10px 24px rgba(0,0,0,.18);
   }
 }
+.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); } /* ámbar */
 
 /* 2) Modo oscuro */
 :global(html.theme-dark) .card-elevated{

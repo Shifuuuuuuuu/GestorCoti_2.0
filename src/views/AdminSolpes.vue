@@ -100,7 +100,7 @@
                 <th class="minw-220">Centro de Costo</th>
                 <th style="width:160px;">Empresa</th>
                 <th style="width:140px;">Estatus</th>
-                <th style="width:120px;">Fecha</th>
+                <th style="width:160px;">Fecha</th>
                 <th style="width:180px;">Acciones</th>
               </tr>
             </thead>
@@ -126,7 +126,9 @@
                 <td>
                   <span class="badge" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
                 </td>
-                <td>{{ r.fecha || '—' }}</td>
+                <td>
+                  <div class="small">{{ prettyFecha(r.fecha) }}</div>
+                </td>
                 <td>
                   <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" @click="abrirEditor(r)" title="Editar">
@@ -161,7 +163,7 @@
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</div>
-                  <div class="small text-secondary">{{ r.fecha || '—' }}</div>
+                  <div class="small text-secondary">{{ displayDate(r) }}</div>
                 </div>
                 <span class="badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
               </div>
@@ -291,8 +293,7 @@
       </div>
     </div>
 
-
-    <!-- Offcanvas Editor (mismo look que Taller) -->
+    <!-- Offcanvas Editor -->
     <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel editor-panel">
         <div class="offcanvas-header editor-header">
@@ -302,20 +303,21 @@
 
         <div class="offcanvas-body editor-body">
           <div class="row g-3">
-            <!-- Numero SOLPE + Usuario + Estatus + Fecha -->
+            <!-- N° + Fecha + Empresa + Estatus -->
             <div class="col-12 col-sm-6 col-md-3">
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
             </div>
             <div class="col-12 col-sm-6 col-md-3">
               <label class="form-label">Fecha</label>
-              <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD">
+              <!-- Cambia 'datetime-local' por 'date' si no quieres hora -->
+              <input class="form-control" type="datetime-local" v-model="edit.fechaInput">
             </div>
             <div class="col-12 col-md-3">
               <label class="form-label">Empresa</label>
               <select class="form-select" v-model="edit.empresa">
                 <option>Xtreme Servicio</option>
-                <option>Xtreme Servicios</option>
+                <option>Xtreme Hormigones</option>
                 <option>Xtreme Mining</option>
               </select>
             </div>
@@ -328,6 +330,8 @@
                 <option>Completado</option>
                 <option>Rechazado</option>
                 <option>Pendiente</option>
+                <option>Parcial</option>
+                <option>OC enviada a proveedor</option>
               </select>
             </div>
 
@@ -486,35 +490,69 @@
 
             </div>
 
-            <!-- Historial Estados -->
+            <!-- Historial Estados (subcolección) -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Historial de Estados</div>
-                <button class="btn btn-sm btn-outline-primary" @click="agregarHistorial()">
-                  <i class="bi bi-plus-lg me-1"></i> Agregar
-                </button>
               </div>
-              <div class="list-group">
-                <div class="list-group-item" v-for="(h, ix) in edit.historialEstados" :key="'h'+ix">
+
+              <div class="list-group mb-3">
+                <div class="list-group-item" v-for="h in historialEstadosLive" :key="h.__id">
                   <div class="row g-2 align-items-center">
-                    <div class="col-12 col-sm-4 col-md-3">
-                      <input class="form-control form-control-sm" v-model="h.fecha" placeholder="YYYY-MM-DD">
+                    <div class="col-12 col-md-3 small">
+                      <strong>{{ displayTs(h.fecha) || '—' }}</strong>
                     </div>
-                    <div class="col-12 col-sm-5 col-md-4">
-                      <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
+                    <div class="col-12 col-md-3 small">
+                      <span class="text-secondary">Estatus:</span> {{ h.estatus || '—' }}
                     </div>
-                    <div class="col-12 col-sm-3 col-md-5 d-flex">
-                      <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
-                      <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
+                    <div class="col-12 col-md-4 small">
+                      <span class="text-secondary">Comentario:</span> {{ h.comentario || '—' }}
+                    </div>
+                    <div class="col-9 col-md-1 small">
+                      <span class="text-secondary">Usuario:</span> {{ h.usuario || '—' }}
+                    </div>
+                    <div class="col-3 col-md-1 text-end">
+                      <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorialDoc(h.__id)">
                         <i class="bi bi-trash3"></i>
                       </button>
                     </div>
                   </div>
                 </div>
-                <div v-if="!edit.historialEstados?.length" class="list-group-item text-secondary small">
+                <div v-if="!historialEstadosLive.length" class="list-group-item text-secondary small">
                   Sin historial.
                 </div>
               </div>
+
+              <!-- Form agregar historial -->
+              <div class="card">
+                <div class="card-body">
+                  <div class="row g-2">
+                    <div class="col-12 col-md-3">
+                      <label class="form-label mb-1">Fecha</label>
+                      <input class="form-control form-control-sm" type="datetime-local" v-model="histForm.fechaInput">
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <label class="form-label mb-1">Estatus</label>
+                      <input class="form-control form-control-sm" v-model="histForm.estatus" placeholder="Estatus">
+                    </div>
+                    <div class="col-12 col-md-4">
+                      <label class="form-label mb-1">Comentario</label>
+                      <input class="form-control form-control-sm" v-model="histForm.comentario" placeholder="Comentario">
+                    </div>
+                    <div class="col-9 col-md-1">
+                      <label class="form-label mb-1">Usuario</label>
+                      <input class="form-control form-control-sm" v-model="histForm.usuario" placeholder="Usuario">
+                    </div>
+                    <div class="col-3 col-md-1 d-flex align-items-end justify-content-end">
+                      <button class="btn btn-sm btn-primary w-100" :disabled="guardandoHist" @click="guardarHistorial()">
+                        <span v-if="guardandoHist" class="spinner-border spinner-border-sm me-1"></span>
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -543,9 +581,9 @@
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="nuevo.numero_solpe" type="number" min="0">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Fecha</label>
-              <input class="form-control" v-model="nuevo.fecha" placeholder="YYYY-MM-DD">
+              <input class="form-control" type="datetime-local" v-model="nuevo.fechaInput">
             </div>
             <div class="col-md-3">
               <label class="form-label">Empresa</label>
@@ -555,7 +593,7 @@
                 <option>Xtreme Mining</option>
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
                 <option>Solicitado</option>
@@ -564,6 +602,8 @@
                 <option>Completado</option>
                 <option>Rechazado</option>
                 <option>Pendiente</option>
+                <option>Parcial</option>
+                <option>OC enviada a proveedor</option>
               </select>
             </div>
 
@@ -725,7 +765,7 @@
           <ul class="list-unstyled small mb-0">
             <li><span class="text-secondary">Empresa:</span> <strong>{{ confirmRow?.empresa || '—' }}</strong></li>
             <li><span class="text-secondary">Centro de costo:</span> <strong>{{ confirmRow?.numero_contrato || '—' }}</strong> — {{ confirmRow?.nombre_centro_costo || '—' }}</li>
-            <li><span class="text-secondary">Fecha:</span> <strong>{{ confirmRow?.fecha || '—' }}</strong></li>
+            <li><span class="text-secondary">Fecha:</span> <strong>{{ displayDate(confirmRow) }}</strong></li>
           </ul>
         </div>
 
@@ -749,7 +789,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { db } from "../stores/firebase";
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, addDoc, updateDoc, deleteDoc
+  doc, addDoc, updateDoc, deleteDoc, Timestamp
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
@@ -766,7 +806,6 @@ const DIRIGIDO_OPCIONES = [
 /* Centros de Costo (rellenar con tus claves reales) */
 const centrosCosto = {
   // '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
-  // ...
 };
 const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}));
 
@@ -786,9 +825,9 @@ const busquedaActiva = ref(false);
 let unsubSearch = null;
 
 /* ---------- Filtros ---------- */
-const filtroFecha = ref("");
+const filtroFecha = ref("");       // YYYY-MM-DD
 const filtroUsuario = ref("");
-const filtroEstatus = ref([]);           // multi
+const filtroEstatus = ref([]);     // multi
 const filtroEstatusHeader = ref("");
 let unsubFilter = null;
 
@@ -816,16 +855,52 @@ const addToast = (type, text, timeout = 2600) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ---------- Utils ---------- */
-const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
-const badgeClass = (estatus) => {
-  const s = (estatus || "").toLowerCase();
-  if (s.includes("complet")) return "bg-success-subtle text-success-emphasis";
-  if (s.includes("cotiz")) return "bg-info-subtle text-info-emphasis";
-  if (s.includes("rechaz") || s.includes("escala")) return "bg-danger-subtle text-danger-emphasis";
-  if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
-  return "bg-secondary-subtle text-secondary-emphasis";
-};
+/* ---------- Utils de fecha ---------- */
+const tz = "America/Santiago";
+function pad(n){ return n.toString().padStart(2,"0"); }
+function toInputLocal(date){
+  // Devuelve 'YYYY-MM-DDTHH:MM' en TZ local
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = pad(d.getMonth()+1);
+  const day = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${y}-${m}-${day}T${hh}:${mm}`;
+}
+function fromInputToDate(inputStr){
+  // inputStr tipo 'YYYY-MM-DDTHH:MM' o 'YYYY-MM-DD'
+  if (!inputStr) return null;
+  // Interpretar como hora local del navegador
+  const hasTime = inputStr.includes("T");
+  if (hasTime) {
+    const [dPart,tPart] = inputStr.split("T");
+    const [Y,M,D] = dPart.split("-").map(n=>parseInt(n,10));
+    const [h,mi] = tPart.split(":").map(n=>parseInt(n,10));
+    return new Date(Y, (M-1), D, h, mi, 0, 0);
+  } else {
+    const [Y,M,D] = inputStr.split("-").map(n=>parseInt(n,10));
+    return new Date(Y, (M-1), D, 0, 0, 0, 0);
+  }
+}
+function toCLString(date){
+  try{
+    return new Date(date).toLocaleString("es-CL", {
+      timeZone: tz, year:"numeric", month:"long", day:"numeric",
+      hour:"numeric", minute:"2-digit", second:"2-digit", hour12:true
+    });
+  }catch{ return ""; }
+}
+function displayTs(ts){
+  try{
+    if (!ts) return "";
+    const d = ts.toDate ? ts.toDate() : ts;
+    return toCLString(d);
+  }catch{ return ""; }
+}
+function displayDate(row){
+  return row.fecha_str || row.fecha || displayTs(row.fecha_ts) || "—";
+}
 
 /* ---------- Paginación (tiempo real) ---------- */
 const visiblePageButtons = computed(() => {
@@ -841,6 +916,7 @@ function cleanupSubs(){
   if (unsubSearch){ unsubSearch(); unsubSearch=null; }
   if (unsubFilter){ unsubFilter(); unsubFilter=null; }
   if (unsubUsuarios){ unsubUsuarios(); unsubUsuarios=null; }
+  if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
 }
 
 /* Cargar usuarios únicos (para el filtro) */
@@ -965,10 +1041,22 @@ function removeEstatus(es){
 
 function buildFilterQuery(){
   const wh = [];
+  let order = null;
 
-  if (filtroFecha.value) wh.push(where("fecha","==", filtroFecha.value));
+  if (filtroFecha.value) {
+    // rango del día local
+    const d0 = new Date(filtroFecha.value + "T00:00");
+    const d1 = new Date(filtroFecha.value + "T23:59:59.999");
+    const ts0 = Timestamp.fromDate(d0);
+    const ts1 = Timestamp.fromDate(d1);
+    wh.push(where("fecha_ts", ">=", ts0));
+    wh.push(where("fecha_ts", "<=", ts1));
+    order = orderBy("fecha_ts", "desc");
+  } else {
+    order = orderBy("numero_solpe","desc");
+  }
+
   if (filtroUsuario.value) wh.push(where("usuario","==", filtroUsuario.value));
-
   if (filtroEstatus.value.length === 1) {
     wh.push(where("estatus","==", filtroEstatus.value[0]));
   } else if (filtroEstatus.value.length >= 2 && filtroEstatus.value.length <= 10) {
@@ -978,8 +1066,8 @@ function buildFilterQuery(){
   return query(
     collection(db, "solpes"),
     ...wh,
-    orderBy("numero_solpe","desc"),
-    limit(80)
+    order,
+    limit(120)
   );
 }
 
@@ -1011,7 +1099,7 @@ function aplicarFiltros(){
     hasNextPage.value = false;
   }, (err) => {
     console.error("onSnapshot filter:", err);
-    addToast("danger", "Error aplicando filtros.");
+    addToast("danger", "Error aplicando filtros (puede requerir índice compuesto en Firestore).");
     cargando.value = false;
   });
 }
@@ -1023,6 +1111,20 @@ function limpiarFiltros(){
   filtroEstatusHeader.value = "";
   aplicarFiltros();
 }
+// ---- badge para estatus (JS puro) ----
+const badgeClass = (estatus) => {
+  const s = ((estatus || '') + '').toLowerCase();
+  if (s.includes('complet'))   return 'bg-success-subtle text-success-emphasis';
+  if (s.includes('cotiz'))     return 'bg-info-subtle text-info-emphasis';
+  if (s.includes('rechaz') || s.includes('escala'))
+                               return 'bg-danger-subtle text-danger-emphasis';
+  if (s.includes('revisión') || s.includes('revision'))
+                               return 'bg-warning-subtle text-warning-emphasis';
+  if (s.includes('pendiente')) return 'bg-secondary-subtle text-secondary-emphasis';
+  if (s.includes('parcial'))   return 'bg-primary-subtle text-primary-emphasis';
+  if (s.includes('proveedor')) return 'bg-dark-subtle text-dark-emphasis';
+  return 'bg-secondary-subtle text-secondary-emphasis';
+};
 
 /* Aplicar desde el offcanvas móvil */
 const mobileFiltersOpen = ref(false);
@@ -1043,6 +1145,17 @@ const guardando = ref(false);
 const selectedCentroEdit = ref("");
 const archivoAutorizacionEdit = ref(null);
 
+/* Historial subcolección (live) */
+const historialEstadosLive = ref([]);
+let unsubHistorial = null;
+const guardandoHist = ref(false);
+const histForm = ref({
+  fecha: "",
+  estatus: "",
+  comentario: "",
+  usuario: ""
+});
+
 function abrirSelectorAutorizacionEdit(){
   inputAutorizacionEditEl.value?.click();
 }
@@ -1060,29 +1173,63 @@ function setCentroFromKey(targetObj, key){
   targetObj.nombre_centro_costo = centrosCosto[key];
 }
 
+function subscribeHistorialEstados(solpeId){
+  if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
+  try{
+    const qy = query(
+      collection(db, "solpes", solpeId, "historialEstados"),
+      orderBy("fecha","desc"),
+      limit(100)
+    );
+    unsubHistorial = onSnapshot(qy, (snap)=>{
+      const arr=[];
+      snap.forEach(d=>arr.push({__id:d.id, ...d.data()}));
+      historialEstadosLive.value = arr;
+    }, (err)=>{
+      console.error("historialEstados:", err);
+      addToast("warning","No se pudo cargar historial.");
+    });
+  }catch(e){
+    console.error(e);
+    addToast("warning","No se pudo suscribir al historial.");
+  }
+}
+
+function resetHistForm(){
+  histForm.value = {
+    fecha: toInputLocal(new Date()),
+    estatus: "",
+    comentario: "",
+    usuario: edit.value?.usuario || ""
+  };
+}
+
 function abrirEditor(row){
   seleccion.value = row;
-  edit.value = deepClone({
+
+  edit.value = {
     autorizacion_nombre: row.autorizacion_nombre ?? null,
     autorizacion_url: row.autorizacion_url ?? null,
     dirigidoA: Array.isArray(row.dirigidoA) ? [...row.dirigidoA] : [],
     empresa: row.empresa ?? "Xtreme Servicio",
     estatus: row.estatus ?? "Pendiente",
-    fecha: row.fecha ?? "",
-    items: Array.isArray(row.items) ? deepClone(row.items) : [],
+    items: Array.isArray(row.items) ? JSON.parse(JSON.stringify(row.items)) : [],
     nombre_centro_costo: row.nombre_centro_costo ?? "",
     nombre_solped: row.nombre_solped ?? "",
     numero_contrato: row.numero_contrato ?? "",
     numero_solpe: row.numero_solpe ?? null,
     tipo_solped: row.tipo_solped ?? "",
-    usuario: row.usuario ?? "",
-    historialEstados: Array.isArray(row.historialEstados) ? deepClone(row.historialEstados) : []
-  });
+    usuario: row.usuario ?? ""
+  };
 
   const foundKey = edit.value.numero_contrato && centrosCosto[edit.value.numero_contrato]
     ? edit.value.numero_contrato
     : Object.keys(centrosCosto).find(k => centrosCosto[k] === edit.value.nombre_centro_costo) || "";
   selectedCentroEdit.value = foundKey;
+
+  // Subcolección historial
+  subscribeHistorialEstados(row.__id);
+  resetHistForm();
 
   editorAbierto.value = true;
   archivoAutorizacionEdit.value = null;
@@ -1100,6 +1247,7 @@ function cerrarEditor(){
   edit.value = {};
   archivoAutorizacionEdit.value = null;
   if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
+  if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
 }
 
 /* ---------- Guardar Edición ---------- */
@@ -1124,6 +1272,7 @@ async function guardarEdicion(){
       const n = parseInt(edit.value.numero_solpe, 10);
       edit.value.numero_solpe = isNaN(n) ? null : n;
     }
+    // Normalizar ítems
     edit.value.items = (edit.value.items || []).map(it => ({
       ...it,
       item: Number(it.item ?? 0),
@@ -1131,7 +1280,17 @@ async function guardarEdicion(){
       cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
     }));
 
-    await updateDoc(dref, deepClone(edit.value));
+    // Manejo de fecha (input -> ts + str)
+    const picked = fromInputToDate(edit.value.fechaInput);
+    const fecha_str = picked ? toCLString(picked) : "";
+
+    const payload = {
+      ...edit.value,
+      fecha_str,
+      fecha: fecha_str // compat tabla/UI actual
+    };
+
+    await updateDoc(dref, payload);
     addToast("success", "SOLPED actualizada.");
     cerrarEditor();
   } catch (e) {
@@ -1153,10 +1312,8 @@ function defaultNueva(){
   return {
     autorizacion_nombre: null, autorizacion_url: null, dirigidoA: [],
     empresa: "Xtreme Servicio", estatus: "Pendiente",
-    fecha: new Date().toISOString().slice(0,10),
     items: [], nombre_centro_costo: "", nombre_solped: "",
     numero_contrato: "", numero_solpe: null, tipo_solped: "", usuario: "",
-    historialEstados: []
   };
 }
 function abrirModalNueva(){
@@ -1181,7 +1338,6 @@ function onArchivoAutorizacionNuevo(e){
   nuevo.value.autorizacion_nombre = f.name;
 }
 
-
 async function crearNueva(){
   try {
     creando.value = true;
@@ -1192,7 +1348,16 @@ async function crearNueva(){
       nuevo.value.numero_solpe = isNaN(n) ? null : n;
     }
 
-    const payload = deepClone(nuevo.value);
+    const picked = fromInputToDate(nuevo.value.fechaInput);
+    const fecha_str = picked ? toCLString(picked) : "";
+
+    const payload = {
+      ...nuevo.value,
+
+      fecha_str,
+      fecha: fecha_str
+    };
+
     const docRef = await addDoc(collection(db, "solpes"), payload);
 
     if (archivoAutorizacionNuevo.value) {
@@ -1214,6 +1379,39 @@ async function crearNueva(){
     addToast("danger", "No se pudo crear la SOLPED.");
   } finally {
     creando.value = false;
+  }
+}
+
+/* ---------- Historial: crear / eliminar ---------- */
+async function guardarHistorial(){
+  if (!seleccion.value?.__id) return;
+  try{
+    guardandoHist.value = true;
+    const d = fromInputToDate(histForm.value.fechaInput) || new Date();
+    const data = {
+      fecha: Timestamp.fromDate(d),
+      comentario: (histForm.value.comentario || "").trim(),
+      estatus: (histForm.value.estatus || "").trim(),
+      usuario: (histForm.value.usuario || "").trim()
+    };
+    await addDoc(collection(db, "solpes", seleccion.value.__id, "historialEstados"), data);
+    addToast("success","Historial agregado.");
+    resetHistForm();
+  }catch(e){
+    console.error(e);
+    addToast("danger","No se pudo agregar al historial.");
+  }finally{
+    guardandoHist.value = false;
+  }
+}
+async function eliminarHistorialDoc(hid){
+  if (!seleccion.value?.__id || !hid) return;
+  try{
+    await deleteDoc(doc(db, "solpes", seleccion.value.__id, "historialEstados", hid));
+    addToast("success","Entrada de historial eliminada.");
+  }catch(e){
+    console.error(e);
+    addToast("danger","No se pudo eliminar la entrada.");
   }
 }
 
@@ -1278,7 +1476,7 @@ function abrirModalItem(it=null, idx=-1){
     };
     isEditItem.value = false; itemIndex.value = -1;
   } else {
-    itemForm.value = deepClone(it);
+    itemForm.value = JSON.parse(JSON.stringify(it));
     isEditItem.value = true; itemIndex.value = idx;
   }
   imagenItemFile.value = null;
@@ -1318,6 +1516,14 @@ async function guardarItemForm(){
     addToast("danger", "No se pudo guardar el ítem.");
   }
 }
+const prettyFecha = (f) => {
+  try {
+    if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+    if (typeof f === 'string') return new Date(f).toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+    if (f instanceof Date) return f.toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+  } catch(e) { console.error(e); }
+  return '—';
+};
 function eliminarItem(idx){
   edit.value.items.splice(idx, 1);
 }
@@ -1333,19 +1539,13 @@ onBeforeUnmount(() => { cleanupSubs(); });
 }
 
 /* Helpers responsivos */
-.minw-180{ min-width: 180px; }
-.minw-200{ min-width: 200px; }
 .minw-220{ min-width: 220px; }
-.minw-260{ min-width: 260px; }
-.minw-320{ min-width: 320px; }
 
-/* Toolbar: alturas alineadas (igual que Taller) */
+/* Toolbar: alturas alineadas */
 .toolbar-item .form-control,
 .toolbar-item .form-select,
 .toolbar-item .btn,
-.toolbar-item .input-group-text {
-  height: 38px;
-}
+.toolbar-item .input-group-text { height: 38px; }
 
 /* Offcanvas base */
 .offcanvas-backdrop{
@@ -1377,19 +1577,9 @@ onBeforeUnmount(() => { cleanupSubs(); });
   to{ transform: translateX(0); opacity:1; }
 }
 
-/* Toolbar items altura consistente */
-.toolbar-item .form-control,
-.toolbar-item .form-select,
-.toolbar-item .btn,
-.toolbar-item .input-group-text {
-  height: 38px;
-}
-
 /* Cards mobile */
 @media (max-width: 575.98px){
-  .list-group-item{
-    border-left: 0; border-right: 0;
-  }
+  .list-group-item{ border-left: 0; border-right: 0; }
 }
 
 @keyframes slideInRight{
@@ -1397,8 +1587,7 @@ onBeforeUnmount(() => { cleanupSubs(); });
   to{ transform: translateX(0); opacity: 1; }
 }
 
-
-/* Modal base (igual que Taller) */
+/* Modal base */
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1080; display: grid; place-items: center; padding: 1rem;
@@ -1416,7 +1605,7 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-/* Toasts (igual) */
+/* Toasts */
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1430,7 +1619,7 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono/encabezado del modal de eliminación */
+/* Icono modal de eliminación */
 .confirm-icon{
   width: 38px; height: 38px;
   border-radius: 10px;
@@ -1448,7 +1637,5 @@ onBeforeUnmount(() => { cleanupSubs(); });
 }
 
 /* Hover suave en botón peligro */
-.btn-danger:hover{
-  filter: brightness(0.95);
-}
+.btn-danger:hover{ filter: brightness(0.95); }
 </style>
