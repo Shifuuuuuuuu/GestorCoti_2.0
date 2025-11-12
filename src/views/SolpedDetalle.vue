@@ -44,7 +44,7 @@
               </div>
               <div class="col-12 col-md-6">
                 <div class="small text-secondary">Fecha</div>
-                <div class="fw-semibold">{{ docData.fecha || '—' }}</div>
+                <div class="fw-semibold">{{ prettyFecha(docData.createdAt) || '—' }}</div>
               </div>
 
               <div class="col-12 col-md-6">
@@ -370,7 +370,14 @@ const empresaDoc  = computed(() => (docData.value?.empresa || '').toString().tri
 /** Guard de concurrencia para abortar resultados tardíos */
 let loadToken = 0;
 onBeforeUnmount(() => { loadToken++; }); // invalida tareas al salir
-
+const prettyFecha = (f) => {
+  try {
+    if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+    if (typeof f === 'string') return new Date(f).toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+    if (f instanceof Date) return f.toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
+  } catch(e) { console.error(e); }
+  return '—';
+};
 /** Normaliza nombre de empresa a una llave simple */
 const normalizeCompany = (raw = '') => {
   const s = String(raw || '').normalize('NFD').replace(/\p{Diacritic}/gu,'').toUpperCase();

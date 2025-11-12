@@ -92,7 +92,7 @@
               <div class="small text-secondary">
                 {{ solpeEncontrada.empresa || '—' }} ·
                 {{ solpeEncontrada.nombre_centro_costo || '—' }} ·
-                {{ prettyFecha(solpeEncontrada.fecha) }}
+                {{ prettyFecha(solpeEncontrada.createdAt) }}
               </div>
             </div>
             <div class="d-flex gap-2">
@@ -1288,8 +1288,8 @@ const buildWhere = () => {
     try {
       const start = new Date(`${filtroFecha.value}T00:00:00`);
       const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
-      wh.push(where('fecha','>=',start));
-      wh.push(where('fecha','<=',end));
+      wh.push(where('createdAt','>=',start));
+      wh.push(where('createdAt','<=',end));
     } catch(e) { console.error(e);}
   }
   if (onlyMine.value && myFullName.value) wh.push(where('usuario','==', myFullName.value));

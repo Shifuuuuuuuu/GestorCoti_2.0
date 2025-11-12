@@ -164,7 +164,10 @@
                 v-for="oc in lista"
                 :key="oc.__docId"
                 class="card card-elevated mb-2 oc-card"
-                :class="{'oc-clickable': isClickableToDetail(oc)}"
+                :class="{
+                  'oc-clickable': isClickableToDetail(oc),
+                  'oc-missing-oc': faltaSubirOC(oc)
+                }"
                 @click="onCardClick(oc)"
               >
                 <!-- CABECERA CON COLOR POR ESTADO SOLO PARA EDITOR -->
@@ -173,6 +176,7 @@
                   :class="isEditor ? estadoHeaderClass(oc.estatus) : ''"
                 >
                   <div class="d-flex align-items-center gap-3">
+
                     <div class="fw-semibold">
                       🧾 N° <span class="text-danger">{{ oc.id ?? '—' }}</span>
                     </div>
@@ -186,6 +190,13 @@
                 </div>
 
                 <div class="card-body">
+                  <!-- 🔶 ALERTA AMARILLA -->
+                  <div v-if="faltaSubirOC(oc)" class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div class="fw-semibold">Falta subir OC</div>
+                  </div>
+                  <!-- Chip de debug visible -->
+
                   <div class="row g-3">
                     <div class="col-12 col-md-6">
                       <div class="small text-secondary">Centro de Costo</div>
@@ -379,7 +390,7 @@ import {
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
-/* ========== Subcomponente: FiltroForm (reutilizable para sidebar/offcanvas) ========== */
+/* ========== Subcomponente: FiltroForm ========== */
 const FiltroForm = {
   name: 'FiltroForm',
   props: {
@@ -503,6 +514,79 @@ const FiltroForm = {
   }
 };
 /* ===================================================================================== */
+
+/* ========= Normalizador de estado + clases ========= */
+function _estadoKeyPlano(v) {
+  return String(v ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu,'')
+    .trim();
+}
+
+function estadoKey(estatusRaw) {
+  const s = _estadoKeyPlano(estatusRaw);
+  if (s.includes('preaprob')) return 'preaprobado';
+  if (s.includes('pend') || s.includes('aprobacion')) return 'pendiente';
+  if (s.includes('aprob')) return 'aprobado';
+  if (s.includes('rechaz')) return 'rechazado';
+  if (s.includes('proveedor') || s.includes('enviada')) return 'enviada';
+  if (s.includes('revision')) return 'revision';
+  return 'otro';
+}
+
+/* Estas dos funciones deben existir porque el template las usa */
+const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
+const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
+
+
+/* ---------- Detector simple + robusto ---------- */
+function hasArchivoOC(oc) {
+  const a = oc?.archivoOC;
+
+  // 1) Si es array de objetos/strings
+  if (Array.isArray(a) && a.length > 0) {
+    for (const item of a) {
+      if (typeof item === 'string' && item.trim() !== '') return true;
+      if (item && typeof item === 'object') {
+        // Si tu esquema marca tipo 'oc', puedes reforzar:
+        // if (item.tipo && String(item.tipo).toLowerCase().includes('oc')) return true;
+        if (typeof item.url  === 'string' && item.url.trim()  !== '') return true;
+        if (typeof item.path === 'string' && item.path.trim() !== '') return true;
+        if (
+          typeof item.nombre === 'string' && item.nombre.trim() !== '' &&
+          typeof item.tipo   === 'string' && item.tipo.trim()   !== ''
+        ) return true;
+      }
+    }
+  }
+
+  // 2) Si es objeto único
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
+    // if (a.tipo && String(a.tipo).toLowerCase().includes('oc')) return true;
+    if (typeof a.url  === 'string' && a.url.trim()  !== '') return true;
+    if (typeof a.path === 'string' && a.path.trim() !== '') return true;
+    if (
+      typeof a.nombre === 'string' && a.nombre.trim() !== '' &&
+      typeof a.tipo   === 'string' && a.tipo.trim()   !== ''
+    ) return true;
+  }
+
+  // 3) Si guardas directamente string/boolean en archivoOC
+  if (typeof a === 'string'  && a.trim() !== '') return true;
+  if (typeof a === 'boolean' && a === true)      return true;
+
+  // 4) Compatibilidad: SOLO aceptar archivoOCUrl como evidencia
+  if (typeof oc?.archivoOCUrl === 'string' && oc.archivoOCUrl.trim() !== '') return true;
+
+  // ❌ NO CONTAR archivosStorage ni archivosBase64 (pueden ser cotizaciones)
+  return false;
+}
+
+/* ---------- Regla de alerta: solo “Aprobado” y sin archivo ---------- */
+function faltaSubirOC(oc) {
+  return estadoKey(oc?.estatus) === 'aprobado' && !hasArchivoOC(oc);
+}
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -636,25 +720,6 @@ const isEditor = computed(() => {
   const r = (auth?.profile?.role || auth?.role || '').toLowerCase().trim();
   return r === 'editor';
 });
-
-/* ======== Normalizador + clases por estado ======== */
-function estadoKey(estatusRaw) {
-  const s = String(estatusRaw || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu,'')
-    .trim();
-
-  if (s.includes('preaprob')) return 'preaprobado';
-  if (s.includes('pend') || s.includes('aprobacion')) return 'pendiente';
-  if (s.includes('aprob')) return 'aprobado';
-  if (s.includes('rechaz')) return 'rechazado';
-  if (s.includes('proveedor') || s.includes('enviada')) return 'enviada';
-  if (s.includes('revision')) return 'revision';
-  return 'otro';
-}
-const estadoBadgeClass = (estatus) => `badge-${estadoKey(estatus)}`;
-const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
 const isClickableToDetail = (oc) => {
   const k = estadoKey(oc?.estatus);
@@ -1034,6 +1099,10 @@ watch(
 
 /* Switch header */
 .form-check.form-switch .form-check-input{ cursor: pointer; }
+.oc-missing-oc{
+  border-color:#f59e0b !important; /* amarillo */
+  box-shadow:0 0 0 2px rgba(245, 158, 11, .15), 0 12px 24px rgba(245, 158, 11, .18) !important;
+}
 
 /* ========= PALETA PERSONALIZADA POR ESTADO ========= */
 .badge-status{ font-weight:600; border:0; }

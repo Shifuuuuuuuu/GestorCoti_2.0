@@ -153,7 +153,10 @@
                 v-for="oc in lista"
                 :key="oc.__docId"
                 class="card card-elevated mb-2 oc-card"
-                :class="{'oc-clickable': isClickableToDetail(oc)}"
+                :class="{
+                  'oc-clickable': isClickableToDetail(oc),
+                  'oc-missing-oc': faltaSubirOC(oc)       /* 👈 resalta si falta la OC */
+                }"
                 @click="onCardClick(oc)"
               >
                 <!-- Header con colores por estado (solo editores) -->
@@ -175,7 +178,13 @@
                 </div>
 
                 <div class="card-body">
-                  <div class="row g-3">
+                  <!-- 🔶 ALERTA AMARILLA (solo Aprobado sin OC) -->
+                  <div v-if="faltaSubirOC(oc)" class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div class="fw-semibold">Falta subir OC</div>
+                  </div>
+
+                  <div class="row g-3 mt-2">
                     <div class="col-12 col-md-6">
                       <div class="small text-secondary">Centro de Costo</div>
                       <div class="fw-semibold">{{ oc.centroCostoTexto || '—' }}</div>
@@ -513,6 +522,55 @@ const isClickableToDetail = (oc) => {
 };
 const onCardClick = (oc) => { if (isClickableToDetail(oc)) goOC(oc); };
 
+/* ---------- SOLO cuenta como OC si está en archivoOC / archivoOCUrl ---------- */
+function hasArchivoOC(oc) {
+  const a = oc?.archivoOC;
+
+  // 1) Array de objetos/strings
+  if (Array.isArray(a) && a.length > 0) {
+    for (const item of a) {
+      if (typeof item === 'string' && item.trim() !== '') return true;
+      if (item && typeof item === 'object') {
+        if (typeof item.url  === 'string' && item.url.trim()  !== '') return true;
+        if (typeof item.path === 'string' && item.path.trim() !== '') return true;
+        if (
+          typeof item.nombre === 'string' && item.nombre.trim() !== '' &&
+          typeof item.tipo   === 'string' && item.tipo.trim()   !== ''
+        ) return true;
+      }
+    }
+  }
+
+  // 2) Objeto único
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
+    if (typeof a.url  === 'string' && a.url.trim()  !== '') return true;
+    if (typeof a.path === 'string' && a.path.trim() !== '') return true;
+    if (
+      typeof a.nombre === 'string' && a.nombre.trim() !== '' &&
+      typeof a.tipo   === 'string' && a.tipo.trim()   !== ''
+    ) return true;
+  }
+
+  // 3) Primitivos
+  if (typeof a === 'string'  && a.trim() !== '') return true;
+  if (typeof a === 'boolean' && a === true)      return true;
+
+  // 4) Compatibilidad: aceptar solo archivoOCUrl como evidencia
+  if (typeof oc?.archivoOCUrl === 'string' && oc.archivoOCUrl.trim() !== '') return true;
+
+  // ❌ NO contar archivosStorage ni archivosBase64 (suelen ser cotizaciones)
+  return false;
+}
+
+/* ---------- Regla alerta: Aprobado + sin archivo de OC ---------- */
+function faltaSubirOC(oc) {
+  const ek = estadoKey(oc?.estatus);
+  const aprobado = ek === 'aprobado';
+  const tiene = hasArchivoOC(oc);
+
+  return aprobado && !tiene;
+}
+
 /* ========= Flags de filtros aplicados ========= */
 const centroNombreFiltroActivo = computed(() => !!centroSearch.value);
 const clientCentrosOverflow = computed(() => selectedCentros.value.length > 10);
@@ -839,6 +897,12 @@ watch(
   cursor:pointer;
   border-color:#ef4444 !important;
   box-shadow:0 0 0 2px rgba(239,68,68,.15), 0 12px 24px rgba(239,68,68,.18) !important;
+}
+
+/* 🔶 Resaltar card cuando falta subir la OC */
+.oc-missing-oc{
+  border-color:#f59e0b !important; /* amarillo */
+  box-shadow:0 0 0 2px rgba(245, 158, 11, .15), 0 12px 24px rgba(245, 158, 11, .18) !important;
 }
 
 /* Loading global */
