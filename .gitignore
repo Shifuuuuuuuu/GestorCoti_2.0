@@ -28,3 +28,7 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+src/stores/firebase.js
+src/public/firebase-messaging-sw.js
+.env.production

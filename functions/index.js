@@ -12,26 +12,20 @@
 const {onRequest} = require("firebase-functions/https");
 // eslint-disable-next-line no-undef
 const logger = require("firebase-functions/logger");
-// functions/index.js
 // eslint-disable-next-line no-undef
 const admin = require("firebase-admin");
 // eslint-disable-next-line no-undef
-const { setGlobalOptions } = require("firebase-functions/v2");           // v2
+const { setGlobalOptions } = require("firebase-functions/v2");
 // eslint-disable-next-line no-undef
-const { onCall, HttpsError } = require("firebase-functions/v2/https");   // v2
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
-// Usa tu región (recomendado: la misma que tu proyecto/Firestore)
-// Ej: "southamerica-west1" (Chile/Latam) o "us-central1" si prefieres default
 setGlobalOptions({
   region: "southamerica-west1",
-  timeoutSeconds: 20,
-  // opcional: memoryMiB: 256,
-  // opcional: maxInstances: 10,
+  timeoutSeconds: 10,
 });
 
 admin.initializeApp();
 
-// (opcional) helper simple para validar E.164 (+56...) o no enviar phoneNumber
 const asE164 = (p) => (typeof p === "string" && /^\+\d{8,15}$/.test(p) ? p : undefined);
 function isEmail(s) {
   return typeof s === "string" && /\S+@\S+\.\S+/.test(s);
@@ -56,17 +50,11 @@ exports.adminCreateUser = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "INVALID_EMAIL");
     }
     if (!password || password.length < 6) {
-      throw new HttpsError("invalid-argument", "TOO_SHORT"); // 👈 de aquí viene tu mensaje
+      throw new HttpsError("invalid-argument", "TOO_SHORT");
     }
     if (!displayName) {
       throw new HttpsError("invalid-argument", "MISSING_NAME");
     }
-
-    // (Opcional) restringir quién puede invocar (recomendado):
-    // if (!request.auth || request.auth.token.role !== 'Admin') {
-    //   throw new HttpsError("permission-denied", "FORBIDDEN");
-    // }
-
     // Crear en Auth
     const userRecord = await admin.auth().createUser({
       email,
@@ -75,9 +63,6 @@ exports.adminCreateUser = onCall(async (request) => {
       phoneNumber: phone || undefined,
       disabled: false,
     });
-
-    // (Opcional) set custom claims
-    // await admin.auth().setCustomUserClaims(userRecord.uid, { role: 'Editor' });
 
     return { uid: userRecord.uid };
   } catch (err) {
@@ -109,10 +94,6 @@ exports.adminUpdateUser = onCall(async (request) => {
     if (typeof data.displayName === "string") patch.displayName = data.displayName.trim();
     if (typeof data.phone === "string") patch.phoneNumber = data.phone.trim() || undefined;
 
-    // if (!request.auth || request.auth.token.role !== 'Admin') {
-    //   throw new HttpsError("permission-denied", "FORBIDDEN");
-    // }
-
     const userRecord = await admin.auth().updateUser(uid, patch);
     return { uid: userRecord.uid };
   } catch (err) {
@@ -138,11 +119,6 @@ exports.adminDeleteUser = onCall(async (request) => {
     const data = request.data || {};
     const uid = data.uid;
     if (!uid) throw new HttpsError("invalid-argument", "MISSING_UID");
-
-    // if (!request.auth || request.auth.token.role !== 'Admin') {
-    //   throw new HttpsError("permission-denied", "FORBIDDEN");
-    // }
-
     await admin.auth().deleteUser(uid);
     return { ok: true };
   } catch (err) {

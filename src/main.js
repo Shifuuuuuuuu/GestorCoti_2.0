@@ -13,7 +13,6 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import { listenAppVersion } from "@/utils/version-listener.js";
 
-// PWA auto-update
 import { registerSW } from "virtual:pwa-register";
 
 const app = createApp(App);
@@ -22,18 +21,16 @@ app.use(pinia);
 app.use(router);
 
 
-// PWA: registra y fuerza activación cuando haya nueva versión
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    updateSW(true); // aplica actualización sin preguntar
+    updateSW(true);
   },
   onOfflineReady() {
-    // opcional: mostrar un toast "Listo para offline"
   },
 });
 
-// Evitar loops de recarga al cambiar el controlador del SW
+
 if ("serviceWorker" in navigator) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
@@ -43,7 +40,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// 🧹 MIGRACIÓN: desregistrar cualquier SW antiguo de FCM (mantener por 1 release)
 if ("serviceWorker" in navigator) {
   (async () => {
     try {
@@ -71,7 +67,7 @@ if ("serviceWorker" in navigator) {
 }
 
 (async () => {
-  // Versión remota (si la usas). No relacionado con FCM.
+
   listenAppVersion();
 
   const authStore = useAuthStore();

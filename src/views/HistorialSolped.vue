@@ -55,33 +55,40 @@
       </div>
 
       <!-- Buscador exacto -->
-      <div class="card card-elevated mb-3" aria-labelledby="lbl-busqueda-exacta">
-        <div class="card-header d-flex align-items-center justify-content-between">
-          <div id="lbl-busqueda-exacta" class="fw-semibold">🔎 Buscar SOLPED por número</div>
-          <div class="small text-secondary">Consulta directa (no carga todo)</div>
+    <div class="card card-elevated mb-3" aria-labelledby="lbl-busqueda-exacta">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div id="lbl-busqueda-exacta" class="fw-semibold">
+          🔎 Buscar SOLPED (número, nombre o ítems)
         </div>
-        <div class="card-body">
-          <div class="row g-2">
-            <div class="col-12 col-sm-9">
-              <input
-                type="number"
-                class="form-control"
-                v-model.number="numeroBusquedaExacta"
-                @keyup.enter="buscarSolpeExacta"
-                placeholder="Ej: 1234"
-                inputmode="numeric"
-                min="1"
-                aria-label="Número de SOLPED"
-              >
-            </div>
-            <div class="col-12 col-sm-3 d-grid">
-              <button class="btn btn-danger" @click="buscarSolpeExacta" :disabled="loadingSearch">
-                <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                Buscar
-              </button>
-            </div>
-          </div>
+        <div class="small text-secondary">Consulta directa (no carga todo)</div>
+      </div>
 
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-12 col-sm-9">
+            <input
+              type="text"
+              class="form-control"
+              v-model="numeroBusquedaExacta"
+              @keyup.enter="buscarSolpeExacta"
+              placeholder="N° SOLPED, código ref., descripción, N° interno, nombre SOLPED…"
+              aria-label="Buscar SOLPED"
+            >
+          </div>
+          <div class="col-12 col-sm-3 d-grid gap-2">
+            <button class="btn btn-danger" @click="buscarSolpeExacta" :disabled="loadingSearch">
+              <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+              Buscar
+            </button>
+            <button
+              class="btn btn-outline-secondary"
+              v-if="enModoBusqueda"
+              @click="limpiarBusqueda"
+            >
+              Limpiar búsqueda
+            </button>
+          </div>
+        </div>
           <div
             v-if="solpeEncontrada"
             class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2"
@@ -963,32 +970,154 @@ const toggleFiltersResponsive = () => { computeIsDesktop(); isDesktop.value ? to
 const handleResize = () => { const wasMobileOpen = showFiltersMobile.value; computeIsDesktop(); if (isDesktop.value && wasMobileOpen) closeFiltersMobile(); };
 
 /* ---------- Buscador exacto ---------- */
-const numeroBusquedaExacta = ref(null);
+const numeroBusquedaExacta = ref('');
 const solpeEncontrada = ref(null);
+const enModoBusqueda = ref(false);
+const resultadosBusqueda = ref([]);
+const limpiarBusqueda = () => {
+  enModoBusqueda.value = false;
+  resultadosBusqueda.value = [];
+  solpeEncontrada.value = null;
+  // NO borro el texto por si quieres corregirlo, pero si quieres:
+  // numeroBusquedaExacta.value = '';
+  // volvemos al modo normal (paginado + filtros)
+  applyFilters();
+};
 const buscarSolpeExacta = async () => {
   solpeEncontrada.value = null;
-  const n = Number(numeroBusquedaExacta.value || 0);
-  if (!n) return;
+  error.value = '';
+
+  const termRaw = (numeroBusquedaExacta.value ?? '').toString().trim();
+  if (!termRaw) {
+    limpiarBusqueda();
+    return;
+  }
+
   loadingSearch.value = true;
+  enModoBusqueda.value = false;
+  resultadosBusqueda.value = [];
+
+  // Si hay suscripción en tiempo real, la pausamos mientras estamos en modo búsqueda
+  if (typeof unsubscribe === 'function') {
+    unsubscribe();
+    unsubscribe = null;
+  }
+
   try {
-    const qy = query(collection(db, 'solpes'), where('numero_solpe','==', n), limit(1));
-    const snap = await getDocs(qy);
-    if (!snap.empty) {
-      const d = snap.docs[0];
-      const data = d.data() || {};
-      data.comentarios = (Array.isArray(data.comentarios) ? data.comentarios : []).map(c => ({
-        ...c,
-        fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
-        vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : []
-      }));
-      solpeEncontrada.value = { id: d.id, ...data };
+    // 🔢 1) Sólo números -> buscar por número exacto de SOLPED
+    if (/^\d+$/.test(termRaw)) {
+      const n = Number(termRaw);
+      const qy = query(
+        collection(db, 'solpes'),
+        where('numero_solpe', '==', n)
+      );
+      const snap = await getDocs(qy);
+
+      if (snap.empty) {
+        error.value = 'No se encontró ninguna SOLPED con ese número.';
+        limpiarBusqueda();
+        return;
+      }
+
+      const docs = snap.docs.map(d => {
+        const data = d.data() || {};
+        const comentarios = Array.isArray(data.comentarios)
+          ? data.comentarios.map(c => ({
+              ...c,
+              fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+              vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
+            }))
+          : [];
+        return { id: d.id, ...data, comentarios };
+      });
+
+      resultadosBusqueda.value = docs;
+      enModoBusqueda.value = true;
+      solpeEncontrada.value = docs[0] || null;
+
+      // ✅ rellenamos la lista principal
+      page.value = 1;
+      totalCount.value = docs.length;
+      pageDocs.value = docs;
+      solpeExpandidaId.value = docs[0]?.id || null;
+
+      // dropdowns
+      disposeDropdowns();
+      await nextTick();
+      initDropdownsIn(document);
+      return;
     }
-  } catch (e) { console.error(e);
+
+    // 🔍 2) Texto -> buscar en nombre SOLPED + ítems (múltiples resultados)
+    const term = termRaw.toLowerCase();
+
+    // Puedes subir el limit si quieres más profundidad
+    const qy = query(
+      collection(db, 'solpes'),
+      orderBy('numero_solpe', 'desc'),
+      limit(400)
+    );
+    const snap = await getDocs(qy);
+
+    const matches = [];
+
+    snap.forEach(d => {
+      const data = d.data() || {};
+      const nombreSolped = (data.nombre_solped || '').toString().toLowerCase();
+      const items = Array.isArray(data.items) ? data.items : [];
+
+      const matchNombre = nombreSolped.includes(term);
+      const matchItems = items.some(it => {
+        const cod = (it.codigo_referencial || '').toString().toLowerCase();
+        const desc = (it.descripcion || '').toString().toLowerCase();
+        const numi = (it.numero_interno || '').toString().toLowerCase();
+        return (
+          cod.includes(term) ||
+          desc.includes(term) ||
+          numi.includes(term)
+        );
+      });
+
+      if (matchNombre || matchItems) {
+        const comentarios = Array.isArray(data.comentarios)
+          ? data.comentarios.map(c => ({
+              ...c,
+              fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+              vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
+            }))
+          : [];
+        matches.push({ id: d.id, ...data, comentarios });
+      }
+    });
+
+    if (!matches.length) {
+      error.value = 'No se encontraron SOLPED que coincidan con el texto buscado.';
+      limpiarBusqueda();
+      return;
+    }
+
+    resultadosBusqueda.value = matches;
+    enModoBusqueda.value = true;
+    solpeEncontrada.value = matches[0] || null;
+
+    // ✅ llenamos la lista principal con TODOS los resultados
+    page.value = 1;
+    totalCount.value = matches.length;
+    pageDocs.value = matches;
+    solpeExpandidaId.value = matches[0]?.id || null;
+
+    disposeDropdowns();
+    await nextTick();
+    initDropdownsIn(document);
+  } catch (e) {
+    console.error(e);
     error.value = 'No se pudo realizar la búsqueda.';
+    limpiarBusqueda();
   } finally {
     loadingSearch.value = false;
   }
 };
+
 const expandEncontrada = () => {
   if (!solpeEncontrada.value) return;
   pageDocs.value = [solpeEncontrada.value];

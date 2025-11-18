@@ -7,9 +7,9 @@ import { useUIStore } from "@/stores/ui";
 import AppShell from "@/layouts/AppShell.vue";
 
 import ToastCenterOC from "@/components/ToastCenterOC.vue";
-import ToastCenterOCTaller from "@/components/ToastCenterOCTaller.vue";              // 👈 nuevo
+import ToastCenterOCTaller from "@/components/ToastCenterOCTaller.vue";
 import { useOCNotifications } from "@/composables/useOCNotifications";
-import { useOCNotificationTaller } from "@/composables/useOCNotificationTaller";    // 👈 nuevo
+import { useOCNotificationTaller } from "@/composables/useOCNotificationTaller";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -22,9 +22,8 @@ onMounted(async () => {
 
 watch(() => auth.profile, (p) => { if (p) ui.loadFromProfile(p); }, { immediate: true });
 
-// Listeners globales
-useOCNotifications();        // OC "normal"
-useOCNotificationTaller();   // OC TALLER  👈
+useOCNotifications();
+useOCNotificationTaller();
 
 const showShell = computed(() => route.name !== "login");
 </script>
@@ -35,9 +34,8 @@ const showShell = computed(() => route.name !== "login");
     <router-view />
   </main>
 
-  <!-- Toasts persistentes -->
   <ToastCenterOC />
-  <ToastCenterOCTaller />  <!-- 👈 nuevo -->
+  <ToastCenterOCTaller />
 </template>
 
 <style>

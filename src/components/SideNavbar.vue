@@ -141,9 +141,14 @@ const PRIMARY_OPTIONS = [
     <div class="sidebar-header">
       <div class="d-flex align-items-center gap-2 w-100">
         <!-- Brand -->
-        <router-link to="/" class="brand text-white text-decoration-none" @click="ui.closeSidebar?.()">
+        <router-link
+          :to="{ name: 'Inicio' }"
+          class="brand text-white text-decoration-none"
+          @click="ui.closeSidebar?.()"
+        >
           Xtreme Solped
         </router-link>
+
 
         <!-- Versión (compacta, en header) -->
         <span class="badge badge-version ms-1 d-inline-flex align-items-center gap-1" title="Versión">

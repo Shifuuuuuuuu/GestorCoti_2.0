@@ -126,8 +126,10 @@ const PRIMARY_OPTIONS = [
   <nav class="navbar navbar-expand-lg navbar-dark bg-xtreme fixed-top shadow-sm">
     <div class="container-fluid align-items-center">
 
-      <!-- Brand -->
-      <router-link to="/" class="navbar-brand fw-semibold me-2 order-1">
+      <router-link
+        :to="{ name: 'Inicio' }"
+        class="navbar-brand fw-semibold me-2 order-1"
+      >
         Xtreme Solped
       </router-link>
 

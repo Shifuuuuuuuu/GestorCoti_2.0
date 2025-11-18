@@ -358,7 +358,7 @@ export default {
       fecha: "",
       empresa: "Xtreme Servicios",
       nombre_solicitante: "",
-      cotizadores: ["Guillermo Manzor", "Luis Orellana", "María José Ballesteros"],
+      cotizadores: ["Guillermo Manzor", "María José Ballesteros"],
       tipo_solped: "REPUESTOS", // <-- ahora editable con el select
       centro_costo: "",
       items: [],
