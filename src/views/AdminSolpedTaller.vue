@@ -756,7 +756,8 @@ const COTIZADORES_OPCIONES = [
   "Guillermo Manzor",
   "María José Ballesteros",
   "Ricardo Santibañez",
-  "Felipe Gonzalez"
+  "Felipe Gonzalez",
+  "Camila Ricci"
 ];
 
 /* Centros de costo  */

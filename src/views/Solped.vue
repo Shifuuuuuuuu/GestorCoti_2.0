@@ -817,9 +817,9 @@ export default {
     };
 
     /* ===== Cotizadores ===== */
-    const cotizadoresServicios = [ "Guillermo Manzor", "María José Ballesteros"];
-    const cotizadoresMining   = ["Ricardo Santibañez", "Felipe Gonzalez", "Guillermo Manzor", "María José Ballesteros"];
-    const cotizadoresHorm     = ["Ricardo Santibañez", "Felipe Gonzalez", "Guillermo Manzor", "María José Ballesteros"];
+    const cotizadoresServicios = [ "Guillermo Manzor","Camila Ricci", "María José Ballesteros"];
+    const cotizadoresMining   = ["Ricardo Santibañez", "Felipe Gonzalez","Camila Ricci", "Guillermo Manzor", "María José Ballesteros"];
+    const cotizadoresHorm     = ["Ricardo Santibañez", "Felipe Gonzalez","Camila Ricci", "Guillermo Manzor", "María José Ballesteros"];
     const cotizadoresFiltrados = computed(() => {
       if (form.empresa === "Xtreme Mining") return cotizadoresMining;
       if (form.empresa === "Xtreme Hormigones") return cotizadoresHorm;

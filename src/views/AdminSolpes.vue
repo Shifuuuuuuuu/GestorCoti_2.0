@@ -800,7 +800,7 @@ const ESTATUS_OPC = [
   "Solicitado","Cotizando","Revisión","Completado","Rechazado","Pendiente","Parcial","OC enviada a proveedor"
 ];
 const DIRIGIDO_OPCIONES = [
-  "Luis Orellana","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
+  "Luis Orellana","Guillermo Manzor","Camila Ricci","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
 ];
 
 /* Centros de Costo (rellenar con tus claves reales) */
