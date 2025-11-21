@@ -336,7 +336,18 @@ import { useRouter } from "vue-router";
 import imageCompression from "browser-image-compression";
 import { db } from "../stores/firebase";
 import {
-  collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp, doc, getDoc, updateDoc, where
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp,
+  doc,
+  getDoc,
+  updateDoc,
+  where,
+  runTransaction
 } from "firebase/firestore";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -359,7 +370,7 @@ export default {
       empresa: "Xtreme Servicios",
       nombre_solicitante: "",
       cotizadores: ["Guillermo Manzor","Camila Ricci", "María José Ballesteros"],
-      tipo_solped: "REPUESTOS", // <-- ahora editable con el select
+      tipo_solped: "REPUESTOS",
       centro_costo: "",
       items: [],
       estatus: "Pendiente",
@@ -478,9 +489,9 @@ export default {
         // Validación del nombre (tu lógica existente)
         onNombreSolicitanteChange();
 
-        // Correlativo nuevo si aún no lo tiene
+        // Número sugerido solo para mostrar, sin incrementar contador
         if (!solpe.numero_solpe) {
-          solpe.numero_solpe = await obtenerSiguienteNumeroDesdeColeccion();
+          solpe.numero_solpe = await obtenerNumeroActualDesdeColeccion();
         }
 
         // Guardamos borrador si está activado
@@ -693,19 +704,55 @@ export default {
       }
     };
 
-    // ======= Correlativo =======
+    // ======= Correlativo (INCREMENTA en solped_counters) =======
     const obtenerSiguienteNumeroDesdeColeccion = async () => {
       try {
-        const qy = query(collection(db, "solped_taller"), orderBy("numero_solpe","desc"), limit(1));
-        const snap = await getDocs(qy);
-        if (snap.empty) return 1;
-        const maxNum = Number(snap.docs[0].data()?.numero_solpe) || 0;
-        return maxNum + 1;
+        const counterRef = doc(db, "solped_counters", "solped_taller");
+
+        const nextNumber = await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(counterRef);
+
+          // Si no existe el doc, lo creamos con el primer número
+          if (!snap.exists()) {
+            transaction.set(counterRef, { lastNumber: 1 });
+            return 1;
+          }
+
+          const data = snap.data() || {};
+          const last = Number(data.lastNumber || 0);
+          const newNumber = last + 1;
+
+          transaction.update(counterRef, { lastNumber: newNumber });
+          return newNumber;
+        });
+
+        return nextNumber;
       } catch (e) {
-        console.error("Error correlativo:", e);
+        console.error("Error correlativo (solped_counters):", e);
         return 1;
       }
     };
+
+    const obtenerNumeroActualDesdeColeccion = async () => {
+      try {
+        const counterRef = doc(db, "solped_counters", "solped_taller");
+        const snap = await getDoc(counterRef);
+
+        // Si no existe, asumimos que todavía no hay SOLPEDs creadas
+        if (!snap.exists()) {
+          return 0; // puedes dejar 0 o null si prefieres
+        }
+
+        const data = snap.data() || {};
+        const last = Number(data.lastNumber || 0);
+        return last; // <-- EXACTO lo que está en Firestore
+      } catch (e) {
+        console.error("Error obteniendo número actual:", e);
+        return 0;
+      }
+    };
+
+
 
     // ======= Catálogo: cargar / sugerir / actualizar =======
     const loadCatalog = async () => {
@@ -825,25 +872,25 @@ export default {
 
       enviandoSolpe.value = true;
       try {
-        if (!solpe.numero_solpe) {
-          solpe.numero_solpe = await obtenerSiguienteNumeroDesdeColeccion();
-        }
+        // Siempre reservar número REAL en el contador al guardar
+        const numeroAsignado = await obtenerSiguienteNumeroDesdeColeccion();
+        solpe.numero_solpe = numeroAsignado;
 
         const payload = {
-          numero_solpe: solpe.numero_solpe,
+          numero_solpe: numeroAsignado,
           fecha: solpe.fecha,
           empresa: "Xtreme Servicios",
           nombre_solicitante: solicitante,
           cotizadores: solpe.cotizadores,
-          tipo_solped: solpe.tipo_solped, // <-- usa el valor elegido en el select
-          centro_costo: (solpe.centro_costo||"").trim(),
+          tipo_solped: solpe.tipo_solped,
+          centro_costo: (solpe.centro_costo || "").trim(),
           estatus: "Pendiente",
-          items: (solpe.items||[]).map((it, idx) => ({
-            item: idx+1,
-            descripcion: (it.descripcion||"").trim(),
-            codigo_referencial: (it.codigo_referencial||"").trim() || "SIN CÓDIGO",
+          items: (solpe.items || []).map((it, idx) => ({
+            item: idx + 1,
+            descripcion: (it.descripcion || "").trim(),
+            codigo_referencial: (it.codigo_referencial || "").trim() || "SIN CÓDIGO",
             cantidad: Number(it.cantidad),
-            numero_interno: (it.numero_interno||"").trim() || "SIN PATENTE",
+            numero_interno: (it.numero_interno || "").trim() || "SIN PATENTE",
             imagen_url: it.imagen_url || null,
             estado: "pendiente",
           })),
@@ -880,7 +927,7 @@ export default {
     const resetearFormulario = async () => {
       const hoy = formatDate(new Date());
       Object.assign(solpe, {
-        numero_solpe: await obtenerSiguienteNumeroDesdeColeccion(),
+        numero_solpe: await obtenerNumeroActualDesdeColeccion(),
         fecha: hoy,
         empresa: "Xtreme Servicios",
         nombre_solicitante: "",
@@ -944,11 +991,12 @@ export default {
           tryRestoreDraft();
         }
 
-        // 3) Si aún no hay correlativo, lo pedimos
         if (!solpe.numero_solpe) {
-          solpe.numero_solpe = await obtenerSiguienteNumeroDesdeColeccion();
+          // Leer el valor real (lastNumber) en Firestore
+          solpe.numero_solpe = await obtenerNumeroActualDesdeColeccion();
           triggerAutoSave();
         }
+
 
         await loadCatalog();
       } catch (e) {
