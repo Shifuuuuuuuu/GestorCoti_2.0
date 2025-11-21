@@ -2,8 +2,7 @@
 <template>
   <div class="historial-taller-page" v-cloak>
     <div class="container py-4 py-md-5">
-      <!-- Top bar -->
-      <div class="topbar row g-2 align-items-center mb-3">
+            <div class="topbar row g-2 align-items-center mb-3">
         <div class="col-6 col-sm-auto order-1">
           <button class="btn btn-outline-secondary btn-sm w-100" @click="volver">
             <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Volver</span>
@@ -12,24 +11,17 @@
 
         <div class="col-12 col-sm order-3 order-sm-2 text-center text-sm-start">
           <h1 class="h5 fw-semibold mb-0">Historial SOLPED Taller</h1>
+
         </div>
 
         <div class="col-6 col-sm-auto order-2 order-sm-3 d-flex justify-content-end gap-2">
+
           <button
             class="btn btn-outline-primary btn-sm d-none d-lg-inline-flex"
             @click="toggleSidebar"
           >
             <i class="bi" :class="showSidebar ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-inset'"></i>
             <span class="ms-1">{{ showSidebar ? 'Ocultar filtros' : 'Mostrar filtros' }}</span>
-          </button>
-
-          <button
-            class="btn btn-outline-primary btn-sm d-inline-flex d-lg-none"
-            type="button"
-            title="Mostrar filtros"
-            @click="openFiltersOffcanvas"
-          >
-            <i class="bi bi-funnel"></i>
           </button>
         </div>
       </div>
@@ -63,28 +55,34 @@
         <!-- Buscador exacto por número -->
         <div class="card card-elevated mb-3">
           <div class="card-header d-flex align-items-center justify-content-between">
-            <div class="fw-semibold">🔎 Buscar SOLPED Taller por número (exacto)</div>
-            <div class="small text-secondary">No carga todo — consulta directa</div>
+            <div class="fw-semibold">🔎 Buscar SOLPED Taller (número, nombre o ítems)</div>
           </div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-12 col-sm-9">
                 <input
-                  type="number"
+                  type="text"
                   class="form-control"
-                  v-model.number="numeroBusqueda"
+                  v-model.trim="numeroBusqueda"
                   @keyup.enter="buscarSolpeExacta"
-                  placeholder="Ej: 11"
+                  @input="error=''"
+                  placeholder="Ej: 11, 27483, REPUESTOS, COD123…"
                 >
               </div>
-              <div class="col-12 col-sm-3 d-grid">
-                <button class="btn btn-danger" @click="buscarSolpeExacta">
+              <div class="col-12 col-sm-3 d-grid d-sm-flex gap-2">
+                <button class="btn btn-danger flex-fill" @click="buscarSolpeExacta">
                   <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2"></span>
                   Buscar
                 </button>
+                <button
+                  class="btn btn-outline-secondary flex-fill"
+                  v-if="numeroBusqueda || solpeEncontrada || filtroTexto"
+                  @click="limpiarBusquedaExacta"
+                >
+                  Limpiar
+                </button>
               </div>
             </div>
-
             <div v-if="solpeEncontrada" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
               <div class="me-auto">
                 <div class="fw-semibold">Resultado: SOLPED #{{ solpeEncontrada.numero_solpe ?? '—' }}</div>
@@ -148,11 +146,6 @@
             CC: {{ code }} — {{ centrosCosto[code] || '' }}
             <button class="btn-close btn-close-white ms-2 small" @click="removeCC(code)"></button>
           </span>
-
-          <div class="form-check ms-1">
-            <input class="form-check-input" type="checkbox" id="chkOnlyMine" v-model="onlyMine" @change="persistOnlyMine">
-            <label class="form-check-label small" for="chkOnlyMine">Ver sólo mis SOLPED</label>
-          </div>
 
           <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
         </div>
@@ -478,7 +471,7 @@
                   <label class="form-label">Texto libre</label>
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input class="form-control" placeholder="Descripción, código, solicitante, empresa, CC…" v-model="filtroTexto" @input="goPage(1)">
+                    <input class="form-control" placeholder="Descripción, código, solicitante, empresa, CC…" v-model="filtroTexto">
                   </div>
                 </div>
 
@@ -487,10 +480,10 @@
                   <label class="form-label">Fecha (rango)</label>
                   <div class="row g-2">
                     <div class="col">
-                      <input type="date" class="form-control" v-model="fechaDesde" @change="goPage(1)">
+                      <input type="date" class="form-control" v-model="fechaDesde">
                     </div>
                     <div class="col">
-                      <input type="date" class="form-control" v-model="fechaHasta" @change="goPage(1)">
+                      <input type="date" class="form-control" v-model="fechaHasta">
                     </div>
                   </div>
                 </div>
@@ -498,7 +491,7 @@
                 <!-- Estado -->
                 <div class="mb-3">
                   <label class="form-label">Estado</label>
-                  <select class="form-select" multiple v-model="filtroEstatus" @change="goPage(1)">
+                  <select class="form-select" multiple v-model="filtroEstatus">
                     <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
                   </select>
                   <small class="text-secondary">Puedes seleccionar varios.</small>
@@ -522,12 +515,10 @@
                     <label class="form-check-label" :for="'u_'+normalize(u)">{{ u }}</label>
                   </div>
                 </div>
-
-                <div class="form-check mb-3">
+                <div>
                   <input class="form-check-input" type="checkbox" id="chkOnlyMineDesk" v-model="onlyMine" @change="persistOnlyMine">
-                  <label class="form-check-label" for="chkOnlyMineDesk">Ver sólo mis SOLPED</label>
+                  <label class="form-check-label" for="chkOnlyMineDesk"> Mis SOLPED</label>
                 </div>
-
                 <!-- Tamaño de página -->
                 <div class="mb-0">
                   <label class="form-label">Tamaño de página</label>
@@ -540,87 +531,141 @@
           </aside>
         </div>
 
-        <!-- Offcanvas Filtros (móvil/tablet) -->
-        <div
-          class="offcanvas offcanvas-end offcanvas-filtros d-lg-none"
-          tabindex="-1"
-          :id="filtersOffcanvasId"
-          ref="filtersOffcanvasEl"
-          aria-labelledby="filtersOffcanvasLabel"
-          data-bs-backdrop="true"
-          data-bs-scroll="true"
-        >
-          <div class="offcanvas-header">
-            <h5 id="filtersOffcanvasLabel" class="mb-0">Filtros</h5>
-            <button type="button" class="btn-close" @click="closeFiltersOffcanvas" aria-label="Cerrar"></button>
-          </div>
-          <div class="offcanvas-body">
-            <div class="mb-3">
-              <label class="form-label">Texto libre</label>
-              <input class="form-control" placeholder="Descripción, código, solicitante, empresa, CC…"
-                     v-model="filtroTexto" @input="goPage(1)">
-            </div>
+        <!-- Offcanvas filtros (móvil / tablet) -->
+        <transition name="oc">
+          <div
+            v-if="showFiltersMobile"
+            class="oc-wrap d-lg-none"
+            @keydown.esc="closeFiltersMobile"
+          >
+            <!-- backdrop -->
+            <div class="oc-backdrop" @click="closeFiltersMobile"></div>
 
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label">Desde</label>
-                <input type="date" class="form-control" v-model="fechaDesde" @change="goPage(1)">
-              </div>
-              <div class="col-6">
-                <label class="form-label">Hasta</label>
-                <input type="date" class="form-control" v-model="fechaHasta" @change="goPage(1)">
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Estado</label>
-              <select class="form-select" multiple v-model="filtroEstatus" @change="goPage(1)">
-                <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
-              </select>
-              <small class="text-secondary">Puedes seleccionar varios.</small>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label mb-1">Solicitante</label>
-              <input class="form-control mb-2" placeholder="Buscar nombre" v-model="busquedaSolicitante">
-              <div class="border rounded p-2" style="max-height: 200px; overflow:auto;">
-                <div class="form-check" v-for="u in solicitantesFiltrados" :key="u">
-                  <input class="form-check-input" type="checkbox"
-                         :id="'u_m_'+normalize(u)"
-                         :checked="tempSolicitanteSelSet.has(u)"
-                         @change="toggleTempSolicitante(u)">
-                  <label class="form-check-label" :for="'u_m_'+normalize(u)">{{ u }}</label>
+            <!-- panel -->
+            <div
+              class="oc-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filtros de historial Taller"
+            >
+              <div class="oc-header">
+                <h2 class="h6 mb-0 fw-semibold">Filtros</h2>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+                  <button class="btn btn-sm btn-success" @click="applyFiltersAndClose">
+                    Aplicar
+                  </button>
+                  <button class="btn btn-sm btn-outline-dark" @click="closeFiltersMobile" aria-label="Cerrar filtros">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                  </button>
                 </div>
               </div>
-            </div>
 
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox" id="chkOnlyMineMob" v-model="onlyMine" @change="persistOnlyMine">
-              <label class="form-check-label" for="chkOnlyMineMob">Ver sólo mis SOLPED</label>
-            </div>
+              <div class="oc-body">
+                <!-- Texto libre -->
+                <div class="mb-3">
+                  <label class="form-label">Texto libre</label>
+                  <input
+                    class="form-control"
+                    placeholder="Descripción, código, solicitante, empresa, CC…"
+                    v-model="filtroTexto"
+                  >
+                </div>
 
-            <div class="mb-3">
-              <label class="form-label">Tamaño de página</label>
-              <select class="form-select" v-model.number="pageSize" @change="persistPageSize">
-                <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
-              </select>
-            </div>
+                <!-- Rango de fechas -->
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" v-model="fechaDesde">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" v-model="fechaHasta">
+                  </div>
+                </div>
 
-            <div class="d-grid gap-2">
-              <button class="btn btn-success" @click="applyAndClose">Aplicar</button>
-              <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
+                <!-- Estado -->
+                <div class="mb-3">
+                  <label class="form-label">Estado</label>
+                  <select class="form-select" multiple v-model="filtroEstatus">
+                    <option v-for="s in listaEstatus" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                  <small class="text-secondary">Puedes seleccionar varios.</small>
+                </div>
+
+                <!-- Solicitante -->
+                <div class="mb-1 d-flex align-items-center justify-content-between">
+                  <label class="form-label mb-0">Solicitante</label>
+                  <small v-if="tempSolicitanteSelSet.size" class="text-secondary">
+                    {{ tempSolicitanteSelSet.size }} seleccionados
+                  </small>
+                </div>
+                <div class="input-group mb-2">
+                  <span class="input-group-text"><i class="bi bi-person" aria-hidden="true"></i></span>
+                  <input
+                    class="form-control"
+                    placeholder="Buscar nombre"
+                    v-model="busquedaSolicitante"
+                    aria-label="Buscar solicitante"
+                  >
+                </div>
+                <div class="border rounded p-2 mb-3" style="max-height: 220px; overflow:auto;">
+                  <div class="form-check" v-for="u in solicitantesFiltrados" :key="u">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      :id="'m_u_'+normalize(u)"
+                      :checked="tempSolicitanteSelSet.has(u)"
+                      @change="toggleTempSolicitante(u)"
+                    >
+                    <label class="form-check-label" :for="'m_u_'+normalize(u)">{{ u }}</label>
+                  </div>
+                </div>
+
+                <!-- Solo mis SOLPED -->
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="m_chkOnlyMine"
+                      v-model="onlyMine"
+                    >
+                    <label class="form-check-label" for="m_chkOnlyMine">
+                      Ver sólo mis SOLPED
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Tamaño de página -->
+                <div class="mb-0">
+                  <label class="form-label">Tamaño de página</label>
+                  <select class="form-select" v-model.number="pageSize">
+                    <option v-for="n in pageSizeOptions" :key="n" :value="n">{{ n }}</option>
+                  </select>
+                </div>
+              </div>
+
             </div>
           </div>
-        </div>
+        </transition>
 
         <!-- FAB filtros (móvil) -->
         <button
-          class="filter-fab btn btn-primary d-lg-none"
+          class="btn btn-primary floating-filters-btn d-lg-none"
           type="button"
           title="Filtros"
-          @click="openFiltersOffcanvas"
+          @click="openFiltersMobile"
         >
           <i class="bi bi-funnel"></i>
+        </button>
+        <button
+          class="btn btn-primary floating-filters-btn d-lg-none"
+          @click="openFiltersMobile"
+          :title="showFiltersMobile ? 'Ocultar filtros' : 'Mostrar filtros'"
+          aria-label="Abrir filtros"
+        >
+          <i class="bi bi-funnel" aria-hidden="true"></i>
         </button>
 
         <!-- ========= MODAL EDICIÓN SOLPED TALLER ========= -->
@@ -715,7 +760,6 @@
               </div>
 
               <div class="modal-footer">
-                <small class="text-muted me-auto">Sólo editable por el dueño (usuario_sesion) o por rol (Aprobador/Editor/Editor/Admin), el mismo día y dentro de 24h desde la creación.</small>
                 <button class="btn btn-outline-secondary" @click="cerrarEditar">Cancelar</button>
                 <button class="btn btn-primary" :disabled="savingEdit" @click="guardarEdicion">
                   <span v-if="savingEdit" class="spinner-border spinner-border-sm me-2"></span>
@@ -755,13 +799,10 @@ export default {
     const loadingSearch = ref(false);
 
     // Buscar exacto
-    const numeroBusqueda = ref(null);
+    const numeroBusqueda = ref("");
     const solpeEncontrada = ref(null);
 
-    // =========================
-    // Tiempo real: SOLPED Taller
-    // =========================
-    const REALTIME_LIMIT = 800; // escucha los más recientes (ajusta si necesitas más)
+    const REALTIME_LIMIT = 800; // escucha los más recientes
     let solpesUnsub = null;
 
     // Datos y filtros
@@ -837,7 +878,7 @@ export default {
     const busquedaSolicitante = ref("");
     const onlyMine = ref(false);
 
-    // Centros de costo (…)
+    // Centros de costo (map)
     const centrosCosto = {
       "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
       "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
@@ -1004,7 +1045,7 @@ export default {
     const persistOnlyMine = () => { persistFilters(); goPage(1); };
     const toggleSidebar = () => {
       showSidebar.value = !showSidebar.value;
-      try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? "1" : "0"); } catch { /* noop */ }
+      try { localStorage.setItem(LS_SHOW_SIDEBAR, showSidebar.value ? "1" : "0"); } catch(e) { console.log(e) }
     };
     const persistPageSize = () => { persistFilters(); goPage(1); };
 
@@ -1058,6 +1099,7 @@ export default {
         snap.forEach((d) => {
           const data = d.data() || {};
           const comentarios = Array.isArray(data.comentarios) ? data.comentarios.map(c => ({
+
             ...c,
             fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
             vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : []
@@ -1141,7 +1183,7 @@ export default {
 
     const stopAllOCListeners = () => {
       for (const unsub of _ocUnsubs.values()) {
-        try { unsub(); } catch(e) {console.error(e);}
+        try { unsub(); } catch(e) {console.error(e); }
       }
       _ocUnsubs.clear();
       _ocBySolped.value = new Map();
@@ -1190,8 +1232,7 @@ export default {
 
       if (solpeExpandidaId.value === s.id) {
         await marcarComentariosVistos(s);
-        await ensureOCListener(s.id); // arranca realtime de OCs
-        // reinit dropdowns por cambio de DOM al expandir
+        await ensureOCListener(s.id);
         await nextTick();
         disposeDropdowns();
         await ensureDropdownClass();
@@ -1234,9 +1275,17 @@ export default {
 
     const aplicarFiltros = (arr) => {
       const q = normalize(filtroTexto.value);
-      const from = fechaDesde.value ? new Date(fechaDesde.value) : null;
-      const to = fechaHasta.value ? new Date(fechaHasta.value) : null;
-      if (to) to.setHours(23,59,59,999);
+
+      let from = fechaDesde.value ? new Date(fechaDesde.value) : null;
+      let to   = fechaHasta.value ? new Date(fechaHasta.value) : null;
+
+      if (from && to && from > to) {
+        const tmp = from;
+        from = to;
+        to   = tmp;
+      }
+
+      if (to) to.setHours(23, 59, 59, 999);
 
       const fe = filtroEstatus.value || [];
       const fs = filtroSolicitante.value || [];
@@ -1245,7 +1294,10 @@ export default {
       const nameMine = (myFullName.value || "").toUpperCase();
 
       const filtered = (arr || []).filter(s => {
-        if (onlyMine.value && nameMine && (s.nombre_solicitante||"").toUpperCase() !== nameMine) return false;
+
+        if (onlyMine.value && nameMine && (s.nombre_solicitante||"").toUpperCase() !== nameMine) {
+          return false;
+        }
 
         if (from || to) {
           const d = s.fecha ? new Date(s.fecha) : null;
@@ -1356,18 +1408,35 @@ export default {
 
         const refd = doc(db, "solped_taller", s.id);
 
-        if (estatus === "Completado") {
-          const itemsUpd = (s.items || []).map(it => ({ ...it, estado: "completado" }));
+        // Cuando la SOLPED queda Completado o Rechazado,
+        // actualizamos también el estado de TODOS los ítems
+        if (estatus === "Completado" || estatus === "Rechazado") {
+          const estadoItem = estatus === "Completado" ? "completado" : "rechazado";
+
+          const itemsUpd = (s.items || []).map(it => ({
+            ...it,
+            estado: estadoItem
+          }));
+
           await updateDoc(refd, { estatus, items: itemsUpd });
           s.estatus = estatus;
           s.items = itemsUpd;
         } else {
+          // Otros estados solo cambian el estatus general
           await updateDoc(refd, { estatus });
           s.estatus = estatus;
         }
 
-        const usuario = myFullName.value || auth?.user?.displayName || auth?.user?.email || "Anónimo";
-        await addDoc(collection(db, "solped_taller", s.id, "historialEstados"), { fecha: new Date(), estatus, usuario });
+        const usuario =
+          myFullName.value ||
+          auth?.user?.displayName ||
+          auth?.user?.email ||
+          "Anónimo";
+
+        await addDoc(
+          collection(db, "solped_taller", s.id, "historialEstados"),
+          { fecha: new Date(), estatus, usuario }
+        );
 
         restoreScrollSoon();
       } catch (e) {
@@ -1452,24 +1521,88 @@ export default {
         error.value = 'No se pudo preparar la copia para Crear SOLPED.';
       }
     };
-
-    // Buscar exacto
-    const buscarSolpeExacta = async () => {
+    const limpiarBusquedaExacta = async () => {
+      numeroBusqueda.value = "";
       solpeEncontrada.value = null;
-      const n = Number(numeroBusqueda.value || 0);
-      if (!n) return;
+      error.value = "";
+      // quitar filtro de texto y volver a la lista completa
+      filtroTexto.value = "";
+      await goPage(1);
+    };
+
+    const buscarSolpeExacta = async () => {
+      // limpiar estado previo
+      error.value = "";
+      solpeEncontrada.value = null;
+
+      const raw = (numeroBusqueda.value ?? "").toString().trim();
+      if (!raw) {
+        // si está vacío, volvemos a la normalidad: sin filtro de texto
+        filtroTexto.value = "";
+        await goPage(1);
+        return;
+      }
+
       loadingSearch.value = true;
       try {
-        const qy = query(collection(db, "solped_taller"), where("numero_solpe", "==", n), limit(1));
-        const snap = await getDocs(qy);
-        if (!snap.empty) {
-          const d = snap.docs[0];
-          const data = d.data() || {};
-          solpeEncontrada.value = {
-            id: d.id,
-            ...data,
-            comentarios: Array.isArray(data.comentarios) ? data.comentarios : []
-          };
+        const termNorm = normalize(raw);
+
+        filtroTexto.value = raw;
+
+        let found = null;
+
+        if (/^\d+$/.test(raw)) {
+          const n = Number(raw);
+          const qy = query(
+            collection(db, "solped_taller"),
+            where("numero_solpe", "==", n),
+            limit(1)
+          );
+          const snap = await getDocs(qy);
+          if (!snap.empty) {
+            const d = snap.docs[0];
+            const data = d.data() || {};
+            found = {
+              id: d.id,
+              ...data,
+              comentarios: Array.isArray(data.comentarios) ? data.comentarios : []
+            };
+          }
+        }
+
+        if (!found) {
+          const list = solpesOriginal.value || [];
+
+          const match = list.find((s) => {
+            const camposBase = [
+              s.numero_solpe?.toString() || "",
+              s.centro_costo || "",
+              s.tipo_solped || "",
+              s.empresa || "",
+              s.nombre_solicitante || "",
+            ];
+
+            const camposItems = Array.isArray(s.items)
+              ? s.items.flatMap((it) => [
+                  it.descripcion || "",
+                  it.codigo_referencial || "",
+                  it.numero_interno || "",
+                ])
+              : [];
+
+            const texto = [...camposBase, ...camposItems].join(" | ");
+            return normalize(texto).includes(termNorm);
+          });
+
+          if (match) {
+            found = match; // ya viene con items y comentarios del snapshot en tiempo real
+          }
+        }
+
+        if (found) {
+          solpeEncontrada.value = found;
+        } else {
+          error.value = "No se encontró ninguna SOLPED Taller con ese criterio.";
         }
       } catch (e) {
         console.error(e);
@@ -1582,69 +1715,22 @@ export default {
       } catch { /* noop */ }
     };
 
-    // ====== Offcanvas (móvil) ======
-    const filtersOffcanvasEl = ref(null);
-    const filtersOffcanvasId = `filtersOffcanvas-${Math.random().toString(36).slice(2)}`;
-    let OffcanvasClass = null;
-    let offcanvasInstance = null;
+    // ====== Offcanvas móvil custom ======
+    const showFiltersMobile = ref(false);
 
-    const ensureOffcanvasInstance = async () => {
-      if (!OffcanvasClass) {
-        try {
-          OffcanvasClass = (await import('bootstrap/js/dist/offcanvas')).default;
-        } catch {
-          OffcanvasClass = window?.bootstrap?.Offcanvas || null;
-        }
-      }
-      if (filtersOffcanvasEl.value && !offcanvasInstance && OffcanvasClass) {
-        offcanvasInstance = OffcanvasClass.getOrCreateInstance(filtersOffcanvasEl.value, {
-          backdrop: true,
-          scroll: true,
-          keyboard: true
-        });
-
-        filtersOffcanvasEl.value.addEventListener('show.bs.offcanvas', () => {
-          document.querySelectorAll('.offcanvas.show').forEach(el => {
-            if (el !== filtersOffcanvasEl.value) {
-              try { OffcanvasClass.getOrCreateInstance(el).hide(); } catch(e) { console.error(e); }
-            }
-          });
-          document.querySelectorAll('.navbar-collapse.show').forEach(el => { el.classList.remove('show'); });
-        });
-
-        filtersOffcanvasEl.value.addEventListener('shown.bs.offcanvas', () => {
-          document.body.classList.add('filters-open');
-        });
-        filtersOffcanvasEl.value.addEventListener('hidden.bs.offcanvas', async () => {
-          document.body.classList.remove('filters-open');
-          // Reinicializa dropdowns tras cerrar filtros (DOM pudo cambiar)
-          await nextTick();
-          disposeDropdowns();
-          await ensureDropdownClass();
-          initDropdownsIn();
-        });
-      }
+    const openFiltersMobile = () => {
+      showFiltersMobile.value = true;
+      document.body.classList.add("filters-open");
     };
 
-    const openFiltersOffcanvas = async () => {
-      await ensureOffcanvasInstance();
-      if (!offcanvasInstance) return;
-      document.querySelectorAll('.offcanvas.show').forEach(el => {
-        if (el !== filtersOffcanvasEl.value) {
-          try { OffcanvasClass.getOrCreateInstance(el).hide(); } catch (e) { console.error(e);}
-        }
-      });
-      document.querySelectorAll('.navbar-collapse.show').forEach(el => { el.classList.remove('show'); });
-      offcanvasInstance.show();
+    const closeFiltersMobile = () => {
+      showFiltersMobile.value = false;
+      document.body.classList.remove("filters-open");
     };
 
-    const closeFiltersOffcanvas = () => {
-      if (offcanvasInstance) offcanvasInstance.hide();
-    };
-
-    const applyAndClose = () => {
+    const applyFiltersAndClose = () => {
       applySolicitantesFiltro();
-      closeFiltersOffcanvas();
+      closeFiltersMobile();
     };
 
     // ====== Edición ======
@@ -1814,8 +1900,7 @@ export default {
       // Arranca TIEMPO REAL
       startRealtimeSolpes();
 
-      // Bootstrap Offcanvas + Dropdown
-      await ensureOffcanvasInstance();
+      // Bootstrap Dropdown
       await ensureDropdownClass();
 
       // Inicializa dropdowns tras primer render
@@ -1828,10 +1913,10 @@ export default {
 
     onUnmounted(() => {
       window.removeEventListener("storage", syncFromStorageEvent);
-      try { if (offcanvasInstance) offcanvasInstance.dispose?.(); } catch (e) { console.error(e); }
       stopAllOCListeners();
       stopRealtimeSolpes();
       disposeDropdowns();
+      document.body.classList.remove("filters-open");
     });
 
     // Recalcular/persistir filtros
@@ -1854,7 +1939,7 @@ export default {
     });
 
     // Constantes
-    const listaEstatus = ["Completado","Preaprobado","Rechazado","Pendiente","Parcial"];
+    const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial"];
 
     // Autorización
     const abrirAutorizacion = (s) => { if (!s?.autorizacion_url) return; window.open(s.autorizacion_url, "_blank"); };
@@ -1902,7 +1987,7 @@ export default {
       setStatus, setItemStatus,
       descargarExcel, volver, onExpandCard, marcarComentariosVistos,
       abrirAutorizacion, descargarAutorizacion, agregarComentario,
-      buscarSolpeExacta, goOC, verDetalleSolped,
+      buscarSolpeExacta, goOC, verDetalleSolped, limpiarBusquedaExacta,
 
       // helpers
       formatDateTime, estadoChipStyle, getBadgeColor, solicitantesFiltrados, normalize,
@@ -1925,10 +2010,14 @@ export default {
       puedeEditarSolped, puedeEditarPorRol, abrirEditar, cerrarEditar,
       agregarItem, eliminarItem, guardarEdicion,
 
-      // offcanvas
-      filtersOffcanvasEl, filtersOffcanvasId,
-      openFiltersOffcanvas, closeFiltersOffcanvas, applyAndClose,
-      prepararCopiaParaCrear
+      // offcanvas móvil custom
+      showFiltersMobile,
+      openFiltersMobile,
+      closeFiltersMobile,
+      applyFiltersAndClose,prepararCopiaParaCrear,
+
+      // para sesión
+      myUid
     };
   }
 };
@@ -1971,6 +2060,16 @@ export default {
 @keyframes fadeSlideIn{
   from{ opacity:0; transform: translateY(-4px); }
   to{ opacity:1; transform: translateY(0); }
+}
+/* Botón flotante filtros en móvil */
+.floating-filters-btn{
+  position: fixed;
+  right: 16px; bottom: 16px;
+  z-index: 20;
+  border-radius: 10px;
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  box-shadow: 0 10px 20px rgba(0,0,0,.2);
 }
 
 /* ===== Cards elevadas ===== */
@@ -2070,40 +2169,6 @@ export default {
 .table.table-sm thead th{ vertical-align: middle; font-weight:700; color:#111827; }
 .table.table-sm tbody td{ vertical-align: middle; }
 
-/* ===== Topbar responsive tweaks ===== */
-.topbar .btn{
-  white-space: nowrap;
-}
-
-/* ===== Offcanvas base ===== */
-.offcanvas{
-  --bs-offcanvas-width: min(92vw, 420px);
-  z-index: 1040;
-}
-
-.offcanvas-filtros{
-  top: 56px;
-  max-height: calc(100vh - 56px);
-  border-top-left-radius: 12px;
-  border-bottom-left-radius: 12px;
-  z-index: 1065;
-}
-
-:global(.offcanvas-backdrop.show){
-  opacity: .18;
-}
-
-:global(body.filters-open .topbar .d-lg-none .btn){
-  visibility: hidden;
-  pointer-events: none;
-}
-
-:global(body.filters-open .btn-menu-flotante),
-:global(body.filters-open .btn-hamburguesa){
-  visibility: hidden;
-  pointer-events: none;
-}
-
 /* ---------- FAB (botón flotante de filtros) ---------- */
 .filter-fab{
   position: fixed;
@@ -2116,9 +2181,89 @@ export default {
   z-index: 1066;
 }
 
+/* ====== Overlay Offcanvas Custom (móvil) ====== */
+.oc-wrap{
+  position: fixed;
+  inset: 0;
+  z-index: 1065;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.oc-backdrop{
+  flex: 1;
+  background: rgba(15,23,42,.35);
+}
+
+.oc-panel{
+  width: min(92vw, 420px);
+  max-width: 520px;
+  height: 100%;
+  background: var(--bs-body-bg,#fff);
+  box-shadow: -8px 0 24px rgba(15,23,42,.25);
+  display: flex;
+  flex-direction: column;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.oc-header{
+  padding: .75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+}
+
+.oc-body{
+  padding: 1rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.oc-footer{
+  padding: .75rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* Animaciones de aparición (slide desde la derecha) */
+.oc-enter-active,
+.oc-leave-active{
+  transition: opacity .18s ease-out;
+}
+.oc-enter-from,
+.oc-leave-to{
+  opacity:0;
+}
+
+.oc-enter-active .oc-panel,
+.oc-leave-active .oc-panel{
+  transition: transform .22s ease-out;
+}
+.oc-enter-from .oc-panel,
+.oc-leave-to .oc-panel{
+  transform: translateX(100%);
+}
+
+/* Ajuste de padding cuando está abierto el overlay en móvil */
 @media (max-width: 991.98px){
   .historial-taller-page .container{
     padding-bottom: 84px;
   }
+}
+
+/* Ocultar botones flotantes genéricos cuando el overlay está abierto (si los tienes en layout global) */
+:global(body.filters-open .topbar .d-lg-none .btn){
+  visibility: hidden;
+  pointer-events: none;
+}
+
+:global(body.filters-open .btn-menu-flotante),
+:global(body.filters-open .btn-hamburguesa){
+  visibility: hidden;
+  pointer-events: none;
 }
 </style>

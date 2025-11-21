@@ -60,7 +60,6 @@
         <div id="lbl-busqueda-exacta" class="fw-semibold">
           🔎 Buscar SOLPED (número, nombre o ítems)
         </div>
-        <div class="small text-secondary">Consulta directa (no carga todo)</div>
       </div>
 
       <div class="card-body">
@@ -71,7 +70,7 @@
               class="form-control"
               v-model="numeroBusquedaExacta"
               @keyup.enter="buscarSolpeExacta"
-              placeholder="N° SOLPED, código ref., descripción, N° interno, nombre SOLPED…"
+              placeholder="Ej: 11, 27483, REPUESTOS, COD123…"
               aria-label="Buscar SOLPED"
             >
           </div>
@@ -82,8 +81,8 @@
             </button>
             <button
               class="btn btn-outline-secondary"
-              v-if="enModoBusqueda"
-              @click="limpiarBusqueda"
+              v-if="enModoBusqueda || numeroBusquedaExacta || error"
+              @click="limpiarBusqueda()"
             >
               Limpiar búsqueda
             </button>
@@ -118,11 +117,21 @@
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2" v-if="hasActiveFilters">
         <small class="text-secondary">Filtros:</small>
 
-        <span v-if="filtroFecha" class="badge bg-light text-dark border">
-          Fecha: {{ filtroFecha }}
-          <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; applyFilters()" aria-label="Quitar filtro fecha"></button>
+        <span
+          v-if="filtroFechaDesde || filtroFechaHasta"
+          class="badge bg-light text-dark border"
+        >
+          Fecha:
+          <template v-if="filtroFechaDesde && filtroFechaHasta">
+            {{ filtroFechaDesde }} → {{ filtroFechaHasta }}
+          </template>
+          <template v-else-if="filtroFechaDesde">
+            desde {{ filtroFechaDesde }}
+          </template>
+          <template v-else>
+            hasta {{ filtroFechaHasta }}
+          </template>
         </span>
-
         <span v-for="s in filtroEstatus" :key="'es-'+s" class="badge bg-light text-dark border">
           {{ s }}
           <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(s)" :aria-label="`Quitar estado ${s}`"></button>
@@ -314,6 +323,7 @@
                           <th>Descripción</th>
                           <th class="d-none d-md-table-cell">Código</th>
                           <th>Cantidad</th>
+                          <th>Stock</th>
                           <th class="d-none d-lg-table-cell">Cant. Cotizada</th>
                           <th class="d-none d-lg-table-cell">N° Interno</th>
                           <th class="d-none d-md-table-cell">Imagen</th>
@@ -327,7 +337,8 @@
                           <td class="w-25">{{ it.descripcion }}</td>
                           <td class="d-none d-md-table-cell">{{ it.codigo_referencial }}</td>
                           <td>{{ it.cantidad }}</td>
-                          <td class="d-none d-lg-table-cell">{{ it.cantidad_cotizada || '' }}</td>
+                          <td>{{ it.stock }}</td>
+                          <td class="d-none d-lg-table-cell">{{ it.cantidad_cotizada || '0' }}</td>
                           <td class="d-none d-lg-table-cell">{{ it.numero_interno }}</td>
                           <td class="d-none d-md-table-cell">
                             <template v-if="it.imagen_url || it.imagen_referencia_base64">
@@ -539,8 +550,25 @@
             </div>
             <div class="card-body">
               <div class="mb-3">
-                <label class="form-label">Fecha</label>
-                <input type="date" class="form-control" v-model="filtroFecha">
+                <label class="form-label">Fecha (rango)</label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <input
+                      type="date"
+                      class="form-control"
+                      v-model="filtroFechaDesde"
+                      aria-label="Fecha desde"
+                    />
+                  </div>
+                  <div class="col-6">
+                    <input
+                      type="date"
+                      class="form-control"
+                      v-model="filtroFechaHasta"
+                      aria-label="Fecha hasta"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div class="mb-3">
@@ -602,7 +630,6 @@
                          @change="toggleOnlyDirected($event.target.checked)">
                   <label class="form-check-label" for="chkOnlyDirected">Ver sólo dirigidas a mí</label>
                 </div>
-                <small class="text-secondary d-block mt-1">Estas opciones se guardan sólo si las marcas.</small>
               </div>
 
               <div class="mb-0">
@@ -643,10 +670,29 @@
 
           <div class="oc-body">
             <!-- Fecha -->
+
             <div class="mb-3">
               <label class="form-label">Fecha</label>
-              <input type="date" class="form-control" v-model="filtroFecha">
+              <div class="row g-2">
+                <div class="col-6">
+                  <input
+                    type="date"
+                    class="form-control"
+                    v-model="filtroFechaDesde"
+                    aria-label="Fecha desde"
+                  />
+                </div>
+                <div class="col-6">
+                  <input
+                    type="date"
+                    class="form-control"
+                    v-model="filtroFechaHasta"
+                    aria-label="Fecha hasta"
+                  />
+                </div>
+              </div>
             </div>
+
 
             <!-- Estado -->
             <div class="mb-3">
@@ -708,7 +754,6 @@
                        @change="toggleOnlyDirected($event.target.checked)">
                 <label class="form-check-label" for="m_chkOnlyDirected">Ver sólo dirigidas a mí</label>
               </div>
-              <small class="text-secondary d-block mt-1">Estas opciones se guardan sólo si las marcas.</small>
             </div>
 
             <!-- Tamaño de página -->
@@ -718,11 +763,6 @@
                 <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
               </select>
             </div>
-          </div>
-
-          <div class="oc-footer">
-            <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
-            <button class="btn btn-success" @click="applyFilters(); closeFiltersMobile()">Aplicar</button>
           </div>
         </div>
       </div>
@@ -921,16 +961,19 @@ const volver = () => router.back();
 
 /* ---------- LocalStorage helpers ---------- */
 const LS = {
-  SHOW_SIDEBAR:      'historial_show_sidebar',
-  FILTRO_FECHA:      'historial_filtro_fecha',
-  FILTRO_ESTATUS:    'historial_filtro_estatus',
-  SELECTED_CENTROS:  'historial_cc_sel',
-  USUARIOS_TEMP:     'historial_usuarios_temp',
-  EMPRESA_SEG:       'historial_empresa_seg',
-  PAGE_SIZE:         'historial_page_size',
-  ONLY_DIRECTED:     'historial_only_directed',
-  ONLY_MINE:         'historial_only_mine',
+  SHOW_SIDEBAR:        'historial_show_sidebar',
+  FILTRO_FECHA:        'historial_filtro_fecha',         // compat (antes 1 sola fecha)
+  FILTRO_FECHA_DESDE:  'historial_filtro_fecha_desde',   // nuevo
+  FILTRO_FECHA_HASTA:  'historial_filtro_fecha_hasta',   // nuevo
+  FILTRO_ESTATUS:      'historial_filtro_estatus',
+  SELECTED_CENTROS:    'historial_cc_sel',
+  USUARIOS_TEMP:       'historial_usuarios_temp',
+  EMPRESA_SEG:         'historial_empresa_seg',
+  PAGE_SIZE:           'historial_page_size',
+  ONLY_DIRECTED:       'historial_only_directed',
+  ONLY_MINE:           'historial_only_mine',
 };
+
 const safeRead = (k, def=null) => {
   try {
     const v = localStorage.getItem(k);
@@ -975,14 +1018,17 @@ const solpeEncontrada = ref(null);
 const enModoBusqueda = ref(false);
 const resultadosBusqueda = ref([]);
 const limpiarBusqueda = () => {
+
+  numeroBusquedaExacta.value = '';
+  error.value = '';
   enModoBusqueda.value = false;
   resultadosBusqueda.value = [];
   solpeEncontrada.value = null;
-  // NO borro el texto por si quieres corregirlo, pero si quieres:
-  // numeroBusquedaExacta.value = '';
-  // volvemos al modo normal (paginado + filtros)
+
+
   applyFilters();
 };
+
 const buscarSolpeExacta = async () => {
   solpeEncontrada.value = null;
   error.value = '';
@@ -1063,12 +1109,25 @@ const buscarSolpeExacta = async () => {
 
     snap.forEach(d => {
       const data = d.data() || {};
+
       const nombreSolped = (data.nombre_solped || '').toString().toLowerCase();
+      const numSolpeStr  = (data.numero_solpe ?? '').toString().toLowerCase();
+      const contratoStr  = (data.numero_contrato ?? '').toString().toLowerCase();
+      const empresaStr   = (data.empresa ?? '').toString().toLowerCase();
+      const usuarioStr   = (data.usuario ?? '').toString().toLowerCase();
+
       const items = Array.isArray(data.items) ? data.items : [];
 
-      const matchNombre = nombreSolped.includes(term);
+      // “todo lo que contiene”, da igual mayúsculas/minúsculas
+      const matchHeader =
+        nombreSolped.includes(term) ||
+        numSolpeStr.includes(term)  ||
+        contratoStr.includes(term)  ||
+        empresaStr.includes(term)   ||
+        usuarioStr.includes(term);
+
       const matchItems = items.some(it => {
-        const cod = (it.codigo_referencial || '').toString().toLowerCase();
+        const cod  = (it.codigo_referencial || '').toString().toLowerCase();
         const desc = (it.descripcion || '').toString().toLowerCase();
         const numi = (it.numero_interno || '').toString().toLowerCase();
         return (
@@ -1078,7 +1137,7 @@ const buscarSolpeExacta = async () => {
         );
       });
 
-      if (matchNombre || matchItems) {
+      if (matchHeader || matchItems) {
         const comentarios = Array.isArray(data.comentarios)
           ? data.comentarios.map(c => ({
               ...c,
@@ -1133,19 +1192,37 @@ const myUid = computed(() => (auth?.user?.uid || '').toString());
 const myEmail = computed(() => (auth?.user?.email || '').toLowerCase());
 const myFullName = ref('');
 
+
 /* ---------- Filtros persistentes ---------- */
-const filtroFecha = ref('');
+const filtroFechaDesde = ref('');  // nuevo
+const filtroFechaHasta = ref('');  // nuevo
 const filtroEstatus = ref([]);
 const filtroUsuario = ref([]);
 const onlyDirectedToMe = ref(false);
 const onlyMine = ref(false);
 const empresaSegmento = ref('todas');
-const toggleOnlyDirected = (val) => { onlyDirectedToMe.value = !!val; safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value); applyFilters(); };
-const toggleOnlyMine = (val) => { onlyMine.value = !!val; safeWrite(LS.ONLY_MINE, onlyMine.value); applyFilters(); };
+
+const toggleOnlyDirected = (val) => {
+  onlyDirectedToMe.value = !!val;
+  safeWrite(LS.ONLY_DIRECTED, onlyDirectedToMe.value);
+  applyFilters();
+};
+const toggleOnlyMine = (val) => {
+  onlyMine.value = !!val;
+  safeWrite(LS.ONLY_MINE, onlyMine.value);
+  applyFilters();
+};
+
 const hasActiveFilters = computed(() =>
-  !!filtroFecha.value || filtroEstatus.value.length || filtroUsuario.value.length ||
-  onlyDirectedToMe.value || onlyMine.value || empresaSegmento.value !== 'todas' || selectedCentros.value.length > 0
+  !!filtroFechaDesde.value || !!filtroFechaHasta.value ||
+  filtroEstatus.value.length ||
+  filtroUsuario.value.length ||
+  onlyDirectedToMe.value ||
+  onlyMine.value ||
+  empresaSegmento.value !== 'todas' ||
+  selectedCentros.value.length > 0
 );
+
 
 /* ---------- Centros de costo ---------- */
 const centrosMap = ref({});
@@ -1408,18 +1485,42 @@ function disposeDropdowns() {
   }
 }
 /* ---------- Query builder ---------- */
+const fromStr = filtroFechaDesde.value;
+const toStr   = filtroFechaHasta.value;
 const buildWhere = () => {
   const wh = [];
   if (empresaSegmento.value !== 'todas') wh.push(where('empresa','==',empresaSegmento.value));
   if (filtroEstatus.value.length === 1) wh.push(where('estatus','==',filtroEstatus.value[0]));
   else if (filtroEstatus.value.length > 1) wh.push(where('estatus','in', filtroEstatus.value.slice(0,10)));
-  if (filtroFecha.value) {
+  if (fromStr || toStr) {
     try {
-      const start = new Date(`${filtroFecha.value}T00:00:00`);
-      const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
-      wh.push(where('createdAt','>=',start));
-      wh.push(where('createdAt','<=',end));
-    } catch(e) { console.error(e);}
+      let start, end;
+
+      if (fromStr && toStr) {
+        start = new Date(`${fromStr}T00:00:00`);
+        end   = new Date(`${toStr}T23:59:59.999`);
+
+        // 🔁 normalizar si el usuario las puso al revés
+        if (start > end) {
+          const tmp = start;
+          start = end;
+          end = tmp;
+        }
+      } else if (fromStr) {
+        // Sólo desde -> se toma ese día completo
+        start = new Date(`${fromStr}T00:00:00`);
+        end   = new Date(`${fromStr}T23:59:59.999`);
+      } else if (toStr) {
+        // Sólo hasta -> se toma ese día completo
+        start = new Date(`${toStr}T00:00:00`);
+        end   = new Date(`${toStr}T23:59:59.999`);
+      }
+
+      wh.push(where('createdAt', '>=', start));
+      wh.push(where('createdAt', '<=', end));
+    } catch (e) {
+      console.error(e);
+    }
   }
   if (onlyMine.value && myFullName.value) wh.push(where('usuario','==', myFullName.value));
 
@@ -1552,7 +1653,12 @@ const loadUsuarios = async () => {
 /* ---------- Acciones ---------- */
 const applyFilters = () => {
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
-  safeWrite(LS.FILTRO_FECHA, filtroFecha.value || '');
+
+  // Guardar rango de fecha
+  safeWrite(LS.FILTRO_FECHA_DESDE, filtroFechaDesde.value || '');
+  safeWrite(LS.FILTRO_FECHA_HASTA, filtroFechaHasta.value || '');
+  // (dejamos de usar FILTRO_FECHA antiguo salvo para compat de lectura)
+
   safeWrite(LS.FILTRO_ESTATUS, filtroEstatus.value || []);
   safeWrite(LS.SELECTED_CENTROS, selectedCentros.value || []);
   safeWrite(LS.USUARIOS_TEMP, Array.from(tempUsuarioSelSet.value || new Set()));
@@ -1565,8 +1671,10 @@ const applyFilters = () => {
   subscribePage();
   refreshCount();
 };
+
 const limpiarFiltros = () => {
-  filtroFecha.value = '';
+  filtroFechaDesde.value = '';
+  filtroFechaHasta.value = '';
   filtroEstatus.value = [];
   filtroUsuario.value = [];
   tempUsuarioSelSet.value.clear();
@@ -1577,11 +1685,22 @@ const limpiarFiltros = () => {
   empresaSegmento.value = 'todas';
   pageSize.value = 10;
 
-  [LS.FILTRO_FECHA, LS.FILTRO_ESTATUS, LS.SELECTED_CENTROS, LS.USUARIOS_TEMP,
-   LS.EMPRESA_SEG, LS.PAGE_SIZE, LS.ONLY_DIRECTED, LS.ONLY_MINE].forEach(safeRemove);
+  [
+    LS.FILTRO_FECHA,
+    LS.FILTRO_FECHA_DESDE,
+    LS.FILTRO_FECHA_HASTA,
+    LS.FILTRO_ESTATUS,
+    LS.SELECTED_CENTROS,
+    LS.USUARIOS_TEMP,
+    LS.EMPRESA_SEG,
+    LS.PAGE_SIZE,
+    LS.ONLY_DIRECTED,
+    LS.ONLY_MINE
+  ].forEach(safeRemove);
 
   applyFilters();
 };
+
 const extFromName = (name = '') => { const m = String(name).match(/\.([a-z0-9]+)$/i); return m ? m[1].toLowerCase() : ''; };
 const iconFromExt = (ext) => {
   const e = (ext||'').toLowerCase();
@@ -1757,11 +1876,11 @@ const descargarExcel = (solpe) => {
 
     (solpe.items||[]).forEach(it => (it.comparaciones||[]).forEach(c => { if (c?.empresa) empresasSet.add(String(c.empresa).toUpperCase()); }));
     const empresas = Array.from(empresasSet);
-    const baseHeaders = ['ITEM','CANTIDAD','CANTIDAD COTIZADA','DESCRIPCIÓN','CODIGO_REFERENCIAL','ESTATUS'];
+    const baseHeaders = ['ITEM','CANTIDAD','STOCK','CANTIDAD COTIZADA','DESCRIPCIÓN','CODIGO_REFERENCIAL','ESTATUS'];
     data.push([...baseHeaders, ...empresas]);
 
     (solpe.items||[]).forEach((it,idx)=>{
-      const filaBase=[ it?.item ?? (idx+1), it?.cantidad ?? '', it?.cantidad_cotizada ?? '', it?.descripcion ?? '', it?.codigo_referencial ?? '', it?.estado ?? '' ];
+      const filaBase=[ it?.item ?? (idx+1), it?.cantidad ?? '',it?.stock ?? '0', it?.cantidad_cotizada ?? '0', it?.descripcion ?? '', it?.codigo_referencial ?? '', it?.estado ?? '' ];
       const preciosPorEmpresa={};
       (it?.comparaciones||[]).forEach(comp=>{
         const emp = comp?.empresa ? String(comp.empresa).toUpperCase() : '';
@@ -1873,9 +1992,11 @@ onMounted(async () => {
   window.addEventListener('resize', handleResize);
 
   // Restaurar persistencia
-  const savedSidebar = safeRead(LS.SHOW_SIDEBAR, true);
-  const savedFecha   = safeRead(LS.FILTRO_FECHA, '');
-  const savedEstatus = safeRead(LS.FILTRO_ESTATUS, []);
+  const savedSidebar      = safeRead(LS.SHOW_SIDEBAR, true);
+  const savedFechaSingle  = safeRead(LS.FILTRO_FECHA, ''); // compat antigua
+  const savedFechaDesde   = safeRead(LS.FILTRO_FECHA_DESDE, savedFechaSingle || '');
+  const savedFechaHasta   = safeRead(LS.FILTRO_FECHA_HASTA, '');
+  const savedEstatus      = safeRead(LS.FILTRO_ESTATUS, []);
   const savedCC      = safeRead(LS.SELECTED_CENTROS, []);
   const savedUsers   = safeRead(LS.USUARIOS_TEMP, []);
   const savedEmpSeg  = safeRead(LS.EMPRESA_SEG, 'todas');
@@ -1883,9 +2004,10 @@ onMounted(async () => {
   const savedOnlyDir = !!safeRead(LS.ONLY_DIRECTED, false);
   const savedOnlyMine= !!safeRead(LS.ONLY_MINE, false);
 
-  showSidebar.value      = Boolean(savedSidebar);
-  filtroFecha.value      = typeof savedFecha === 'string' ? savedFecha : '';
-  filtroEstatus.value    = Array.isArray(savedEstatus) ? savedEstatus : [];
+  showSidebar.value       = Boolean(savedSidebar);
+  filtroFechaDesde.value  = typeof savedFechaDesde === 'string' ? savedFechaDesde : '';
+  filtroFechaHasta.value  = typeof savedFechaHasta === 'string' ? savedFechaHasta : '';
+  filtroEstatus.value     = Array.isArray(savedEstatus) ? savedEstatus : [];
   selectedCentros.value  = Array.isArray(savedCC) ? savedCC : [];
   tempUsuarioSelSet.value= new Set(Array.isArray(savedUsers) ? savedUsers : []);
   empresaSegmento.value  = typeof savedEmpSeg === 'string' ? savedEmpSeg : 'todas';
@@ -1911,12 +2033,18 @@ onBeforeUnmount(() => {
 });
 
 /* ---------- Watchers ---------- */
-watch([empresaSegmento, filtroFecha, () => filtroEstatus.value.slice(), pageSize], () => { applyFilters(); });
+watch(
+  [empresaSegmento, filtroFechaDesde, filtroFechaHasta, () => filtroEstatus.value.slice(), pageSize],
+  () => {
+    applyFilters();
+  }
+);
 watch(showSidebar, (v)=> safeWrite(LS.SHOW_SIDEBAR, !!v));
 watch(selectedCentros, (v)=> safeWrite(LS.SELECTED_CENTROS, v || []), { deep:true });
 watch(tempUsuarioSelSet, (s)=> safeWrite(LS.USUARIOS_TEMP, Array.from(s || new Set())), { deep:true });
 watch(filtroUsuario, (v)=> safeWrite(LS.USUARIOS_TEMP, v || []), { deep:true });
-watch(()=>filtroFecha.value, (v)=> safeWrite(LS.FILTRO_FECHA, v || ''));
+watch(filtroFechaDesde, (v) => safeWrite(LS.FILTRO_FECHA_DESDE, v || ''));
+watch(filtroFechaHasta, (v) => safeWrite(LS.FILTRO_FECHA_HASTA, v || ''));
 
 /* ---------- Expand / marcar vistos ---------- */
 const solpeExpandidaId = ref(null);
