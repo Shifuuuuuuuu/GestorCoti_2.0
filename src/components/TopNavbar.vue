@@ -1,17 +1,18 @@
 <!-- src/components/TopNavbar.vue -->
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authService";
 import { useUIStore } from "@/stores/ui";
 import { useRoleMenus } from "@/composables/useRoleMenus";
+import BrandCarousel from "@/components/BrandCarousel.vue";
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const ui = useUIStore();
 
-const isDark   = computed(() => ui.isDark);
+const isDark = computed(() => ui.isDark);
 const isNavbar = computed(() => ui.isNavbar);
 
 const { empresaMenu, tallerMenu, adminMenu } = useRoleMenus();
@@ -20,18 +21,38 @@ const isActive = (nameOrPath) =>
   !!nameOrPath && (route.name === nameOrPath || route.path === nameOrPath);
 
 const showEmpresaMenu = computed(() => empresaMenu.value.length > 0);
-const showTallerMenu  = computed(() => tallerMenu.value.length > 0);
-const showAdminMenu   = computed(() => adminMenu.value.length > 0);
+const showTallerMenu = computed(() => tallerMenu.value.length > 0);
+const showAdminMenu = computed(() => adminMenu.value.length > 0);
 
 const fullName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || "").trim());
 const role = computed(() => (auth?.profile?.role || auth?.role || "").trim());
 const photoUrl = computed(() =>
   auth?.user?.photoURL ||
   auth?.profile?.photoURL ||
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName.value || auth?.user?.email || 'User')}&background=EEE&color=111`
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    fullName.value || auth?.user?.email || "User"
+  )}&background=EEE&color=111`
 );
 
-/* ---------- Collapse 100% controlado por JS ---------- */
+const winW = ref(typeof window !== "undefined" ? window.innerWidth : 1200);
+const onResize = () => (winW.value = window.innerWidth);
+const isMobile = computed(() => winW.value < 992);
+
+const carouselW = computed(() => (isMobile.value ? 170 : 210));
+const carouselH = computed(() => (isMobile.value ? 30 : 34));
+
+
+const isMenuOpen = ref(false);
+function setBodyScrollLocked(locked) {
+  document.body.style.overflow = locked ? "hidden" : "";
+  document.documentElement.style.overflow = "";
+}
+const showSettings = ref(false);
+function syncScrollLock() {
+  setBodyScrollLocked(showSettings.value || isMenuOpen.value);
+}
+
+
 const collapseRef = ref(null);
 let collapseInst = null;
 
@@ -41,102 +62,186 @@ function getCollapse() {
   collapseInst = BS.getOrCreateInstance(collapseRef.value, { toggle: false });
   return collapseInst;
 }
-function toggleCollapse() { getCollapse()?.toggle(); }
-function closeCollapse()  { getCollapse()?.hide();  }
+function toggleCollapse() {
+  getCollapse()?.toggle();
+}
+function closeCollapse() {
+  getCollapse()?.hide();
+}
 
-const go = (loc) => { router.push(loc); closeCollapse(); };
-const logout = async () => { await auth.logout(); router.replace({ name: "login" }); };
+
+const dropdownToggles = ref([]);
+function setDropdownToggle(el) {
+  if (el && !dropdownToggles.value.includes(el)) dropdownToggles.value.push(el);
+}
+
+function initDropdowns() {
+  const Dropdown = window.bootstrap?.Dropdown;
+  if (!Dropdown) return;
+
+  dropdownToggles.value.forEach((el) => {
+    Dropdown.getOrCreateInstance(el, {
+      autoClose: true,
+      boundary: "clippingParents",
+    });
+  });
+}
+
+function closeAllDropdowns() {
+  const Dropdown = window.bootstrap?.Dropdown;
+  if (!Dropdown) return;
+  dropdownToggles.value.forEach((el) => Dropdown.getOrCreateInstance(el).hide());
+}
+
+async function refreshDropdowns() {
+  await nextTick();
+  initDropdowns();
+}
+
+
+const go = (loc) => {
+  closeAllDropdowns();
+  router.push(loc);
+  closeCollapse();
+};
+
+const logout = async () => {
+  closeAllDropdowns();
+  await auth.logout();
+  router.replace({ name: "login" });
+  closeCollapse();
+};
+
+const goInicioFromCarousel = () => {
+  closeAllDropdowns();
+  if (route.name !== "Inicio") router.push({ name: "Inicio" });
+  closeCollapse();
+};
 
 function handleDocClick(e) {
   if (!collapseRef.value) return;
   const isShown = collapseRef.value.classList.contains("show");
   if (!isShown) return;
+
   const nav = collapseRef.value.closest(".navbar");
   if (nav && !nav.contains(e.target)) closeCollapse();
 }
 
-onMounted(() => {
-  getCollapse();
-  document.addEventListener("click", handleDocClick);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener("click", handleDocClick);
-  collapseInst = null;
-});
+const onKey = (e) => {
+  if (e.key === "Escape") {
+    if (showSettings.value) showSettings.value = false;
+    else closeCollapse();
+  }
+};
 
-/* ============== AJUSTES (overlay centrado, igual que en SideNavbar) ============== */
-const showSettings  = ref(false);
-const localTheme    = ref(isDark.value ? "dark" : "light");
-const localLayout   = ref(isNavbar.value ? "navbar" : "sidebar");
-const localPrimary  = ref(ui.primary || "rojo");
 
-watch(isDark,   v => { localTheme.value   = v ? "dark" : "light"; });
-watch(isNavbar, v => { localLayout.value  = v ? "navbar" : "sidebar"; });
-watch(() => ui.primary, p => { if (p) localPrimary.value = p; });
+const localTheme = ref(isDark.value ? "dark" : "light");
+const localLayout = ref(isNavbar.value ? "navbar" : "sidebar");
+const localPrimary = ref(ui.primary || "rojo");
 
-const openSettings  = () => { showSettings.value = true; };
-const closeSettings = () => { showSettings.value = false; };
+watch(isDark, (v) => (localTheme.value = v ? "dark" : "light"));
+watch(isNavbar, (v) => (localLayout.value = v ? "navbar" : "sidebar"));
+watch(() => ui.primary, (p) => p && (localPrimary.value = p));
+
+const openSettings = () => (showSettings.value = true);
+const closeSettings = () => (showSettings.value = false);
+
+const openSettingsFromUserMenu = () => {
+  closeAllDropdowns();
+  closeCollapse();
+  openSettings();
+};
 
 const applySettings = async () => {
-  await ui.setTheme(localTheme.value);        // clase en <html>
-  await ui.setPrimary(localPrimary.value);    // actualiza --xt-red, --xt-red-d1, --xt-red-d2
-  await ui.setMenuStyle(localLayout.value);   // persiste estilo
+  await ui.setTheme(localTheme.value);
+  await ui.setPrimary(localPrimary.value);
+  await ui.setMenuStyle(localLayout.value);
   if (localLayout.value === "sidebar") closeCollapse();
   closeSettings();
 };
 
-// ESC cierra overlay y/o collapse
-const onKey = (e) => {
-  if (e.key === "Escape") {
-    if (showSettings.value) closeSettings();
-    else closeCollapse();
-  }
-};
-onMounted(() => window.addEventListener("keydown", onKey));
-onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
-
-/* Paleta visual (debe coincidir con PRIMARY_MAP del store) */
 const PRIMARY_OPTIONS = [
-  {k:'turquesa', n:'Turquesa', c:'#0d9488'},
-  {k:'azul',     n:'Azul',     c:'#2563eb'},
-  {k:'verde',    n:'Verde',    c:'#16a34a'},
-  {k:'rojo',     n:'Rojo',     c:'#c62828'},
-  {k:'amarillo', n:'Amarillo', c:'#f59e0b'},
-  {k:'rosado',   n:'Rosado',   c:'#db2777'},
-  {k:'celeste',  n:'Celeste',  c:'#06b6d4'},
-  {k:'violeta',  n:'Violeta',  c:'#7c3aed'},
-  {k:'naranjo',  n:'Naranjo',  c:'#f97316'},
-  {k:'gris',     n:'Gris',     c:'#6b7280'},
-  {k:'negro',    n:'Negro',    c:'#111827'},
-  {k:'lima',     n:'Lima',     c:'#84cc16'},
-  {k:'esmeralda',n:'Esmeralda',c:'#10b981'},
-  {k:'cian',     n:'Cian',     c:'#0891b2'},
-  {k:'indigo',   n:'Índigo',   c:'#4f46e5'},
-  {k:'marron',   n:'Marrón',   c:'#8b5e34'},
-  {k:'granate',  n:'Granate',  c:'#991b1b'},
-  {k:'oliva',    n:'Oliva',    c:'#708238'},
-  {k:'menta',    n:'Menta',    c:'#2dd4bf'},
-  {k:'salmon',   n:'Salmón',   c:'#fb7185'},
-  {k:'dorado',   n:'Dorado',   c:'#d4af37'},
-  {k:'cobre',    n:'Cobre',    c:'#b87333'},
+  { k: "turquesa", n: "Turquesa", c: "#0d9488" },
+  { k: "azul", n: "Azul", c: "#2563eb" },
+  { k: "verde", n: "Verde", c: "#16a34a" },
+  { k: "rojo", n: "Rojo", c: "#c62828" },
+  { k: "amarillo", n: "Amarillo", c: "#f59e0b" },
+  { k: "rosado", n: "Rosado", c: "#db2777" },
+  { k: "celeste", n: "Celeste", c: "#06b6d4" },
+  { k: "violeta", n: "Violeta", c: "#7c3aed" },
+  { k: "naranjo", n: "Naranjo", c: "#f97316" },
+  { k: "gris", n: "Gris", c: "#6b7280" },
+  { k: "negro", n: "Negro", c: "#111827" },
+  { k: "lima", n: "Lima", c: "#84cc16" },
+  { k: "esmeralda", n: "Esmeralda", c: "#10b981" },
+  { k: "cian", n: "Cian", c: "#0891b2" },
+  { k: "indigo", n: "Índigo", c: "#4f46e5" },
+  { k: "marron", n: "Marrón", c: "#8b5e34" },
+  { k: "granate", n: "Granate", c: "#991b1b" },
+  { k: "oliva", n: "Oliva", c: "#708238" },
+  { k: "menta", n: "Menta", c: "#2dd4bf" },
+  { k: "salmon", n: "Salmón", c: "#fb7185" },
+  { k: "dorado", n: "Dorado", c: "#d4af37" },
+  { k: "cobre", n: "Cobre", c: "#b87333" },
 ];
+
+function onShown() {
+  isMenuOpen.value = true;
+  syncScrollLock();
+}
+function onHidden() {
+  isMenuOpen.value = false;
+  syncScrollLock();
+}
+function bindCollapseEvents() {
+  const el = collapseRef.value;
+  if (!el) return;
+  el.removeEventListener("shown.bs.collapse", onShown);
+  el.removeEventListener("hidden.bs.collapse", onHidden);
+  el.addEventListener("shown.bs.collapse", onShown);
+  el.addEventListener("hidden.bs.collapse", onHidden);
+}
+
+/* ---------- lifecycle ---------- */
+onMounted(() => {
+  setBodyScrollLocked(false);
+
+  getCollapse();
+  initDropdowns();
+  bindCollapseEvents();
+
+  document.addEventListener("click", handleDocClick);
+  window.addEventListener("keydown", onKey);
+  window.addEventListener("resize", onResize);
+
+  syncScrollLock();
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleDocClick);
+  window.removeEventListener("keydown", onKey);
+  window.removeEventListener("resize", onResize);
+
+  setBodyScrollLocked(false);
+
+  const Dropdown = window.bootstrap?.Dropdown;
+  if (Dropdown) dropdownToggles.value.forEach((el) => Dropdown.getInstance(el)?.dispose?.());
+  dropdownToggles.value = [];
+  collapseInst = null;
+});
+
+watch([showEmpresaMenu, showTallerMenu, showAdminMenu], () => refreshDropdowns());
+watch(() => auth?.isAuthenticated, () => refreshDropdowns());
+watch(showSettings, () => syncScrollLock());
 </script>
 
 <template>
   <nav class="navbar navbar-expand-lg navbar-dark bg-xtreme fixed-top shadow-sm">
-    <div class="container-fluid align-items-center">
+    <div class="container-fluid">
 
-      <router-link
-        :to="{ name: 'Inicio' }"
-        class="navbar-brand fw-semibold me-2 order-1"
-      >
-        Xtreme Solped
-      </router-link>
-
-      <!-- Grupo derecho (móvil): hamburguesa + Ajustes -->
-      <div class="d-flex align-items-center ms-auto order-3 gap-2">
+      <div class="top-row d-lg-none">
         <button
-          class="navbar-toggler d-lg-none"
+          class="navbar-toggler"
           type="button"
           @click.stop="toggleCollapse"
           aria-controls="mainNavbar"
@@ -146,36 +251,56 @@ const PRIMARY_OPTIONS = [
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- Botón Ajustes (abre overlay centrado) -->
         <button
-          class="btn btn-sm btn-light"
-          @click.stop="openSettings"
-          title="Ajustes de interfaz"
-          aria-haspopup="true"
-          :aria-expanded="showSettings ? 'true' : 'false'"
+          type="button"
+          class="brand-hit ms-2"
+          @click="goInicioFromCarousel"
+          aria-label="Ir a Inicio"
+          title="Ir a Inicio"
         >
-          <i class="bi bi-gear-fill"></i>
+          <BrandCarousel id="topBrandCarousel" :height="carouselH" :width="carouselW" />
         </button>
       </div>
 
-      <!-- CONTENIDO COLAPSABLE -->
-      <div
-        class="collapse navbar-collapse order-4 w-100 mt-2 mt-lg-0"
-        id="mainNavbar"
-        ref="collapseRef"
+
+      <button
+        type="button"
+        class="brand-hit d-none d-lg-inline-flex align-items-center"
+        @click="goInicioFromCarousel"
+        aria-label="Ir a Inicio"
+        title="Ir a Inicio"
       >
-        <!-- IZQUIERDA -->
+        <BrandCarousel id="topBrandCarouselDesktop" :height="carouselH" :width="carouselW" />
+      </button>
+
+
+      <button
+        class="navbar-toggler d-none"
+        type="button"
+        aria-hidden="true"
+      ></button>
+
+      <div class="collapse navbar-collapse w-100 mt-2 mt-lg-0" id="mainNavbar" ref="collapseRef">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <!-- EMPRESA -->
           <li v-if="showEmpresaMenu" class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Empresa</a>
+            <button
+              type="button"
+              class="nav-link dropdown-toggle"
+              data-bs-toggle="dropdown"
+              data-bs-display="static"
+              data-bs-auto-close="true"
+              ref="setDropdownToggle"
+            >
+              Empresa
+            </button>
             <ul class="dropdown-menu">
-              <li v-for="(item, idx) in empresaMenu" :key="'em-'+idx">
-                <hr v-if="item===null" class="dropdown-divider" />
+              <li v-for="(item, idx) in empresaMenu" :key="'em-' + idx">
+                <hr v-if="item === null" class="dropdown-divider" />
                 <a
                   v-else
                   class="dropdown-item"
                   :class="{ active: isActive(item.name) }"
+                  href="#"
                   @click.prevent="go({ name: item.name })"
                 >
                   <i v-if="item.icon" :class="['bi', item.icon, 'me-2']"></i>{{ item.text }}
@@ -184,16 +309,25 @@ const PRIMARY_OPTIONS = [
             </ul>
           </li>
 
-          <!-- TALLER -->
           <li v-if="showTallerMenu" class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Taller</a>
+            <button
+              type="button"
+              class="nav-link dropdown-toggle"
+              data-bs-toggle="dropdown"
+              data-bs-display="static"
+              data-bs-auto-close="true"
+              ref="setDropdownToggle"
+            >
+              Taller
+            </button>
             <ul class="dropdown-menu">
-              <li v-for="(item, idx) in tallerMenu" :key="'ta-'+idx">
-                <hr v-if="item===null" class="dropdown-divider" />
+              <li v-for="(item, idx) in tallerMenu" :key="'ta-' + idx">
+                <hr v-if="item === null" class="dropdown-divider" />
                 <a
                   v-else
                   class="dropdown-item"
                   :class="{ active: isActive(item.name) }"
+                  href="#"
                   @click.prevent="go({ name: item.name })"
                 >
                   <i v-if="item.icon" :class="['bi', item.icon, 'me-2']"></i>{{ item.text }}
@@ -202,16 +336,25 @@ const PRIMARY_OPTIONS = [
             </ul>
           </li>
 
-          <!-- ADMIN -->
           <li v-if="showAdminMenu" class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Admin</a>
+            <button
+              type="button"
+              class="nav-link dropdown-toggle"
+              data-bs-toggle="dropdown"
+              data-bs-display="static"
+              data-bs-auto-close="true"
+              ref="setDropdownToggle"
+            >
+              Admin
+            </button>
             <ul class="dropdown-menu">
-              <li v-for="(item, idx) in adminMenu" :key="'ad-'+idx">
-                <hr v-if="item===null" class="dropdown-divider" />
+              <li v-for="(item, idx) in adminMenu" :key="'ad-' + idx">
+                <hr v-if="item === null" class="dropdown-divider" />
                 <a
                   v-else
                   class="dropdown-item"
                   :class="{ active: isActive(item.name) }"
+                  href="#"
                   @click.prevent="go({ name: item.name })"
                 >
                   <i v-if="item.icon" :class="['bi', item.icon, 'me-2']"></i>{{ item.text }}
@@ -221,24 +364,40 @@ const PRIMARY_OPTIONS = [
           </li>
         </ul>
 
-        <!-- DERECHA -->
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0" v-if="auth?.isAuthenticated">
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
+            <button
+              type="button"
+              class="nav-link dropdown-toggle d-flex align-items-center gap-2"
+              data-bs-toggle="dropdown"
+              data-bs-display="static"
+              data-bs-auto-close="true"
+              ref="setDropdownToggle"
+            >
               <img :src="photoUrl" class="rounded-circle" width="28" height="28" />
-              <span class="d-none d-sm-inline">{{ fullName || auth?.user?.email || 'Usuario' }}</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li class="px-3 py-2 small text-muted">Rol: <strong>{{ role || '—' }}</strong></li>
+              <span class="d-none d-sm-inline">{{ fullName || auth?.user?.email || "Usuario" }}</span>
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li class="px-3 pt-2 pb-1 small text-muted">Rol: <strong>{{ role || "—" }}</strong></li>
+
               <li>
-                <a class="dropdown-item" href="#" @click.prevent="go({ name: 'PerfilUsuario' })">
-                  <i class="bi bi-person-gear me-2"></i>Perfil
+                <a class="dropdown-item" href="#" @click.prevent="openSettingsFromUserMenu">
+                  <i class="bi bi-gear-fill me-2"></i> Configuración
                 </a>
               </li>
+
               <li><hr class="dropdown-divider" /></li>
+
+              <li>
+                <a class="dropdown-item" href="#" @click.prevent="go({ name: 'PerfilUsuario' })">
+                  <i class="bi bi-person-gear me-2"></i> Perfil
+                </a>
+              </li>
+
               <li>
                 <a class="dropdown-item" href="#" @click.prevent="logout">
-                  <i class="bi bi-box-arrow-right me-2"></i>Salir
+                  <i class="bi bi-box-arrow-right me-2"></i> Salir
                 </a>
               </li>
             </ul>
@@ -246,21 +405,16 @@ const PRIMARY_OPTIONS = [
         </ul>
 
         <div v-else class="ms-auto">
-          <router-link class="btn btn-sm btn-light" to="/login" @click="closeCollapse">Ingresar</router-link>
+          <router-link class="btn btn-sm btn-light" to="/login" @click="closeCollapse">
+            Ingresar
+          </router-link>
         </div>
       </div>
     </div>
   </nav>
 
-  <!-- ====== MODAL de AJUSTES (idéntico a SideNavbar) ====== -->
-  <div
-    v-if="showSettings"
-    class="settings-overlay"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Ajustes de interfaz"
-    @click.self="closeSettings"
-  >
+
+  <div v-if="showSettings" class="settings-overlay" role="dialog" aria-modal="true" @click.self="closeSettings">
     <div class="settings-card settings-card--center">
       <div class="settings-card__header">
         <div class="d-flex align-items-center gap-2">
@@ -271,58 +425,35 @@ const PRIMARY_OPTIONS = [
       </div>
 
       <div class="settings-card__body">
-        <!-- TEMA -->
         <div class="mb-3">
           <div class="settings-label">Tema</div>
           <div class="btn-group btn-group-sm" role="group" aria-label="Tema">
-            <input type="radio" class="btn-check" name="theme" id="t-light" value="light" v-model="localTheme">
-            <label class="btn settings-pill" for="t-light">
-              <i class="bi bi-brightness-high me-1"></i> Claro
-            </label>
+            <input type="radio" class="btn-check" name="theme" id="t-light" value="light" v-model="localTheme" />
+            <label class="btn settings-pill" for="t-light"><i class="bi bi-brightness-high me-1"></i> Claro</label>
 
-            <input type="radio" class="btn-check" name="theme" id="t-dark" value="dark" v-model="localTheme">
-            <label class="btn settings-pill" for="t-dark">
-              <i class="bi bi-moon-stars me-1"></i> Oscuro
-            </label>
+            <input type="radio" class="btn-check" name="theme" id="t-dark" value="dark" v-model="localTheme" />
+            <label class="btn settings-pill" for="t-dark"><i class="bi bi-moon-stars me-1"></i> Oscuro</label>
           </div>
         </div>
 
-        <!-- LAYOUT -->
         <div class="mb-2">
           <div class="settings-label">Estilo de menú</div>
           <div class="btn-group btn-group-sm" role="group" aria-label="Estilo de menú">
-            <input type="radio" class="btn-check" name="layout" id="m-navbar" value="navbar" v-model="localLayout">
-            <label class="btn settings-pill" for="m-navbar">
-              <i class="bi bi-menu-button-wide me-1"></i> Barra superior
-            </label>
+            <input type="radio" class="btn-check" name="layout" id="m-navbar" value="navbar" v-model="localLayout" />
+            <label class="btn settings-pill" for="m-navbar"><i class="bi bi-menu-button-wide me-1"></i> Barra superior</label>
 
-            <input type="radio" class="btn-check" name="layout" id="m-sidebar" value="sidebar" v-model="localLayout">
-            <label class="btn settings-pill" for="m-sidebar">
-              <i class="bi bi-layout-sidebar-inset me-1"></i> Menú lateral
-            </label>
+            <input type="radio" class="btn-check" name="layout" id="m-sidebar" value="sidebar" v-model="localLayout" />
+            <label class="btn settings-pill" for="m-sidebar"><i class="bi bi-layout-sidebar-inset me-1"></i> Menú lateral</label>
           </div>
         </div>
 
         <hr class="settings-divider" />
 
-        <!-- COLOR PRIMARIO -->
         <div class="mb-3">
           <div class="settings-label">Color primario</div>
           <div class="color-grid">
-            <label
-              v-for="opt in PRIMARY_OPTIONS"
-              :key="opt.k"
-              class="color-swatch"
-              :title="opt.n"
-            >
-              <input
-                type="radio"
-                class="visually-hidden"
-                name="primary"
-                :id="'p-'+opt.k"
-                :value="opt.k"
-                v-model="localPrimary"
-              />
+            <label v-for="opt in PRIMARY_OPTIONS" :key="opt.k" class="color-swatch" :title="opt.n">
+              <input type="radio" class="visually-hidden" name="primary" :id="'p-' + opt.k" :value="opt.k" v-model="localPrimary" />
               <span class="swatch" :style="{ background: opt.c }"></span>
               <span class="swatch-label">{{ opt.n }}</span>
             </label>
@@ -332,46 +463,66 @@ const PRIMARY_OPTIONS = [
 
       <div class="settings-card__footer">
         <button class="btn btn-sm btn-outline-light-subtle" @click="closeSettings">Cerrar</button>
-        <button class="btn btn-sm btn-light" @click="applySettings">
-          <i class="bi bi-check2-circle me-1"></i> Guardar
-        </button>
+        <button class="btn btn-sm btn-light" @click="applySettings"><i class="bi bi-check2-circle me-1"></i> Guardar</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* 🔁 El topbar usa la variable primaria (que cambia con ui.setPrimary) */
 .bg-xtreme { background: var(--xt-red) !important; }
+.navbar .navbar-toggler { box-shadow: none !important; }
+.navbar .nav-link.dropdown-toggle { background: transparent; border: 0; }
 
-/* Botones en la navbar */
-.navbar .btn,
-.navbar .navbar-toggler{
-  box-shadow: none !important;
+
+.top-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
 }
-.navbar .btn.btn-light,
-.navbar .navbar-toggler{
-  width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
+
+.brand-hit{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+  border-radius: 10px;
+  touch-action: pan-y;
 }
+.brand-hit:focus{ outline: none; }
+.brand-hit:focus-visible{
+  outline: 2px solid rgba(255,255,255,.85);
+  outline-offset: 4px;
+}
+
 
 @media (max-width: 991.98px){
-  .navbar{ z-index: 1050; }
+  #mainNavbar{
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   #mainNavbar .navbar-nav .dropdown-menu{
-    position: static; float: none;
+    position: static;
+    float: none;
+    margin-top: .25rem;
   }
 }
 
-/* ======= MODAL CENTRADO DE AJUSTES (idéntico) ======= */
+
 .settings-overlay{
   position: fixed; inset: 0;
   display: grid; place-items: center;
   background: rgba(0,0,0,.56);
   z-index: 2001;
   padding: 20px;
-  animation: overlayIn .12s ease-out both;
 }
-@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
-
 .settings-card{
   border-radius: 14px;
   overflow: hidden;
@@ -379,23 +530,14 @@ const PRIMARY_OPTIONS = [
   background: #ffffff;
   color: #1f2937;
   border: 1px solid rgba(0,0,0,.06);
-  box-shadow:
-    0 14px 40px rgba(0,0,0,.30),
-    0 6px 18px rgba(0,0,0,.20);
-  transform: translateY(-4px);
-  animation: cardIn .16s ease-out both;
+  box-shadow: 0 14px 40px rgba(0,0,0,.30), 0 6px 18px rgba(0,0,0,.20);
 }
-@keyframes cardIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
-
-/* Header con degradado según primario (igual al SideNavbar) */
 .settings-card__header{
   display: flex; align-items: center; gap: 8px;
   padding: 12px 14px;
   background: linear-gradient(135deg, var(--xt-red), var(--xt-red-d2));
   color: #fff;
 }
-.settings-card__header i{ font-size: 1.05rem; }
-
 .settings-card__body{ padding: 16px 14px; }
 .settings-card__footer{
   display: flex; justify-content: flex-end; gap: 8px;
@@ -403,8 +545,6 @@ const PRIMARY_OPTIONS = [
   background: #fafafa;
   border-top: 1px solid rgba(0,0,0,.06);
 }
-
-/* Etiquetas y divisores */
 .settings-label{
   font-size: .75rem;
   text-transform: uppercase;
@@ -418,8 +558,6 @@ const PRIMARY_OPTIONS = [
   background: linear-gradient(90deg, transparent, rgba(0,0,0,.12), transparent);
   margin: 10px 0 12px;
 }
-
-/* Pills (radios bonitos) */
 .settings-pill{
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
@@ -428,11 +566,7 @@ const PRIMARY_OPTIONS = [
   line-height: 1;
   font-weight: 600;
   color: #374151;
-  transition: all .12s ease;
 }
-.settings-pill:hover{ background: #e5e7eb; }
-
-/* ======= Grid de colores ======= */
 .color-grid{
   display: grid;
   grid-template-columns: repeat(3, minmax(0,1fr));
@@ -448,76 +582,11 @@ const PRIMARY_OPTIONS = [
   border-radius: 10px;
   background: rgba(0,0,0,.02);
   cursor: pointer;
-  transition: .12s ease;
-  user-select: none;
 }
-.color-swatch:hover{ background: rgba(0,0,0,.04); }
 .swatch{
   width: 20px; height: 20px; border-radius: 999px;
   box-shadow: 0 0 0 2px #fff inset, 0 1px 4px rgba(0,0,0,.25);
 }
-.swatch-label{
-  font-size: .875rem; font-weight: 600; color: #374151;
-}
-
-/* Radios ocultos pero clickeables (van dentro del label) */
-.visually-hidden{
-  position: absolute !important;
-  opacity: 0;
-}
-
-/* ✅ Marca visual del seleccionado (modo claro) */
-.visually-hidden:checked + .swatch {
-  outline: 2px solid #111827;
-  outline-offset: 2px;
-}
-
-/* ✅ Resalto del contenedor completo usando :has() (si el navegador lo soporta) */
-.color-swatch:has(input.visually-hidden:checked) {
-  border-color: var(--xt-red);
-  box-shadow: 0 0 0 2px var(--xt-red, #c62828) inset;
-  background: rgba(0,0,0,.04);
-}
-
-/* Botón outline clarito para footer */
-.btn-outline-light-subtle{
-  --bs-btn-color: #374151;
-  --bs-btn-border-color: #e5e7eb;
-  --bs-btn-hover-bg: #f3f4f6;
-  --bs-btn-hover-border-color: #d1d5db;
-  --bs-btn-active-bg: #e5e7eb;
-  --bs-btn-active-border-color: #d1d5db;
-}
-
-/* ======= Modo oscuro ======= */
-:global(html.theme-dark) .settings-card{
-  background: #1f2937;
-  color: #e5e7eb;
-  border-color: rgba(255,255,255,.06);
-  box-shadow:
-    0 16px 36px rgba(0,0,0,.50),
-    0 6px 16px rgba(0,0,0,.35);
-}
-:global(html.theme-dark) .settings-card__footer{
-  background: #111827;
-  border-top-color: rgba(255,255,255,.06);
-}
-:global(html.theme-dark) .settings-label{ color: #9ca3af; }
-:global(html.theme-dark) .settings-pill{
-  background: #111827;
-  border-color: #374151;
-  color: #e5e7eb;
-}
-:global(html.theme-dark) .settings-pill:hover{ background: #0b1220; }
-
-/* Seleccionado en oscuro */
-:global(html.theme-dark) .visually-hidden:checked + .swatch{
-  outline: 2px solid #e5e7eb;
-  outline-offset: 2px;
-}
-:global(html.theme-dark) .color-swatch:has(input.visually-hidden:checked){
-  border-color: var(--xt-white-60);
-  box-shadow: 0 0 0 2px var(--xt-white-60) inset;
-  background: rgba(255,255,255,.06);
-}
+.swatch-label{ font-size: .875rem; font-weight: 600; color: #374151; }
+.visually-hidden{ position: absolute !important; opacity: 0; }
 </style>

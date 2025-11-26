@@ -21,7 +21,7 @@
                 </transition>
               </div>
 
-              <h1 class="display-6 text-secondary fw-semibold mb-3">Portal de Gestión Xtreme</h1>
+              <h1 class="display-6 text-secondary fw-semibold mb-3">Plataforma de SOLPED y Cotizaciones</h1>
               <p class="lead text-secondary-emphasis mb-4">
                 Centraliza tus <strong>SOLPED</strong>, validaciones y cotizaciones en un mismo lugar.
                 Acceso seguro y control por roles.

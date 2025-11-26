@@ -8,7 +8,7 @@
       <div class="col-lg-7">
         <span class="badge rounded-pill bg-light text-muted border small mb-2">
           <i class="bi bi-grid-3x3-gap me-1"></i>
-          Plataforma integral de SOLPED, Cotizaciones y Taller
+          Plataforma de SOLPED y Cotizaciones
         </span>
 
         <h1 class="fw-bold mb-2">
