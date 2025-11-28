@@ -8,9 +8,7 @@
       <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
         <h1 class="h5 h4-sm fw-semibold mb-0">Administrar usuarios</h1>
 
-        <!-- Acciones: en XS se apilan/ocultan textos largos -->
         <div class="d-flex align-items-stretch gap-2 flex-wrap">
-          <!-- Botón Filtros solo en < md -->
           <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
             <i class="bi bi-sliders2 me-1"></i><span>Filtros</span>
           </button>
@@ -29,25 +27,32 @@
         </div>
       </div>
 
-      <!-- Filtros (tarjeta visible en ≥ md) -->
+      <!-- Filtros (≥ md) -->
       <div class="card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-5">
               <label class="form-label">Buscar por nombre completo</label>
-              <input
-                class="form-control"
-                v-model="busqueda"
-                placeholder="Ej: Juan, María, etc." />
+              <input class="form-control" v-model="busqueda" placeholder="Ej: Juan, María, etc." />
             </div>
-            <div class="col-12 col-md-4">
+
+            <div class="col-12 col-md-3">
               <label class="form-label">Filtrar por rol</label>
               <select class="form-select" v-model="rolFiltro">
                 <option value="">— Todos —</option>
                 <option v-for="r in rolesDisponibles" :key="r" :value="r">{{ r }}</option>
               </select>
             </div>
-            <div class="col-12 col-md-2">
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">Filtrar por empresa</label>
+              <select class="form-select" v-model="empresaFiltro">
+                <option value="">— Todas —</option>
+                <option v-for="e in empresasDisponibles" :key="e" :value="e">{{ e }}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-1">
               <button class="btn btn-dark w-100" @click="limpiarFiltros">
                 Limpiar
               </button>
@@ -83,6 +88,7 @@
                     <th style="width:40px;"></th>
                     <th>Nombre</th>
                     <th class="d-none d-sm-table-cell">Email</th>
+                    <th class="d-none d-md-table-cell">Empresas</th>
                     <th>Rol</th>
                     <th class="d-none d-lg-table-cell">Teléfono</th>
                     <th class="d-none d-lg-table-cell">RUT</th>
@@ -91,19 +97,53 @@
                     <th style="width: 136px;" class="text-end pe-3">Acciones</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   <tr v-for="u in paginado" :key="u.uid">
                     <td><i class="bi bi-person-circle fs-5 text-secondary"></i></td>
 
                     <td class="fw-semibold">
                       <div class="text-truncate" style="max-width: 200px;">{{ u.fullName || '—' }}</div>
-                      <!-- En XS mostramos mail debajo -->
                       <div class="small text-secondary d-sm-none">{{ u.email || '—' }}</div>
+
+                      <!-- En XS mostramos empresas debajo -->
+                      <div class="d-sm-none mt-1 d-flex flex-wrap gap-1">
+                        <span
+                          v-for="e in (u.empresas||[]).slice(0,2)"
+                          :key="u.uid + '-emp-xs-' + e"
+                          class="badge bg-primary-subtle text-primary-emphasis">
+                          {{ e }}
+                        </span>
+                        <span
+                          v-if="(u.empresas||[]).length>2"
+                          class="badge bg-dark-subtle text-dark-emphasis">
+                          +{{ (u.empresas||[]).length-2 }}
+                        </span>
+                        <span v-if="(u.empresas||[]).length===0" class="badge bg-secondary-subtle text-secondary-emphasis">—</span>
+                      </div>
                     </td>
 
                     <td class="d-none d-sm-table-cell">
                       <div class="text-truncate" style="max-width: 220px;">
                         {{ u.email || '—' }}
+                      </div>
+                    </td>
+
+                    <!-- Empresas -->
+                    <td class="d-none d-md-table-cell">
+                      <div class="d-flex flex-wrap gap-1">
+                        <span
+                          v-for="e in (u.empresas||[]).slice(0,2)"
+                          :key="u.uid + '-emp-' + e"
+                          class="badge bg-primary-subtle text-primary-emphasis">
+                          {{ e }}
+                        </span>
+                        <span
+                          v-if="(u.empresas||[]).length>2"
+                          class="badge bg-dark-subtle text-dark-emphasis">
+                          +{{ (u.empresas||[]).length-2 }}
+                        </span>
+                        <span v-if="(u.empresas||[]).length===0" class="badge bg-secondary-subtle text-secondary-emphasis">—</span>
                       </div>
                     </td>
 
@@ -135,7 +175,6 @@
                     <td class="small text-secondary d-none d-xl-table-cell">{{ fmtFecha(u.createdAt) }}</td>
 
                     <td class="text-end pe-3">
-                      <!-- En xs/sm, iconos; en md+, botones con texto -->
                       <div class="btn-group btn-group-sm d-none d-md-inline-flex">
                         <button class="btn btn-outline-primary" @click="abrirEditar(u)">Editar</button>
                         <button
@@ -163,6 +202,7 @@
                     </td>
                   </tr>
                 </tbody>
+
               </table>
             </div>
 
@@ -186,6 +226,7 @@
                 </ul>
               </nav>
             </div>
+
           </div>
         </div>
       </div>
@@ -226,6 +267,52 @@
                 <input class="form-control" v-model="form.rut" placeholder="99.999.999-9" />
               </div>
 
+              <!-- ======= Empresas (multi) ======= -->
+              <div class="col-12">
+                <div class="d-flex align-items-center justify-content-between">
+                  <label class="form-label mb-0">Empresas</label>
+                  <small class="text-secondary">{{ form.empresas.length }} seleccionada(s)</small>
+                </div>
+
+                <!-- Chips seleccionadas -->
+                <div v-if="form.empresas.length" class="d-flex flex-wrap gap-1 mb-2">
+                  <span
+                    v-for="e in form.empresas"
+                    :key="'sel-emp-'+e"
+                    class="badge rounded-pill bg-primary-subtle text-primary-emphasis">
+                    {{ e }}
+                    <button class="btn btn-sm btn-link text-primary ms-1 p-0 align-baseline"
+                            @click="quitarEmpresa(e)">×</button>
+                  </span>
+                </div>
+
+                <div class="input-group input-group-sm mb-2">
+                  <span class="input-group-text"><i class="bi bi-buildings"></i></span>
+                  <button class="btn btn-outline-secondary" @click="seleccionarTodasEmpresas">Todas</button>
+                  <button class="btn btn-outline-secondary" @click="limpiarEmpresas">Limpiar</button>
+                </div>
+
+                <div class="empresa-box">
+                  <label
+                    v-for="e in empresasDisponibles"
+                    :key="'emp-'+e"
+                    class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      :value="e"
+                      :checked="form.empresas.includes(e)"
+                      @change="toggleEmpresa(e, $event.target.checked)" />
+                    <span class="small fw-semibold">{{ e }}</span>
+                  </label>
+                </div>
+
+                <div class="form-text mt-1">
+                  Puedes seleccionar más de una empresa (se guarda en Firestore como <code>empresas: []</code>).
+                </div>
+              </div>
+              <!-- ======= /Empresas (multi) ======= -->
+
               <div class="col-12">
                 <label class="form-label">Rol</label>
                 <select class="form-select" v-model="form.role">
@@ -243,19 +330,17 @@
                   </small>
                 </div>
 
-                <!-- Chips de seleccionados -->
                 <div v-if="form.centrosAsignados.length" class="d-flex flex-wrap gap-1 mb-2">
                   <span
                     v-for="k in form.centrosAsignados"
                     :key="'sel-'+k"
-                    class="badge rounded-pill bg-primary-subtle text-primary-emphasis">
+                    class="badge rounded-pill bg-info-subtle text-info-emphasis">
                     {{ nombreContrato(k) }}
-                    <button class="btn btn-sm btn-link text-primary ms-1 p-0 align-baseline"
+                    <button class="btn btn-sm btn-link text-info ms-1 p-0 align-baseline"
                             @click="quitarContrato(k)">×</button>
                   </span>
                 </div>
 
-                <!-- Buscador + acciones -->
                 <div class="input-group input-group-sm mb-2">
                   <span class="input-group-text"><i class="bi bi-search"></i></span>
                   <input class="form-control" v-model="ccSearch" placeholder="Buscar contrato por nombre o código..." />
@@ -263,7 +348,6 @@
                   <button class="btn btn-outline-secondary" @click="limpiarSeleccion">Limpiar</button>
                 </div>
 
-                <!-- Lista scrolleable de checkboxes -->
                 <div class="contratos-box">
                   <label
                     v-for="cc in ccFiltrados"
@@ -294,14 +378,13 @@
             <div class="d-flex flex-wrap gap-2 justify-content-end">
               <button class="btn btn-secondary" @click="cerrarOff">Cancelar</button>
 
-              <!-- Guardar solo contratos (Firestore) -->
               <button
                 v-if="esEdicion"
                 class="btn btn-outline-primary"
                 :disabled="accionandoContratos"
-                @click="guardarContratos">
+                @click="guardarSoloFirestore">
                 <span v-if="accionandoContratos" class="spinner-border spinner-border-sm me-2"></span>
-                Guardar contratos (solo Firestore)
+                Guardar (solo Firestore)
               </button>
 
               <button class="btn btn-primary" :disabled="accionando" @click="guardar">
@@ -313,7 +396,7 @@
         </div>
       </div>
 
-      <!-- Offcanvas Filtros (solo móviles) -->
+      <!-- Offcanvas Filtros (móvil) -->
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
@@ -324,16 +407,20 @@
             <div class="row g-3">
               <div class="col-12">
                 <label class="form-label">Buscar por nombre completo</label>
-                <input
-                  class="form-control"
-                  v-model="busqueda"
-                  placeholder="Ej: Juan, María, etc." />
+                <input class="form-control" v-model="busqueda" placeholder="Ej: Juan, María, etc." />
               </div>
               <div class="col-12">
                 <label class="form-label">Filtrar por rol</label>
                 <select class="form-select" v-model="rolFiltro">
                   <option value="">— Todos —</option>
                   <option v-for="r in rolesDisponibles" :key="r" :value="r">{{ r }}</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Filtrar por empresa</label>
+                <select class="form-select" v-model="empresaFiltro">
+                  <option value="">— Todas —</option>
+                  <option v-for="e in empresasDisponibles" :key="e" :value="e">{{ e }}</option>
                 </select>
               </div>
             </div>
@@ -381,6 +468,10 @@
           </p>
           <ul class="list-unstyled small mb-0">
             <li><span class="text-secondary">Email:</span> <strong>{{ confirmRow?.email || '—' }}</strong></li>
+            <li>
+              <span class="text-secondary">Empresas:</span>
+              <strong>{{ (confirmRow?.empresas||[]).join(', ') || '—' }}</strong>
+            </li>
             <li><span class="text-secondary">Rol:</span> <strong>{{ confirmRow?.role || '—' }}</strong></li>
             <li><span class="text-secondary">Teléfono:</span> <strong>{{ confirmRow?.phone || '—' }}</strong></li>
             <li><span class="text-secondary">RUT:</span> <strong>{{ confirmRow?.rut || '—' }}</strong></li>
@@ -455,6 +546,7 @@ const nombreContrato = (k) => centrosCosto[k] || k;
 /* ================== Constantes ================== */
 const FUNCTIONS_REGION = 'southamerica-west1';
 const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor'];
+const empresasDisponibles = ['Xtreme Servicio', 'Xtreme Mining', 'Xtreme Hormigones'];
 
 /* ================== Estado base ================== */
 const cargando = ref(true);
@@ -462,6 +554,7 @@ const usuarios = ref([]);
 
 const busqueda = ref('');
 const rolFiltro = ref('');
+const empresaFiltro = ref('');
 const pageSize = 15;
 const paginaActual = ref(1);
 
@@ -471,6 +564,7 @@ const filtrosOpen = ref(false);
 
 const form = ref({
   uid:'', email:'', fullName:'', phone:'', rut:'', role:'', password:'',
+  empresas: [],
   centrosAsignados: []
 });
 
@@ -478,15 +572,27 @@ const accionando = ref(false);
 const accionandoContratos = ref(false);
 const uidEnAccion = ref(null);
 
+/* ================== Empresas multi (form) ================== */
+const toggleEmpresa = (empresa, checked) => {
+  const arr = [...(form.value.empresas || [])];
+  const i = arr.indexOf(empresa);
+  if (checked && i < 0) arr.push(empresa);
+  if (!checked && i >= 0) arr.splice(i, 1);
+  form.value.empresas = arr;
+};
+const quitarEmpresa = (empresa) => {
+  form.value.empresas = (form.value.empresas || []).filter(e => e !== empresa);
+};
+const limpiarEmpresas = () => { form.value.empresas = []; };
+const seleccionarTodasEmpresas = () => { form.value.empresas = [...empresasDisponibles]; };
+
 /* ================== UI: contratos en offcanvas ================== */
 const ccSearch = ref('');
 const normalizar = (s) => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
 const ccFiltrados = computed(() => {
   const q = normalizar(ccSearch.value);
   if (!q) return ccLista;
-  return ccLista.filter(c =>
-    normalizar(c.key).includes(q) || normalizar(c.label).includes(q)
-  );
+  return ccLista.filter(c => normalizar(c.key).includes(q) || normalizar(c.label).includes(q));
 });
 const toggleContrato = (key, checked) => {
   const arr = [...form.value.centrosAsignados];
@@ -522,6 +628,7 @@ const fmtFecha = (f) => {
     return d.toLocaleString('es-CL', { dateStyle:'short', timeStyle:'short' });
   } catch { return '—'; }
 };
+
 const mapFunctionsError = (e) => {
   const code = e?.code || '';
   const msg  = e?.message || '';
@@ -547,6 +654,12 @@ const cargarUsuarios = async () => {
     const arr = [];
     snap.forEach(d => {
       const data = d.data() || {};
+
+      // compat: si existe empresa string antigua, la convertimos a array
+      const empresas = Array.isArray(data.empresas)
+        ? data.empresas
+        : (data.empresa ? [data.empresa] : []);
+
       arr.push({
         uid: data.uid || d.id,
         email: data.email || '',
@@ -554,12 +667,13 @@ const cargarUsuarios = async () => {
         phone: data.phone || '',
         rut: data.rut || '',
         role: data.role || '',
+        empresas,
         createdAt: data.createdAt || null,
         token: data.token || '',
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
       });
     });
-    arr.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||'')); // ordena por nombre
+    arr.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||''));
     usuarios.value = arr;
     paginaActual.value = 1;
   } catch (e) {
@@ -575,10 +689,16 @@ onMounted(cargarUsuarios);
 const filtrados = computed(() => {
   const q = (busqueda.value || '').trim().toLowerCase();
   const rol = (rolFiltro.value || '').trim().toLowerCase();
+  const emp = (empresaFiltro.value || '').trim().toLowerCase();
+
   return usuarios.value.filter(u => {
     const okNombre = q ? (u.fullName || '').toLowerCase().includes(q) : true;
     const okRol = rol ? (u.role || '').toLowerCase() === rol : true;
-    return okNombre && okRol;
+
+    const empList = Array.isArray(u.empresas) ? u.empresas : [];
+    const okEmp = emp ? empList.some(x => String(x).toLowerCase() === emp) : true;
+
+    return okNombre && okRol && okEmp;
   });
 });
 const totalPaginas = computed(() => Math.max(1, Math.ceil(filtrados.value.length / pageSize)));
@@ -587,7 +707,6 @@ const paginado = computed(() => {
   return filtrados.value.slice(start, start + pageSize);
 });
 const visiblePages = computed(() => {
-  // menos botones en pantallas pequeñas
   const isSmall = window.matchMedia && window.matchMedia('(max-width: 576px)').matches;
   const maxButtons = isSmall ? 5 : 7;
   const pages = [];
@@ -598,37 +717,57 @@ const visiblePages = computed(() => {
   return pages;
 });
 const goToPage = (n) => { if (n<1 || n>totalPaginas.value) return; paginaActual.value = n; };
-const limpiarFiltros = () => { busqueda.value=''; rolFiltro.value=''; paginaActual.value=1; };
+const limpiarFiltros = () => { busqueda.value=''; rolFiltro.value=''; empresaFiltro.value=''; paginaActual.value=1; };
 
 /* ================== Offcanvas crear/editar ================== */
 const abrirCrear = () => {
   esEdicion.value = false;
-  form.value = { email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'', centrosAsignados: [] };
+  form.value = {
+    email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'',
+    empresas: [],
+    centrosAsignados: []
+  };
   ccSearch.value = '';
   offOpen.value = true;
 };
+
 const abrirEditar = (u) => {
   esEdicion.value = true;
-  form.value = { ...u, password:'' , centrosAsignados: Array.isArray(u.centrosAsignados)? [...u.centrosAsignados] : []};
+  form.value = {
+    uid: u.uid,
+    email: u.email || '',
+    fullName: u.fullName || '',
+    phone: u.phone || '',
+    rut: u.rut || '',
+    role: u.role || '',
+    password: '',
+    empresas: Array.isArray(u.empresas) ? [...u.empresas] : [],
+    centrosAsignados: Array.isArray(u.centrosAsignados) ? [...u.centrosAsignados] : []
+  };
   ccSearch.value = '';
   offOpen.value = true;
 };
+
 const cerrarOff = () => { offOpen.value = false; };
 
 /* ================== Offcanvas filtros (móvil) ================== */
 const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
 
-/* ================== Cloud Functions (v2, misma región) ================== */
+/* ================== Cloud Functions ================== */
 const functions = getFunctions(undefined, FUNCTIONS_REGION);
-const cfCreate = httpsCallable(functions, 'adminCreateUser');   // {email,password,displayName,phone}
-const cfUpdate = httpsCallable(functions, 'adminUpdateUser');   // {uid,email?,displayName?,phone?}
-const cfDelete = httpsCallable(functions, 'adminDeleteUser');   // {uid}
+const cfCreate = httpsCallable(functions, 'adminCreateUser');
+const cfUpdate = httpsCallable(functions, 'adminUpdateUser');
+const cfDelete = httpsCallable(functions, 'adminDeleteUser');
 
-/* ================== Crear / Editar ================== */
+/* ================== Validación ================== */
 const validar = () => {
   const data = form.value;
   if (!data.fullName?.trim()) { addToast('warning','Ingresa el nombre completo.'); return false; }
   if (!data.email?.trim())    { addToast('warning','Ingresa el email.'); return false; }
+  if (!Array.isArray(data.empresas) || data.empresas.length === 0) {
+    addToast('warning','Selecciona al menos una empresa.');
+    return false;
+  }
   if (!esEdicion.value && (!data.password || data.password.length < 6)) {
     addToast('warning','La contraseña debe tener al menos 6 caracteres.');
     return false;
@@ -637,6 +776,7 @@ const validar = () => {
   return true;
 };
 
+/* ================== Guardar (Auth + Firestore) ================== */
 const guardar = async () => {
   if (!validar()) return;
   const data = form.value;
@@ -644,13 +784,13 @@ const guardar = async () => {
 
   try {
     if (!esEdicion.value) {
-      // Crear en Auth (CF) + guardar en Firestore (incluye contratos)
       const resp = await cfCreate({
         email: data.email,
         password: data.password,
         displayName: data.fullName,
         phone: (data.phone || '').trim()
       });
+
       const uid = resp?.data?.uid;
       if (!uid) { addToast('danger','No llegó UID desde la función.'); return; }
 
@@ -661,15 +801,16 @@ const guardar = async () => {
         phone: data.phone || '',
         rut: data.rut || '',
         role: data.role || '',
+        empresas: Array.isArray(data.empresas) ? data.empresas : [],
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
         createdAt: serverTimestamp()
       });
 
       addToast('success','Usuario creado.');
     } else {
-      // Editar TODO (Auth + Firestore)
       const uid = data.uid;
 
+      // Auth (solo lo que existe en Auth)
       await cfUpdate({
         uid,
         email: data.email,
@@ -677,12 +818,14 @@ const guardar = async () => {
         phone: (data.phone || '').trim()
       });
 
+      // Firestore (todo lo editable)
       await updateDoc(doc(db, 'Usuarios', uid), {
         email: data.email,
         fullName: data.fullName,
         phone: data.phone || '',
         rut: data.rut || '',
         role: data.role || '',
+        empresas: Array.isArray(data.empresas) ? data.empresas : [],
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
       });
 
@@ -691,7 +834,6 @@ const guardar = async () => {
 
     await cargarUsuarios();
     offOpen.value = false;
-
   } catch (e) {
     console.error(e);
     addToast('danger', mapFunctionsError(e));
@@ -700,37 +842,54 @@ const guardar = async () => {
   }
 };
 
-/* ======= Guardar contratos SOLO Firestore ======= */
-const guardarContratos = async () => {
+/* ================== Guardar SOLO Firestore (rol/empresas/contratos/etc) ================== */
+const guardarSoloFirestore = async () => {
   if (!esEdicion.value) {
-    addToast('warning','Primero crea el usuario para poder asignar contratos.');
+    addToast('warning','Primero crea el usuario.');
     return;
   }
   const uid = form.value.uid;
-  if (!uid) {
-    addToast('danger','Falta UID del usuario.');
+  if (!uid) { addToast('danger','Falta UID del usuario.'); return; }
+  if (!Array.isArray(form.value.empresas) || form.value.empresas.length === 0) {
+    addToast('warning','Selecciona al menos una empresa.');
     return;
   }
 
   try {
     accionandoContratos.value = true;
     await updateDoc(doc(db, 'Usuarios', uid), {
+      fullName: form.value.fullName || '',
+      phone: form.value.phone || '',
+      rut: form.value.rut || '',
+      role: form.value.role || '',
+      empresas: Array.isArray(form.value.empresas) ? form.value.empresas : [],
       centrosAsignados: Array.isArray(form.value.centrosAsignados) ? form.value.centrosAsignados : []
     });
-    // refleja en la tabla
-    const idx = usuarios.value.findIndex(x => x.uid === uid);
-    if (idx >= 0) usuarios.value[idx].centrosAsignados = [...form.value.centrosAsignados];
 
-    addToast('success','Contratos guardados en Firestore.');
+    // refleja en la tabla sin recargar todo
+    const idx = usuarios.value.findIndex(x => x.uid === uid);
+    if (idx >= 0) {
+      usuarios.value[idx] = {
+        ...usuarios.value[idx],
+        fullName: form.value.fullName || '',
+        phone: form.value.phone || '',
+        rut: form.value.rut || '',
+        role: form.value.role || '',
+        empresas: [...form.value.empresas],
+        centrosAsignados: [...form.value.centrosAsignados]
+      };
+    }
+
+    addToast('success','Guardado en Firestore.');
   } catch (e) {
     console.error(e);
-    addToast('danger','No se pudieron guardar los contratos.');
+    addToast('danger','No se pudo guardar en Firestore.');
   } finally {
     accionandoContratos.value = false;
   }
 };
 
-/* ================== Eliminar (con modal) ================== */
+/* ================== Eliminar (modal) ================== */
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -761,6 +920,8 @@ async function confirmarEliminar(){
   } catch (e) {
     console.error(e);
     const msg = mapFunctionsError(e);
+
+    // si no existe en Auth, igual borra Firestore
     if (msg.toLowerCase().includes('no se encontró') || (e?.code||'').includes('not-found')) {
       try {
         await deleteDoc(doc(db, 'Usuarios', confirmRow.value.uid));
@@ -783,11 +944,8 @@ async function confirmarEliminar(){
 </script>
 
 <style scoped>
-.admin-users-page{
-  min-height:100vh;
-}
+.admin-users-page{ min-height:100vh; }
 
-/* Headings un poco más grandes en ≥ sm */
 @media (min-width: 576px){
   .h4-sm{ font-size: 1.35rem; }
 }
@@ -807,19 +965,26 @@ async function confirmarEliminar(){
   border-top-left-radius:.75rem; border-bottom-left-radius:.75rem;
   animation: slideIn .18s ease-out both;
 }
-.offcanvas-panel-sm{
-  width: 420px; max-width: 96vw;
-}
-@keyframes slideIn { from{ transform: translateX(20px); opacity: 0; } to{ transform:none; opacity:1; } }
+.offcanvas-panel-sm{ width: 420px; max-width: 96vw; }
+@keyframes slideIn { from{ transform: translateX(20px); opacity:0 } to{ transform:none; opacity:1 } }
+
 .offcanvas-header, .offcanvas-footer{
   padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
 }
 .offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
-.offcanvas-body{
-  padding: 1rem; overflow: auto;
+.offcanvas-body{ padding: 1rem; overflow: auto; }
+
+/* Empresas scrolleable */
+.empresa-box{
+  max-height: 140px;
+  overflow: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  padding: .35rem .5rem;
+  background: var(--bs-secondary-bg);
 }
 
-/* Lista de contratos scrolleable */
+/* Contratos scrolleable */
 .contratos-box{
   max-height: 260px;
   overflow: auto;
@@ -835,10 +1000,9 @@ async function confirmarEliminar(){
   z-index: 1090; display: grid; place-items: center; padding: 1rem;
 }
 .vmodal{
-  width: 100%; max-width: 700px;  border-radius: .75rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  width: 100%; max-width: 700px; border-radius: .75rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  overflow: hidden; background: var(--bs-body-bg); color: var(--bs-body-color);
 }
 .vmodal-header, .vmodal-footer{
   padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
@@ -860,42 +1024,27 @@ async function confirmarEliminar(){
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono del modal de eliminación */
+/* Icono del modal */
 .confirm-icon{
-  width: 38px; height: 38px;
-  border-radius: 10px;
+  width: 38px; height: 38px; border-radius: 10px;
   display: grid; place-items: center;
   background: linear-gradient(135deg,#ef4444,#dc2626);
   color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-/* Tabla: recortes/ajustes en pantallas pequeñas */
-.table td, .table th{
-  vertical-align: middle;
-}
-@media (max-width: 576px){
-  thead th:first-child,
-  tbody td:first-child{
-    width: 34px !important;
-  }
-  /* Limita anchos para truncar bonito */
-  td .text-truncate{ max-width: 180px; }
-}
-
-/* Sticky header de la tabla */
+/* Tabla */
+.table td, .table th{ vertical-align: middle; }
 .table-responsive thead th{
   z-index: 1;
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* Pagination mejor en móviles */
-.pagination .page-link{
-  min-width: 34px; text-align:center;
-}
+.pagination .page-link{ min-width: 34px; text-align:center; }
 
-/* Ajustes de densidad en móviles para el offcanvas principal */
 @media (max-width: 576px){
+  thead th:first-child, tbody td:first-child{ width: 34px !important; }
+  td .text-truncate{ max-width: 180px; }
   .offcanvas-body .row.g-3{ row-gap: .75rem; }
 }
 </style>

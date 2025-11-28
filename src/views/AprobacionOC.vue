@@ -1,4 +1,4 @@
-<!-- AprobaciónOC.vue -->
+<!-- src/views/AprobaciónOC.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="aprob-oc-page">
@@ -20,9 +20,9 @@
             <span class="input-group-text"><i class="bi bi-buildings"></i></span>
             <select v-model="empresaFiltro" class="form-select">
               <option value="TODAS">Todas las empresas</option>
-              <option value="SERVICIOS">Xtreme Servicios</option>
-              <option value="MINING">Xtreme Mining</option>
-              <option value="HORMIGONES">Xtreme Hormigones</option>
+              <option v-for="e in empresasCfg" :key="e.key" :value="e.key">
+                {{ e.nombre }}
+              </option>
             </select>
           </div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
@@ -43,8 +43,8 @@
       </div>
 
       <!-- Mensaje rol -->
-      <div v-if="!rolActual" class="alert alert-warning">
-        Tu usuario no tiene rol de aprobación o aún no se determina.
+      <div v-if="!rolActual && !cargando" class="alert alert-warning">
+        Tu usuario no tiene bandeja de aprobación asignada (o hoy estás fuera por vacaciones/estado).
       </div>
 
       <!-- Lista -->
@@ -53,8 +53,11 @@
           <div class="minw-0">
             <div class="fw-semibold">Órdenes encontradas</div>
             <div class="small text-secondary text-truncate">
-              Estado: <strong>{{ estatusFiltrado }}</strong> ·
+              Estado(s): <strong>{{ estatusFiltrado }}</strong> ·
               Empresa: <strong>{{ etiquetaEmpresaFiltro }}</strong>
+              <span v-if="delegatedStatusesCount" class="ms-2 badge bg-warning-subtle text-warning-emphasis">
+                Delegaciones activas: {{ delegatedStatusesCount }}
+              </span>
             </div>
           </div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ ocsFiltradas.length }}</span>
@@ -67,7 +70,7 @@
           </div>
 
           <div v-else-if="ocsFiltradas.length === 0" class="p-4 text-secondary text-center">
-            No hay OCs con estatus “{{ estatusFiltrado }}” para {{ etiquetaEmpresaFiltro.toLowerCase() }}.
+            No hay OCs para tu bandeja con los filtros actuales.
           </div>
 
           <div v-else class="list-group list-group-flush">
@@ -78,7 +81,15 @@
                 <div class="col-12 col-lg-9">
                   <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="fw-semibold">OC N° {{ oc.id ?? '—' }}</span>
-                    <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus }}</span>
+                    <span class="badge" :class="estadoBadgeClass(oc.estatus)">
+                      {{ prettyEstatus(oc) }}
+                    </span>
+
+                    <template v-if="getDelegationInfo(oc)">
+                      <span class="badge bg-warning-subtle text-warning-emphasis">
+                        Delegado: {{ getDelegationInfo(oc).from }} → {{ getDelegationInfo(oc).to }}
+                      </span>
+                    </template>
                   </div>
 
                   <!-- Chips resumen -->
@@ -96,7 +107,7 @@
                       <span class="oc-pill" title="Empresa">
                         <i class="bi bi-diagram-3 me-1"></i>
                         <strong>Empresa:</strong>
-                        <span class="text-truncate d-inline-block maxw-140">{{ oc.empresa || '—' }}</span>
+                        <span class="text-truncate d-inline-block maxw-140">{{ oc._empresaNombre || oc.empresa || '—' }}</span>
                       </span>
 
                       <span class="oc-pill" title="Moneda">
@@ -135,7 +146,8 @@
                     <button
                       v-if="oc.solpedId"
                       class="btn btn-secondary btn-sm"
-                      @click="irASolped(oc)">
+                      @click="irASolped(oc)"
+                    >
                       Ver SOLPED
                     </button>
                   </div>
@@ -311,6 +323,7 @@
                       </li>
                     </ul>
                   </div>
+
                 </div>
               </transition>
             </div>
@@ -362,9 +375,9 @@
               <label class="form-label">Empresa</label>
               <select v-model="empresaFiltro" class="form-select">
                 <option value="TODAS">Todas las empresas</option>
-                <option value="SERVICIOS">Xtreme Servicios</option>
-                <option value="MINING">Xtreme Mining</option>
-                <option value="HORMIGONES">Xtreme Hormigones</option>
+                <option v-for="e in empresasCfg" :key="e.key" :value="e.key">
+                  {{ e.nombre }}
+                </option>
               </select>
             </div>
           </div>
@@ -431,27 +444,18 @@ import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
-  collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc, addDoc, serverTimestamp
+  collection, query, where, orderBy, onSnapshot, doc, updateDoc,
+  getDoc, addDoc, serverTimestamp
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
-/* ====== Constantes de rol/limites ====== */
-const LIM_GUILLERMO = 250_000;
-const LIM_JUAN = 5_000_000;
-
-/* ====== Router + Auth ====== */
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
 
-/* ====== Estado base ====== */
-const cargando = ref(true);
-const ocs = ref([]);
-const usuarioNombre = ref('');
-const rolActual = ref(null); // 'GUILLERMO' | 'JUAN' | 'ALEJANDRO' | null
-let _unsub = null;
-
-/* ====== Toasts ====== */
+/* =========================
+   Toasts
+   ========================= */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2800) => {
   const id = Date.now() + Math.random();
@@ -460,14 +464,173 @@ const addToast = (type, text, timeout = 2800) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ===== Offcanvas custom (móvil) ===== */
+/* =========================
+   Usuario
+   ========================= */
+const userUid = ref('');
+const usuarioNombre = ref('');
+
+/* =========================
+   Config flujo por empresa (AdminConfig)
+   configuracion/aprobacion_oc_taller/empresas/*
+   ========================= */
+const rootRef = doc(db, 'configuracion', 'aprobacion_oc_taller');
+const empresasCol = collection(rootRef, 'empresas');
+const empresasCfg = ref([]); // [{key,nombre,activo,steps:[]}]
+let unsubEmp = null;
+
+const keyify = (name) =>
+  String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const todayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+};
+
+const isInVacation = (vacaciones = [], dateISO = todayISO()) => {
+  if (!Array.isArray(vacaciones)) return false;
+  return vacaciones.some(v => v?.from && v?.to && String(v.from) <= dateISO && dateISO <= String(v.to));
+};
+
+const availableApprovers = (step) => {
+  const arr = Array.isArray(step?.approvers) ? step.approvers : [];
+  return arr.filter(a =>
+    a?.uid &&
+    a.activo !== false &&
+    !isInVacation(a.vacaciones)
+  );
+};
+
+const stepHasAvailableApprover = (step) => {
+  if (!step) return false;
+  if (step.activo === false) return false;
+  return availableApprovers(step).length > 0;
+};
+
+const findEmpresaDoc = (empresaRaw) => {
+  const raw = String(empresaRaw || '').trim();
+  if (!raw) return null;
+
+  const k = keyify(raw);
+  let e = empresasCfg.value.find(x => x.key === k);
+  if (e) return e;
+
+  e = empresasCfg.value.find(x => keyify(x.nombre) === k);
+  if (e) return e;
+
+  const nr = keyify(raw).replace(/_/g, '');
+  e = empresasCfg.value.find(x =>
+    keyify(x.nombre).replace(/_/g, '').includes(nr) ||
+    nr.includes(keyify(x.nombre).replace(/_/g, ''))
+  );
+  return e || null;
+};
+
+const getStepsForOC = (oc) => {
+  const emp = findEmpresaDoc(oc?.empresa);
+  const steps = Array.isArray(emp?.steps) ? emp.steps : [];
+  return steps;
+};
+
+const findStepIndexByStatus = (steps, status) =>
+  steps.findIndex(s => String(s?.inStatus || '') === String(status || ''));
+
+/** Delegación: si step sin aprobadores, delega al step anterior disponible (si no, al siguiente) */
+const findFallbackIndex = (steps, idx) => {
+  if (!Array.isArray(steps) || idx < 0) return -1;
+  if (stepHasAvailableApprover(steps[idx])) return idx;
+
+  for (let d = 1; d < steps.length; d++) {
+    const prev = idx - d;
+    if (prev >= 0 && stepHasAvailableApprover(steps[prev])) return prev;
+
+    const next = idx + d;
+    if (next < steps.length && stepHasAvailableApprover(steps[next])) return next;
+  }
+  return -1;
+};
+
+/** Estados (bandejas) que el usuario debe ver hoy */
+const statusesWanted = computed(() => {
+  const uid = userUid.value;
+  if (!uid) return [];
+
+  const out = new Set();
+
+  for (const emp of empresasCfg.value) {
+    if (!emp || emp.activo === false) continue;
+    const steps = Array.isArray(emp.steps) ? emp.steps : [];
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      const inStatus = String(st?.inStatus || '').trim();
+      if (!inStatus) continue;
+
+      const f = findFallbackIndex(steps, i);
+      if (f < 0) continue;
+
+      const uidsAvail = new Set(availableApprovers(steps[f]).map(a => a.uid));
+      if (uidsAvail.has(uid)) out.add(inStatus);
+    }
+  }
+  return [...out];
+});
+
+const delegatedStatusesCount = computed(() => {
+  const uid = userUid.value;
+  if (!uid) return 0;
+  let c = 0;
+
+  for (const emp of empresasCfg.value) {
+    if (!emp || emp.activo === false) continue;
+    const steps = Array.isArray(emp.steps) ? emp.steps : [];
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      const inStatus = String(st?.inStatus || '').trim();
+      if (!inStatus) continue;
+
+      const f = findFallbackIndex(steps, i);
+      if (f < 0 || f === i) continue;
+
+      const uidsAvail = new Set(availableApprovers(steps[f]).map(a => a.uid));
+      if (uidsAvail.has(uid)) c++;
+    }
+  }
+  return c;
+});
+
+const rolActual = computed(() => (statusesWanted.value.length ? 'APROBADOR' : null));
+const estatusFiltrado = computed(() => statusesWanted.value.join(' / ') || '—');
+
+/* =========================
+   Empresa filtro (empresaKey)
+   ========================= */
+const empresaFiltro = ref('TODAS');
+const etiquetaEmpresaFiltro = computed(() => {
+  if (empresaFiltro.value === 'TODAS') return 'Todas las empresas';
+  const e = empresasCfg.value.find(x => x.key === empresaFiltro.value);
+  return e?.nombre || empresaFiltro.value;
+});
+
+/* =========================
+   Offcanvas custom (móvil)
+   ========================= */
 const showFiltersMobile = ref(false);
 const toggleFiltersResponsive = () => { showFiltersMobile.value = !showFiltersMobile.value; };
 const closeFiltersMobile = () => { showFiltersMobile.value = false; };
 const applyFilters = () => {};
 const limpiarFiltros = () => { empresaFiltro.value = 'TODAS'; };
 
-/* ===== Visor fullscreen de adjuntos ===== */
+/* =========================
+   Visor fullscreen de adjuntos
+   ========================= */
 const isXs = window.matchMedia('(max-width: 576px)').matches;
 const viewerOpen = ref(false);
 const viewerItem = ref(null);
@@ -476,7 +639,8 @@ const closeOnBackdrop = true;
 
 const isImage = (file) => {
   const t = String(file?.tipo || '');
-  return t.includes('image') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(file?.url||'')); };
+  return t.includes('image') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(file?.url||''));
+};
 const openViewer = (file) => {
   viewerItem.value = file || null;
   viewerOpen.value = !!viewerItem.value;
@@ -488,9 +652,11 @@ const zoomIn = () => { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2))
 const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)); };
 const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
-watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
+watch(viewerOpen, v => { document.documentElement.style.overflow = v ? 'hidden' : ''; });
 
-/* ===== Autorizaciones SOLPED ===== */
+/* =========================
+   Autorizaciones SOLPED
+   ========================= */
 const solpedAuthById = ref({});
 const authKey = (oc, idx) => `${oc.__docId || oc.solpedId || 'x'}_${idx}`;
 const authPreviewOpen = ref({});
@@ -586,41 +752,9 @@ const ensureSolpedAuthLoaded = async (oc) => {
   }
 };
 
-/* ===== Empresa / etiquetas ===== */
-const normalizeCompany = (raw) => {
-  const s = String(raw||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toUpperCase();
-  if (!s) return '';
-  if (s.includes('SERV')) return 'SERVICIOS';
-  if (s.includes('MIN') || s.includes('MINGI')) return 'MINING';
-  if (s.includes('HORMIG')) return 'HORMIGONES';
-  return s;
-};
-const empresaFiltro = ref('TODAS'); // 'TODAS'|'SERVICIOS'|'MINING'|'HORMIGONES'
-const etiquetaEmpresaFiltro = computed(() => {
-  switch (empresaFiltro.value) {
-    case 'SERVICIOS': return 'Xtreme Servicios';
-    case 'MINING': return 'Xtreme Mining';
-    case 'HORMIGONES': return 'Xtreme Hormigones';
-    default: return 'Todas las empresas';
-  }
-});
-
-/* ===== Rol / estatus ===== */
-const mapNombreARol = (fullName) => {
-  const n = (fullName || '').trim().toLowerCase();
-  if (n === 'guillermo manzor') return 'GUILLERMO';
-  if (n === 'juan cubillos') return 'JUAN';
-  if (n === 'alejandro candia') return 'ALEJANDRO';
-  return null;
-};
-const estatusFiltrado = computed(() => {
-  if (rolActual.value === 'GUILLERMO') return 'Revisión Guillermo';
-  if (rolActual.value === 'JUAN') return 'Preaprobado';
-  if (rolActual.value === 'ALEJANDRO') return 'Casi Aprobado';
-  return '';
-});
-
-/* ===== Badges / util ===== */
+/* =========================
+   Badges / utils
+   ========================= */
 const estadoBadgeClass = (estatus) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -647,80 +781,139 @@ const fmtFecha = (f) => {
   } catch { return '—'; }
 };
 
-/* ===== Derivados ===== */
-const ocsFiltradas = computed(() => {
-  if (empresaFiltro.value === 'TODAS') return ocs.value;
-  return ocs.value.filter(oc => normalizeCompany(oc.empresa) === empresaFiltro.value);
-});
+const getDelegationInfo = (oc) => {
+  const steps = getStepsForOC(oc);
+  const idx = findStepIndexByStatus(steps, oc?.estatus);
+  if (idx < 0) return null;
+  const f = findFallbackIndex(steps, idx);
+  if (f < 0 || f === idx) return null;
+  return {
+    from: steps[idx]?.nombre || steps[idx]?.inStatus || 'etapa',
+    to: steps[f]?.nombre || steps[f]?.inStatus || 'delegado'
+  };
+};
 
-/* ===== Suscripción ===== */
-const subscribe = () => {
-  if (_unsub) { _unsub(); _unsub = null; }
-  cargando.value = true;
-  const estatus = estatusFiltrado.value;
-  if (!estatus) { cargando.value = false; return; }
+const prettyEstatus = (oc) => {
+  const est = String(oc?.estatus || '—');
+  const info = getDelegationInfo(oc);
+  if (!info) return est;
+  return `${est} (delegado)`;
+};
 
-  const qy = query(
-    collection(db, 'ordenes_oc'),
-    where('estatus', '==', estatus),
-    orderBy('fechaSubida', 'desc')
+/* =========================
+   Permiso: puedo actuar en esta OC hoy
+   ========================= */
+const canActOnOC = (oc) => {
+  const uid = userUid.value;
+  if (!uid) return false;
+
+  const steps = getStepsForOC(oc);
+  const idx = findStepIndexByStatus(steps, oc?.estatus);
+  if (idx < 0) return false;
+
+  const f = findFallbackIndex(steps, idx);
+  if (f < 0) return false;
+
+  const uidsAvail = new Set(availableApprovers(steps[f]).map(a => a.uid));
+  return uidsAvail.has(uid);
+};
+
+/* =========================
+   Suscripción OCs (chunked IN <= 10)
+   ========================= */
+const cargando = ref(true);
+const ocs = ref([]);
+let unsubsOCs = [];
+
+const chunk = (arr, size) => {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+};
+
+const rebuildOCsFromChunks = (chunkMaps) => {
+  const map = new Map();
+  for (const m of chunkMaps) for (const [id, val] of m.entries()) map.set(id, val);
+
+  const arr = [...map.values()]
+    .map(oc => ({
+      ...oc,
+      _empresaKey: findEmpresaDoc(oc?.empresa)?.key || keyify(oc?.empresa || ''),
+      _empresaNombre: findEmpresaDoc(oc?.empresa)?.nombre || (oc?.empresa || ''),
+    }))
+    .filter(oc => canActOnOC(oc));
+
+  arr.sort((a,b) =>
+    (b.fechaSubida?.toMillis?.() ?? new Date(b.fechaSubida || 0).getTime()) -
+    (a.fechaSubida?.toMillis?.() ?? new Date(a.fechaSubida || 0).getTime())
   );
-  _unsub = onSnapshot(qy, (snap) => {
-    const arr = [];
-    snap.forEach(d => {
-      const data = d.data();
-      const archivos = Array.isArray(data.archivosStorage)
-        ? data.archivosStorage.map((a)=>({ ...a, ver:false }))
-        : [];
-      arr.push({
-        __docId: d.id,
-        ...data,
-        archivosStorage: archivos,
-        expandido: false,
-        _comentarioAccion: ''
+
+  ocs.value = arr;
+  cargando.value = false;
+};
+
+const subscribeOCs = () => {
+  unsubsOCs.forEach(fn => fn?.());
+  unsubsOCs = [];
+  cargando.value = true;
+
+  const statuses = statusesWanted.value.filter(Boolean);
+  if (!statuses.length) {
+    ocs.value = [];
+    cargando.value = false;
+    return;
+  }
+
+  const chunks = chunk(statuses, 10);
+  const chunkMaps = chunks.map(() => new Map());
+
+  chunks.forEach((stChunk, idx) => {
+    const qy = query(
+      collection(db, 'ordenes_oc'),
+      where('estatus', 'in', stChunk),
+      orderBy('fechaSubida', 'desc')
+    );
+
+    const unsub = onSnapshot(qy, (snap) => {
+      const m = new Map();
+      snap.forEach(d => {
+        const data = d.data() || {};
+        const archivos = Array.isArray(data.archivosStorage)
+          ? data.archivosStorage.map(a => ({ ...a, ver:false }))
+          : [];
+
+        m.set(d.id, {
+          __docId: d.id,
+          ...data,
+          archivosStorage: archivos,
+          expandido: false,
+          _comentarioAccion: ''
+        });
       });
+
+      chunkMaps[idx] = m;
+      rebuildOCsFromChunks(chunkMaps);
+    }, (err) => {
+      console.error(err);
+      addToast('danger', 'Error al cargar OCs.');
+      cargando.value = false;
     });
-    arr.sort((a,b)=> (b.fechaSubida?.toMillis?.() ?? new Date(b.fechaSubida||0).getTime())
-                  - (a.fechaSubida?.toMillis?.() ?? new Date(a.fechaSubida||0).getTime()));
-    ocs.value = arr;
-    cargando.value = false;
-  }, (err)=> {
-    console.error(err);
-    addToast('danger','Error al cargar OCs.');
-    cargando.value = false;
+
+    unsubsOCs.push(unsub);
   });
 };
 
-onMounted(async () => {
-  try {
-    const uid = auth?.user?.uid;
-    let fullName = auth?.user?.displayName || auth?.user?.email || '';
-    if (uid) {
-      try {
-        const us = await getDoc(doc(db, 'Usuarios', uid));
-        if (us.exists()) {
-          const d = us.data() || {};
-          fullName = d.fullName || fullName;
-        }
-      } catch(e) {console.warn('No se pudo obtener nombre completo de usuario:', e);}
-    }
-    usuarioNombre.value = fullName || '';
-    rolActual.value = mapNombreARol(usuarioNombre.value);
-    if (!rolActual.value) {
-      cargando.value = false;
-      return;
-    }
-    subscribe();
-  } catch (e) {
-    console.error(e);
-    addToast('danger','No se pudo inicializar la vista.');
-    cargando.value = false;
-  }
+/* =========================
+   Empresa filtro
+   ========================= */
+const ocsFiltradas = computed(() => {
+  if (empresaFiltro.value === 'TODAS') return ocs.value;
+  return ocs.value.filter(oc => String(oc._empresaKey || '') === String(empresaFiltro.value));
 });
-onBeforeUnmount(()=>{ if (_unsub) _unsub(); });
-watch(rolActual, () => { subscribe(); });
 
-/* ===== Navegación a SOLPED ===== */
+/* =========================
+   Navegación a SOLPED
+   ========================= */
 const irASolped = (oc) => {
   const id = oc?.solpedId;
   if (!id) { addToast('warning','Esta OC no tiene SOLPED asociada.'); return; }
@@ -728,13 +921,12 @@ const irASolped = (oc) => {
   catch { router.push(`/solped/${id}`); }
 };
 
-/* ===== Historial en solpes/historialEstados (por cambio de estatus OC) ===== */
+/* =========================================================
+   Historial en solpes/historialEstados (por cambio estatus OC)
+   ========================================================= */
 const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, estatusOC, comentario }) => {
   if (!solpedId) return;
   try {
-    dlog('SOLPED:historialEstados:fromOC', {
-      solpedId, ocNumero, usuario, estatusOC, comentario
-    });
     const sref = doc(db, 'solpes', String(solpedId));
     await addDoc(collection(sref, 'historialEstados'), {
       estatus: estatusOC,
@@ -750,13 +942,17 @@ const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, e
   }
 };
 
+/* =========================================================
+   Actualizar SOLPED con avances de esta OC (tu versión)
+   ========================================================= */
+const DEBUG = false;
+const s = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
+const dlog = (tag, payload = {}) => {
+  if (!DEBUG) return;
+  try { console.groupCollapsed(`[AprobOC] ${tag}`); console.log(payload); }
+  finally { console.groupEnd?.(); }
+};
 
-/* ===== Actualizar SOLPED con los avances de esta OC (suma segura) =====
-   - Match: numero_interno → código referencial → item → (descripción única)
-   - Suma segura sin pasar cantidad.
-   - Recalcula SIEMPRE estado de cada ítem (completo/parcial/pendiente).
-   - Recalcula estatus global (Completado/Parcial/Pendiente).
-*/
 const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
   const solpedId = oc?.solpedId; if (!solpedId) return;
   const sref = doc(db, 'solpes', String(solpedId));
@@ -799,11 +995,10 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
     if (kNI && idxNI.has(kNI)) return idxNI.get(kNI);
     if (kCR && idxCR.has(kCR)) return idxCR.get(kCR);
     if (kIT && idxItemNum.has(kIT)) return idxItemNum.get(kIT);
-    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(s => norm(s.descripcion) === kDS);
+    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(s2 => norm(s2.descripcion) === kDS);
     return -1;
   };
 
-  // 1) Aplicar deltas de esta OC (si los hay)
   ocItems.forEach(ocIt => {
     const idx = findIndex(ocIt);
     if (idx < 0) { dlog('SOLPED:update:no-match', { ocIt: s(ocIt) }); return; }
@@ -847,46 +1042,33 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
     dlog('SOLPED:update:item-after', { matchIndex: idx, itemAfter: s(itemsSol[idx]) });
   });
 
-  // 2) Recalcular SIEMPRE estado por ítem
   let cambiosEstado = false;
   for (let i = 0; i < itemsSol.length; i++) {
     const it = itemsSol[i];
     const cant = Number(it.cantidad || 0);
     const cot  = Number(it.cantidad_cotizada || 0);
     const nuevoEstado = (cot >= cant && cant > 0) ? 'completado'
-                     : (cot > 0) ? 'parcial'
-                     : 'pendiente';
+      : (cot > 0) ? 'parcial'
+        : 'pendiente';
     if ((it.estado || '') !== nuevoEstado) {
       itemsSol[i] = { ...it, estado: nuevoEstado };
       cambiosEstado = true;
     }
   }
 
-  // 3) Recalcular estatus global
   const allFull = itemsSol.every(x => Number(x.cantidad_cotizada || 0) >= Number(x.cantidad || 0));
   const anyCot  = itemsSol.some(x => Number(x.cantidad_cotizada || 0) > 0);
   const nuevoEstatusSol = allFull ? 'Completado' : (anyCot ? 'Parcial' : 'Pendiente');
 
   dlog('SOLPED:update:huboAvance?', { huboAvance, cambiosEstado, nuevoEstatusSol });
 
-  // 4) Escribir sólo si hay algo que cambiar (delta o estados/estatus)
   const debeActualizar = huboAvance || cambiosEstado || (String(sdata.estatus || '') !== String(nuevoEstatusSol));
   if (debeActualizar) {
-    dlog('SOLPED:update:pre-updateDoc', {
-      solpedId,
-      nuevoEstatusSol,
-      resumenItems: s(itemsSol.map(it => ({
-        item: it.item, desc: it.descripcion, cant: it.cantidad, cot: it.cantidad_cotizada, estado: it.estado, aportadoOCActual: it.cotPorOC?.[ocKey] ?? 0
-      })))
-    });
-
     await updateDoc(sref, {
       items: itemsSol,
       estatus: nuevoEstatusSol,
       updated_at: new Date()
     });
-
-    dlog('SOLPED:update:post-updateDoc', { solpedId, nuevoEstatusSol });
 
     try {
       await addDoc(collection(sref, 'historialEstados'), {
@@ -898,17 +1080,12 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
         ocNumero: oc?.id ?? null,
         fecha: serverTimestamp()
       });
-      dlog('SOLPED:update:historialEstados:ok', { solpedId, nuevoEstatusSol });
     } catch (e) {
       console.warn('No se pudo registrar historialEstados (operativo) de la SOLPED:', e);
     }
   }
 
-  // 5) Registrar el movimiento de la OC (Aprobado/Preaprobado/…)
   if (estatusOC) {
-    dlog('SOLPED:update:registrarHistorialSolpedAccionOC', {
-      solpedId, ocNumero: oc?.id, estatusOC, comentario
-    });
     await registrarHistorialSolpedAccionOC({
       solpedId,
       ocNumero: oc?.id,
@@ -919,17 +1096,6 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
   }
 };
 
-// ===== DEBUG helper =====
-const DEBUG = true;
-const s = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
-const dlog = (tag, payload = {}) => {
-  if (!DEBUG) return;
-  try { console.groupCollapsed(`[AprobOC] ${tag}`); console.log(payload); }
-  finally { console.groupEnd?.(); }
-};
-
-
-/* ===== Cerrar SOLPED si todos los ítems completados ===== */
 const cerrarSolpedSiCompleta = async (solpedId) => {
   if (!solpedId) return;
   try {
@@ -941,18 +1107,9 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
     const items = Array.isArray(data.items) ? data.items : [];
     if (!items.length) return;
 
-    const resumen = items.map(it => ({
-      item: it.item, desc: it.descripcion, cant: it.cantidad, cot: it.cantidad_cotizada, estado: it.estado
-    }));
     const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
-
-    dlog('SOLPED:cerrarSiCompleta:check', {
-      solpedId, estatusActual: data.estatus, todosCompletos, resumen
-    });
-
     if (todosCompletos && (data.estatus || '').toLowerCase() !== 'completado') {
       await updateDoc(sref, { estatus: 'Completado' });
-      dlog('SOLPED:cerrarSiCompleta:marcadaCompletada', { solpedId });
       addToast('success', 'SOLPED completada ✔');
     }
   } catch (e) {
@@ -960,18 +1117,58 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
   }
 };
 
+/* =========================================================
+   Resolver siguiente estatus al aprobar (saltando steps sin gente)
+   ========================================================= */
+const computeNextStatusOnApprove = (steps, currentStatus, monto, actingUid) => {
+  const idx0 = findStepIndexByStatus(steps, currentStatus);
+  if (idx0 < 0) return 'Aprobado';
 
-/* ===== Acciones ===== */
+  const indexByStatus = new Map(steps.map((s, i) => [String(s?.inStatus || ''), i]));
+  const visited = new Set();
+  let idx = idx0;
+
+  while (true) {
+    const st = steps[idx];
+    if (!st) return 'Aprobado';
+
+    const max = Number(st.max ?? 0);
+    const approveTo = String(st.approveTo || 'Aprobado').trim() || 'Aprobado';
+    const overTo = String(st.overTo || '').trim();
+
+    if (monto <= max) return approveTo;
+    if (!overTo) return approveTo;
+
+    const j = indexByStatus.get(overTo);
+    if (j == null) return overTo;
+
+    const av = availableApprovers(steps[j]).map(a => a.uid);
+    const avSet = new Set(av);
+    const nextHasApprovers = stepHasAvailableApprover(steps[j]);
+    const onlyMeInNext = (avSet.size === 1 && avSet.has(actingUid));
+
+    if (!nextHasApprovers || onlyMeInNext) {
+      const key = `${j}`;
+      if (visited.has(key)) return overTo;
+      visited.add(key);
+      idx = j;
+      continue;
+    }
+
+    return overTo;
+  }
+};
+
+/* =========================
+   Acciones
+   ========================= */
 const accionando = ref(false);
 
 const solicitarAclaracion = async (oc) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de solicitar aclaración.'); return; }
-
-  if (rolActual.value === 'GUILLERMO' && oc.estatus !== 'Revisión Guillermo') { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
-  if (rolActual.value === 'JUAN' && oc.estatus !== 'Preaprobado') { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
-  if (rolActual.value === 'ALEJANDRO' && oc.estatus !== 'Casi Aprobado') { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
+  if (!canActOnOC(oc)) { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
 
   accionando.value = true;
   try {
@@ -1004,30 +1201,14 @@ const aprobar = async (oc) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de aprobar.'); return; }
-
-  if (rolActual.value === 'GUILLERMO' && oc.estatus !== 'Revisión Guillermo') { addToast('warning','No puedes aprobar este estado.'); return; }
-  if (rolActual.value === 'JUAN' && oc.estatus !== 'Preaprobado') { addToast('warning','No puedes aprobar este estado.'); return; }
-  if (rolActual.value === 'ALEJANDRO' && oc.estatus !== 'Casi Aprobado') { addToast('warning','No puedes aprobar este estado.'); return; }
+  if (!canActOnOC(oc)) { addToast('warning','No puedes aprobar este estado.'); return; }
 
   accionando.value = true;
   try {
+    const steps = getStepsForOC(oc);
     const monto = Number(oc.precioTotalConIVA || 0);
-    let nuevoEstatus = oc.estatus;
-    if (rolActual.value === 'GUILLERMO') {
-      nuevoEstatus = (monto <= LIM_GUILLERMO) ? 'Aprobado' : 'Preaprobado';
-    } else if (rolActual.value === 'JUAN') {
-      nuevoEstatus = (monto <= LIM_JUAN) ? 'Aprobado' : 'Casi Aprobado';
-    } else if (rolActual.value === 'ALEJANDRO') {
-      nuevoEstatus = 'Aprobado';
-    }
 
-    const ocKey = String(oc.id ?? oc.__docId ?? '');
-
-    dlog('APROBAR:init', {
-      rol: rolActual.value, ocDocId: oc.__docId, ocId: oc.id, ocKey,
-      estatusAnterior: oc.estatus, monto, nuevoEstatusPropuesto: nuevoEstatus,
-      itemsAntes: s(oc.items)
-    });
+    const nuevoEstatus = computeNextStatusOnApprove(steps, oc.estatus, monto, userUid.value) || 'Aprobado';
 
     const nuevosItems = (oc.items || []).map((it) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
@@ -1038,11 +1219,6 @@ const aprobar = async (oc) => {
       { usuario: usuarioNombre.value || '—', estatus: nuevoEstatus, fecha: new Date().toISOString(), comentario }
     ];
 
-    dlog('APROBAR:pre-updateDoc ordenes_oc', {
-      ocDocId: oc.__docId,
-      set: { estatus: nuevoEstatus, aprobadoPor: usuarioNombre.value || '', items: s(nuevosItems), historial: s(nuevoHistorial) }
-    });
-
     await updateDoc(doc(db, 'ordenes_oc', oc.__docId), {
       estatus: nuevoEstatus,
       historial: nuevoHistorial,
@@ -1050,23 +1226,17 @@ const aprobar = async (oc) => {
       aprobadoPor: usuarioNombre.value || ''
     });
 
-    dlog('APROBAR:post-updateDoc ordenes_oc', { ocDocId: oc.__docId, nuevoEstatus });
-
-    if (nuevoEstatus === 'Aprobado') {
-      dlog('APROBAR→actualizarSolpedConOC:call', { solpedId: oc.solpedId, ocId: oc.id, itemsOC: s(nuevosItems), comentario });
+    if (String(nuevoEstatus).toLowerCase() === 'aprobado') {
       await actualizarSolpedConOC({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario, nuevoEstatus);
-
-      dlog('APROBAR→cerrarSolpedSiCompleta:call', { solpedId: oc.solpedId });
       await cerrarSolpedSiCompleta(oc.solpedId);
     } else {
-      dlog('APROBAR:registrarHistorialSolpedAccionOC (no aprobado)', { solpedId: oc.solpedId, ocNumero: oc.id, nuevoEstatus, comentario });
       await registrarHistorialSolpedAccionOC({
         solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
         estatusOC: nuevoEstatus, comentario
       });
     }
 
-    addToast('success', `OC aprobada → ${nuevoEstatus}`);
+    addToast('success', `OC → ${nuevoEstatus}`);
     ocs.value = ocs.value.filter(x => x.__docId !== oc.__docId);
   } catch (e) {
     console.error(e);
@@ -1076,15 +1246,11 @@ const aprobar = async (oc) => {
   }
 };
 
-
 const rechazar = async (oc) => {
   if (accionando.value) return;
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de rechazar.'); return; }
-
-  if (rolActual.value === 'GUILLERMO' && oc.estatus !== 'Revisión Guillermo') { addToast('warning','No puedes rechazar este estado.'); return; }
-  if (rolActual.value === 'JUAN' && oc.estatus !== 'Preaprobado') { addToast('warning','No puedes rechazar este estado.'); return; }
-  if (rolActual.value === 'ALEJANDRO' && oc.estatus !== 'Casi Aprobado') { addToast('warning','No puedes rechazar este estado.'); return; }
+  if (!canActOnOC(oc)) { addToast('warning','No puedes rechazar este estado.'); return; }
 
   accionando.value = true;
   try {
@@ -1117,6 +1283,68 @@ const rechazar = async (oc) => {
     accionando.value = false;
   }
 };
+
+/* =========================
+   Mount / Unmount
+   ========================= */
+onMounted(async () => {
+  try {
+    cargando.value = true;
+
+    // usuario
+    const uid = auth?.user?.uid || '';
+    userUid.value = uid;
+
+    let fullName = auth?.user?.displayName || auth?.user?.email || '';
+    if (uid) {
+      try {
+        const us = await getDoc(doc(db, 'Usuarios', uid));
+        if (us.exists()) {
+          const d = us.data() || {};
+          fullName = d.fullName || fullName;
+        }
+      } catch { /* ignore */ }
+    }
+    usuarioNombre.value = fullName || '';
+
+    // empresas/steps
+    unsubEmp = onSnapshot(query(empresasCol, orderBy('nombre')), (snap) => {
+      const arr = [];
+      snap.forEach(snapDoc => {
+        const d = snapDoc.data() || {};
+        arr.push({
+          key: snapDoc.id,
+          nombre: d.nombre || snapDoc.id,
+          activo: d.activo !== false,
+          steps: Array.isArray(d.steps) ? d.steps : []
+        });
+      });
+      empresasCfg.value = arr;
+
+      if (empresaFiltro.value !== 'TODAS' && !arr.some(e => e.key === empresaFiltro.value)) {
+        empresaFiltro.value = 'TODAS';
+      }
+    });
+
+    cargando.value = false;
+  } catch (e) {
+    console.error(e);
+    addToast('danger', 'No se pudo inicializar la vista.');
+    cargando.value = false;
+  }
+});
+
+onBeforeUnmount(() => {
+  unsubEmp?.();
+  unsubsOCs.forEach(fn => fn?.());
+  unsubsOCs = [];
+});
+
+watch(
+  () => `${userUid.value}|${statusesWanted.value.slice().sort().join('|')}`,
+  () => subscribeOCs(),
+  { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -1194,7 +1422,6 @@ const rechazar = async (oc) => {
   position: fixed; inset: 0;
   z-index: 2050;
 }
-
 .oc-backdrop{
   position: absolute; inset: 0;
   background: rgba(0,0,0,.45);
@@ -1204,7 +1431,6 @@ const rechazar = async (oc) => {
 /* Autorizaciones responsive */
 .auth-list { width: 100%; }
 .auth-item .card-body { padding: .75rem .8rem; }
-.minw-0 { min-width: 0; }
 .auth-ratio { border-radius: .5rem; overflow: hidden; background: var(--bs-tertiary-bg, #0b0f14); }
 .auth-iframe { width: 100%; height: 100%; border: 0; }
 .auth-img-wrap { max-height: 420px; overflow: auto; }
@@ -1232,7 +1458,6 @@ const rechazar = async (oc) => {
   from { transform: translateX(100%); opacity: .6; }
   to   { transform: translateX(0);     opacity: 1; }
 }
-
 .oc-header{
   padding: .9rem .9rem;
   border-bottom: 1px solid var(--bs-border-color, #e5e7eb);
@@ -1296,5 +1521,4 @@ const rechazar = async (oc) => {
 
 /* cursor utilitario */
 :root { --cur-ptr: pointer; }
-.bi-file-earmark-check { font-size: 1.1rem; opacity: .9; }
 </style>

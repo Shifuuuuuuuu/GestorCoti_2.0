@@ -93,7 +93,6 @@ export function useRoleMenus() {
         { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
         { name: "AprobacionOCTaller", text: "Aprobador Cotización (Taller)", icon: "bi-patch-check" },
         { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver"},
-        { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear"}
       ];
     } else if (isGenerador.value && isTallerCMUser.value) {
       base = [
@@ -145,7 +144,9 @@ export function useRoleMenus() {
       null,
       { name: "AdminUsuarios", text: "Admin Usuarios", icon: "bi bi-person"},
       { name: "AdminEquipos", text: "Admin Equipos", icon: "bi bi-car-front"},
-      { name: "DashboardEstadisticas", text: "Dashboard", icon: "bi bi-bar-chart-line"}
+      { name: "DashboardEstadisticas", text: "Dashboard", icon: "bi bi-bar-chart-line"},
+      { name: "AdminConfig", text: "Configuracion Reglas", icon: "bi bi-pc-display-horizontal"},
+      { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear"}
     ];
   });
 

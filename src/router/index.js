@@ -33,6 +33,7 @@ const PerfilUsuario      = () => import("../views/PerfilUsuario.vue");
 const Soporte            = () => import("../views/Soporte.vue");
 const SoporteGestion     = () => import("../views/SoporteGestion.vue");
 const DashboardEstadisticas = () => import("../views/DashboardEstadisticas.vue");
+const AdminConfig        = () => import("../views/AdminConfig.vue");
 
 const routes = [
   // LOGIN (pública)
@@ -73,6 +74,7 @@ const routes = [
   { path: "/admin-usuarios",      name: "AdminUsuarios",      component: AdminUsuarios,      meta: { requiresAuth: true } },
   { path: "/admin-equipos",       name: "AdminEquipos",       component: AdminEquipos,       meta: { requiresAuth: true } },
   { path: "/dashboard",           name: "DashboardEstadisticas", component: DashboardEstadisticas, meta: { requiresAuth: true } },
+  { path: "/Config",         name: "AdminConfig",        component: AdminConfig,        meta: { requiresAuth: true } },
 
   /* validador OC */
   { path: "/aprobador-oc",        name: "AprobacionOC",       component: AprobacionOC,       meta: { requiresAuth: true } },

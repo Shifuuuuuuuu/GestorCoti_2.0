@@ -1,4 +1,5 @@
 <!-- src/views/GeneradorOC.vue -->
+<!-- src/views/GeneradorOC.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="generador-oc-page">

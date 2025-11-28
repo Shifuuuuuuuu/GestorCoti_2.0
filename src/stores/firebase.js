@@ -22,3 +22,4 @@ initializeFirestore(app, { ignoreUndefinedProperties: true })
 export const db = getFirestore(app, 'rollback-2025-10-25')
 export const auth = getAuth(app, 'rollback-2025-10-25')
 export const storage = getStorage(app)
+
