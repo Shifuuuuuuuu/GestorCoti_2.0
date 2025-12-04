@@ -20,26 +20,26 @@ const pinia = createPinia();
 app.use(pinia);
 app.use(router);
 
+let swUpdateTriggered = false;
 
-const updateSW = registerSW({
+const triggerSWUpdate = registerSW({
   immediate: true,
   onNeedRefresh() {
-    updateSW(true);
+    swUpdateTriggered = true;
+    triggerSWUpdate(true);
   },
-  onOfflineReady() {
-  },
+  onOfflineReady() {},
 });
-
 
 if ("serviceWorker" in navigator) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!swUpdateTriggered) return;
     if (refreshing) return;
     refreshing = true;
     window.location.reload();
   });
 }
-
 if ("serviceWorker" in navigator) {
   (async () => {
     try {
@@ -51,10 +51,7 @@ if ("serviceWorker" in navigator) {
             reg.installing?.scriptURL ||
             reg.waiting?.scriptURL ||
             "";
-          if (
-            url.includes("firebase-messaging-sw.js") ||
-            url.includes("/fcm/")
-          ) {
+          if (url.includes("firebase-messaging-sw.js") || url.includes("/fcm/")) {
             return reg.unregister().catch(() => {});
           }
           return Promise.resolve();
@@ -67,10 +64,27 @@ if ("serviceWorker" in navigator) {
 }
 
 (async () => {
-
   listenAppVersion();
 
   const authStore = useAuthStore();
   await authStore.initAuth();
+
+  await router.isReady();
+
   app.mount("#app");
+
+  const last = localStorage.getItem("lastRoute");
+  const current = router.currentRoute.value;
+
+  if (authStore.user) {
+    if (current.name === "login") {
+      if (last) router.replace(last).catch(() => {});
+      else router.replace({ name: "home" }).catch(() => {});
+    }
+  } else {
+    if (current.meta?.requiresAuth) {
+      router.replace({ name: "login" }).catch(() => {});
+    }
+  }
+
 })();

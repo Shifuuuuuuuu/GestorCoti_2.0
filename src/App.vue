@@ -15,12 +15,17 @@ const route = useRoute();
 const auth = useAuthStore();
 const ui = useUIStore();
 
-onMounted(async () => {
-  await auth.initAuth();
+onMounted(() => {
   ui.initUI();
 });
 
-watch(() => auth.profile, (p) => { if (p) ui.loadFromProfile(p); }, { immediate: true });
+watch(
+  () => auth.profile,
+  (p) => {
+    if (p) ui.loadFromProfile(p);
+  },
+  { immediate: true }
+);
 
 useOCNotifications();
 useOCNotificationTaller();
