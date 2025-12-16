@@ -34,6 +34,8 @@ const Soporte            = () => import("../views/Soporte.vue");
 const SoporteGestion     = () => import("../views/SoporteGestion.vue");
 const DashboardEstadisticas = () => import("../views/DashboardEstadisticas.vue");
 const AdminConfig        = () => import("../views/AdminConfig.vue");
+const AdminGestionDocs   = () => import ("../views/AdminGestionDocs.vue")
+const AprobacionDocs     = () => import ("../views/AprobacionDocs.vue");
 
 const routes = [
   // LOGIN (pública)
@@ -85,10 +87,13 @@ const routes = [
   { path: "/soporte-gestor",  name: "SoporteGestion", component: SoporteGestion, meta: { requiresAuth: true } },
   { path: "/perfil-usuario",  name: "PerfilUsuario",  component: PerfilUsuario,  meta: { requiresAuth: true } },
 
+  { path: "/gestor-docs", name: "AdminGestionDocs", component: AdminGestionDocs, meta: { requiresAuth: true} },
+  { path: "/aprobacion-docs", name: "AprobacionDocs", component: AprobacionDocs, meta: { requiresAuth: true} },
+
   // 404 -> Inicio
   { path: "/:pathMatch(.*)*", redirect: { name: "Inicio" } },
 ];
-
+AprobacionDocs
 const router = createRouter({
   history: createWebHistory(),
   routes,

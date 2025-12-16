@@ -146,7 +146,9 @@ export function useRoleMenus() {
       { name: "AdminEquipos", text: "Admin Equipos", icon: "bi bi-car-front"},
       { name: "DashboardEstadisticas", text: "Dashboard", icon: "bi bi-bar-chart-line"},
       { name: "AdminConfig", text: "Configuracion Reglas", icon: "bi bi-pc-display-horizontal"},
-      { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear"}
+      { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear"},
+      { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open"},
+      { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check"}
     ];
   });
 
