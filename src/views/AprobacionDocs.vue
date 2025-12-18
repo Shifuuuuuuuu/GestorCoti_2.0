@@ -24,39 +24,40 @@
       </div>
     </div>
 
+    <div v-if="noLotesNotice" class="alert alert-info d-flex align-items-center justify-content-between gap-2">
+      <div>
+        <i class="bi bi-info-circle me-2"></i>{{ noLotesNotice }}
+      </div>
+      <button class="btn btn-sm btn-outline-dark" @click="dismissNoLotesNotice">OK</button>
+    </div>
+
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div>
         <h4 class="mb-0">Aprobación Documental</h4>
         <small class="text-muted">
-          Selecciona un lote → revisa comparativas → aprueba (firma OC) o rechaza (motivo) → avanza automático.
+          Selecciona un lote → revisa comparativas → aprueba (firma OC) o rechaza (motivo).
         </small>
       </div>
 
       <div class="d-flex gap-2 align-items-center flex-wrap">
-        <select class="form-select" style="min-width: 320px" v-model="selectedLoteId" @change="onChangeLote">
+        <select class="form-select" style="min-width: 320px" v-model="selectedLoteId" @change="onChangeLote" :disabled="!hasAnyActiveLote">
           <option value="" disabled>Selecciona un lote…</option>
-          <option v-for="l in lotes" :key="l.id" :value="l.id">
+          <option v-for="l in lotesActivos" :key="l.id" :value="l.id">
             {{ l.nombre || ("Lote " + l.id.slice(0, 6)) }}
           </option>
         </select>
-
-        <div class="input-group" style="min-width: 320px">
-          <span class="input-group-text"><i class="bi bi-search"></i></span>
-          <input v-model="q" class="form-control" placeholder="Buscar (OC / factura / nombre / estado)…" />
-          <button class="btn btn-outline-secondary" @click="q=''" title="Limpiar">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
 
         <div class="d-flex gap-2 flex-wrap">
           <span class="badge text-bg-dark">Pendientes: {{ pendientesFiltradas.length }}</span>
           <span class="badge text-bg-success">Aprobadas: {{ aprobadasFiltradas.length }}</span>
           <span class="badge text-bg-danger">Rechazadas: {{ rechazadasFiltradas.length }}</span>
         </div>
+
         <button
           type="button"
           class="btn btn-outline-dark btn-sm"
           @click="toggleSidebar"
+          :disabled="!selectedLoteId"
         >
           <i class="bi" :class="showSidebar ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar'"></i>
           {{ showSidebar ? 'Ocultar comparativas' : 'Mostrar comparativas' }}
@@ -64,7 +65,11 @@
       </div>
     </div>
 
-    <div v-if="!selectedLoteId" class="alert alert-warning">
+    <div v-if="!hasAnyActiveLote" class="alert alert-warning">
+      No hay lotes de docs pendientes para revisar.
+    </div>
+
+    <div v-else-if="!selectedLoteId" class="alert alert-warning">
       Selecciona un lote para ver sus comparativas pendientes y aprobar con firma.
     </div>
 
@@ -197,8 +202,8 @@
                 <i class="bi bi-x-circle me-1"></i>Rechazar
               </button>
 
-              <button class="btn btn-success btn-sm" :disabled="!canApprove" @click="openApproveModal">
-                <i class="bi bi-check2-circle me-1"></i>Aprobar + Firmar OC
+              <button class="btn btn-success btn-sm" :disabled="!canApprove" @click="approveAndSign">
+                <i class="bi bi-check2-circle me-1"></i>Aprobar
               </button>
             </div>
           </div>
@@ -211,85 +216,41 @@
             <template v-else>
               <Transition name="fade-fast" mode="out-in">
                 <div :key="currentCmp.id" class="cmp-block">
-                  <div class="row g-2 mb-3">
-                    <div class="col-12 col-md-6">
-                      <div class="p-2 rounded border bg-light-subtle">
-                        <div class="small text-muted">OC</div>
-                        <div class="fw-semibold text-truncate">{{ ocNombreArchivo(currentCmp) || 'OC' }}</div>
-                        <div class="small text-muted">
-                          N°: <span class="fw-semibold">{{ currentOc?.numero || ocNumero(currentCmp) || '—' }}</span>
-                        </div>
-                        <div class="small text-muted" v-if="currentOc?.firmado?.url">
-                          <i class="bi bi-pen me-1"></i>Ya firmada (se muestra la versión firmada)
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12 col-md-6">
-                      <div class="p-2 rounded border bg-light-subtle">
-                        <div class="small text-muted">
-                          {{ otherTipo(currentCmp)==='factura' ? 'Factura' : 'Guía' }}
-                        </div>
-                        <div class="fw-semibold text-truncate">
-                          {{ otherNombreArchivo(currentCmp) || 'Documento' }}
-                        </div>
-                        <div class="small text-muted">
-                          Ref OC detectada:
-                          <span class="fw-semibold">{{ otherDocRefOcText || '—' }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="col-12">
-                      <div class="p-2 rounded border bg-white">
-                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                          <div class="fw-semibold small">
-                            <i class="bi bi-chat-left-text me-1"></i>Comentario de la comparativa (opcional)
-                          </div>
-                          <button
-                            class="btn btn-outline-dark btn-sm"
-                            :disabled="
-                              !currentCmp ||
-                              commentSaving ||
-                              commentDraft.trim() === (currentCmp.comentario||'').trim()
-                            "
-                            @click="saveComment"
-                          >
-                            <span v-if="!commentSaving">
-                              <i class="bi bi-save me-1"></i>Guardar comentario
-                            </span>
-                            <span v-else>
-                              <span class="spinner-border spinner-border-sm me-2"></span>Guardando…
-                            </span>
-                          </button>
-                        </div>
-
-                        <textarea
-                          v-model="commentDraft"
-                          class="form-control mt-2"
-                          rows="2"
-                          placeholder="Ej: se observa diferencia en monto / falta referencia / ok…"
-                        ></textarea>
-
-                        <div class="small text-muted mt-1">
-                          Se guarda en la comparativa. Al rechazar, el motivo queda registrado también.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
+                <div class="row g-2 mb-3">
                   <div class="row g-2">
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
                         <div class="viewer-top d-flex justify-content-between align-items-center">
-                          <div class="fw-semibold small">{{ leftTitle }}</div>
+                          <div class="d-flex align-items-center gap-2">
+                            <div class="fw-semibold small">{{ leftTitle }}</div>
+                            <span
+                              v-if="leftTitle === 'OC' && currentCmp"
+                              class="badge text-bg-primary"
+                            >
+                              OC {{ currentOc?.numero || ocNumero(currentCmp) || '—' }}
+                            </span>
+                          </div>
                           <a v-if="leftUrl" class="btn btn-outline-dark btn-sm" :href="leftUrl" target="_blank">
                             <i class="bi bi-box-arrow-up-right"></i>
                           </a>
                         </div>
 
                         <div v-if="leftUrl" class="viewer-frame">
-                          <iframe :src="leftUrl" style="border:0; width:100%; height:100%"></iframe>
+                          <img
+                            v-if="leftIsImage"
+                            :src="leftUrl"
+                            class="viewer-img"
+                            loading="lazy"
+                            decoding="async"
+                            alt="Documento"
+                          />
+                          <iframe
+                            v-else
+                            :key="leftUrl"
+                            :src="leftUrl"
+                            loading="lazy"
+                            style="border:0; width:100%; height:100%"
+                          ></iframe>
                         </div>
                         <div v-else class="text-muted text-center py-5">Sin documento</div>
                       </div>
@@ -298,75 +259,45 @@
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
                         <div class="viewer-top d-flex justify-content-between align-items-center">
-                          <div class="fw-semibold small">{{ rightTitle }}</div>
+                          <div class="d-flex align-items-center gap-2">
+                            <div class="fw-semibold small">{{ rightTitle }}</div>
+                            <span
+                              v-if="rightTitle !== 'OC' && otherDocRefOcText"
+                              class="badge text-bg-secondary"
+                            >
+                              Ref OC {{ otherDocRefOcText }}
+                            </span>
+                          </div>
                           <a v-if="rightUrl" class="btn btn-outline-dark btn-sm" :href="rightUrl" target="_blank">
                             <i class="bi bi-box-arrow-up-right"></i>
                           </a>
                         </div>
 
                         <div v-if="rightUrl" class="viewer-frame">
-                          <iframe :src="rightUrl" style="border:0; width:100%; height:100%"></iframe>
+                          <img
+                            v-if="rightIsImage"
+                            :src="rightUrl"
+                            class="viewer-img"
+                            loading="lazy"
+                            decoding="async"
+                            alt="Documento"
+                          />
+                          <iframe
+                            v-else
+                            :key="rightUrl"
+                            :src="rightUrl"
+                            loading="lazy"
+                            style="border:0; width:100%; height:100%"
+                          ></iframe>
                         </div>
                         <div v-else class="text-muted text-center py-5">Sin documento</div>
                       </div>
                     </div>
                   </div>
-
-                  <div class="small text-muted mt-3">
-                    Tip: al aprobar, se intenta ubicar “Gerente General” para firmar en esa zona. Si no se encuentra,
-                    cae a abajo-derecha.
-                  </div>
+                </div>
                 </div>
               </Transition>
             </template>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal fade" ref="approveModalEl" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Aprobar + Firmar OC</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-
-          <div class="modal-body">
-            <div class="alert alert-info mb-2">
-              Se generará un PDF <b>firmado</b> de la OC, se subirá a Storage y la comparativa quedará como <b>aprobada</b>.
-            </div>
-
-            <div class="small">
-              <div><span class="fw-semibold">Lote:</span> {{ loteNombreActual }}</div>
-              <div><span class="fw-semibold">OC:</span> {{ currentOc ? labelDoc(currentOc) : '—' }}</div>
-              <div><span class="fw-semibold">Documento:</span> {{ currentOther ? labelDoc(currentOther) : '—' }}</div>
-
-              <div class="mt-2">
-                <span class="fw-semibold">Firma:</span>
-                <span :class="signatureFile ? 'text-success' : 'text-danger'">
-                  {{ signatureFile ? signatureFile.name : 'No seleccionada' }}
-                </span>
-              </div>
-            </div>
-
-            <div v-if="!signatureFile" class="text-danger small mt-2">
-              Debes cargar una firma para aprobar.
-            </div>
-
-            <div class="form-check mt-3">
-              <input class="form-check-input" type="checkbox" id="chkAprobarDoc" v-model="alsoApproveOther" />
-              <label class="form-check-label" for="chkAprobarDoc">
-                Marcar también Factura/Guía como “aprobado”
-              </label>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn btn-success" :disabled="!canApprove" @click="approveAndSign">
-              Aprobar y firmar
-            </button>
           </div>
         </div>
       </div>
@@ -381,29 +312,56 @@
           </div>
 
           <div class="modal-body">
-            <label class="form-label">Motivo (obligatorio)</label>
-            <textarea
-              v-model="rejectReason"
-              class="form-control"
-              rows="4"
-              placeholder="Ej: Documento no corresponde a esta OC / falta referencia / diferencias…"
-            ></textarea>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Motivos de rechazo (selección múltiple)</label>
+              <div class="small text-muted mb-2">
+                Marca uno o más motivos.
+              </div>
 
-            <div class="form-check mt-3">
-              <input class="form-check-input" type="checkbox" id="chkRechazarOc" v-model="rejectOcToo" />
-              <label class="form-check-label" for="chkRechazarOc">
-                Rechazar también la OC (por defecto se rechaza solo Factura/Guía)
-              </label>
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <button type="button" class="btn btn-outline-dark btn-sm" @click="selectAllRejectReasons">
+                  <i class="bi bi-check2-square me-1"></i>Seleccionar todo
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearRejectReasons">
+                  <i class="bi bi-eraser me-1"></i>Limpiar
+                </button>
+              </div>
+
+              <div class="reject-grid border rounded p-2">
+                <label
+                  v-for="r in rejectPresets"
+                  :key="r"
+                  class="form-check d-flex align-items-start gap-2 mb-2"
+                >
+                  <input class="form-check-input mt-1" type="checkbox" :value="r" v-model="rejectSelected" />
+                  <span class="form-check-label">{{ r }}</span>
+                </label>
+              </div>
             </div>
 
-            <div class="small text-muted mt-2">
-              Esto moverá la comparativa a “rechazadas” (con animación) y avanzará a la siguiente pendiente.
+            <div class="mb-2">
+              <label class="form-label fw-semibold">Motivo adicional (opcional)</label>
+              <textarea
+                v-model="rejectCustom"
+                class="form-control"
+                rows="3"
+                placeholder="Escribe un motivo adicional si lo necesitas…"
+              ></textarea>
+            </div>
+
+            <div class="alert alert-light border mt-3 mb-0" v-if="finalRejectReason.trim()">
+              <div class="fw-semibold mb-1">Motivo:</div>
+              <div class="small" style="white-space: pre-wrap;">{{ finalRejectReason }}</div>
             </div>
           </div>
 
           <div class="modal-footer">
+         </div>
+      </div>
+          <div class="modal-footer">
             <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn btn-danger" :disabled="!canReject || !rejectReason.trim()" @click="rejectComparison">
+            <button class="btn btn-danger" :disabled="!canReject || !finalRejectReason.trim()" @click="rejectComparison">
               Rechazar
             </button>
           </div>
@@ -430,6 +388,9 @@ import {
   updateDoc,
   serverTimestamp,
   addDoc,
+  getDocs,
+  where,
+  limit,
 } from "firebase/firestore";
 import {
   getStorage,
@@ -458,14 +419,15 @@ const actorName = computed(
     "usuario"
 );
 
-
 const busy = ref({ on: false, label: "", hint: "", progress: null });
 function setBusy(on, label = "", hint = "", progress = null) {
   busy.value = { on, label, hint, progress };
 }
 
+const noLotesNotice = ref("");
+function dismissNoLotesNotice() { noLotesNotice.value = ""; }
+
 const listTab = ref("pendiente");
-const q = ref("");
 
 const showSidebar = ref(false);
 function toggleSidebar() {
@@ -488,35 +450,42 @@ let docsReady = false;
 let cmpsReady = false;
 let autoMatchRunning = false;
 
-const approveModalEl = ref(null);
-const rejectModalEl = ref(null);
-let approveModal = null;
-let rejectModal = null;
+const finishingLote = ref(false);
 
+const rejectModalEl = ref(null);
+let rejectModal = null;
 
 const signatureFile = ref(null);
 const signaturePreview = ref("");
 
+const rejectPresets = [
+  "Las cantidades no concuerdan",
+  "El centro de costo está mal",
+  "En la factura no sale la orden de compra",
+  "La descripción de los productos no coincide",
+  "El RUT del proveedor no coincide",
+  "Aclaración requerida en la observación",
+  "La condición de pago está mal",
+];
+const rejectSelected = ref([]);
+const rejectCustom = ref("");
 
-const rejectReason = ref("");
-const rejectOcToo = ref(false);
-const alsoApproveOther = ref(true);
+const finalRejectReason = computed(() => {
+  const parts = [];
+  if (Array.isArray(rejectSelected.value) && rejectSelected.value.length) {
+    parts.push(rejectSelected.value.join("; "));
+  }
+  const extra = String(rejectCustom.value || "").trim();
+  if (extra) parts.push(extra);
+  return parts.join("\n");
+});
 
-
-const commentDraft = ref("");
-const commentSaving = ref(false);
 
 const docsById = computed(() => {
   const m = new Map();
   for (const d of docs.value) m.set(d.id, d);
   return m;
 });
-
-function labelDoc(d) {
-  const n = d?.numero ? `N°${d.numero}` : "Sin N°";
-  const nm = d?.archivo?.name ? d.archivo.name : (d?.id ? d.id.slice(0, 6) : "doc");
-  return `${n} · ${nm}`;
-}
 
 function estadoCmpBadge(estado) {
   if (estado === "aprobado") return "text-bg-success";
@@ -533,6 +502,19 @@ function normalizeText(s) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+function normEstado(s) {
+  const v = normalizeText(String(s || ""));
+  if (v === "en_revision" || v === "en revision" || v === "en-revision") return "en_revision";
+  if (v === "revision completa" || v === "revisión completa" || v === "revision_completa") return "revision_completa";
+  return v || "";
+}
+
+const lotesActivos = computed(() => {
+  return lotes.value.filter((l) => normEstado(l.estado) !== "revision_completa");
+});
+
+const hasAnyActiveLote = computed(() => lotesActivos.value.length > 0);
 
 function cmpOtherId(c) {
   return c?.otherId || c?.facturaId || c?.guiaId || "";
@@ -557,37 +539,15 @@ function needsAttention(c) {
   const od = docsById.value.get(cmpOtherId(c));
   return !oc || !od || !oc.archivo?.url || !od.archivo?.url;
 }
-function cmpTextIndex(c) {
-  const oc = docsById.value.get(c?.ocId || "");
-  const od = docsById.value.get(cmpOtherId(c));
-  const parts = [
-    c?.estado,
-    oc?.numero,
-    oc?.archivo?.name,
-    od?.numero,
-    od?.archivo?.name,
-    otherTipo(c),
-    c?.comentario,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return normalizeText(parts);
-}
-
-const filtered = computed(() => {
-  const needle = normalizeText(q.value);
-  if (!needle) return cmps.value;
-  return cmps.value.filter((c) => cmpTextIndex(c).includes(needle));
-});
 
 const pendientesFiltradas = computed(() =>
-  filtered.value.filter((c) => (c.estado || "pendiente") === "pendiente")
+  cmps.value.filter((c) => (c.estado || "pendiente") === "pendiente")
 );
 const aprobadasFiltradas = computed(() =>
-  filtered.value.filter((c) => c.estado === "aprobado")
+  cmps.value.filter((c) => c.estado === "aprobado")
 );
 const rechazadasFiltradas = computed(() =>
-  filtered.value.filter((c) => c.estado === "rechazado")
+  cmps.value.filter((c) => c.estado === "rechazado")
 );
 
 const currentList = computed(() => {
@@ -625,12 +585,6 @@ const otherDocRefOcText = computed(() => {
   return String(raw || "").trim();
 });
 
-const loteNombreActual = computed(() => {
-  const l = lotes.value.find((x) => x.id === selectedLoteId.value);
-  return l?.nombre || (selectedLoteId.value ? `Lote ${selectedLoteId.value.slice(0, 6)}` : "—");
-});
-
-// visor
 const sideSwap = ref(false);
 function swapSides() {
   sideSwap.value = !sideSwap.value;
@@ -658,11 +612,38 @@ const rightTitle = computed(() =>
 const leftUrl = computed(() => (sideSwap.value ? otherUrl.value : ocUrl.value));
 const rightUrl = computed(() => (sideSwap.value ? ocUrl.value : otherUrl.value));
 
+function isImageUrl(url) {
+  const base = String(url || "").toLowerCase().split("?")[0];
+  return /\.(png|jpe?g|webp|gif|bmp)$/i.test(base);
+}
+function isImageDoc(d) {
+  const ct = d?.archivo?.contentType || d?.archivo?.mimeType || d?.archivo?.type || "";
+  if (ct && String(ct).startsWith("image/")) return true;
+
+  const name = String(d?.archivo?.name || "").toLowerCase();
+  if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(name)) return true;
+
+  const url = docViewUrl(d);
+  return isImageUrl(url);
+}
+
+const leftDoc = computed(() => (sideSwap.value ? currentOther.value : currentOc.value));
+const rightDoc = computed(() => (sideSwap.value ? currentOc.value : currentOther.value));
+
+const leftIsImage = computed(() => isImageDoc(leftDoc.value));
+const rightIsImage = computed(() => isImageDoc(rightDoc.value));
+
 const canApprove = computed(() => {
   if (!currentCmp.value) return false;
   if ((currentCmp.value.estado || "pendiente") !== "pendiente") return false;
-  if (!currentOc.value?.archivo) return false;
-  if (!signatureFile.value) return false;
+
+  const oc = currentOc.value;
+  const hasOriginal = !!oc?.archivo;
+  const hasSigned = !!oc?.firmado?.url;
+  if (!hasOriginal && !hasSigned) return false;
+
+  if (!hasSigned && !signatureFile.value) return false;
+
   return true;
 });
 
@@ -671,9 +652,7 @@ const canReject = computed(() => {
   return (currentCmp.value.estado || "pendiente") === "pendiente";
 });
 
-
 onMounted(() => {
-  approveModal = new bootstrap.Modal(approveModalEl.value);
   rejectModal = new bootstrap.Modal(rejectModalEl.value);
 
   unsubLotes = onSnapshot(
@@ -683,8 +662,16 @@ onMounted(() => {
 
       if (!selectedLoteId.value) {
         const routeLote = route?.params?.loteId ? String(route.params.loteId) : "";
-        selectedLoteId.value = routeLote || lotes.value[0]?.id || "";
+        const fallback = routeLote || lotesActivos.value[0]?.id || "";
+        selectedLoteId.value = fallback;
+
         if (selectedLoteId.value) onChangeLote();
+        else noLotesNotice.value = "No hay lotes de docs pendientes para revisar.";
+      } else {
+        const cur = lotes.value.find((l) => l.id === selectedLoteId.value);
+        if (cur && normEstado(cur.estado) === "revision_completa") {
+          switchToNextActiveLoteOrNotice("El lote actual ya fue marcado como revisión completa.");
+        }
       }
     }
   );
@@ -697,11 +684,6 @@ onBeforeUnmount(() => {
   if (unsubDocs) unsubDocs();
   if (unsubCmps) unsubCmps();
   if (signaturePreview.value) URL.revokeObjectURL(signaturePreview.value);
-});
-
-
-watch(selectedCmpId, () => {
-  commentDraft.value = (currentCmp.value?.comentario || "").toString();
 });
 
 function onChangeLote() {
@@ -766,7 +748,6 @@ function selectCmp(id) {
   selectedCmpId.value = id;
 }
 
-
 function normNumber(n) {
   return (n || "").toString().replace(/[^\d]/g, "").trim();
 }
@@ -776,6 +757,7 @@ function buildOcIndex() {
 
   for (const d of docs.value) {
     if (d.tipo !== "oc") continue;
+    if ((d.estado || "pendiente") !== "pendiente") continue;
 
     const values = new Set();
 
@@ -841,6 +823,7 @@ async function autoMatchComparisons() {
 
   for (const d of docs.value) {
     if (d.tipo !== "factura" && d.tipo !== "guia") continue;
+    if ((d.estado || "pendiente") !== "pendiente") continue;
     if (usedOther.has(d.id)) continue;
 
     const nums = numbersForOther(d);
@@ -851,6 +834,7 @@ async function autoMatchComparisons() {
 
     for (const n of nums) {
       const oc = ocIndex.get(n);
+      if (oc && (oc.estado || "pendiente") !== "pendiente") continue;
       if (oc) {
         chosenOc = oc;
         matchedValue = n;
@@ -947,15 +931,20 @@ async function preloadDefaultSignature() {
   }
 }
 
-function openApproveModal() {
-  alsoApproveOther.value = true;
-  approveModal.show();
+function selectAllRejectReasons() {
+  rejectSelected.value = [...rejectPresets];
 }
+function clearRejectReasons() {
+  rejectSelected.value = [];
+  rejectCustom.value = "";
+}
+
 function openRejectModal() {
-  rejectReason.value = "";
-  rejectOcToo.value = false;
+  rejectSelected.value = [];
+  rejectCustom.value = "";
   rejectModal.show();
 }
+
 
 function uploadDataToStorage(data, path, onProgress) {
   return new Promise((resolve, reject) => {
@@ -981,49 +970,19 @@ async function loadPdfBytesFromStorageFile(archivo) {
 
   if (archivo.storagePath) {
     const r = sRef(storage, archivo.storagePath);
-    return await getBytes(r);
+    const u8 = await getBytes(r);
+    return u8;
   }
 
   if (archivo.url) {
     const resp = await fetch(archivo.url);
-    if (!resp.ok) {
-      throw new Error(`No se pudo descargar el PDF (HTTP ${resp.status})`);
-    }
-    return await resp.arrayBuffer();
+    if (!resp.ok) throw new Error(`No se pudo descargar el PDF (HTTP ${resp.status})`);
+    const ab = await resp.arrayBuffer();
+    return new Uint8Array(ab);
   }
 
   throw new Error("Archivo sin storagePath ni url");
 }
-
-
-async function saveComment() {
-  if (!currentCmp.value) return;
-  const next = commentDraft.value.toString();
-
-  commentSaving.value = true;
-  try {
-    await updateDoc(
-      doc(
-        db,
-        "lotes_docs",
-        selectedLoteId.value,
-        "comparaciones",
-        currentCmp.value.id
-      ),
-      {
-        comentario: next,
-        updatedAt: serverTimestamp(),
-        updatedBy: actorName.value,
-      }
-    );
-  } catch (e) {
-    console.error(e);
-    alert("Error guardando comentario: " + (e?.message || String(e)));
-  } finally {
-    commentSaving.value = false;
-  }
-}
-
 
 async function approveAndSign() {
   if (!canApprove.value) return;
@@ -1032,79 +991,79 @@ async function approveAndSign() {
   const oc = currentOc.value;
   const other = currentOther.value;
 
-  approveModal.hide();
-
   try {
-    setBusy(
-      true,
-      "Firmando OC…",
-      "Buscando “Gerente General” y generando PDF firmado",
-      0
-    );
+    let signedUrl = oc?.firmado?.url || null;
+    let signedPath = oc?.firmado?.storagePath || null;
+    let didSignNow = false;
 
-    const archivoOc = oc?.archivo;
-    if (!archivoOc) throw new Error("OC sin archivo original.");
+    if (!signedUrl) {
+      setBusy(
+        true,
+        "Firmando OC…",
+        "Buscando “Gerente General” y generando PDF firmado",
+        0
+      );
 
-    const pdfBytes = await loadPdfBytesFromStorageFile(archivoOc);
+      const archivoOc = oc?.archivo;
+      if (!archivoOc) throw new Error("OC sin archivo original.");
 
-    setBusy(true, "Firmando OC…", "Insertando firma en el PDF", 10);
-    const signedBytes = await signPdfWithImageSmart(
-      pdfBytes,
-      signatureFile.value,
-      (p) => {
-        setBusy(true, "Firmando OC…", "Insertando firma en el PDF", p);
-      }
-    );
+      const pdfBytes = await loadPdfBytesFromStorageFile(archivoOc);
 
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const signedPath = `lotes_docs/${selectedLoteId.value}/docs/${oc.id}/signed_${stamp}.pdf`;
-    const signedBlob = new Blob([signedBytes], { type: "application/pdf" });
+      setBusy(true, "Firmando OC…", "Insertando firma en el PDF", 10);
+      const signedBytes = await signPdfWithImageSmart(
+        pdfBytes,
+        signatureFile.value,
+        (p) => {
+          setBusy(true, "Firmando OC…", "Insertando firma en el PDF", p);
+        }
+      );
 
-    setBusy(
-      true,
-      "Subiendo PDF firmado…",
-      "Guardando versión firmada en Storage",
-      40
-    );
-    const signedUrl = await uploadDataToStorage(signedBlob, signedPath, (pct) => {
-      const mapped = 40 + Math.round((pct * 55) / 100); // 40..95
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      signedPath = `lotes_docs/${selectedLoteId.value}/docs/${oc.id}/signed_${stamp}.pdf`;
+      const signedBlob = new Blob([signedBytes], { type: "application/pdf" });
+
       setBusy(
         true,
         "Subiendo PDF firmado…",
-        "Guardando versión firmada en Storage",
-        mapped
+        "Guardando versión firmada",
+        40
       );
-    });
+
+      signedUrl = await uploadDataToStorage(signedBlob, signedPath, (pct) => {
+        const mapped = 40 + Math.round((pct * 55) / 100);
+        setBusy(
+          true,
+          "Subiendo PDF firmado…",
+          "Guardando versión firmada",
+          mapped
+        );
+      });
+
+      didSignNow = true;
+    } else {
+      setBusy(true, "Aprobando…", "OC ya viene firmada, solo marcando estados", 60);
+    }
 
     setBusy(
       true,
-      "Actualizando estados…",
+      "Finalizando estados…",
       "Marcando comparativa y documentos como aprobados",
       96
     );
 
-
     await updateDoc(
-      doc(
-        db,
-        "lotes_docs",
-        selectedLoteId.value,
-        "comparaciones",
-        cmp.id
-      ),
+      doc(db, "lotes_docs", selectedLoteId.value, "comparaciones", cmp.id),
       {
         estado: "aprobado",
-        comentario: commentDraft.value.toString(),
+        comentario: (cmp?.comentario || "").toString(),
         aprobado: { at: serverTimestamp(), by: actorName.value },
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
       }
     );
 
-
-    await updateDoc(
-      doc(db, "lotes_docs", selectedLoteId.value, "docs", oc.id),
-      {
+    if (didSignNow) {
+      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", oc.id), {
         estado: "aprobado",
         firmado: {
           url: signedUrl,
@@ -1114,23 +1073,24 @@ async function approveAndSign() {
         },
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
-      }
-    );
+      });
+    } else {
+      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", oc.id), {
+        estado: "aprobado",
+        updatedAt: serverTimestamp(),
+        updatedBy: actorName.value,
+      });
+    }
 
-
-    if (alsoApproveOther.value && other?.id) {
-      await updateDoc(
-        doc(db, "lotes_docs", selectedLoteId.value, "docs", other.id),
-        {
-          estado: "aprobado",
-          updatedAt: serverTimestamp(),
-          updatedBy: actorName.value,
-        }
-      );
+    if (other?.id) {
+      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", other.id), {
+        estado: "aprobado",
+        updatedAt: serverTimestamp(),
+        updatedBy: actorName.value,
+      });
     }
 
     setBusy(true, "Listo ", "Avanzando a la siguiente pendiente…", 100);
-
 
     animateAdvance(cmp.id);
   } catch (err) {
@@ -1142,13 +1102,15 @@ async function approveAndSign() {
 }
 
 async function rejectComparison() {
-  if (!canReject.value || !rejectReason.value.trim()) return;
+  if (!canReject.value || !finalRejectReason.value.trim()) return;
 
   const cmp = currentCmp.value;
   const oc = currentOc.value;
   const other = currentOther.value;
 
   rejectModal.hide();
+
+  const motivo = finalRejectReason.value.trim();
 
   try {
     setBusy(true, "Rechazando…", "Guardando motivo y actualizando estados", 15);
@@ -1163,11 +1125,11 @@ async function rejectComparison() {
       ),
       {
         estado: "rechazado",
-        comentario: rejectReason.value.trim(),
+        comentario: motivo,
         rechazado: {
           at: serverTimestamp(),
           by: actorName.value,
-          motivo: rejectReason.value.trim(),
+          motivo: motivo,
         },
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
@@ -1180,7 +1142,7 @@ async function rejectComparison() {
         {
           estado: "rechazado",
           rechazo: {
-            motivo: rejectReason.value.trim(),
+            motivo: motivo,
             at: serverTimestamp(),
             by: actorName.value,
           },
@@ -1189,13 +1151,13 @@ async function rejectComparison() {
         }
       );
     }
-    if (rejectOcToo.value && oc?.id) {
+    if (oc?.id) {
       await updateDoc(
         doc(db, "lotes_docs", selectedLoteId.value, "docs", oc.id),
         {
           estado: "rechazado",
           rechazo: {
-            motivo: rejectReason.value.trim(),
+            motivo: motivo,
             at: serverTimestamp(),
             by: actorName.value,
           },
@@ -1215,127 +1177,292 @@ async function rejectComparison() {
   }
 }
 
-
 function animateAdvance(currentId) {
-  const next = pendientesFiltradas.value.find((x) => x.id !== currentId);
-  selectedCmpId.value = next ? next.id : "";
-  if (!next) listTab.value = "pendiente";
+  const list = pendientesFiltradas.value;
+  if (!list.length) {
+    selectedCmpId.value = "";
+    listTab.value = "pendiente";
+    return;
+  }
+
+  const idx = list.findIndex((x) => x.id === currentId);
+  if (idx >= 0) {
+    for (let step = 1; step <= list.length; step++) {
+      const cand = list[(idx + step) % list.length];
+      if (cand && cand.id !== currentId) {
+        selectedCmpId.value = cand.id;
+        return;
+      }
+    }
+  }
+
+  const first = list.find((x) => x.id !== currentId) || null;
+  selectedCmpId.value = first ? first.id : "";
+  if (!first) listTab.value = "pendiente";
 }
 
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
+watch(
+  () => [selectedLoteId.value, loadingData.value, autoMatchRunning, pendientesFiltradas.value.length],
+  async ([loteId, isLoading, isAutoMatching, pendingCount]) => {
+    if (!loteId) return;
+    if (isLoading) return;
+    if (isAutoMatching) return;
+    if (finishingLote.value) return;
+    if (pendingCount === 0) {
+      await completeCurrentLoteAndAdvance();
+    }
+  }
+);
+
+async function completeCurrentLoteAndAdvance() {
+  const loteId = selectedLoteId.value;
+  if (!loteId) return;
+
+  finishingLote.value = true;
+
+  try {
+    setBusy(true, "Finalizando lote…", "Verificando que no queden pendientes", 10);
+
+    const qPend = query(
+      collection(db, "lotes_docs", loteId, "comparaciones"),
+      where("estado", "==", "pendiente"),
+      limit(1)
+    );
+    const snapPend = await getDocs(qPend);
+    if (!snapPend.empty) return;
+
+    setBusy(true, "Finalizando lote…", "Marcando estado del lote", 55);
+
+    await updateDoc(doc(db, "lotes_docs", loteId), {
+      estado: "Revisión completa",
+      revisionCompletaAt: serverTimestamp(),
+      revisionCompletaBy: actorName.value,
+      updatedAt: serverTimestamp(),
+      updatedBy: actorName.value,
+    });
+
+    setBusy(true, "Finalizando lote…", "Buscando siguiente lote", 85);
+
+    await switchToNextActiveLoteOrNotice("✅ Lote finalizado: Revisión completa.");
+  } catch (e) {
+    console.error("Error completando lote:", e);
+    noLotesNotice.value = "No se pudo marcar el lote como Revisión completa. Revisa consola.";
+  } finally {
+    setTimeout(() => setBusy(false), 350);
+    finishingLote.value = false;
+  }
+}
+
+async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
+  const curId = selectedLoteId.value;
+
+  const next = lotesActivos.value.find((l) => l.id !== curId) || null;
+
+  if (next?.id) {
+    noLotesNotice.value = messageWhenSwitch || "";
+    selectedLoteId.value = next.id;
+    onChangeLote();
+    return;
+  }
+
+
+  selectedLoteId.value = "";
+  docs.value = [];
+  cmps.value = [];
+  selectedCmpId.value = "";
+  listTab.value = "pendiente";
+
+  noLotesNotice.value = "No hay lotes de docs pendientes para revisar.";
 }
 
 async function signPdfWithImageSmart(pdfArrayBuffer, imageFile, onStepProgress) {
+  const toU8Copy = (data) => {
+    if (!data) throw new Error("PDF vacío");
+    if (data instanceof Uint8Array) return data.slice();
+    if (data instanceof ArrayBuffer) return new Uint8Array(data).slice();
+    if (ArrayBuffer.isView(data)) {
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice();
+    }
+    throw new Error("Tipo de PDF no soportado (usa ArrayBuffer o Uint8Array)");
+  };
+
+  const isFin = (n) => Number.isFinite(n);
+
+  if (!imageFile) throw new Error("Falta archivo de firma");
+  const pdfU8 = toU8Copy(pdfArrayBuffer);
+
   onStepProgress?.(15);
-  const anchor = await findGerenteGeneralAnchor(pdfArrayBuffer).catch(() => null);
-  onStepProgress?.(25);
 
-  const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
+  const anchor = await findGerenteGeneralAnchor(pdfU8).catch(() => null);
 
-  const imgBytes = await imageFile.arrayBuffer();
-  const isPng = (imageFile.type || "").toLowerCase().includes("png");
-  const sigImg = isPng
-    ? await pdfDoc.embedPng(imgBytes)
-    : await pdfDoc.embedJpg(imgBytes);
-  onStepProgress?.(30);
+  onStepProgress?.(20);
 
+  const pdfDoc = await PDFDocument.load(pdfU8);
   const pages = pdfDoc.getPages();
-  const pageIndex = anchor?.pageIndex ?? pages.length - 1;
-  const page = pages[clamp(pageIndex, 0, pages.length - 1)];
-  const { width, height } = page.getSize();
+  const lastPage = pages[pages.length - 1];
 
-  const desiredW = Math.min(240, width * 0.34);
-  const scale = desiredW / sigImg.width;
-  const desiredH = sigImg.height * scale;
+  const imgBytes = toU8Copy(await imageFile.arrayBuffer());
+  const isPng = String(imageFile.type || "").toLowerCase().includes("png");
+  const sigImg = isPng ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
 
-  const margin = 28;
+  onStepProgress?.(28);
+
+  const desiredW = 150;
+  const desiredH = desiredW * 0.55;
+  const margin = 30;
+
+  let page = lastPage;
+  let width = page.getWidth();
+  let height = page.getHeight();
 
   let x = width - desiredW - margin;
   let y = margin;
 
-  if (anchor) {
-    const px = (anchor.x / anchor.viewportW) * width;
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+  const anchorOk =
+    anchor &&
+    isFin(anchor.pageIndex) &&
+    pages[anchor.pageIndex] &&
+    isFin(anchor.viewportW) && anchor.viewportW > 0 &&
+    isFin(anchor.viewportH) && anchor.viewportH > 0 &&
+    (isFin(anchor.x0) || isFin(anchor.x)) &&
+    (isFin(anchor.x1) || isFin(anchor.x)) &&
+    isFin(anchor.y);
+
+  if (anchorOk) {
+    page = pages[anchor.pageIndex] || lastPage;
+    width = page.getWidth();
+    height = page.getHeight();
+
+    const x0 = isFin(anchor.x0) ? anchor.x0 : anchor.x;
+    const x1 = isFin(anchor.x1) ? anchor.x1 : anchor.x;
+
+    const centerViewportX = (x0 + x1) / 2;
+
+    const cx = (centerViewportX / anchor.viewportW) * width;
     const py = (anchor.y / anchor.viewportH) * height;
 
-    x = clamp(px + 18, margin, width - desiredW - margin);
-    y = clamp(py + 14, margin, height - desiredH - margin);
+    const Y_UP = -5;
+    const X_RIGHT = 25;
+
+    if (isFin(cx) && isFin(py)) {
+      x = clamp(cx - desiredW / 2 + X_RIGHT, margin, width - desiredW - margin);
+      y = clamp(py + Y_UP, margin, height - desiredH - margin);
+    }
+  }
+
+  if (!isFin(x) || !isFin(y)) {
+    page = lastPage;
+    width = page.getWidth();
+    height = page.getHeight();
+    x = width - desiredW - margin;
+    y = margin;
   }
 
   page.drawImage(sigImg, { x, y, width: desiredW, height: desiredH });
-  onStepProgress?.(38);
 
-  return await pdfDoc.save();
+  onStepProgress?.(38);
+  const out = await pdfDoc.save();
+  onStepProgress?.(40);
+  return out;
 }
 
 async function findGerenteGeneralAnchor(pdfArrayBuffer) {
+  const toU8Copy = (data) => {
+    if (!data) throw new Error("PDF vacío");
+    if (data instanceof Uint8Array) return data.slice();
+    if (data instanceof ArrayBuffer) return new Uint8Array(data).slice();
+    if (ArrayBuffer.isView(data)) {
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice();
+    }
+    throw new Error("Tipo de PDF no soportado (usa ArrayBuffer o Uint8Array)");
+  };
+
+  const isFin = (n) => Number.isFinite(n);
+
+  const dataForPdfJs = toU8Copy(pdfArrayBuffer);
+
   const task = getDocument({
-    data: new Uint8Array(pdfArrayBuffer),
-    disableFontFace: true,
-    useSystemFonts: true,
+    data: dataForPdfJs,
+    disableWorker: true,
   });
+
   const pdf = await task.promise;
+  try {
+    const total = pdf.numPages || 0;
+    if (!total) return null;
 
-  const total = pdf.numPages;
-  const pagesToTry = [];
-  for (let i = total; i >= 1 && pagesToTry.length < 3; i--) pagesToTry.push(i);
+    const pagesToTry = [];
+    for (let i = total; i >= 1 && pagesToTry.length < 3; i--) pagesToTry.push(i);
 
-  const a = "gerente";
-  const b = "general";
+    const a = "gerente";
+    const b = "general";
 
-  for (const pNo of pagesToTry) {
-    const page = await pdf.getPage(pNo);
-    const viewport = page.getViewport({ scale: 1 });
-    const content = await page.getTextContent();
+    for (const pNo of pagesToTry) {
+      const page = await pdf.getPage(pNo);
+      const viewport = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
 
-    const items = (content.items || [])
-      .filter((it) => it && typeof it.str === "string" && it.str.trim() !== "")
-      .map((it) => ({
-        str: it.str,
-        x: it.transform ? it.transform[4] : 0,
-        y: it.transform ? it.transform[5] : 0,
-      }));
+      const items = (content.items || [])
+        .filter((it) => it && typeof it.str === "string" && it.str.trim() !== "")
+        .map((it) => ({
+          str: it.str,
+          x: isFin(it?.transform?.[4]) ? Number(it.transform[4]) : 0,
+          y: isFin(it?.transform?.[5]) ? Number(it.transform[5]) : 0,
+        }));
 
-    items.sort((a1, b1) => b1.y - a1.y || a1.x - b1.x);
+      items.sort((a1, b1) => b1.y - a1.y || a1.x - b1.x);
 
-    const Y_TOL = 2.6;
-    const lines = [];
-    for (const it of items) {
-      const last = lines[lines.length - 1];
-      if (!last || Math.abs(it.y - last.y) > Y_TOL)
-        lines.push({ y: it.y, chunks: [it] });
-      else last.chunks.push(it);
+      const Y_TOL = 2.6;
+      const lines = [];
+      for (const it of items) {
+        const last = lines[lines.length - 1];
+        if (!last || Math.abs(it.y - last.y) > Y_TOL) lines.push({ y: it.y, chunks: [it] });
+        else last.chunks.push(it);
+      }
+
+      for (const ln of lines) {
+        const chunks = ln.chunks.slice().sort((x, y) => x.x - y.x);
+        const lineText = normalizeText(chunks.map((c) => c.str).join(" "));
+        if (!lineText.includes(a) || !lineText.includes(b)) continue;
+
+        const ggChunks = chunks.filter((c) => {
+          const s = normalizeText(c.str);
+          return s.includes(a) || s.includes(b);
+        });
+        if (!ggChunks.length) continue;
+
+        const xs = ggChunks.map((c) => c.x).filter(isFin);
+        if (!xs.length) continue;
+
+        const x0 = Math.min(...xs);
+        const x1 = Math.max(...xs);
+
+        return {
+          pageIndex: pNo - 1,
+          x0,
+          x1,
+          y: isFin(ln.y) ? ln.y : ggChunks[0].y,
+          viewportW: viewport.width,
+          viewportH: viewport.height,
+        };
+      }
     }
 
-    for (const ln of lines) {
-      ln.chunks.sort((x1, x2) => x1.x - x2.x);
-      const lineText = normalizeText(ln.chunks.map((c) => c.str).join(" "));
-
-      if (!lineText.includes(a) || !lineText.includes(b)) continue;
-
-      const minX = Math.min(...ln.chunks.map((c) => c.x));
-
-      await pdf.destroy?.().catch(() => {});
-      return {
-        pageIndex: pNo - 1,
-        x: minX,
-        y: ln.y,
-        viewportW: viewport.width,
-        viewportH: viewport.height,
-      };
-    }
+    return null;
+  } finally {
+    try { await pdf?.destroy?.(); } catch (e) { console.log(e); }
+    try { await task?.destroy?.(); } catch (e) { console.log(e); }
   }
-
-  await pdf.destroy?.().catch(() => {});
-  return null;
 }
 </script>
 
 <style scoped>
 .bg-light-subtle { background: rgba(0,0,0,.03); }
 
-.list-wrap { max-height: 40vh; overflow: auto; padding: 2px; }
+.list-wrap { max-height: 55vh; overflow: auto; padding: 2px; }
 
 .viewer-card { background: #fff; overflow: hidden; }
 .viewer-top {
@@ -1345,8 +1472,16 @@ async function findGerenteGeneralAnchor(pdfArrayBuffer) {
 }
 .viewer-frame {
   width: 100%;
-  height: 82vh;
-  max-height: 82vh;
+  height: 88vh;
+  max-height: 88vh;
+  background: #111;
+}
+
+.viewer-img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
   background: #111;
 }
 
@@ -1383,4 +1518,15 @@ async function findGerenteGeneralAnchor(pdfArrayBuffer) {
   width: min(700px, 96vw);
   border: 1px solid rgba(0,0,0,.08);
 }
+
+@media (max-width: 768px) {
+  .viewer-frame { height: 60vh; max-height: 60vh; }
+}
+
+.reject-grid{
+  max-height: 220px;
+  overflow: auto;
+  background: rgba(0,0,0,.02);
+}
+
 </style>

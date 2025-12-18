@@ -1,10 +1,9 @@
-<!-- src/views/AprobacionDocumental.vue -->
+<!-- src/views/AdminGestionDocs.vue -->
 <template>
   <div class="container-fluid py-3">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div>
-        <h4 class="mb-0">Aprobación Documental</h4>
-        <small class="text-muted">Primero separa + valida local, luego sube al lote y revisa.</small>
+        <h4 class="mb-0">Gestor de documentos</h4>
       </div>
 
       <div class="d-flex gap-2 align-items-center">
@@ -12,9 +11,16 @@
           <i class="bi bi-folder-plus me-1"></i> Nuevo lote
         </button>
 
-        <select class="form-select" style="min-width: 280px" v-model="selectedLoteId" @change="onChangeLote">
+        <!-- ✅ ahora el select usa lotesForTab -->
+        <select
+          class="form-select"
+          style="min-width: 280px"
+          v-model="selectedLoteId"
+          @change="onChangeLote"
+          :disabled="lotesForTab.length === 0"
+        >
           <option value="" disabled>Selecciona un lote…</option>
-          <option v-for="l in lotes" :key="l.id" :value="l.id">
+          <option v-for="l in lotesForTab" :key="l.id" :value="l.id">
             {{ l.nombre || ("Lote " + l.id.slice(0,6)) }}
           </option>
         </select>
@@ -26,6 +32,13 @@
       </div>
     </div>
 
+    <!-- ✅ Mensajes según tab -->
+    <div v-if="tab==='staging' && lotesForTab.length===0" class="alert alert-warning">
+      No hay lotes <b>pendientes</b> para revisión local. Crea un lote nuevo.
+    </div>
+    <div v-else-if="tab==='cloud' && lotesForTab.length===0" class="alert alert-warning">
+      No hay lotes en <b>en_revision</b> o <b>Revisión completa</b> para ver en Firestore.
+    </div>
 
     <div v-if="tab==='staging'" class="row g-3">
       <div class="col-12 col-lg-5">
@@ -34,9 +47,9 @@
             <div class="fw-semibold">Borradores (local)</div>
 
             <div class="d-flex gap-2">
-              <label class="btn btn-danger btn-sm mb-0">
+              <label class="btn btn-danger btn-sm mb-0" :class="{ disabled: loteLocked }" :title="loteLocked ? 'Este lote ya no está en pendiente. Crea un lote nuevo para subir.' : ''">
                 <i class="bi bi-upload me-1"></i> Cargar PDFs (paquetes)
-                <input type="file" multiple accept="application/pdf" class="d-none" @change="onPickFilesLocal" />
+                <input type="file" multiple accept="application/pdf" class="d-none" @change="onPickFilesLocal" :disabled="loteLocked" />
               </label>
 
               <button class="btn btn-outline-secondary btn-sm" @click="clearStaging" :disabled="staged.length===0">
@@ -46,6 +59,10 @@
           </div>
 
           <div class="card-body">
+
+            <div v-if="loteLocked" class="alert alert-danger py-2">
+              Este lote ya está en <b>{{ selectedLote?.estado || 'en_revision' }}</b>. Para subir más PDFs, crea un lote nuevo.
+            </div>
 
             <div v-if="localBusy" class="p-2 rounded border bg-light-subtle mb-3">
               <div class="d-flex align-items-center gap-2">
@@ -67,6 +84,7 @@
               <span class="badge text-bg-warning">Facturas: {{ stagedCounts.factura }}</span>
               <span class="badge text-bg-info">Guías: {{ stagedCounts.guia }}</span>
               <span class="badge text-bg-danger">Incoherentes: {{ stagedCounts.bad }}</span>
+              <span class="badge text-bg-dark">Sin OC: {{ stagedMissingRefOcCount }}</span>
             </div>
 
             <div class="list-group" style="max-height: 65vh; overflow:auto;">
@@ -82,6 +100,31 @@
                   <div class="me-2">
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                       <span class="badge" :class="tipoBadge(s.tipo)">{{ (s.tipo || 'factura').toUpperCase() }}</span>
+
+                      <span
+                        v-if="s.tipo==='oc' && s.numero"
+                        class="badge oc-strong-badge"
+                        title="OC"
+                      >
+                        OC N° {{ s.numero }}
+                      </span>
+
+                      <span
+                        v-else-if="s.tipo!=='oc' && (s.refOc || '').trim()"
+                        class="badge text-bg-light"
+                        title="OC asociada"
+                      >
+                        OC: {{ s.refOc }}
+                      </span>
+
+                      <span
+                        v-else-if="s.tipo!=='oc'"
+                        class="badge text-bg-danger"
+                        title="Falta OC asociada"
+                      >
+                        Sin OC
+                      </span>
+
                       <span class="badge" :class="s.coherence?.ok ? 'text-bg-success' : 'text-bg-danger'">
                         {{ s.coherence?.ok ? 'OK' : 'REVISAR' }}
                       </span>
@@ -95,6 +138,7 @@
 
                     <small class="text-muted">
                       N°: <span class="fw-semibold">{{ s.numero || '—' }}</span>
+                      <span v-if="s.tipo!=='oc'"> · OC: <span class="fw-semibold">{{ s.refOc || '—' }}</span></span>
                       · Páginas: {{ s.pageRange }}
                     </small>
 
@@ -120,7 +164,7 @@
             </div>
 
             <div class="d-grid gap-2 mt-3">
-              <button class="btn btn-success" @click="uploadStagingToLote" :disabled="!selectedLoteId || staged.length===0 || uploadBusy">
+              <button class="btn btn-success" @click="uploadStagingToLote" :disabled="!selectedLoteId || staged.length===0 || uploadBusy || loteLocked">
                 <i class="bi bi-cloud-arrow-up me-1"></i> Subir revisados al lote
               </button>
 
@@ -141,6 +185,7 @@
           </div>
         </div>
       </div>
+
       <div class="col-12 col-lg-7">
         <div class="card shadow-sm">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -149,13 +194,33 @@
               <span v-if="selectedStageFull" class="badge" :class="tipoBadge(stageForm.tipo)">
                 {{ (stageForm.tipo || 'factura').toUpperCase() }}
               </span>
+
               <span v-if="selectedStageFull" class="badge text-bg-light">
-                N°: {{ stageForm.numero || '—' }}
+                <template v-if="stageForm.tipo==='oc'">
+                  N°: {{ stageForm.numero || '—' }}
+                </template>
+                <template v-else>
+                  OC: {{ stageForm.refOc || '—' }}
+                </template>
               </span>
             </div>
-            <a v-if="stagePreviewUrl" class="btn btn-outline-dark btn-sm" :href="stagePreviewUrl" target="_blank">
-              <i class="bi bi-box-arrow-up-right"></i>
-            </a>
+
+            <div class="d-flex gap-2">
+              <button
+                v-if="selectedStageFull && stageForm.tipo!=='oc'"
+                class="btn btn-outline-secondary btn-sm"
+                type="button"
+                @click="gotoNextStagingMissingRefOc(selectedStageFull.id)"
+                :disabled="stagedMissingRefOcCount===0"
+                title="Ir al siguiente borrador sin OC"
+              >
+                Siguiente sin OC
+              </button>
+
+              <a v-if="stagePreviewUrl" class="btn btn-outline-dark btn-sm" :href="stagePreviewUrl" target="_blank">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+            </div>
           </div>
 
           <div class="card-body">
@@ -172,17 +237,23 @@
 
                 <div class="flex-grow-1">
                   <label class="form-label mb-1 small text-muted">
-                    Número <span v-if="stageForm.tipo==='oc'" class="text-danger">*</span>
+                    <template v-if="stageForm.tipo==='oc'">
+                      Número <span class="text-danger">*</span>
+                    </template>
+                    <template v-else>
+                      OC asociada <span class="text-danger">*</span>
+                    </template>
                   </label>
 
                   <div class="input-group input-group-sm">
                     <input
                       class="form-control"
-                      v-model="stageForm.numero"
-                      :placeholder="stageForm.tipo==='oc' ? 'Ej: 62570' : 'Opcional (puede quedar vacío)'"
+                      v-model="stageMainValue"
+                      :placeholder="stageForm.tipo==='oc' ? 'Ej: 62570' : 'Ej: 62570 (OC asociada)'"
                       @keyup.enter="saveStageQuick"
-                      :class="stageForm.tipo==='oc' && !stageForm.numero.trim() ? 'is-invalid' : ''"
+                      :class="stageCanSave ? '' : 'is-invalid'"
                     />
+
                     <button
                       v-if="stageSuggested"
                       class="btn btn-outline-secondary"
@@ -192,14 +263,15 @@
                     >
                       Sugerido: {{ stageSuggested }}
                     </button>
-                    <button class="btn btn-dark" type="button" @click="saveStageQuick" :disabled="stageQuickSaving">
+
+                    <button class="btn btn-dark" type="button" @click="saveStageQuick" :disabled="stageQuickSaving || !stageCanSave">
                       <i class="bi bi-check2 me-1"></i> Guardar
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div v-if="selectedStageFull?.tipo==='oc' && (selectedStageFull?.ocCandidates?.length || selectedStageFull?.refOc)" class="mt-2">
+              <div v-if="selectedStageFull && (selectedStageFull.ocCandidates?.length || selectedStageFull.refOc)" class="mt-2">
                 <div class="small text-muted mb-1">Sugerencias detectadas (click para usar):</div>
                 <div class="d-flex flex-wrap gap-2">
                   <button
@@ -222,6 +294,10 @@
                   </button>
                 </div>
               </div>
+
+              <div v-if="stageForm.tipo!=='oc'" class="small text-muted mt-2">
+                Tip: escribe la OC y presiona <b>Enter</b> para guardar y avanzar al siguiente “Sin OC”.
+              </div>
             </div>
 
             <div v-if="stagePreviewUrl" class="ratio ratio-1x1" style="min-height: 620px;">
@@ -234,9 +310,10 @@
         </div>
       </div>
     </div>
+
     <div v-else class="row g-3">
       <div v-if="!selectedLoteId" class="col-12">
-        <div class="alert alert-warning">Crea o selecciona un lote para empezar.</div>
+        <div class="alert alert-warning">Selecciona un lote para empezar.</div>
       </div>
 
       <template v-else>
@@ -249,6 +326,9 @@
                 <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='aprobado'}" @click="filtroEstado='aprobado'">Aprobados</button>
                 <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='rechazado'}" @click="filtroEstado='rechazado'">Rechazados</button>
                 <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='todos'}" @click="filtroEstado='todos'">Todos</button>
+                <button class="btn btn-outline-danger btn-sm" :class="{active: filtroEstado==='sin_oc'}" @click="filtroEstado='sin_oc'">
+                  Sin OC ({{ docsSinOc.length }})
+                </button>
               </div>
             </div>
 
@@ -263,14 +343,6 @@
               </div>
 
               <div class="d-flex flex-wrap gap-2 mb-3">
-                <button
-                  class="btn btn-outline-secondary btn-sm"
-                  @click="downloadLoteResumenCsv"
-                  :disabled="!selectedLoteId || filteredDocs.length === 0"
-                >
-                  <i class="bi bi-download me-1"></i>
-                  Descargar listado (CSV)
-                </button>
 
                 <button
                   class="btn btn-outline-secondary btn-sm"
@@ -296,6 +368,30 @@
                       <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="badge" :class="tipoBadge(d.tipo)">{{ d.tipo?.toUpperCase() || '—' }}</span>
                         <span class="badge" :class="estadoBadge(d.estado)">{{ d.estado || '—' }}</span>
+
+                        <span
+                          v-if="d.tipo==='oc' && d.numero"
+                          class="badge oc-strong-badge"
+                          title="Orden de compra"
+                        >
+                          OC N° {{ d.numero }}
+                        </span>
+
+                        <span
+                          v-else-if="docRefOc(d)"
+                          class="badge text-bg-light"
+                          title="OC asociada"
+                        >
+                          OC: {{ docRefOc(d) }}
+                        </span>
+
+                        <span
+                          v-else-if="d.tipo!=='oc'"
+                          class="badge text-bg-danger"
+                          title="Falta OC"
+                        >
+                          Sin OC
+                        </span>
                       </div>
 
                       <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px;">
@@ -331,7 +427,7 @@
                     <span class="input-group-text">Izq.</span>
                     <select class="form-select form-select-sm" v-model="leftDocId">
                       <option value="">—</option>
-                      <option v-for="d in docs" :key="'L'+d.id" :value="d.id">
+                      <option v-for="d in docsOrdered" :key="'L'+d.id" :value="d.id">
                         {{ labelDoc(d) }}
                       </option>
                     </select>
@@ -340,7 +436,7 @@
                     <span class="input-group-text">Der.</span>
                     <select class="form-select form-select-sm" v-model="rightDocId">
                       <option value="">—</option>
-                      <option v-for="d in docs" :key="'R'+d.id" :value="d.id">
+                      <option v-for="d in docsOrdered" :key="'R'+d.id" :value="d.id">
                         {{ labelDoc(d) }}
                       </option>
                     </select>
@@ -358,6 +454,34 @@
             </div>
 
             <div class="card-body">
+
+              <div v-if="selectedDocNeedsOc" class="mb-3 p-2 rounded border bg-light-subtle">
+                <div class="small text-muted mb-2">
+                  Esta <b>{{ selectedDoc?.tipo }}</b> no tiene OC detectada. Escribe la OC, guarda y avanzará a la siguiente “Sin OC”.
+                </div>
+
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text">OC</span>
+                  <input
+                    class="form-control"
+                    v-model="refOcDraft"
+                    placeholder="Ej: 62570"
+                    @keyup.enter="saveRefOcAndNext"
+                  />
+                  <button class="btn btn-dark" type="button" @click="saveRefOcAndNext" :disabled="savingRefOc || !refOcDraft.trim()">
+                    <span v-if="!savingRefOc"><i class="bi bi-check2 me-1"></i> Guardar y siguiente</span>
+                    <span v-else><span class="spinner-border spinner-border-sm me-2"></span>Guardando…</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" @click="gotoNextMissingOc(selectedDoc?.id)">
+                    Siguiente sin OC
+                  </button>
+                </div>
+
+                <div class="small text-muted mt-2">
+                  Pendientes sin OC: <b>{{ docsSinOc.length }}</b>
+                </div>
+              </div>
+
               <div class="row g-2">
                 <div class="col-12 col-md-6">
                   <div class="border rounded p-2 h-100">
@@ -392,10 +516,6 @@
                     <div v-else class="text-muted text-center py-5">Selecciona un documento para este lado.</div>
                   </div>
                 </div>
-              </div>
-
-              <div class="mt-3 small text-muted">
-                Si un documento tiene una versión firmada (<code>firmado.url</code>), se mostrará esa versión; en caso contrario se usa el PDF original.
               </div>
             </div>
           </div>
@@ -437,9 +557,15 @@
               <option value="guia">Guía</option>
             </select>
 
-            <label class="form-label">Número</label>
-            <input class="form-control" v-model="editStage.numero" placeholder="Ej: 62570" />
-            <div class="form-text">En OC conviene completar si falta; en factura/guía puede quedar vacío.</div>
+            <label class="form-label">
+              <template v-if="editStage.tipo==='oc'">Número</template>
+              <template v-else>OC asociada</template>
+            </label>
+
+            <input class="form-control" v-model="editStageMainValue" placeholder="Ej: 62570" />
+            <div class="form-text">
+              En OC completa el número; en factura/guía completa la OC asociada para emparejar.
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -450,32 +576,33 @@
     </div>
 
     <transition name="fade">
-      <div v-if="localBusy || uploadBusy" class="busy-overlay">
+      <div v-if="localBusy || uploadBusy || exportBusy" class="busy-overlay">
         <div class="busy-card shadow-lg">
           <div class="d-flex align-items-center gap-3">
             <div class="busy-icon">
-              <div class="spinner-border text-danger" role="status" v-if="localBusy && !uploadBusy"></div>
-              <div class="spinner-border text-success" role="status" v-else></div>
+              <div class="spinner-border text-danger" role="status" v-if="localBusy && !uploadBusy && !exportBusy"></div>
+              <div class="spinner-border text-success" role="status" v-else-if="uploadBusy"></div>
+              <div class="spinner-border text-secondary" role="status" v-else></div>
             </div>
 
             <div class="flex-grow-1">
               <div class="fw-semibold">
-                {{ uploadBusy ? "Subiendo lote a Firestore…" : "Procesando PDFs…" }}
+                {{ uploadBusy ? "Subiendo lote a Firestore…" : (exportBusy ? "Generando PDF del lote…" : "Procesando PDFs…") }}
               </div>
               <div class="small text-muted">
-                {{ uploadBusy ? uploadStatus : localStatus }}
+                {{ uploadBusy ? uploadStatus : (exportBusy ? exportStatus : localStatus) }}
               </div>
 
               <div class="progress mt-2" style="height: 10px;">
                 <div
                   class="progress-bar progress-bar-striped progress-bar-animated"
-                  :class="uploadBusy ? 'bg-success' : 'bg-danger'"
-                  :style="{ width: (uploadBusy ? uploadProgress : localProgress) + '%' }"
+                  :class="uploadBusy ? 'bg-success' : (exportBusy ? 'bg-secondary' : 'bg-danger')"
+                  :style="{ width: (uploadBusy ? uploadProgress : (exportBusy ? exportProgress : localProgress)) + '%' }"
                 ></div>
               </div>
 
               <div class="d-flex justify-content-between mt-1 small text-muted">
-                <span>{{ uploadBusy ? uploadProgress : localProgress }}%</span>
+                <span>{{ uploadBusy ? uploadProgress : (exportBusy ? exportProgress : localProgress) }}%</span>
                 <span v-if="uploadBusy && uploadBytesTotal">
                   {{ fmtBytes(uploadBytesDone) }} / {{ fmtBytes(uploadBytesTotal) }}
                 </span>
@@ -495,7 +622,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
 import { v4 as uuidv4 } from "uuid";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as bootstrap from "bootstrap";
 
 import { splitPdfPack } from "@/utils/pdfPackSplitter";
@@ -503,10 +630,10 @@ import { stagePut, stageList, stageDelete, stageClear, stageGet } from "@/servic
 import { useAuthStore } from "@/stores/authService";
 
 import {
-  getFirestore, collection, doc, addDoc, setDoc,
+  getFirestore, collection, doc, addDoc, setDoc, updateDoc,
   onSnapshot, query, orderBy, serverTimestamp
 } from "firebase/firestore";
-import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL, getBytes } from "firebase/storage";
 
 const db = getFirestore();
 const storage = getStorage();
@@ -522,7 +649,6 @@ const actorName = computed(() =>
 
 const tab = ref("staging");
 
-
 const lotes = ref([]);
 const selectedLoteId = ref("");
 const docs = ref([]);
@@ -531,10 +657,8 @@ const selectedDocId = ref(null);
 const filtroEstado = ref("pendiente");
 const search = ref("");
 
-
 const leftDocId = ref("");
 const rightDocId = ref("");
-
 
 const staged = ref([]);
 const selectedStageId = ref(null);
@@ -543,15 +667,79 @@ const stagePreviewUrl = ref("");
 const localBusy = ref(false);
 const uploadBusy = ref(false);
 
-
+const exportBusy = ref(false);
 const localProgress = ref(0);
 const localStatus = ref("");
 
 const uploadProgress = ref(0);
 const uploadStatus = ref("");
 
+const exportProgress = ref(0);
+const exportStatus = ref("");
 const uploadBytesDone = ref(0);
 const uploadBytesTotal = ref(0);
+
+function normalizeText(s) {
+  return (s || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normEstado(s) {
+  const v = normalizeText(String(s || ""));
+  if (!v) return "pendiente";
+  if (v === "en revision" || v === "en-revision" || v === "en_revision") return "en_revision";
+  if (v === "revision completa" || v === "revisión completa" || v === "revision_completa") return "revision_completa";
+  if (v === "pendiente") return "pendiente";
+  return v;
+}
+
+const lotesForTab = computed(() => {
+  const t = tab.value;
+
+  if (t === "staging") {
+    return lotes.value.filter(l => normEstado(l.estado) === "pendiente");
+  }
+
+  return lotes.value.filter(l => {
+    const st = normEstado(l.estado);
+    return st === "en_revision" || st === "revision_completa";
+  });
+});
+
+function ensureSelectedLoteForTab() {
+  const list = lotesForTab.value;
+
+  if (!list.length) {
+    selectedLoteId.value = "";
+    docs.value = [];
+    selectedDocId.value = null;
+    leftDocId.value = "";
+    rightDocId.value = "";
+    refOcDraft.value = "";
+    if (unsubDocs) unsubDocs();
+    unsubDocs = null;
+    return;
+  }
+
+  const exists = list.some(l => l.id === selectedLoteId.value);
+  if (!selectedLoteId.value || !exists) {
+    selectedLoteId.value = list[0].id;
+  }
+
+  if (tab.value === "cloud") onChangeLote();
+}
+
+
+const selectedLote = computed(() => lotes.value.find((x) => x.id === selectedLoteId.value) || null);
+const loteLocked = computed(() => {
+  const st = String(selectedLote.value?.estado || "pendiente");
+  return normEstado(st) !== "pendiente";
+});
 
 function fmtBytes(n) {
   const v = Number(n || 0);
@@ -562,8 +750,6 @@ function fmtBytes(n) {
   while (x >= 1024 && i < units.length - 1) { x /= 1024; i++; }
   return `${x.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
-
-
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -578,14 +764,6 @@ function downloadBlob(blob, filename) {
   }, 0);
 }
 
-function csvEscape(value) {
-  const s = (value ?? "").toString();
-  if (s.includes('"') || s.includes(";") || s.includes("\n")) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
 function getSelectedLoteSafeName(suffix) {
   const lote = lotes.value.find((x) => x.id === selectedLoteId.value) || null;
   const base =
@@ -596,51 +774,113 @@ function getSelectedLoteSafeName(suffix) {
   return `${base}_${suffix}`;
 }
 
-function downloadLoteResumenCsv() {
-  const list = filteredDocs.value;
-  if (!selectedLoteId.value || !list.length) return;
+async function getDocBytesPreferStorage(d) {
+  const sp = d?.firmado?.storagePath || d?.archivo?.storagePath || "";
+  if (sp) {
+    return await getBytes(sRef(storage, sp));
+  }
+  const url = d?.firmado?.url || d?.archivo?.url || "";
+  if (!url) throw new Error("Documento sin storagePath ni url");
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error("No se pudo descargar el documento");
+  return new Uint8Array(await resp.arrayBuffer());
+}
 
-  const estadoName = filtroEstado.value || "todos";
-  const fileName = getSelectedLoteSafeName(`listado_${estadoName}.csv`);
+function isPdfDoc(d) {
+  const name = String(d?.archivo?.name || "").toLowerCase();
+  const mime = String(d?.archivo?.mime || d?.archivo?.type || "").toLowerCase();
+  const sp = String(d?.archivo?.storagePath || d?.firmado?.storagePath || "").toLowerCase();
+  return mime.includes("pdf") || name.endsWith(".pdf") || sp.endsWith(".pdf");
+}
 
-  const header = [
-    "DocID",
-    "Tipo",
-    "Estado",
-    "Numero",
-    "Archivo",
-    "Firmado",
-    "StoragePath",
-    "CreadoPor",
-    "CreadoEn",
-  ];
+function wrapText(font, text, size, maxWidth) {
+  const t = String(text || "").replace(/\s+/g, " ").trim();
+  if (!t) return ["—"];
+  const words = t.split(" ");
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
+    else {
+      if (line) lines.push(line);
+      line = w;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
 
-  const rows = [header.map(csvEscape).join(";")];
+async function addRejectedSummary(outPdf, list) {
+  const font = await outPdf.embedFont(StandardFonts.Helvetica);
+  const bold = await outPdf.embedFont(StandardFonts.HelveticaBold);
 
-  list.forEach((d) => {
-    const createdAt = d.createdAt?.toDate
-      ? d.createdAt.toDate().toISOString()
-      : "";
-    rows.push(
-      [
-        d.id,
-        d.tipo || "",
-        d.estado || "",
-        d.numero || "",
-        d.archivo?.name || "",
-        d.firmado?.url ? "SI" : "",
-        d.archivo?.storagePath || "",
-        d.createdBy || "",
-        createdAt,
-      ]
-        .map(csvEscape)
-        .join(";")
-    );
-  });
+  const pageW = 595.28;
+  const pageH = 841.89;
+  const margin = 36;
 
-  const csv = rows.join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  downloadBlob(blob, fileName);
+  let page = outPdf.addPage([pageW, pageH]);
+  let y = pageH - margin;
+
+  const drawHeader = () => {
+    page.drawText("Resumen de documentos rechazados", { x: margin, y, size: 16, font: bold });
+    y -= 22;
+
+    page.drawText(`Total: ${list.length}`, { x: margin, y, size: 10, font });
+    y -= 18;
+
+    page.drawText("OC", { x: margin, y, size: 9, font: bold });
+    page.drawText("Tipo/N°", { x: margin + 70, y, size: 9, font: bold });
+    page.drawText("Archivo", { x: margin + 150, y, size: 9, font: bold });
+    page.drawText("Motivo", { x: margin + 320, y, size: 9, font: bold });
+    y -= 12;
+
+    page.drawLine({
+      start: { x: margin, y },
+      end: { x: pageW - margin, y },
+      thickness: 1,
+      color: rgb(0.75, 0.75, 0.75),
+    });
+    y -= 10;
+  };
+
+  drawHeader();
+
+  for (const d of list) {
+    const oc = docRefOc(d) || (d.tipo === "oc" ? String(d.numero || "").trim() : "");
+    const tipoNum = `${(d.tipo || "—").toUpperCase()} ${d.numero ? `N° ${d.numero}` : ""}`.trim();
+    const archivo = d.archivo?.name || d.origen?.parentName || d.id;
+
+    const motivo = d?.motivo || d?.rechazo?.motivo || "—";
+
+    const motivoLines = wrapText(font, motivo, 9, (pageW - margin) - (margin + 320));
+    const rowH = Math.max(14, motivoLines.length * 10);
+
+    if (y - rowH < margin + 20) {
+      page = outPdf.addPage([pageW, pageH]);
+      y = pageH - margin;
+      drawHeader();
+    }
+
+    page.drawText(String(oc || "—"), { x: margin, y, size: 9, font });
+    page.drawText(tipoNum || "—", { x: margin + 70, y, size: 9, font });
+    page.drawText(archivo, { x: margin + 150, y, size: 9, font });
+
+    let my = y;
+    for (const ln of motivoLines.slice(0, 6)) {
+      page.drawText(ln, { x: margin + 320, y: my, size: 9, font });
+      my -= 10;
+    }
+
+    y -= rowH;
+    page.drawLine({
+      start: { x: margin, y: y + 2 },
+      end: { x: pageW - margin, y: y + 2 },
+      thickness: 0.5,
+      color: rgb(0.9, 0.9, 0.9),
+    });
+    y -= 6;
+  }
 }
 
 
@@ -648,70 +888,217 @@ async function downloadLotePdfOrdenado() {
   const list = filteredDocs.value;
   if (!selectedLoteId.value || !list.length) return;
 
-  const estadoName = filtroEstado.value || "todos";
-  const fileName = getSelectedLoteSafeName(`docs_${estadoName}.pdf`);
+  exportBusy.value = true;
+  exportProgress.value = 0;
+  exportStatus.value = `Preparando… (0/${list.length})`;
 
-  const outPdf = await PDFDocument.create();
+  try {
+    const estadoName = filtroEstado.value || "todos";
 
-  const sorted = [...list].sort((a, b) => {
-    const nameA = a.origen?.parentName || "";
-    const nameB = b.origen?.parentName || "";
-    const cmpName = nameA.localeCompare(nameB);
-    if (cmpName !== 0) return cmpName;
+    const fileName = getSelectedLoteSafeName(
+      estadoName === "rechazado" ? "rechazadas_con_motivo.pdf" : `docs_${estadoName}.pdf`
+    );
 
-    const idxA = a.origen?.partIndex || 0;
-    const idxB = b.origen?.partIndex || 0;
-    if (idxA !== idxB) return idxA - idxB;
+    const outPdf = await PDFDocument.create();
 
-    const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-    const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-    return tA - tB;
-  });
+    const exportRejectedWithReason = estadoName === "rechazado";
+    const stampFont = exportRejectedWithReason ? await outPdf.embedFont(StandardFonts.HelveticaBold) : null;
 
-  for (const d of sorted) {
-    let url = null;
-    if (d.firmado?.url) {
-      url = d.firmado.url;
-    } else if (d.archivo?.url) {
-      url = d.archivo.url;
+    const sorted = [...list].sort((a, b) => {
+      const nameA = a.origen?.parentName || "";
+      const nameB = b.origen?.parentName || "";
+      const cmpName = nameA.localeCompare(nameB);
+      if (cmpName !== 0) return cmpName;
+
+      const idxA = a.origen?.partIndex || 0;
+      const idxB = b.origen?.partIndex || 0;
+      if (idxA !== idxB) return idxA - idxB;
+
+      const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return tA - tB;
+    });
+
+    if (exportRejectedWithReason) {
+      await addRejectedSummary(outPdf, sorted);
     }
 
-    if (!url) continue;
+    for (let i = 0; i < sorted.length; i++) {
+      const d = sorted[i];
 
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) {
-        console.warn("No se pudo descargar PDF de doc", d.id);
-        continue;
+      const pretty = d.archivo?.name || d.origen?.parentName || d.id;
+      exportStatus.value = `Agregando ${i + 1}/${sorted.length}: ${pretty}`;
+      exportProgress.value = Math.min(99, Math.round((i / Math.max(1, sorted.length)) * 100));
+
+      try {
+        const bytes = await getDocBytesPreferStorage(d);
+
+        if (!isPdfDoc(d)) {
+          console.warn("Documento no-PDF omitido en export:", d.id);
+          exportProgress.value = Math.min(99, Math.round(((i + 1) / Math.max(1, sorted.length)) * 100));
+          continue;
+        }
+
+        const srcPdf = await PDFDocument.load(bytes);
+        const srcPages = srcPdf.getPages();
+        const copiedPages = await outPdf.copyPages(
+          srcPdf,
+          srcPages.map((_, idx) => idx)
+        );
+
+        if (exportRejectedWithReason && copiedPages.length) {
+          const motivo = String(d?.motivo || d?.rechazo?.motivo || "").trim();
+          if (motivo) {
+            const p0 = copiedPages[0];
+            const msg = `RECHAZADO: ${motivo}`;
+            const maxW = p0.getWidth() - 60;
+            const lines = wrapText(stampFont, msg, 10, maxW).slice(0, 2);
+
+            let yy = p0.getHeight() - 28;
+            for (const ln of lines) {
+              p0.drawText(ln, {
+                x: 30,
+                y: yy,
+                size: 10,
+                font: stampFont,
+                color: rgb(0.75, 0, 0),
+                opacity: 0.85,
+              });
+              yy -= 12;
+            }
+          }
+        }
+
+        copiedPages.forEach((p) => outPdf.addPage(p));
+      } catch (err) {
+        console.error("Error agregando doc al lote PDF", d.id, err);
       }
-      const bytes = await resp.arrayBuffer();
-      const srcPdf = await PDFDocument.load(bytes);
-      const srcPages = srcPdf.getPages();
-      const copiedPages = await outPdf.copyPages(
-        srcPdf,
-        srcPages.map((_, idx) => idx)
-      );
-      copiedPages.forEach((p) => outPdf.addPage(p));
-    } catch (err) {
-      console.error("Error agregando doc al lote PDF", d.id, err);
-    }
-  }
 
-  const finalBytes = await outPdf.save();
-  const blob = new Blob([finalBytes], { type: "application/pdf" });
-  downloadBlob(blob, fileName);
+      exportProgress.value = Math.min(99, Math.round(((i + 1) / Math.max(1, sorted.length)) * 100));
+    }
+
+    exportStatus.value = "Generando PDF final…";
+    exportProgress.value = 99;
+
+    const finalBytes = await outPdf.save({ useObjectStreams: true });
+    const blob = new Blob([finalBytes], { type: "application/pdf" });
+    exportProgress.value = 100;
+    exportStatus.value = "Listo ✅ Descargando…";
+    downloadBlob(blob, fileName);
+  } finally {
+    setTimeout(() => {
+      exportBusy.value = false;
+      exportProgress.value = 0;
+      exportStatus.value = "";
+    }, 450);
+  }
 }
 
+function docRefOc(d) {
+  const manual = String(d?.refOc || "").trim();
+  if (manual) return manual;
+  const det = String(d?.deteccion?.refOc || "").trim();
+  return det;
+}
 
-const stageForm = ref({ tipo: "factura", numero: "" });
+function ocKeyOfDoc(d) {
+  if (!d) return "";
+  if (d.tipo === "oc") return String(d.numero || "").trim();
+  return docRefOc(d);
+}
+
+function ocKeyToNumber(k) {
+  const s = String(k || "").trim();
+  if (!s) return Number.MAX_SAFE_INTEGER;
+  const n = parseInt(s.replace(/[^\d]/g, ""), 10);
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+}
+
+function tipoPriority(t) {
+  if (t === "oc") return 0;
+  if (t === "factura") return 1;
+  if (t === "guia") return 2;
+  return 9;
+}
+
+const docsOrdered = computed(() => {
+  const arr = [...docs.value];
+  return arr.sort((a, b) => {
+    const ka = ocKeyOfDoc(a);
+    const kb = ocKeyOfDoc(b);
+
+    const na = ocKeyToNumber(ka);
+    const nb = ocKeyToNumber(kb);
+
+    const aNo = !ka;
+    const bNo = !kb;
+    if (aNo !== bNo) return aNo ? 1 : -1;
+
+    if (na !== nb) return na - nb;
+    const cmpK = String(ka).localeCompare(String(kb), undefined, { numeric: true, sensitivity: "base" });
+    if (cmpK !== 0) return cmpK;
+
+    const pa = tipoPriority(a.tipo);
+    const pb = tipoPriority(b.tipo);
+    if (pa !== pb) return pa - pb;
+
+    const fa = String(a.numero || a.archivo?.name || "");
+    const fb = String(b.numero || b.archivo?.name || "");
+    return fa.localeCompare(fb, undefined, { numeric: true, sensitivity: "base" });
+  });
+});
+
+const docsSinOc = computed(() => docsOrdered.value.filter(d => d.tipo !== "oc" && !docRefOc(d)));
+
+const stageForm = ref({ tipo: "factura", numero: "", refOc: "" });
 const stageQuickSaving = ref(false);
+
+const stageMainValue = computed({
+  get() {
+    return stageForm.value.tipo === "oc" ? stageForm.value.numero : stageForm.value.refOc;
+  },
+  set(v) {
+    if (stageForm.value.tipo === "oc") stageForm.value.numero = v;
+    else stageForm.value.refOc = v;
+  }
+});
+
+const stageCanSave = computed(() => {
+  const t = stageForm.value.tipo;
+  if (t === "oc") return !!String(stageForm.value.numero || "").trim();
+  return !!String(stageForm.value.refOc || "").trim();
+});
 
 const stageSuggested = computed(() => {
   const s = selectedStageFull.value;
-  if (!s || stageForm.value.tipo !== "oc") return "";
-  return (s.refOc || s.ocCandidates?.[0]?.value || "").toString().trim();
+  if (!s) return "";
+  const cand = (s.ocCandidates || [])[0]?.value || s.refOc || "";
+  return String(cand || "").trim();
 });
 
+const stagedMissingRefOcCount = computed(() =>
+  staged.value.filter(x => x.tipo !== "oc" && !String(x.refOc || "").trim()).length
+);
+
+function findNextStagingMissingRefOc(afterId) {
+  const list = staged.value || [];
+  if (!list.length) return null;
+
+  let idx = list.findIndex(x => x.id === afterId);
+  if (idx < 0) idx = -1;
+
+  for (let step = 1; step <= list.length; step++) {
+    const it = list[(idx + step) % list.length];
+    if (it && it.tipo !== "oc" && !String(it.refOc || "").trim()) return it;
+  }
+  return null;
+}
+
+async function gotoNextStagingMissingRefOc(afterId) {
+  const next = findNextStagingMissingRefOc(afterId);
+  if (next) await selectStage(next);
+  else alert("✅ No quedan facturas/guías sin OC en borradores.");
+}
 
 const createLoteModalEl = ref(null);
 const editStageModalEl = ref(null);
@@ -720,6 +1107,18 @@ let createLoteModal, editStageModal;
 
 const newLoteNombre = ref("");
 const editStage = ref(null);
+
+const editStageMainValue = computed({
+  get() {
+    if (!editStage.value) return "";
+    return editStage.value.tipo === "oc" ? (editStage.value.numero || "") : (editStage.value.refOc || "");
+  },
+  set(v) {
+    if (!editStage.value) return;
+    if (editStage.value.tipo === "oc") editStage.value.numero = v;
+    else editStage.value.refOc = v;
+  }
+});
 
 const tipoBadge = (t) => {
   if (t === "oc") return "text-bg-primary";
@@ -752,15 +1151,19 @@ const counts = computed(() => {
 
 const filteredDocs = computed(() => {
   const q = search.value.trim().toLowerCase();
-  return docs.value
-    .filter((d) => (filtroEstado.value === "todos" ? true : d.estado === filtroEstado.value))
+
+  return docsOrdered.value
+    .filter((d) => {
+      if (filtroEstado.value === "todos") return true;
+      if (filtroEstado.value === "sin_oc") return d.tipo !== "oc" && !docRefOc(d);
+      return d.estado === filtroEstado.value;
+    })
     .filter((d) => {
       if (!q) return true;
-      const hay = [d.archivo?.name, d.numero, d.tipo, d.estado].filter(Boolean).join(" ").toLowerCase();
+      const hay = [d.archivo?.name, d.numero, d.tipo, d.estado, docRefOc(d)].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
 });
-
 
 const leftDoc = computed(() => docs.value.find((d) => d.id === leftDocId.value) || null);
 const rightDoc = computed(() => docs.value.find((d) => d.id === rightDocId.value) || null);
@@ -784,6 +1187,69 @@ const stagedCounts = computed(() => {
   return c;
 });
 
+const selectedDoc = computed(() => docs.value.find((d) => d.id === selectedDocId.value) || null);
+const selectedDocNeedsOc = computed(() => !!selectedDoc.value && selectedDoc.value.tipo !== "oc" && !docRefOc(selectedDoc.value));
+
+const refOcDraft = ref("");
+const savingRefOc = ref(false);
+
+watch(selectedDoc, (d) => {
+  refOcDraft.value = docRefOc(d) || "";
+}, { immediate: true });
+
+function findOcDocByNumero(ocNumero) {
+  const n = String(ocNumero || "").trim();
+  if (!n) return null;
+  return docs.value.find((d) => d.tipo === "oc" && String(d.numero || "").trim() === n) || null;
+}
+
+function gotoNextMissingOc(afterId) {
+  const list = docsSinOc.value;
+  if (!list.length) {
+    alert("✅ No quedan facturas/guías sin OC.");
+    return;
+  }
+  let idx = -1;
+  if (afterId) idx = list.findIndex(x => x.id === afterId);
+  const next = list[(idx + 1) % list.length];
+  selectDoc(next);
+}
+
+async function saveRefOcAndNext() {
+  if (!selectedLoteId.value || !selectedDoc.value) return;
+  const d = selectedDoc.value;
+  if (d.tipo === "oc") return;
+
+  const oc = String(refOcDraft.value || "").trim();
+  if (!oc) return;
+
+  savingRefOc.value = true;
+  try {
+    await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", d.id), {
+      refOc: oc,
+      estado: "en_revision",
+      updatedAt: serverTimestamp(),
+      updatedBy: actorName.value,
+    });
+
+    await addHist("assign_oc_manual", {
+      docId: d.id,
+      tipo: d.tipo,
+      numero: d.numero || "",
+      refOc: oc,
+    });
+
+    const ocDoc = findOcDocByNumero(oc);
+    if (ocDoc) {
+      leftDocId.value = d.id;
+      rightDocId.value = ocDoc.id;
+    }
+
+    gotoNextMissingOc(d.id);
+  } finally {
+    savingRefOc.value = false;
+  }
+}
 
 let unsubLotes = null;
 let unsubDocs = null;
@@ -795,10 +1261,7 @@ onMounted(async () => {
   const qL = query(collection(db, "lotes_docs"), orderBy("createdAt", "desc"));
   unsubLotes = onSnapshot(qL, (snap) => {
     lotes.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    if (!selectedLoteId.value && lotes.value.length) {
-      selectedLoteId.value = lotes.value[0].id;
-      onChangeLote();
-    }
+    ensureSelectedLoteForTab();
   });
 
   await loadStaging();
@@ -811,7 +1274,17 @@ onBeforeUnmount(() => {
 });
 
 watch(tab, async (t) => {
-  if (t === "staging") await loadStaging();
+  if (t === "staging") {
+    if (unsubDocs) unsubDocs();
+    unsubDocs = null;
+    docs.value = [];
+    selectedDocId.value = null;
+    leftDocId.value = "";
+    rightDocId.value = "";
+    refOcDraft.value = "";
+    await loadStaging();
+  }
+  ensureSelectedLoteForTab();
 });
 
 async function loadStaging() {
@@ -838,6 +1311,7 @@ async function selectStage(s) {
   stageForm.value = {
     tipo: selectedStageFull.value.tipo || "factura",
     numero: selectedStageFull.value.numero || "",
+    refOc: selectedStageFull.value.refOc || "",
   };
 
   setStagePreview(full?.blob || null);
@@ -845,48 +1319,59 @@ async function selectStage(s) {
 
 function onStageTipoChanged() {}
 
-function buildCoherence(tipo, numero) {
+function buildCoherence(tipo, numero, refOc) {
   const reasons = [];
-  if (tipo === "oc" && !String(numero || "").trim()) {
-    reasons.push("OC sin número (completar para emparejar).");
+  const t = String(tipo || "").trim();
+
+  if (t === "oc") {
+    if (!String(numero || "").trim()) reasons.push("OC sin número (completar para emparejar).");
+  } else {
+    if (!String(refOc || "").trim()) reasons.push("Falta OC asociada (para emparejar).");
   }
+
   return { ok: reasons.length === 0, reasons };
 }
 
 async function saveStageQuick() {
   if (!selectedStageFull.value) return;
-
   stageQuickSaving.value = true;
+
   try {
     const current = await stageGet(selectedStageFull.value.id);
     if (!current) return;
 
     const nextTipo = stageForm.value.tipo;
     const nextNumero = String(stageForm.value.numero || "").trim();
+    const nextRefOc = String(stageForm.value.refOc || "").trim();
 
-    const coherence = buildCoherence(nextTipo, nextNumero);
+    const coherence = buildCoherence(nextTipo, nextNumero, nextRefOc);
 
     await stagePut({
       ...current,
       tipo: nextTipo,
       numero: nextNumero,
+      refOc: nextRefOc,
       coherence,
     });
 
     await loadStaging();
 
     const again = await stageGet(selectedStageFull.value.id);
-    selectedStageFull.value = { ...selectedStageFull.value, ...again, tipo: nextTipo, numero: nextNumero, coherence };
+    selectedStageFull.value = { ...selectedStageFull.value, ...again, tipo: nextTipo, numero: nextNumero, refOc: nextRefOc, coherence };
+    stageForm.value = { tipo: nextTipo, numero: nextNumero, refOc: nextRefOc };
+    if (nextTipo !== "oc" && nextRefOc) {
+      await gotoNextStagingMissingRefOc(selectedStageFull.value.id);
+    }
   } finally {
     stageQuickSaving.value = false;
   }
 }
 
 async function useStageSuggested(val) {
-  stageForm.value.numero = String(val || "").trim();
+  const v = String(val || "").trim();
+  stageMainValue.value = v;
   await saveStageQuick();
 }
-
 
 async function onPickFilesLocal(e) {
   const files = Array.from(e.target.files || []);
@@ -986,12 +1471,17 @@ async function saveEditStage() {
   const full = await stageGet(editStage.value.id);
   if (!full) return;
 
-  const coherence = buildCoherence(editStage.value.tipo, editStage.value.numero);
+  const tipo = editStage.value.tipo;
+  const numero = String(editStage.value.numero || "").trim();
+  const refOc = String(editStage.value.refOc || "").trim();
+
+  const coherence = buildCoherence(tipo, numero, refOc);
 
   await stagePut({
     ...full,
-    tipo: editStage.value.tipo,
-    numero: String(editStage.value.numero || "").trim(),
+    tipo,
+    numero,
+    refOc,
     coherence,
   });
 
@@ -1003,12 +1493,13 @@ async function saveEditStage() {
     selectedStageFull.value = {
       ...selectedStageFull.value,
       ...again,
-      tipo: editStage.value.tipo,
-      numero: String(editStage.value.numero || "").trim(),
+      tipo,
+      numero,
+      refOc,
       coherence
     };
     setStagePreview(again?.blob || null);
-    stageForm.value = { tipo: editStage.value.tipo, numero: String(editStage.value.numero || "").trim() };
+    stageForm.value = { tipo, numero, refOc };
   }
 }
 
@@ -1029,9 +1520,13 @@ function uploadDataToStorage(data, path, opts = {}) {
   });
 }
 
-
 async function uploadStagingToLote() {
   if (!selectedLoteId.value || staged.value.length === 0) return;
+
+  if (loteLocked.value) {
+    alert("Este lote ya no está en pendiente. Crea un lote nuevo para subir más PDFs.");
+    return;
+  }
 
   uploadBusy.value = true;
 
@@ -1073,6 +1568,7 @@ async function uploadStagingToLote() {
         tipo: s.tipo,
         estado: "pendiente",
         numero: s.numero || "",
+        refOc: (full.refOc || ""),
         archivo: {
           name: `${s.parentName} (parte ${s.partIndex}-${s.totalParts}).pdf`,
           size: full.blob.size,
@@ -1109,10 +1605,21 @@ async function uploadStagingToLote() {
       });
     }
 
+    await updateDoc(doc(db, "lotes_docs", selectedLoteId.value), {
+      estado: "en_revision",
+      uploadedAt: serverTimestamp(),
+      uploadedBy: actorName.value,
+      updatedAt: serverTimestamp(),
+      updatedBy: actorName.value,
+    });
+
+    await addHist("lote_estado", { estado: "en_revision" });
+
     uploadProgress.value = 100;
     uploadStatus.value = "Listo  Lote subido correctamente";
 
     await clearStaging();
+
     tab.value = "cloud";
   } finally {
     setTimeout(() => {
@@ -1128,13 +1635,20 @@ async function uploadStagingToLote() {
 function selectDoc(d) {
   selectedDocId.value = d.id;
 
-  if (!leftDocId.value) {
+  if (d.tipo !== "oc") {
+    const refOc = docRefOc(d);
+    const ocDoc = refOc ? findOcDocByNumero(refOc) : null;
+
     leftDocId.value = d.id;
-  } else if (!rightDocId.value && d.id !== leftDocId.value) {
-    rightDocId.value = d.id;
-  } else {
-    leftDocId.value = d.id;
+    if (ocDoc) rightDocId.value = ocDoc.id;
+    else if (!rightDocId.value || rightDocId.value === d.id) rightDocId.value = "";
+
+    return;
   }
+
+  if (!leftDocId.value) leftDocId.value = d.id;
+  else if (!rightDocId.value && d.id !== leftDocId.value) rightDocId.value = d.id;
+  else leftDocId.value = d.id;
 }
 
 function swapSides() {
@@ -1142,8 +1656,6 @@ function swapSides() {
   leftDocId.value = rightDocId.value;
   rightDocId.value = tmp;
 }
-
-
 
 function openCreateLoteModal() {
   newLoteNombre.value = "";
@@ -1159,6 +1671,8 @@ async function createLote() {
   };
 
   const refDoc = await addDoc(collection(db, "lotes_docs"), payload);
+
+  tab.value = "staging";
   selectedLoteId.value = refDoc.id;
 
   createLoteModal.hide();
@@ -1181,8 +1695,13 @@ function onChangeLote() {
   selectedDocId.value = null;
   leftDocId.value = "";
   rightDocId.value = "";
+  refOcDraft.value = "";
 
   if (unsubDocs) unsubDocs();
+  unsubDocs = null;
+
+  if (!selectedLoteId.value) return;
+  if (tab.value === "staging") return;
 
   const qD = query(collection(db, "lotes_docs", selectedLoteId.value, "docs"), orderBy("createdAt", "desc"));
   unsubDocs = onSnapshot(qD, (snap) => {
@@ -1193,7 +1712,6 @@ function onChangeLote() {
 
 <style scoped>
 .bg-light-subtle { background: rgba(0,0,0,.03); }
-
 
 .busy-overlay{
   position: fixed;
@@ -1228,7 +1746,25 @@ function onChangeLote() {
   opacity: .85;
 }
 
-
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.oc-strong-badge{
+  font-size: .92rem;
+  padding: .38rem .62rem;
+  border-radius: 999px;
+  background: #0d6efd;
+  color: #fff;
+  letter-spacing: .2px;
+  font-weight: 700;
+}
+
+.list-group-item.active{
+  background-color: rgba(13,110,253,.12) !important;
+  border-color: rgba(13,110,253,.25) !important;
+  color: #212529 !important;
+}
+.list-group-item.active .text-muted{
+  color: rgba(33,37,41,.65) !important;
+}
 </style>
