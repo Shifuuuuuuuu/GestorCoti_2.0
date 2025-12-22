@@ -1352,7 +1352,7 @@ const obtenerNombreUsuario = async () => {
 const cargarSolpedSolicitadasOptimizada = async () => {
   try {
     let arr = [];
-    const estatusValidos = ["Solicitado", "Pendiente", "Parcial"];
+    const estatusValidos = ["Solicitado", "Pendiente", "Parcial","Cotizado parcial" ];
     if (usuarioActual.value) {
       const qy = query(
         collection(db, "solpes"),

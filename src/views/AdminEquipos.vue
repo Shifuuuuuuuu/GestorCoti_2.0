@@ -643,7 +643,6 @@ function buildKeywords(e:any){
   return Array.from(tokens);
 }
 
-/* Lee y mapea una fila del Excel */
 function mapRow(raw:any){
   const get = (k: string, alt: string[] = []) => {
     const keys = [k, ...alt];
