@@ -1370,18 +1370,43 @@ const diasDesde = (f) => {
   return Math.floor((a-b)/(1000*60*60*24));
 };
 const getColorByStatus = (estatus) => {
-  const e = (estatus||'').toString().toLowerCase();
-  switch(e){
-    case 'completado': return '#28a745';
-    case 'rechazado': return '#dc3545';
-    case 'pendiente': return '#fd7e14';
-    case 'revisión': return '#007bff';
-    case 'parcial': return '#fd7e14';
-    case 'preaprobado': return '#ffc107';
-    case 'oc enviada a proveedor': return '#17a2b8';
-    default: return '#6c757d';
+  const e = (estatus || "")
+    .toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  switch (e) {
+    case "pendiente": return "#fd7e14";
+    case "revision":
+    case "en revision":
+    case "revisado": return "#0d6efd";
+    case "cotizado parcial": return "#0dcaf0";
+    case "cotizado completado": return "#28a745";
+    case "productos en casa matriz":
+    case "pedidos en casa matriz":
+    case "pedido en casa matriz": return "#6f42c1";
+    case "parcial": return "#0dcaf0";
+    case "completado": return "#28a745";
+    case "revision guillermo": return "#20c997";
+    case "preaprobado": return "#ffc107";
+    case "casi aprobada": return "#6610f2";
+    case "aprobada":
+    case "cotizacion aprobada": return "#198754";
+
+    case "enviada a proveedor":
+    case "oc enviada a proveedor":
+    case "archivo oc subido (enviado a proveedor)": return "#17a2b8";
+    case "recepcion completa en casa matriz": return "#198754";
+    case "recepcion parcial en casa matriz": return "#ffc107";
+    case "recepcion en casa matriz": return "#0d6efd";
+
+    case "rechazado": return "#dc3545";
+
+    default: return "#6c757d";
   }
 };
+
 const estadoChipStyle = (s) => {
   const est = (s?.estatus || '').toLowerCase();
   if (est === 'pendiente') {

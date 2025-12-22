@@ -1136,7 +1136,7 @@ const calcularAprobador = () => {
   const empresa = (empresaSeleccionada.value || "").toLowerCase();
 
   if (empresa === "xtreme servicios") {
-    if (totalCLP <= 250000) aprobadorSugerido.value = "Guillermo Manzor";
+    if (totalCLP <=500000) aprobadorSugerido.value = "Guillermo Manzor";
     else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
     else aprobadorSugerido.value = "Alejandro Candia";
   }
@@ -1585,7 +1585,7 @@ const cargarSolpedSolicitadas = async () => {
     try {
       const qy = query(
         collection(db, "solped_taller"),
-        where("estatus", "in", ["Pendiente", "Parcial"])
+        where("estatus", "in", ["Pendiente", "Parcial", "Cotizado parcial"])
       );
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));

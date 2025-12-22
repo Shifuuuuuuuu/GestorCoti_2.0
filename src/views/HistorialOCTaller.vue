@@ -502,7 +502,7 @@ function estadoKey(estatusRaw) {
   const s = String(estatusRaw || '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/\p{Diacritic}/gu,'')
+    .replace(/\p{Diacritic}/gu, '')
     .trim();
 
   if (s.includes('preaprob')) return 'preaprobado';
@@ -511,8 +511,12 @@ function estadoKey(estatusRaw) {
   if (s.includes('rechaz')) return 'rechazado';
   if (s.includes('proveedor') || s.includes('enviada')) return 'enviada';
   if (s.includes('revision')) return 'revision';
+  if (s.includes('recepcion') && s.includes('completa')) return 'recepcion-completa';
+  if (s.includes('recepcion') && s.includes('parcial'))  return 'recepcion-parcial';
+
   return 'otro';
 }
+
 const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
@@ -929,8 +933,6 @@ watch(
 
 /* Badge close */
 .badge .btn-close{ width:.6rem; height:.6rem; filter: invert(1) grayscale(100%) brightness(0.4); }
-
-/* ========= PALETA PERSONALIZADA POR ESTADO ========= */
 .badge-status{ font-weight:600; border:0; }
 .badge-aprobado{    background:#e7f6e9; color:#166534; }
 .badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }
@@ -938,9 +940,10 @@ watch(
 .badge-rechazado{   background:#fee2e2; color:#991b1b; }
 .badge-enviada{     background:#e8edff; color:#1e3a8a; }
 .badge-revision{    background:#efe9ff; color:#5b21b6; }
-.badge-otro{        background:#f1f5f9; color:#334155; }
+.badge-recepcion-completa{ background:#e6fffb; color:#115e59; }
+.badge-recepcion-parcial{  background:#fef9c3; color:#854d0e; }
 
-/* HEADERS (SOLO EDITOR) */
+.badge-otro{        background:#f1f5f9; color:#334155; }
 .hdr-aprobado{
   background:#e7f6e9 !important; color:#0f5132 !important; border-bottom:1px solid #ccead2 !important;
 }
@@ -959,9 +962,17 @@ watch(
 .hdr-revision{
   background:#efe9ff !important; color:#4c1d95 !important; border-bottom:1px solid #dfd3ff !important;
 }
+.hdr-recepcion-completa{
+  background:#e6fffb !important; color:#115e59 !important; border-bottom:1px solid #99f6e4 !important;
+}
+.hdr-recepcion-parcial{
+  background:#fef9c3 !important; color:#854d0e !important; border-bottom:1px solid #fde68a !important;
+}
+
 .hdr-otro{
   background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important;
 }
+
 
 /* ===== Offcanvas móvil ===== */
 .oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }

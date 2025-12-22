@@ -1425,7 +1425,7 @@ const onChangeSolped = async () => {
       // Ítems no completados
       const todos = Array.isArray(data.items) ? data.items : [];
       itemsSolped.value = todos
-        .filter(it => (it.estado || "").toLowerCase() !== "completado")
+        .filter(it => (it.estado || "").toLowerCase() !== "Cotizado completado")
         .map(it => ({
           ...it,
           cantidad_cotizada: it.cantidad_cotizada || 0,
@@ -1476,13 +1476,13 @@ const calcularAprobador = () => {
   const empresa = (empresaBase || "").toLowerCase();
 
   if (empresa === "xtreme mining") {
-    if (totalCLP <= 250000) aprobadorSugerido.value = "Guillermo Manzor";
+    if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
     else if (totalCLP <= 1000000) aprobadorSugerido.value = "Felipe Gonzalez / Ricardo Santibañez";
     else if (totalCLP <= 2000000) aprobadorSugerido.value = "Patricio Muñoz";
     else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos / César Palma";
     else aprobadorSugerido.value = "Alejandro Candia";
   } else if (empresa === "xtreme servicio") {
-    if (totalCLP <= 250000) aprobadorSugerido.value = "Guillermo Manzor";
+    if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
     else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
     else aprobadorSugerido.value = "Alejandro Candia";
   }
@@ -1743,7 +1743,7 @@ const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario) => 
     return { ...it, cantidad_cotizada: final, estado: estadoVisual, estado_cotizacion: estadoCot };
   });
 
-  await updateDoc(sref, { items: actualizados, estatus: "Parcial" });
+  await updateDoc(sref, { items: actualizados, estatus: "Cotizado parcial" });
 
   const hcoll = collection(db, "solpes", solpedId, "historialEstados");
   await addDoc(hcoll, {

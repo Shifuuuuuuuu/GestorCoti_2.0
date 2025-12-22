@@ -545,7 +545,7 @@ const nombreContrato = (k) => centrosCosto[k] || k;
 
 /* ================== Constantes ================== */
 const FUNCTIONS_REGION = 'southamerica-west1';
-const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor'];
+const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor',"Recepcion_OC"];
 const empresasDisponibles = ['Xtreme Servicio', 'Xtreme Mining', 'Xtreme Hormigones'];
 
 /* ================== Estado base ================== */

@@ -262,15 +262,12 @@ const routeFor = (profile) => {
     .toLowerCase()
     .normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .replace(/[\/,|]+/g, " ")
+    .replace(/[_-]+/g, " ")          // ✅ NUEVO: soporta "Recepcion_OC" / "recepcion-oc"
     .replace(/\s+/g, " ")
     .trim();
 
   const fullName = (profile?.fullName || profile?.nombre || "").toLowerCase();
   const mail     = (profile?.email || "").toLowerCase();
-
-  // Debug opcional para ver qué llega
-  console.debug("[login] profile:", profile);
-  console.debug("[login] parsed role:", role);
 
   // Taller CM por rol, nombre o correo
   const isTallerCM =
@@ -279,28 +276,24 @@ const routeFor = (profile) => {
     mail === "tallercm@xtremeservicios.cl";
   if (isTallerCM) return { name: "SolpedTaller" };
 
-  // Excepción: Guillermo Manzor => Aprobación OC
   const isGuillermo =
     fullName.includes("guillermo manzor") || mail === "gmanzor@xtrememining.cl";
   if (isGuillermo) return { name: "AprobacionOC" };
-
-  // Admin
   if (role.includes("admin")) return { name: "AdminUsuarios" };
-
-  // Aprobador (con o sin Editor)
   if (role.includes("aprobador")) return { name: "AprobacionOC" };
 
-  // Editor (solo)
+  if (role.includes("recepcion") || role.includes("recepcion oc")) {
+    return { name: "RecepcionOC" };
+  }
+
+
   if (role.includes("editor") && !role.includes("aprobador")) return { name: "GeneradorOC" };
 
-  // Generador
   if (role.includes("generador")) return { name: "solped" };
-
-  // Fallback
   return { name: "solped" };
 };
 
-/* ---- Acciones ---- */
+
 const traducirError = (code) => {
   const map = {
     "auth/invalid-email": "El correo no es válido.",

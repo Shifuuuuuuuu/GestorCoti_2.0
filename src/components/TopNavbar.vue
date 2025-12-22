@@ -15,7 +15,8 @@ const ui = useUIStore();
 const isDark = computed(() => ui.isDark);
 const isNavbar = computed(() => ui.isNavbar);
 
-const { empresaMenu, tallerMenu, adminMenu } = useRoleMenus();
+const { empresaMenu, tallerMenu, adminMenu, recepcionMenu } = useRoleMenus();
+const showRecepcionMenu = computed(() => recepcionMenu.value.length > 0);
 
 const isActive = (nameOrPath) =>
   !!nameOrPath && (route.name === nameOrPath || route.path === nameOrPath);
@@ -230,7 +231,7 @@ onBeforeUnmount(() => {
   collapseInst = null;
 });
 
-watch([showEmpresaMenu, showTallerMenu, showAdminMenu], () => refreshDropdowns());
+watch([showEmpresaMenu, showTallerMenu, showRecepcionMenu, showAdminMenu], () => refreshDropdowns());
 watch(() => auth?.isAuthenticated, () => refreshDropdowns());
 watch(showSettings, () => syncScrollLock());
 </script>
@@ -349,6 +350,33 @@ watch(showSettings, () => syncScrollLock());
             </button>
             <ul class="dropdown-menu">
               <li v-for="(item, idx) in adminMenu" :key="'ad-' + idx">
+                <hr v-if="item === null" class="dropdown-divider" />
+                <a
+                  v-else
+                  class="dropdown-item"
+                  :class="{ active: isActive(item.name) }"
+                  href="#"
+                  @click.prevent="go({ name: item.name })"
+                >
+                  <i v-if="item.icon" :class="['bi', item.icon, 'me-2']"></i>{{ item.text }}
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li v-if="showRecepcionMenu" class="nav-item dropdown">
+            <button
+              type="button"
+              class="nav-link dropdown-toggle"
+              data-bs-toggle="dropdown"
+              data-bs-display="static"
+              data-bs-auto-close="true"
+              ref="setDropdownToggle"
+            >
+              Recepción
+            </button>
+
+            <ul class="dropdown-menu">
+              <li v-for="(item, idx) in recepcionMenu" :key="'re-' + idx">
                 <hr v-if="item === null" class="dropdown-divider" />
                 <a
                   v-else

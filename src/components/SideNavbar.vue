@@ -12,7 +12,8 @@ const route  = useRoute();
 const auth   = useAuthStore();
 const ui     = useUIStore();
 
-const { empresaMenu, tallerMenu, adminMenu } = useRoleMenus();
+const { empresaMenu, tallerMenu, adminMenu, recepcionMenu } = useRoleMenus();
+
 
 const fullName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || "").trim());
 const role     = computed(() => (auth?.profile?.role || auth?.role || "").trim());
@@ -193,6 +194,21 @@ const PRIMARY_OPTIONS = [
       <div v-if="tallerMenu.length" class="group">
         <div class="group-title">Taller</div>
         <template v-for="(it, i) in tallerMenu" :key="'t-'+i">
+          <hr v-if="it===null" class="divider" />
+          <a
+            v-else
+            href="#"
+            class="item"
+            :class="{ active: isActive(it.name) }"
+            @click.prevent="go({ name: it.name })"
+          >
+            <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>{{ it.text }}
+          </a>
+        </template>
+      </div>
+      <div v-if="recepcionMenu.length" class="group">
+        <div class="group-title">Recepción</div>
+        <template v-for="(it, i) in recepcionMenu" :key="'r-'+i">
           <hr v-if="it===null" class="divider" />
           <a
             v-else

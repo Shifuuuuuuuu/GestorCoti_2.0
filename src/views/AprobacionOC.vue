@@ -452,7 +452,14 @@ import { useAuthStore } from '../stores/authService';
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
-
+const actorName = computed(
+  () =>
+    auth?.profile?.Nombre_completo ||
+    auth?.profile?.nombre ||
+    auth?.user?.displayName ||
+    auth?.user?.email ||
+    "usuario"
+);
 /* =========================
    Toasts
    ========================= */
@@ -1058,7 +1065,10 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
 
   const allFull = itemsSol.every(x => Number(x.cantidad_cotizada || 0) >= Number(x.cantidad || 0));
   const anyCot  = itemsSol.some(x => Number(x.cantidad_cotizada || 0) > 0);
-  const nuevoEstatusSol = allFull ? 'Completado' : (anyCot ? 'Parcial' : 'Pendiente');
+  const nuevoEstatusSol = allFull
+    ? 'Cotizado Completado'
+    : (anyCot ? 'Cotizado Parcial' : 'Pendiente');
+
 
   dlog('SOLPED:update:huboAvance?', { huboAvance, cambiosEstado, nuevoEstatusSol });
 
@@ -1098,8 +1108,9 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
 
 const cerrarSolpedSiCompleta = async (solpedId) => {
   if (!solpedId) return;
+
   try {
-    const sref = doc(db, 'solpes', solpedId);
+    const sref = doc(db, "solpes", String(solpedId));
     const ss = await getDoc(sref);
     if (!ss.exists()) return;
 
@@ -1107,15 +1118,29 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
     const items = Array.isArray(data.items) ? data.items : [];
     if (!items.length) return;
 
-    const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
-    if (todosCompletos && (data.estatus || '').toLowerCase() !== 'completado') {
-      await updateDoc(sref, { estatus: 'Completado' });
-      addToast('success', 'SOLPED completada ✔');
+    const todosCompletos = items.every(
+      (it) => Number(it?.cantidad_cotizada || 0) >= Number(it?.cantidad || 0)
+    );
+    const cur = String(data?.estatus || "").trim().toLowerCase();
+    const yaEstaOk =
+      cur === "cotizado completado" ||
+      cur === "cotizado completada" ||
+      cur === "completado";
+
+    if (todosCompletos && !yaEstaOk) {
+      await updateDoc(sref, {
+        estatus: "Cotizado Completado",
+        updatedAt: serverTimestamp?.() || undefined,
+        updatedBy: actorName?.value || undefined,
+      });
+
+      addToast("success", "SOLPED cotizada completa ✔");
     }
   } catch (e) {
-    console.error('cerrarSolpedSiCompleta:', e);
+    console.error("cerrarSolpedSiCompleta:", e);
   }
 };
+
 
 /* =========================================================
    Resolver siguiente estatus al aprobar (saltando steps sin gente)

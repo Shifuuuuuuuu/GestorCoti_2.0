@@ -1067,23 +1067,43 @@ export default {
     };
 
     const getColorByStatus = (estatus) => {
-      const e = (estatus||'').toString().toLowerCase();
-      switch(e){
-        case 'completado': return '#28a745';
-        case 'rechazado': return '#dc3545';
-        case 'pendiente': return '#fd7e14';
-        case 'revisión': return '#007bff';
-        case 'parcial': return '#fd7e14';
-        case 'preaprobado': return '#ffc107';
-        case 'oc enviada a proveedor': return '#17a2b8';
-        case 'aprobado': return '#28a745';
-        default: return '#6c757d';
+      const e = (estatus || "")
+        .toString()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+
+      switch (e) {
+
+        case "pendiente": return "#fd7e14";
+        case "revision":
+        case "en revision":
+        case "revisado": return "#0d6efd";
+        case "cotizado parcial": return "#0dcaf0";
+        case "cotizado completado": return "#28a745";
+        case "productos en casa matriz":
+        case "pedidos en casa matriz":
+        case "pedido en casa matriz": return "#6f42c1";
+        case "parcial": return "#0dcaf0";
+        case "completado": return "#28a745";
+        case "revision guillermo": return "#20c997";
+        case "preaprobado": return "#ffc107";
+        case "casi aprobada": return "#6610f2";
+        case "aprobada":
+        case "cotizacion aprobada": return "#198754";
+        case "enviada a proveedor":
+        case "oc enviada a proveedor":
+        case "archivo oc subido (enviado a proveedor)": return "#17a2b8";
+        case "recepcion completa en casa matriz": return "#198754";
+        case "recepcion parcial en casa matriz": return "#ffc107";
+        case "recepcion en casa matriz": return "#0d6efd";
+        case "rechazado": return "#dc3545";
+        default: return "#6c757d";
       }
     };
+
     const estadoChipStyle = (s) => ({ background: getColorByStatus(s?.estatus), color: "#fff", padding: "4px 10px", fontWeight: "bold" });
     const getBadgeColor = (e) => getColorByStatus(e);
-
-    // ======== REALTIME LISTENER ========
     const startRealtimeSolpes = () => {
       if (solpesUnsub) { solpesUnsub(); solpesUnsub = null; }
       loading.value = true;
@@ -1110,12 +1130,8 @@ export default {
             comentarios
           });
         });
-
-        // orden y asignación
         list.sort((a,b)=> (b.numero_solpe||0) - (a.numero_solpe||0));
         solpesOriginal.value = list;
-
-        // construir lista de solicitantes
         const setSol = new Set(list.map(x => (x.nombre_solicitante || "").toString().toUpperCase()).filter(Boolean));
         listaSolicitantes.value = Array.from(setSol).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
 
@@ -1130,11 +1146,9 @@ export default {
     const stopRealtimeSolpes = () => {
       if (solpesUnsub) { solpesUnsub(); solpesUnsub = null; }
     };
-
-    // ===== Órdenes de compra asociadas en tiempo real =====
     const ensureOCListener = async (solpedId) => {
       if (!solpedId) return;
-      if (_ocUnsubs.has(solpedId)) return; // ya escuchando
+      if (_ocUnsubs.has(solpedId)) return;
 
       try {
         _ocLoading.value.add(solpedId);
@@ -1222,8 +1236,6 @@ export default {
 
     const onExpandCard = async (s) => {
       const newId = (solpeExpandidaId.value === s.id) ? null : s.id;
-
-      // si se colapsa, corta listener de OC
       if (solpeExpandidaId.value && solpeExpandidaId.value !== newId) {
         stopOCListener(solpeExpandidaId.value);
       }
@@ -1253,7 +1265,6 @@ export default {
       } catch { /* noop */ }
     };
 
-    // ===== Filtros =====
     const solicitantesFiltrados = computed(() => {
       const q = normalize(busquedaSolicitante.value);
       return listaSolicitantes.value.filter(n => !q || normalize(n).includes(q));
@@ -1344,8 +1355,6 @@ export default {
     };
 
     const filteredAll = computed(() => aplicarFiltros(solpesOriginal.value));
-
-    // Paginación
     const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize.value)));
     const pageFrom = computed(() => filteredAll.value.length ? (page.value - 1) * pageSize.value + 1 : 0);
     const pageTo = computed(() => Math.min(filteredAll.value.length, page.value * pageSize.value));
@@ -1355,11 +1364,8 @@ export default {
       if (p < 1) p = 1;
       if (p > totalPages.value) p = totalPages.value;
       page.value = p;
-      solpeExpandidaId.value = null; // colapsa al paginar
-      // al colapsar, corta listeners de OCs
+      solpeExpandidaId.value = null;
       stopAllOCListeners();
-
-      // reinicia dropdowns por cambio de DOM
       await nextTick();
       disposeDropdowns();
       await ensureDropdownClass();
@@ -1408,8 +1414,6 @@ export default {
 
         const refd = doc(db, "solped_taller", s.id);
 
-        // Cuando la SOLPED queda Completado o Rechazado,
-        // actualizamos también el estado de TODOS los ítems
         if (estatus === "Completado" || estatus === "Rechazado") {
           const estadoItem = estatus === "Completado" ? "completado" : "rechazado";
 
@@ -1422,7 +1426,6 @@ export default {
           s.estatus = estatus;
           s.items = itemsUpd;
         } else {
-          // Otros estados solo cambian el estatus general
           await updateDoc(refd, { estatus });
           s.estatus = estatus;
         }
@@ -1458,8 +1461,6 @@ export default {
           (String(it.item) === String(item.item)) ? { ...it, estado: nuevo } : it
         );
         await updateDoc(refd, { items: itemsUpd });
-
-        // el listener de SOLPED lo actualizará igual; esto es para feedback inmediato
         solpe.items = itemsUpd;
 
         restoreScrollSoon();
@@ -1489,7 +1490,6 @@ export default {
       }
     };
 
-    // Enviar la SOLPED seleccionada a la pantalla de creación (sin guardar nada en Firestore)
     const prepararCopiaParaCrear = (s) => {
       try {
         const payload = {
@@ -1525,19 +1525,16 @@ export default {
       numeroBusqueda.value = "";
       solpeEncontrada.value = null;
       error.value = "";
-      // quitar filtro de texto y volver a la lista completa
       filtroTexto.value = "";
       await goPage(1);
     };
 
     const buscarSolpeExacta = async () => {
-      // limpiar estado previo
       error.value = "";
       solpeEncontrada.value = null;
 
       const raw = (numeroBusqueda.value ?? "").toString().trim();
       if (!raw) {
-        // si está vacío, volvemos a la normalidad: sin filtro de texto
         filtroTexto.value = "";
         await goPage(1);
         return;
@@ -1595,7 +1592,7 @@ export default {
           });
 
           if (match) {
-            found = match; // ya viene con items y comentarios del snapshot en tiempo real
+            found = match;
           }
         }
 
@@ -1612,15 +1609,12 @@ export default {
       }
     };
 
-    // Imágenes
     const abrirImagen = (it) => {
       const src = it.imagen_url || "";
       if (!src) return;
       window.open(src, "_blank");
     };
     const abrirImagenNuevaPestana = (it) => abrirImagen(it);
-
-    // Excel (idéntico a tu versión)
     const setStyle = (ws, addr, s) => { if (!ws[addr]) ws[addr] = { t:'s', v:'' }; ws[addr].s = { ...(ws[addr].s||{}), ...s }; };
     const styleCell = (ws, r, c, s) => { const addr = XLSX.utils.encode_cell({ r, c }); setStyle(ws, addr, s); };
     const rangeBorder = (ws, r1, c1, r2, c2, border) => {

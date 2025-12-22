@@ -36,6 +36,7 @@ const DashboardEstadisticas = () => import("../views/DashboardEstadisticas.vue")
 const AdminConfig        = () => import("../views/AdminConfig.vue");
 const AdminGestionDocs   = () => import ("../views/AdminGestionDocs.vue")
 const AprobacionDocs     = () => import ("../views/AprobacionDocs.vue");
+const RecepcionOC = () => import("../views/RecepcionOC.vue");
 
 const routes = [
   // LOGIN (pública)
@@ -81,16 +82,12 @@ const routes = [
   /* validador OC */
   { path: "/aprobador-oc",        name: "AprobacionOC",       component: AprobacionOC,       meta: { requiresAuth: true } },
   { path: "/aprobador-oc-taller", name: "AprobacionOCTaller", component: AprobacionOCTaller, meta: { requiresAuth: true } },
-
-  /* otros */
   { path: "/soporte",         name: "Soporte",        component: Soporte,        meta: { requiresAuth: true } },
   { path: "/soporte-gestor",  name: "SoporteGestion", component: SoporteGestion, meta: { requiresAuth: true } },
   { path: "/perfil-usuario",  name: "PerfilUsuario",  component: PerfilUsuario,  meta: { requiresAuth: true } },
-
   { path: "/gestor-docs", name: "AdminGestionDocs", component: AdminGestionDocs, meta: { requiresAuth: true} },
   { path: "/aprobacion-docs", name: "AprobacionDocs", component: AprobacionDocs, meta: { requiresAuth: true} },
-
-  // 404 -> Inicio
+  { path: "/recepcion-oc", name: "RecepcionOC", component: RecepcionOC, meta: { requiresAuth: true } },
   { path: "/:pathMatch(.*)*", redirect: { name: "Inicio" } },
 ];
 AprobacionDocs

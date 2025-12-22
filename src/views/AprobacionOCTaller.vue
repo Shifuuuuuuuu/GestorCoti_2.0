@@ -781,7 +781,7 @@ const sincronizarRevisionOCySolped = async (oc:any) => {
       const tot = itemsSol.length;
       const completos = itemsSol.filter(x => Number(x.cantidad||0) > 0 && Number(x.cantidad_cotizada||0) >= Number(x.cantidad||0)).length;
       const algunDelta = itemsSol.some(x => Number(x.cantidad_cotizada||0) > 0);
-      const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Completado' : (algunDelta ? 'Parcial' : 'Pendiente');
+      const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Cotizado Completado' : (algunDelta ? 'Cotizado Parcial' : 'Pendiente');
 
       await updateDoc(sref, {
         items: itemsSol,
@@ -845,7 +845,7 @@ const cerrarSolpedTallerSiCompleta = async (solpedId: string) => {
 
     const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
     if (todosCompletos && String(data.estatus||'').toLowerCase() !== 'completado') {
-      await updateDoc(sref, { estatus: 'Completado' });
+      await updateDoc(sref, { estatus: 'Cotizado Completado' });
       addToast('success', 'SOLPED (taller) completada ✔');
     }
   } catch (e) {
@@ -935,7 +935,7 @@ const actualizarSolpedTallerConOC = async (oc:any, aprobador:string, comentario:
   if (huboCambio) {
     const tot = itemsSol.length;
     const completos = itemsSol.filter(x => Number(x.cantidad||0) > 0 && Number(x.cantidad_cotizada||0) >= Number(x.cantidad||0)).length;
-    const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Completado' : 'Parcial';
+    const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Cotizado Completado' : 'Cotizado Parcial';
 
     await updateDoc(sref, {
       items: itemsSol,

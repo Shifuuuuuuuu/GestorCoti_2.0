@@ -666,7 +666,6 @@ onMounted(() => {
         selectedLoteId.value = fallback;
 
         if (selectedLoteId.value) onChangeLote();
-        else noLotesNotice.value = "No hay lotes de docs pendientes para revisar.";
       } else {
         const cur = lotes.value.find((l) => l.id === selectedLoteId.value);
         if (cur && normEstado(cur.estado) === "revision_completa") {

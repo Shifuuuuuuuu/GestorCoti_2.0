@@ -513,9 +513,7 @@ const FiltroForm = {
     ]
   }
 };
-/* ===================================================================================== */
 
-/* ========= Normalizador de estado + clases ========= */
 function _estadoKeyPlano(v) {
   return String(v ?? '')
     .toLowerCase()
@@ -526,31 +524,31 @@ function _estadoKeyPlano(v) {
 
 function estadoKey(estatusRaw) {
   const s = _estadoKeyPlano(estatusRaw);
+
   if (s.includes('preaprob')) return 'preaprobado';
   if (s.includes('pend') || s.includes('aprobacion')) return 'pendiente';
   if (s.includes('aprob')) return 'aprobado';
   if (s.includes('rechaz')) return 'rechazado';
   if (s.includes('proveedor') || s.includes('enviada')) return 'enviada';
   if (s.includes('revision')) return 'revision';
+  if (s.includes('recepcion') && s.includes('completa')) return 'recepcion-completa';
+  if (s.includes('recepcion') && s.includes('parcial'))  return 'recepcion-parcial';
+
   return 'otro';
 }
 
-/* Estas dos funciones deben existir porque el template las usa */
+
 const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
 
-/* ---------- Detector simple + robusto ---------- */
 function hasArchivoOC(oc) {
   const a = oc?.archivoOC;
 
-  // 1) Si es array de objetos/strings
   if (Array.isArray(a) && a.length > 0) {
     for (const item of a) {
       if (typeof item === 'string' && item.trim() !== '') return true;
       if (item && typeof item === 'object') {
-        // Si tu esquema marca tipo 'oc', puedes reforzar:
-        // if (item.tipo && String(item.tipo).toLowerCase().includes('oc')) return true;
         if (typeof item.url  === 'string' && item.url.trim()  !== '') return true;
         if (typeof item.path === 'string' && item.path.trim() !== '') return true;
         if (
@@ -560,10 +558,7 @@ function hasArchivoOC(oc) {
       }
     }
   }
-
-  // 2) Si es objeto único
   if (a && typeof a === 'object' && !Array.isArray(a)) {
-    // if (a.tipo && String(a.tipo).toLowerCase().includes('oc')) return true;
     if (typeof a.url  === 'string' && a.url.trim()  !== '') return true;
     if (typeof a.path === 'string' && a.path.trim() !== '') return true;
     if (
@@ -571,19 +566,13 @@ function hasArchivoOC(oc) {
       typeof a.tipo   === 'string' && a.tipo.trim()   !== ''
     ) return true;
   }
-
-  // 3) Si guardas directamente string/boolean en archivoOC
   if (typeof a === 'string'  && a.trim() !== '') return true;
   if (typeof a === 'boolean' && a === true)      return true;
 
-  // 4) Compatibilidad: SOLO aceptar archivoOCUrl como evidencia
   if (typeof oc?.archivoOCUrl === 'string' && oc.archivoOCUrl.trim() !== '') return true;
-
-  // ❌ NO CONTAR archivosStorage ni archivosBase64 (pueden ser cotizaciones)
   return false;
 }
 
-/* ---------- Regla de alerta: solo “Aprobado” y sin archivo ---------- */
 function faltaSubirOC(oc) {
   return estadoKey(oc?.estatus) === 'aprobado' && !hasArchivoOC(oc);
 }
@@ -592,7 +581,6 @@ const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
 
-/* ========= Responsive / Offcanvas ========= */
 const isDesktop = ref(false);
 const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 
@@ -623,26 +611,23 @@ const handleResize = () => {
   if (isDesktop.value && wasMobileOpen) closeFiltersMobile();
 };
 
-/* ========= Estado ========= */
 const loading = ref(true);
 const loadingSearch = ref(false);
 const error = ref('');
 
-/* ========= Datos/página ========= */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-/* ========= Buscador exacto ========= */
+
 const numeroOC = ref(null);
 const ocEncontrada = ref(null);
 
-/* ========= Filtros base ========= */
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
 const empresaSegmento = ref('todas');
 
-/* ========= Centros de costo ========= */
+
 const centrosCosto = {
   "30858":"CONTRATO 30858 INFRA CHUQUICAMATA",
   "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
@@ -683,9 +668,9 @@ const centrosCosto = {
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
-const centroSearch = ref(''); // texto libre (cliente)
+const centroSearch = ref('');
 
-/* ========= Paginación ========= */
+
 const page = ref(1);
 const pageSize = ref(5);
 const totalCount = ref(0);
@@ -693,12 +678,10 @@ const pageFrom = computed(() => totalCount.value ? (page.value - 1) * pageSize.v
 const pageTo   = computed(() => Math.min(totalCount.value, page.value * pageSize.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
 
-/* ========= Cursores y scroll ========= */
 const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
 
-/* ========= Helpers ========= */
 const fmtFecha = (f) => {
   try {
     let d = null;
@@ -715,7 +698,7 @@ const fmtMoneda = (n, c='CLP') => {
   catch { return `${c} ${v.toLocaleString('es-CL')}`; }
 };
 
-/* ======== Roles ======== */
+
 const isEditor = computed(() => {
   const r = (auth?.profile?.role || auth?.role || '').toLowerCase().trim();
   return r === 'editor';
@@ -727,7 +710,6 @@ const isClickableToDetail = (oc) => {
 };
 const onCardClick = (oc) => { if (isClickableToDetail(oc)) goOC(oc); };
 
-/* ========= Centros ========= */
 const centrosOrdenados = computed(() =>
   Object.keys(centrosCosto).sort((a,b) => (centrosCosto[a]||'').localeCompare(centrosCosto[b]||'', 'es', {sensitivity:'base'}))
 );
@@ -895,7 +877,6 @@ const subscribePage = () => {
   });
 };
 
-/* ========= Conteo exacto ========= */
 const refreshCount = async () => {
   try {
     const wh = buildBaseWhere();
@@ -908,11 +889,9 @@ const refreshCount = async () => {
   }
 };
 
-/* ========= Filtro cliente ========= */
 function applyClientFilters(arr) {
   let out = Array.isArray(arr) ? arr : [];
 
-  // Texto contiene en nombre de centro
   if (centroNombreFiltroActivo.value) {
     const q = centroSearch.value.trim().toLowerCase();
     out = out.filter(oc => {
@@ -924,7 +903,6 @@ function applyClientFilters(arr) {
   return out;
 }
 
-/* ========= Agrupado ========= */
 const agruparPorEmpresa = (arr=[]) => {
   const out = {};
   (arr||[]).forEach(o => {
@@ -936,7 +914,6 @@ const agruparPorEmpresa = (arr=[]) => {
 };
 const agrupadasPaged = computed(() => agruparPorEmpresa(displayList.value));
 
-/* ========= Acciones ========= */
 const applyFilters = () => {
   persistFilters();
   page.value = 1;
@@ -970,11 +947,9 @@ const goPage = (p) => {
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
-/* ========= Navegación ========= */
 const goOC = (oc) => router.push({ name: 'oc-detalle', params: { id: oc.__docId } });
 const goSolped = (oc) => { const id = oc?.solpedId; if (id) router.push({ name: 'SolpedDetalle', params: { id } }); };
 
-/* ========= Búsqueda exacta ========= */
 const buscarOCExacta = async () => {
   ocEncontrada.value = null;
   const n = Number(numeroOC.value || 0);
@@ -992,7 +967,6 @@ const buscarOCExacta = async () => {
   }
 };
 
-/* ========= FAB “Volver arriba” (sólo móvil) ========= */
 const showScrollTop = ref(false);
 const onScroll = () => {
   showScrollTop.value = window.scrollY > 300;
@@ -1104,7 +1078,6 @@ watch(
   box-shadow:0 0 0 2px rgba(245, 158, 11, .15), 0 12px 24px rgba(245, 158, 11, .18) !important;
 }
 
-/* ========= PALETA PERSONALIZADA POR ESTADO ========= */
 .badge-status{ font-weight:600; border:0; }
 .badge-aprobado{    background:#e7f6e9; color:#166534; }
 .badge-preaprobado{ background:#e6f3fb; color:#0b4a6f; }
@@ -1112,18 +1085,20 @@ watch(
 .badge-rechazado{   background:#fee2e2; color:#991b1b; }
 .badge-enviada{     background:#e8edff; color:#1e3a8a; }
 .badge-revision{    background:#efe9ff; color:#5b21b6; }
+.badge-recepcion-completa{ background:#d1fae5; color:#065f46; }
+.badge-recepcion-parcial{  background:#cffafe; color:#155e75; }
 .badge-otro{        background:#f1f5f9; color:#334155; }
 
-/* HEADERS (SOLO EDITOR) */
 .hdr-aprobado{    background:#e7f6e9 !important; color:#0f5132 !important; border-bottom:1px solid #ccead2 !important; }
 .hdr-preaprobado{ background:#e6f3fb !important; color:#0b4a6f !important; border-bottom:1px solid #c7e6f7 !important; }
 .hdr-pendiente{   background:#fff1db !important; color:#7c2d12 !important; border-bottom:1px solid #ffe1b6 !important; }
 .hdr-rechazado{   background:#fee2e2 !important; color:#7f1d1d !important; border-bottom:1px solid #fecaca !important; }
 .hdr-enviada{     background:#e8edff !important; color:#1e3a8a !important; border-bottom:1px solid #cdd6ff !important; }
 .hdr-revision{    background:#efe9ff !important; color:#4c1d95 !important; border-bottom:1px solid #dfd3ff !important; }
+.hdr-recepcion-completa{ background:#d1fae5 !important; color:#065f46 !important; border-bottom:1px solid #a7f3d0 !important; }
+.hdr-recepcion-parcial{  background:#cffafe !important; color:#155e75 !important; border-bottom:1px solid #a5f3fc !important; }
 .hdr-otro{        background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important; }
 
-/* ===== Offcanvas móvil ===== */
 .oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
 .oc-enter-from, .oc-leave-to { opacity: 0; }
 .oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
