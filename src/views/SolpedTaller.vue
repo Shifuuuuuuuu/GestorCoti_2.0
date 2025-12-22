@@ -174,7 +174,7 @@
               <thead>
                 <tr>
                   <th style="width:64px;">#</th>
-                  <th>Descripción <span class="text-danger">*</span></th>
+                  <th class="th-desc">Descripción <span class="text-danger">*</span></th>
                   <th>Código (opcional)</th>
                   <th style="width:140px;">Cantidad <span class="text-danger">*</span></th>
                   <th>N° Interno / Patente (opcional)</th>
@@ -195,35 +195,76 @@
                 >
                   <td class="text-muted">{{ i+1 }}</td>
 
-                  <td class="position-relative">
-                    <input
-                      type="text"
-                      class="form-control"
-                      :class="{'is-invalid': campoInvalido(item,'descripcion')}"
-                      v-model="item.descripcion"
-                      :readonly="!item.editando"
-                      placeholder="Ej: FILTRO DE AIRE"
-                      @input="onUpperItem(i,'descripcion',$event); triggerAutoSave(); showSuggestFor(i)"
-                      @focus="showSuggestFor(i)"
-                      @blur="hideSuggestSoon(i)"
-                      @keyup.enter="autoAgregarSiUltimoCompleto(i)"
-                    >
-                    <ul
-                      v-if="item.editando && suggestOpenIndex===i && suggestions(i).length"
-                      class="suggest-box list-unstyled mb-0"
-                      @mouseenter="suggestHovering=true"
-                      @mouseleave="suggestHovering=false"
-                    >
-                      <li
-                        v-for="(s, idx) in suggestions(i)"
-                        :key="idx"
-                        class="suggest-item"
-                        @mousedown.prevent="applySuggestion(i, s)"
+                  <td class="position-relative td-desc">
+                    <div class="position-relative">
+                      <div class="input-with-icon">
+                        <i class="bi bi-search"></i>
+                        <textarea
+                          :ref="(el) => setDescInputRef(i, el)"
+                          class="form-control desc-input"
+                          :class="{
+                            'is-invalid': campoInvalido(item,'descripcion'),
+                            'is-expanded': focusedDescIndex === i
+                          }"
+                          v-model="item.descripcion"
+                          :readonly="!item.editando"
+                          rows="1"
+                          placeholder="Ej: FILTRO DE AIRE"
+                          autocomplete="off"
+                          @input="onDescInput(i,$event)"
+                          @focus="onDescFocus(i)"
+                          @blur="onDescBlur(i)"
+                          @keydown="onDescKeydown($event, i)"
+                        ></textarea>
+                      </div>
+
+                      <!-- Sugerencias (arriba + teclado) -->
+                      <div
+                        v-if="item.editando && suggestOpenIndex===i && (catalogLoading || suggestions(i).length)"
+                        class="suggest-box suggest-box--fixed"
+                        :style="suggestFixedStyle"
+                        @mouseenter="suggestHovering=true"
+                        @mouseleave="suggestHovering=false"
                       >
-                        <i class="bi bi-magic me-2"></i>{{ s.descripcion_raw }}
-                        <small v-if="s.codigo_referencial" class="text-muted ms-2">({{ s.codigo_referencial }})</small>
-                      </li>
-                    </ul>
+                        <div class="suggest-head">
+                          <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-magic"></i>
+                            <strong>Sugerencias</strong>
+                            <span class="badge bg-light text-dark border">{{ suggestions(i).length }}</span>
+                          </div>
+                          <div class="hint">
+                            <span class="kbd">↑</span><span class="kbd">↓</span>
+                            <span class="d-none d-md-inline"> navegar · </span>
+                            <span class="kbd">Enter</span><span class="d-none d-md-inline"> seleccionar · </span>
+                            <span class="kbd">Esc</span>
+                          </div>
+                        </div>
+
+                        <ul class="list-unstyled mb-0">
+                          <li v-if="catalogLoading && !suggestions(i).length" class="suggest-empty">
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            Cargando sugerencias…
+                          </li>
+                          <li v-else-if="!catalogLoading && !suggestions(i).length" class="suggest-empty">
+                            No hay coincidencias. Escribe más letras.
+                          </li>
+                          <li
+                            v-for="(s, idx) in suggestions(i)"
+                            :key="idx"
+                            class="suggest-item"
+                            :class="{ 'is-active': idx === suggestActivePos }"
+                            @mouseenter="suggestActivePos = idx"
+                            @mousedown.prevent="applySuggestion(i, s)"
+                          >
+                            <div class="suggest-text">
+                              <span v-html="renderSuggestMatch(item.descripcion, (s.descripcion_raw || s.descripcion_upper || ''))"></span>
+                              <small v-if="s.codigo_referencial" class="text-muted ms-2">({{ s.codigo_referencial }})</small>
+                            </div>
+                            <span v-if="s.usage_count" class="badge bg-light text-dark border">{{ s.usage_count }}</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
                   </td>
 
                   <td>
@@ -333,7 +374,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed, onBeforeUnmount } from "vue";
+import { ref, reactive, onMounted, computed, onBeforeUnmount, nextTick } from "vue";
 import imageCompression from "browser-image-compression";
 import { db } from "../stores/firebase";
 import {
@@ -420,9 +461,97 @@ export default {
 
     // Catálogo (predicciones)
     const catalog = ref([]);
+    const catalogLoading = ref(false);
     const suggestOpenIndex = ref(-1);
+    const suggestActivePos = ref(0);
     let suggestHideTimer = null;
     const suggestHovering = ref(false);
+    // Refs para posicionar el popover (evitar recorte dentro de tablas/scroll)
+    const descInputEls = ref([]);            // refs a <textarea> descripción por fila
+    const focusedDescIndex = ref(-1);
+
+    const suggestPos = reactive({
+      left: 0,
+      width: 0,
+      bottom: 0,      // distancia desde el borde inferior del viewport (para abrir hacia arriba)
+      maxHeight: 260,
+    });
+
+    const setDescInputRef = (i, el) => {
+      if (!el) return;
+      descInputEls.value[i] = el;
+    };
+
+    const computeSuggestPos = (i) => {
+      const el = descInputEls.value?.[i];
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const gap = 8;
+
+      // Popover hacia ARRIBA: lo “anclamos” al borde superior del input usando bottom.
+      const bottom = Math.max(8, window.innerHeight - rect.top + gap);
+      const maxHeight = Math.max(180, Math.min(520, rect.top - 12)); // aprovecha espacio disponible arriba
+
+      suggestPos.left = Math.round(rect.left);
+      suggestPos.width = Math.round(rect.width);
+      suggestPos.bottom = Math.round(bottom);
+      suggestPos.maxHeight = Math.round(maxHeight);
+    };
+
+    const updateSuggestPos = async (i) => {
+      await nextTick();
+      computeSuggestPos(i);
+    };
+
+
+    const reposition = () => {
+      if (suggestOpenIndex.value >= 0) computeSuggestPos(suggestOpenIndex.value);
+    };
+
+const suggestFixedStyle = computed(() => ({
+      left: suggestPos.left + "px",
+      width: suggestPos.width + "px",
+      bottom: suggestPos.bottom + "px",
+      maxHeight: suggestPos.maxHeight + "px",
+    }));
+
+    const autoGrowDesc = (i) => {
+      const el = descInputEls.value?.[i];
+      if (!el) return;
+      el.style.height = "auto";
+      const max = 140; // px
+      el.style.height = Math.min(el.scrollHeight, max) + "px";
+    };
+
+    const shrinkDesc = (i) => {
+      const el = descInputEls.value?.[i];
+      if (!el) return;
+      el.style.height = "44px";
+    };
+
+    const onDescFocus = async (i) => {
+      focusedDescIndex.value = i;
+      autoGrowDesc(i);
+      showSuggestFor(i);
+      await updateSuggestPos(i);
+    };
+
+    const onDescBlur = (i) => {
+      focusedDescIndex.value = -1;
+      hideSuggestSoon(i);
+      // al “terminar” (blur) vuelve al tamaño normal
+      setTimeout(() => shrinkDesc(i), 10);
+    };
+
+    const onDescInput = async (i, ev) => {
+      onUpperItem(i, "descripcion", ev);
+      triggerAutoSave();
+      autoGrowDesc(i);
+      showSuggestFor(i);
+      await updateSuggestPos(i);
+    };
+
 
     // Toasts
     const toasts = ref([]);
@@ -449,6 +578,32 @@ export default {
         .normalize("NFD")
         .replace(/\p{Diacritic}/gu, "")
         .trim();
+
+
+const escapeHtml = (s = "") =>
+  String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+// Resalta coincidencia (simple y seguro)
+const renderSuggestMatch = (typed, full) => {
+  const t = String(typed || "").trim();
+  const f = String(full || "");
+  if (!t) return escapeHtml(f);
+
+  const fUp = f.toUpperCase();
+  const tUp = t.toUpperCase();
+
+  if (fUp.startsWith(tUp)) {
+    const a = escapeHtml(f.slice(0, t.length));
+    const b = escapeHtml(f.slice(t.length));
+    return `<mark>${a}</mark>${b}`;
+  }
+  return escapeHtml(f);
+};
 
     // ====== Online / Offline listeners ======
     const onOnline = () => {
@@ -806,32 +961,45 @@ export default {
 
     // ======= Catálogo =======
     const loadCatalog = async () => {
+      catalogLoading.value = true;
       try {
         const qy = query(collection(db, "items_catalog"), orderBy("usage_count", "desc"));
         const snap = await getDocs(qy);
         catalog.value = snap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
       } catch (e) {
         console.warn("No se pudo cargar items_catalog:", e);
+      } finally {
+        catalogLoading.value = false;
       }
     };
 
     const suggestions = (i) => {
       const term = normalize(solpe.items[i]?.descripcion || "");
-      if (!term || term.length < 2) return [];
-      const top = [];
-      for (const it of catalog.value) {
+
+      // ✅ Si aún no escriben 2 letras, mostramos "top usados" para que SI aparezca el selector
+      if (!term || term.length < 2) {
+        return (catalog.value || []).slice(0, 8);
+      }
+
+      // Coincidencias (prioriza que contenga el término)
+      const out = [];
+      for (const it of catalog.value || []) {
         const text = normalize(it.descripcion_upper || it.descripcion_raw || "");
         if (text.includes(term)) {
-          top.push(it);
-          if (top.length >= 5) break;
+          out.push(it);
+          if (out.length >= 8) break;
         }
       }
-      return top;
+
+      // Si no hay match, fallback a top usados
+      return out.length ? out : (catalog.value || []).slice(0, 8);
     };
 
-    const showSuggestFor = (i) => {
+    const showSuggestFor = async (i) => {
       suggestOpenIndex.value = i;
+      suggestActivePos.value = 0;
       clearTimeout(suggestHideTimer);
+      await updateSuggestPos(i);
     };
     const hideSuggestSoon = () => {
       clearTimeout(suggestHideTimer);
@@ -841,15 +1009,62 @@ export default {
     };
 
     const applySuggestion = (i, s) => {
+      // ✅ Descripción siempre se reemplaza por la sugerencia elegida
       solpe.items[i].descripcion = upper(s.descripcion_raw || s.descripcion_upper || "");
-      if (s.codigo_referencial && !solpe.items[i].codigo_referencial) {
+
+      // ✅ Código (opcional): si la sugerencia trae código, REEMPLAZA el actual
+      // (si no trae código, mantenemos lo que el usuario ya tenía escrito)
+      if (s.codigo_referencial) {
         solpe.items[i].codigo_referencial = upper(s.codigo_referencial);
       }
+
       suggestOpenIndex.value = -1;
       addToast("success", "Sugerencia aplicada.");
       triggerAutoSave();
       autoAgregarSiUltimoCompleto(i);
     };
+
+
+
+const onDescKeydown = (ev, i) => {
+  // Solo actúa si la caja está abierta en esta fila
+  if (!(solpe.items[i]?.editando && suggestOpenIndex.value === i)) return;
+
+  const list = suggestions(i) || [];
+  const hasList = list.length > 0;
+
+  if (ev.key === "Escape") {
+    ev.preventDefault();
+    suggestOpenIndex.value = -1;
+    return;
+  }
+
+  if (!hasList) {
+    // si no hay sugerencias, Enter mantiene tu flujo normal (agrega fila si corresponde)
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      autoAgregarSiUltimoCompleto(i);
+    }
+    return;
+  }
+
+  if (ev.key === "ArrowDown") {
+    ev.preventDefault();
+    suggestActivePos.value = Math.min(list.length - 1, (suggestActivePos.value || 0) + 1);
+    return;
+  }
+  if (ev.key === "ArrowUp") {
+    ev.preventDefault();
+    suggestActivePos.value = Math.max(0, (suggestActivePos.value || 0) - 1);
+    return;
+  }
+  if (ev.key === "Enter" || ev.key === "Tab") {
+    ev.preventDefault();
+    const chosen = list[suggestActivePos.value || 0];
+    if (chosen) applySuggestion(i, chosen);
+    return;
+  }
+};
 
     const upsertCatalogForItems = async (items) => {
       try {
@@ -1101,6 +1316,10 @@ export default {
     onMounted(async () => {
       window.addEventListener("online", onOnline);
       window.addEventListener("offline", onOffline);
+      // Reposicionar popover al hacer scroll/resize (para que NO se recorte)
+      window.addEventListener("resize", reposition);
+      window.addEventListener("scroll", reposition, true);
+
 
       try {
         const saved = localStorage.getItem(LS_LOCAL_CONSENT);
@@ -1140,6 +1359,9 @@ export default {
     onBeforeUnmount(() => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+
       if (typeof unsubCotizadores === "function") unsubCotizadores();
     });
 
@@ -1164,12 +1386,26 @@ export default {
 
       // catálogo/sugerencias
       catalog,
+      catalogLoading,
       suggestions,
       suggestOpenIndex,
       suggestHovering,
       showSuggestFor,
       hideSuggestSoon,
       applySuggestion,
+
+      // sugerencias UX
+      suggestActivePos,
+      onDescKeydown,
+      renderSuggestMatch,
+
+      // popover fijo + textarea autosize
+      suggestFixedStyle,
+      setDescInputRef,
+      focusedDescIndex,
+      onDescInput,
+      onDescFocus,
+      onDescBlur,
 
       // toasts
       toasts,
@@ -1203,6 +1439,16 @@ export default {
 
 <style scoped>
 .solped-taller-page{ min-height:100vh; }
+
+/* ===== UI más "redondeada" (menos cuadrada) ===== */
+:deep(.form-control),
+:deep(.form-select),
+:deep(.btn),
+:deep(.table),
+:deep(.badge) {
+  border-radius: 12px;
+}
+
 .page-title{
   font-size: 1.35rem;
   font-weight: 700;
@@ -1211,10 +1457,10 @@ export default {
 
 .card-squared{
   border:1px solid #e5e7eb;
-  border-radius: 8px !important;
+  border-radius: 14px !important;
   box-shadow: 0 8px 20px rgba(0,0,0,.04), 0 2px  6px rgba(0,0,0,.04);
 }
-.card-slim{ border:1px solid #e5e7eb; border-radius: 8px; }
+.card-slim{ border:1px solid #e5e7eb; border-radius: 14px; }
 
 .kpi-chip{
   display:inline-block; padding:.25rem .6rem; border-radius:999px;
@@ -1224,43 +1470,204 @@ export default {
 
 .table-plain tbody td{ border-top:1px solid #f1f5f9; }
 
+.table-responsive{ overflow-y: visible; }
+
+.table-plain thead th{
+  font-size: 1rem;
+  font-weight: 700;
+}
+.th-desc{
+  font-size: 1.08rem;
+  font-weight: 800;
+  min-width: 420px;
+}
+
+.td-desc{ min-width: 420px; }
+
+
 .item-row{ transition: background-color .15s ease; }
 .item-row.drag-over{ background: #f8fafc; }
 
 .image-container img{
-  width: 140px; height: 90px; object-fit: cover; border-radius:6px; border:1px solid #e5e7eb;
+  width: 140px; height: 90px; object-fit: cover; border-radius:10px; border:1px solid #e5e7eb;
 }
 
 .dropzone{
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   min-height: 110px;
-  border:2px dashed #cbd5e1; border-radius:8px; cursor:pointer;
+  border:2px dashed #cbd5e1; border-radius:14px; cursor:pointer;
   transition: border-color .15s ease, background-color .15s ease;
 }
 .dropzone:hover{ border-color:#94a3b8; background:#f8fafc; }
 .dropzone .hint{ font-size:.85rem; color:#64748b; }
 .dropzone i{ font-size: 1.5rem; color:#64748b; }
 
-.suggest-box{
-  position:absolute; z-index: 20; left:0; right:0; top: 100%;
-  background:#fff; border:1px solid #e5e7eb; border-top:0; border-radius:0 0 8px 8px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.08);
-  max-height: 220px; overflow:auto;
-}
-.suggest-item{
-  padding: .45rem .6rem; cursor:pointer; display:flex; align-items:center;
-}
-.suggest-item:hover{ background:#f8fafc; }
 
-.toast-stack{
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 1080;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.suggest-box{
+  position:absolute; z-index: 20; left:0; right:0;
+  top: auto;
+  bottom: 100%;
+  margin-bottom: 6px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.08);
+  overflow: hidden;
+  max-height: 240px;
+  overflow: hidden;
 }
+
+
+.suggest-box--fixed{
+  position: fixed !important;
+  z-index: 4000 !important;
+  left: 0;
+  right: auto;
+  bottom: auto;
+  top: auto;
+  margin-bottom: 0;
+  overflow: auto;
+}
+
+
+
+.suggest-box ul{
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 0 8px;
+}
+
+.suggest-head{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding: .5rem .65rem;
+  border-bottom: 1px solid #eef2f7;
+  background: #f8fafc;
+}
+
+.hint{ font-size: .78rem; color:#64748b; }
+.kbd{
+  display:inline-block;
+  padding: .1rem .35rem;
+  border:1px solid #d1d5db;
+  border-bottom-width: 2px;
+  border-radius: .35rem;
+  background:#fff;
+  font-size:.75rem;
+  line-height:1.2;
+  margin: 0 2px;
+}
+
+.suggest-item{
+  border-radius: 12px;
+  margin: 6px 8px;
+
+  padding: .6rem .7rem;
+  cursor:pointer;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.6rem;
+  color:#0f172a; /* ✅ mantener legible */
+}
+.suggest-item:hover{
+  background:#f8fafc;
+  color:#0f172a; /* ✅ no blanco */
+}
+.suggest-item.is-active{
+  background:#e0f2fe;
+  outline: 2px solid rgba(2, 132, 199, .18);
+  outline-offset: -2px;
+  color:#0f172a; /* ✅ no blanco */
+}
+.suggest-text{ min-width: 0; white-space: normal; overflow: visible; text-overflow: initial; line-height: 1.25; }
+.suggest-box mark{
+  background: rgba(255, 193, 7, 0.35);
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+.suggest-empty{
+  padding: .6rem .7rem;
+  color: #64748b;
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+}
+
+.input-with-icon{
+  position: relative;
+}
+.input-with-icon > i{
+  position:absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color:#94a3b8;
+  pointer-events:none;
+  font-size: 1.05rem;
+}
+.input-with-icon > input{
+  padding-left: 44px;
+  height: 46px;
+  font-size: 1.05rem;
+}
+
+
+.input-with-icon > textarea{
+  padding-left: 44px;
+  min-height: 46px;
+  height: 44px;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  resize: none;
+  overflow: hidden;
+  border-radius: 12px;
+  color: #0f172a !important; /* mantener negro */
+}
+.input-with-icon > textarea:focus{
+  color: #0f172a !important;
+}
+
+.desc-input.is-expanded{
+  font-size: 1.12rem;
+}
+
+
+/* Dark mode */
+:global(html.theme-dark) .suggest-box{
+  background: rgba(17,24,39,.98);
+  border-color: rgba(255,255,255,.08);
+}
+:global(html.theme-dark) .suggest-head{
+  background: rgba(31,41,55,.92);
+  border-bottom-color: rgba(255,255,255,.08);
+}
+:global(html.theme-dark) .suggest-item{
+  border-radius: 12px;
+  margin: 6px 8px;
+
+  color:#e5e7eb;
+}
+:global(html.theme-dark) .suggest-item:hover{
+  background: rgba(31,41,55,.7);
+  color:#e5e7eb;
+}
+:global(html.theme-dark) .suggest-item.is-active{
+  background: rgba(2,132,199,.22);
+  color:#e5e7eb;
+}
+:global(html.theme-dark) .suggest-box mark{
+  background: rgba(245,158,11,.25);
+  color:#e5e7eb;
+}
+
 .toast-box{
   display: flex;
   align-items: center;

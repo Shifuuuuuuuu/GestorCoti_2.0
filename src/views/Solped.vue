@@ -3,7 +3,6 @@
 <template>
   <div class="solped-page">
     <div class="container py-4 py-md-5">
-      <!-- Header -->
       <header class="page-head mb-4">
         <div class="page-head__left">
           <h1 class="h4 fw-semibold mb-1">Creación de SOLPED</h1>
@@ -18,8 +17,6 @@
             <i class="bi bi-clock-history me-1"></i>
             Historial
           </router-link>
-
-          <!-- ✅ Botón buscador equipos -->
           <button
             type="button"
             :class="['btn btn-sm', showEquiposCard ? 'btn-dark' : 'btn-outline-dark']"
@@ -36,8 +33,6 @@
           </small>
         </div>
       </header>
-
-      <!-- Alertas -->
       <div v-if="error" class="alert alert-danger d-flex align-items-center" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         <div>{{ error }}</div>
@@ -46,16 +41,12 @@
         <i class="bi bi-check-circle-fill me-2"></i>
         <div>{{ okMsg }}</div>
       </div>
-
-      <!-- Datos generales (izq) + buscador equipos (der) -->
       <div class="row g-4 align-items-start">
-        <!-- Card: Datos generales -->
         <div :class="['col-12', showEquiposCard ? 'col-lg-8' : 'col-lg-12']">
           <section class="card card-elevated mb-0">
             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
               <h2 class="h6 mb-0 fw-semibold">Datos generales</h2>
 
-              <!-- Guardado local -->
               <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end w-auto">
                 <div class="form-check form-switch">
                   <input id="swLocalSave" class="form-check-input" type="checkbox" v-model="localSaveEnabled" @change="persistLocalSavePref" />
@@ -158,8 +149,6 @@
                     </span>
                   </div>
                 </div>
-
-                <!-- Centro de costo -->
                 <div class="col-12 col-md-6">
                   <label class="form-label">Centro de costo</label>
 
@@ -184,15 +173,11 @@
                     Guardado: <strong>{{ form.nombre_centro_costo || "-" }}</strong>
                   </div>
                 </div>
-
-                <!-- Adjuntos (múltiples, opcional) -->
                 <div class="col-12">
                   <div class="form-check mb-2">
                     <input id="chkAdj" class="form-check-input" type="checkbox" v-model="requiereAutorizacion" />
                     <label class="form-check-label" for="chkAdj">Subir archivos adicionales (opcional)</label>
                   </div>
-
-                  <!-- DROPZONE con botones Archivos/Carpeta -->
                   <div
                     v-if="requiereAutorizacion"
                     class="dropzone"
@@ -235,8 +220,6 @@
                         <i class="bi bi-folder-plus"></i> Carpeta
                       </button>
                     </div>
-
-                    <!-- Input de archivos -->
                     <input
                       ref="inputAdjuntos"
                       type="file"
@@ -245,11 +228,7 @@
                       accept=".jpg,.jpeg,.png,.pdf,.xls,.xlsx,.csv,.zip,.rar"
                       @change="subirAdjuntos"
                     />
-
-                    <!-- Input de carpeta -->
                     <input ref="inputFolder" type="file" class="d-none" webkitdirectory directory @change="subirCarpeta" />
-
-                    <!-- Overlay de carga -->
                     <div v-if="uploadingAdjuntos" class="dz-loading">
                       <div class="dz-loading-box">
                         <div class="spinner-border me-2" role="status"></div>
@@ -262,8 +241,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- Píldoras de archivos -->
                   <div v-if="form.autorizaciones?.length" class="mt-2 d-flex flex-wrap gap-2">
                     <div
                       v-for="(f, idx) in form.autorizaciones"
@@ -282,8 +259,6 @@
                       </button>
                     </div>
                   </div>
-
-                  <!-- Botón limpiar todo -->
                   <div v-if="form.autorizaciones?.length" class="mt-2">
                     <button class="btn btn-sm btn-outline-danger" @click="limpiarAdjuntos">Limpiar adjuntos</button>
                   </div>
@@ -348,8 +323,6 @@
                   Página <strong>{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong>
                 </div>
               </div>
-
-              <!-- Lista -->
               <div v-if="!cargandoEquipos" class="equipos-list">
                 <div v-for="eq in pagedEquipos" :key="eq._id || eq.id" class="equipos-item">
                   <div class="equipos-main min-w-0">
@@ -357,8 +330,6 @@
                       <div class="fw-semibold equipo-wrap">
                         {{ eq.equipo || "Equipo" }}
                       </div>
-
-                      <!-- opcional: segunda línea (año/modelo) -->
                       <div class="small text-secondary">
                         {{ eq.modelo || "" }}
                       </div>
@@ -399,8 +370,6 @@
                   Ingresa una búsqueda para ver resultados.
                 </div>
               </div>
-
-              <!-- Paginación -->
               <nav v-if="resultadosEquipos.length > pageSize" class="mt-2">
                 <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">
                   <li :class="['page-item', currentPage === 1 ? 'disabled' : '']">
@@ -420,8 +389,6 @@
           </section>
         </div>
       </div>
-
-      <!-- Card: Ítems (FULL WIDTH abajo) -->
       <section class="card card-elevated mt-4">
         <div class="card-header">
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -429,10 +396,7 @@
               <h2 class="h6 mb-0 fw-semibold">Tabla de ítems</h2>
               <small class="text-secondary">Descripción, cantidades y datos referenciales.</small>
             </div>
-
-            <!-- Acciones tabla -->
             <div class="d-flex gap-2 w-auto align-items-center flex-wrap">
-              <!-- Carga masiva -->
               <input ref="inputExcel" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onExcelSeleccionado" />
               <button class="btn btn-outline-dark btn-sm" type="button" :disabled="importandoExcel" @click="$refs.inputExcel.click()" title="Carga masiva (Excel/CSV)">
                 <i class="bi bi-filetype-xlsx me-1"></i> Carga masiva
@@ -452,7 +416,6 @@
         </div>
 
         <div class="card-body p-0 position-relative">
-          <!-- Overlay importación -->
           <transition name="fade">
             <div v-if="importandoExcel" class="import-overlay">
               <div class="import-box">
@@ -491,20 +454,65 @@
                   <td class="text-secondary" :data-label="'#'">{{ i + 1 }}</td>
 
                   <td class="position-relative" :data-label="'Descripción'">
-                    <input
-                      class="form-control form-control-sm"
-                      v-model="item.descripcion"
-                      @focus="focusRow = i"
-                      @blur="onDescBlur(i)"
-                      @input="onDescInput(i)"
-                      placeholder="Describe el ítem"
-                    />
-                    <!-- Sugerencias -->
-                    <ul v-if="suggests[i]?.length && focusRow === i" class="list-group suggest-popover">
-                      <li class="list-group-item list-group-item-action" v-for="s in suggests[i]" :key="s" @mousedown.prevent @click="aplicarSugerencia(i, s)">
-                        {{ s }}
-                      </li>
-                    </ul>
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-light">
+                        <i class="bi bi-search"></i>
+                      </span>
+                      <input
+                        class="form-control"
+                        v-model="item.descripcion"
+                        @focus="onDescFocus(i)"
+                        @blur="onDescBlur(i)"
+                        @input="onDescInput(i)"
+                        @keydown="onDescKeydown(i, $event)"
+                        placeholder="Buscar o escribir descripción…"
+                        autocomplete="off"
+                      />
+                      <button
+                        v-if="item.descripcion && (suggests[i]?.length || suggestLoading[i])"
+                        class="btn btn-outline-secondary"
+                        type="button"
+                        @mousedown.prevent
+                        @click="closeSuggest(i)"
+                        title="Cerrar sugerencias"
+                      >
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
+
+                    <div v-if="isSuggestOpen(i)" class="suggest-popover card">
+                      <div class="suggest-header d-flex align-items-center justify-content-between px-2 py-1">
+                        <small class="text-muted">
+                          <i class="bi bi-lightning-charge me-1"></i>
+                          Sugerencias (↑/↓, Enter)
+                        </small>
+                        <small v-if="suggestLoading[i]" class="text-muted">
+                          <span class="spinner-border spinner-border-sm me-1"></span>Buscando…
+                        </small>
+                        <small v-else class="text-muted">{{ suggests[i]?.length || 0 }}</small>
+                      </div>
+
+                      <ul class="list-group list-group-flush">
+                        <li v-if="!suggestLoading[i] && !(suggests[i]?.length)" class="list-group-item py-2 text-muted">
+                          Sin sugerencias
+                        </li>
+
+                        <li
+                          v-for="(s, idx) in suggests[i]"
+                          :key="s.text || s"
+                          class="list-group-item suggest-item d-flex align-items-center justify-content-between"
+                          :class="{ 'is-active': suggestActive[i] === idx }"
+                          @mouseenter="suggestActive[i] = idx"
+                          @mousedown.prevent
+                          @click="aplicarSugerencia(i, s.text || s)"
+                        >
+                          <div class="me-2 text-truncate" v-html="renderSuggestMatch(i, s)"></div>
+                          <span v-if="s.usos" class="badge rounded-pill text-bg-light border">
+                            {{ s.usos }} usos
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
                   </td>
 
                   <td :data-label="'Código'">
@@ -542,8 +550,6 @@
                       placeholder="ABC-123"
                     />
                   </td>
-
-                  <!-- IMAGEN con drag & drop + progreso -->
                   <td :data-label="'Imagen'">
                     <input :ref="(el) => (inputImagenRefs[i] = el)" type="file" class="d-none" accept="image/*" @change="(e) => subirImagenItem(e, i)" />
 
@@ -608,8 +614,6 @@
         </div>
       </section>
     </div>
-
-    <!-- TOASTS -->
     <div class="toast-stack">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
         <i
@@ -655,7 +659,7 @@ import {
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
 import { useRouter } from "vue-router";
-import * as XLSX from "xlsx"; // npm i xlsx
+import * as XLSX from "xlsx";
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -664,14 +668,10 @@ export default {
     const router = useRouter();
     const irHistorial = () => router.push({ name: "historial-solped" });
     const auth = useAuthStore();
-
-    /* ===== Usuario (fullName) + contratos asignados ===== */
     const userFullName = ref("");
     const usuarioNombre = computed(() => userFullName.value || "");
     const uid = computed(() => auth?.user?.uid || "");
-    const centrosAsignados = ref([]); // string[]
-
-    /* ===== Límites adjuntos ===== */
+    const centrosAsignados = ref([]);
     const MAX_FILES = 10;
     const MAX_SIZE_MB = 25;
     const MAX_TOTAL_MB = 100;
@@ -739,16 +739,12 @@ export default {
         console.warn("No se pudo obtener fullName/contratos de Usuarios:", e);
       }
     };
-
-    /* ===== Helpers fecha ===== */
     const nowLocal = () => {
       const d = new Date(),
         p = (n) => String(n).padStart(2, "0");
       return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
     };
     const setNow = () => (form.fecha = nowLocal());
-
-    /* ===== Normalización catálogo ===== */
     const normalize = (v) =>
       (v || "")
         .toLowerCase()
@@ -758,8 +754,6 @@ export default {
         .replace(/\s+/g, " ")
         .trim();
     const toDocId = (norm) => norm.replace(/\//g, "_");
-
-    /* ===== Estado general ===== */
     const form = reactive({
       numero_solpe: null,
       empresa: "",
@@ -780,12 +774,9 @@ export default {
     const okMsg = ref("");
     const enviandoSolpe = ref(false);
     const loadingNumero = ref(false);
-
     const suggests = reactive({});
     const timers = reactive({});
     const focusRow = ref(-1);
-
-    /* ===== Toasts ===== */
     const toasts = ref([]);
     const addToast = (type, text, timeout = 3500) => {
       const id = Date.now() + Math.random();
@@ -795,14 +786,6 @@ export default {
     const closeToast = (id) => {
       toasts.value = toasts.value.filter((t) => t.id !== id);
     };
-
-    /* ======================================================================================
-       ✅ BUSCADOR EQUIPOS (colección "equipos"):
-       - Busca SOLO en: clasificacion1, codigo, equipo, localizacion, marca, modelo, numero_chasis
-       - No toca items, no depende de centro de costo.
-       - Prefijos por campo (startAt/endAt) + ranking local + paginación UI.
-       ====================================================================================== */
-
     const showEquiposCard = ref(false);
 
     const busquedaEquipo = ref("");
@@ -834,10 +817,7 @@ export default {
       if (n < 1 || n > totalPages.value) return;
       currentPage.value = n;
     };
-
     const equiposError = ref("");
-
-    // normalizador “seguro” (sin regex unicode \p)
     const normEq = (s) =>
       String(s || "")
         .normalize("NFD")
@@ -845,8 +825,6 @@ export default {
         .toLowerCase()
         .replace(/\s+/g, " ")
         .trim();
-
-    // Levenshtein (recortado a 64 para rendimiento)
     function lev(a, b) {
       a = String(a || "").slice(0, 64);
       b = String(b || "").slice(0, 64);
@@ -872,8 +850,6 @@ export default {
       const start = v ? v.charAt(0).toUpperCase() + v.slice(1) : "";
       return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
     };
-
-    // Adaptar documento Firestore -> “modelo” buscador (con fallback de nombres)
     const adaptEquipo = (raw, _id) => ({
       _id: _id || raw.id || raw._id || String(Math.random()),
       clasificacion1: String(raw.clasificacion1 || raw.clasificacion || raw.clase || ""),
@@ -884,8 +860,6 @@ export default {
       modelo: String(raw.modelo || raw.model || ""),
       numero_chasis: String(raw.numero_chasis || raw.chasis || raw.vin || raw.numeroSerie || raw.n_serie || "")
     });
-
-    // ranking SOLO con los campos permitidos (+ “críticos” dentro de esos)
     function scoreEquipo(e, qNorm) {
       const vals = [
         e.codigo,
@@ -941,14 +915,10 @@ export default {
         resultadosEquipos.value = [];
         return;
       }
-
-      // cache exacto
       if (cacheResultados.has(qNorm)) {
         resultadosEquipos.value = cacheResultados.get(qNorm);
         return;
       }
-
-      // cache por prefijo (si el usuario sigue escribiendo)
       const pref = [...cacheResultados.keys()].find((k) => qNorm.startsWith(k) && k.length >= 2);
       if (pref) {
         const base = cacheResultados.get(pref) || [];
@@ -988,7 +958,6 @@ export default {
         const perCampo = async (campo) => {
           const promesas = variantes.map(async (v) => {
             try {
-              // Importante: el campo debe existir / ser string en Firestore para ordenar bien.
               const qref = query(
                 collection(db, "equipos"),
                 orderBy(campo),
@@ -1000,7 +969,6 @@ export default {
 
               for (const d of snap.docs) {
                 const item = adaptEquipo(d.data() || {}, d.ref.path);
-                // dedupe por path
                 if (!vistos.has(item._id)) {
                   vistos.add(item._id);
                   acumulado.push(item);
@@ -1012,8 +980,6 @@ export default {
           });
           await Promise.all(promesas);
         };
-
-        // prioriza campos "más fuertes"
         const criticos = ["codigo", "numero_chasis", "equipo", "marca", "modelo"];
         const secundarios = camposBusqueda.filter((c) => !criticos.includes(c));
 
@@ -1027,8 +993,6 @@ export default {
           .filter((x) => x.s > 0)
           .sort((a, b) => b.s - a.s)
           .map((x) => x.r);
-
-        // fallback “includes” si el score quedó en 0 (por ejemplo búsqueda muy rara)
         const finales =
           rankeados.length
             ? rankeados
@@ -1063,12 +1027,12 @@ export default {
 
     const copiarEquipo = async (e) => {
       const texto = `Clasificación: ${e.clasificacion1 || "—"}
-Código: ${e.codigo || "—"}
-Equipo: ${e.equipo || "—"}
-Marca: ${e.marca || "—"}
-Modelo: ${e.modelo || "—"}
-N° Chasis: ${e.numero_chasis || "—"}
-Localización: ${e.localizacion || "—"}`;
+        Código: ${e.codigo || "—"}
+        Equipo: ${e.equipo || "—"}
+        Marca: ${e.marca || "—"}
+        Modelo: ${e.modelo || "—"}
+        N° Chasis: ${e.numero_chasis || "—"}
+        Localización: ${e.localizacion || "—"}`;
       try {
         await navigator?.clipboard?.writeText(texto);
         addToast("success", "Datos copiados al portapapeles.");
@@ -1079,23 +1043,16 @@ Localización: ${e.localizacion || "—"}`;
 
     const toggleEquiposCard = () => {
       showEquiposCard.value = !showEquiposCard.value;
-      // NO cargamos nada al abrir.
-      // Solo cuando escriban/busquen.
       if (!showEquiposCard.value) {
-        // opcional: limpiar al cerrar
         // clearEquiposSearch();
       }
     };
-
-    /* ===== Estado drag & drop / subida (adjuntos múltiples) ===== */
     const isDragging = ref(false);
     const uploadingAdjuntos = ref(false);
     const totalProgress = ref(0);
     const uploadTotal = ref(0);
     const uploadedCount = ref(0);
     const perFileProgress = ref([]);
-
-    /* ===== Estado de imagen por fila (drag/progreso) ===== */
     const rowUpload = reactive({});
     const getRowUpload = (i) => {
       if (!rowUpload[i]) rowUpload[i] = { uploading: false, progress: 0, dragover: false };
@@ -1112,8 +1069,6 @@ Localización: ${e.localizacion || "—"}`;
       if (file) subirImagenItemFile(file, i);
       getRowUpload(i).dragover = false;
     };
-
-    /* ===== CARGA MASIVA (Excel/CSV) ===== */
     const inputExcel = ref(null);
     const importandoExcel = ref(false);
     const importProgreso = reactive({ total: 0, procesados: 0, agregados: 0, duplicados: 0 });
@@ -1246,8 +1201,6 @@ Localización: ${e.localizacion || "—"}`;
         importandoExcel.value = false;
       }
     };
-
-    /* ===== ✅ Cotizadores desde Firestore (AdminConfig) ===== */
     const loadingCotizadores = ref(false);
     const cotizadoresEmpresa = ref([]);
     let unsubCotizadores = null;
@@ -1325,14 +1278,10 @@ Localización: ${e.localizacion || "—"}`;
       );
     };
     const cotizadoresFiltrados = computed(() => cotizadoresEmpresa.value || []);
-
-    /* ===== Centro de costo ===== */
     const onCentroCosto = () => {
       const code = form.numero_contrato || "";
       form.nombre_centro_costo = centrosCosto[code] || "";
     };
-
-    /* ===== Numeración por empresa (preview) ===== */
     const onEmpresaChange = async () => {
       if (!form.empresa) return;
 
@@ -1359,8 +1308,6 @@ Localización: ${e.localizacion || "—"}`;
         loadingNumero.value = false;
       }
     };
-
-    /* ======= DRAFT desde Historial ======= */
     const applyDraft = async (draft) => {
       try {
         form.empresa = draft.empresa || "";
@@ -1388,8 +1335,6 @@ Localización: ${e.localizacion || "—"}`;
         addToast("danger", "No se pudo aplicar el borrador.");
       }
     };
-
-    /* ======= Guardado local ======= */
     const LOCAL_PREF_KEY = "solped_local_enabled";
     const localSaveEnabled = ref(false);
 
@@ -1620,8 +1565,8 @@ Localización: ${e.localizacion || "—"}`;
           localStorage.removeItem(lastKey.value);
         });
         addToast("success", "Borrador local limpiado.");
-      } catch {
-        /* noop */
+      } catch(e) {
+        console.log(e)
       }
     };
 
@@ -1642,42 +1587,174 @@ Localización: ${e.localizacion || "—"}`;
       }
     );
 
-    /* ===== Sugerencias ===== */
-    const onDescInput = (i) => {
-      focusRow.value = i;
-      clearTimeout(timers[i]);
-      timers[i] = setTimeout(() => fetchSuggest(i), 250);
-      form.items[i].descripcion = (form.items[i].descripcion || "").toUpperCase();
+    const SUG_MIN_LEN = 2;
+    const SUG_DELAY = 180;
+
+    const suggestOpen = reactive({});
+    const suggestActive = reactive({});
+    const suggestLoading = reactive({});
+
+    const closeSuggest = (i) => {
+      try { clearTimeout(timers[i]); } catch(e) { console.log(e) }
+      suggests[i] = [];
+      suggestOpen[i] = false;
+      suggestActive[i] = -1;
+      suggestLoading[i] = false;
     };
-    const fetchSuggest = async (i) => {
-      const raw = form.items[i]?.descripcion || "";
+
+    const isSuggestOpen = (i) => !!(suggestOpen[i] && (suggestLoading[i] || (suggests[i] && suggests[i].length)));
+
+    const escapeHtml = (s) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const renderSuggestMatch = (i, s) => {
+      const raw = String(form.items[i]?.descripcion || "").trim();
+      const txt = typeof s === "string" ? s : (s?.text || "");
+      if (!raw) return escapeHtml(txt);
+
+      const U = txt.toUpperCase();
+      const R = raw.toUpperCase();
+      const pos = U.indexOf(R);
+      if (pos < 0) return escapeHtml(txt);
+
+      const before = escapeHtml(txt.slice(0, pos));
+      const mid = escapeHtml(txt.slice(pos, pos + raw.length));
+      const after = escapeHtml(txt.slice(pos + raw.length));
+      return `${before}<mark class="suggest-mark">${mid}</mark>${after}`;
+    };
+
+    const fetchQuickSuggest = async (i) => {
+      const raw = String(form.items[i]?.descripcion || "").trim();
       const normPrefix = normalize(raw);
-      if (!normPrefix || normPrefix.length < 2) {
-        suggests[i] = [];
+
+      if (!normPrefix || normPrefix.length < SUG_MIN_LEN) {
+        closeSuggest(i);
         return;
       }
+
+      suggestOpen[i] = true;
+      suggestLoading[i] = true;
+
       try {
-        const qy = query(collection(db, "items_catalog"), orderBy("norm"), startAt(normPrefix), endAt(normPrefix + "\uf8ff"), limit(6));
+        const qy = query(
+          collection(db, "items_catalog"),
+          orderBy("norm"),
+          startAt(normPrefix),
+          endAt(normPrefix + "\uf8ff"),
+          limit(20)
+        );
+
         const snap = await getDocs(qy);
-        suggests[i] = snap.docs.map((d) => d.data()?.original || d.id);
+
+        const rows = snap.docs
+          .map((d) => {
+            const data = d.data() || {};
+            const text = data.original || d.id;
+            const usos = Number(data.usos ?? data.uso ?? data.count ?? 0) || 0;
+            return { text, usos };
+          })
+          .filter((x) => x.text);
+        const seen = new Set();
+        const uniq = [];
+        for (const r of rows) {
+          const key = String(r.text).trim().toUpperCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniq.push(r);
+        }
+        uniq.sort((a, b) => {
+          const du = (b.usos || 0) - (a.usos || 0);
+          if (du !== 0) return du;
+          return String(a.text).localeCompare(String(b.text));
+        });
+
+        suggests[i] = uniq.slice(0, 8);
+        suggestActive[i] = suggests[i].length ? 0 : -1;
       } catch (e) {
         console.warn("fallback suggests:", e);
         suggests[i] = [];
+        suggestActive[i] = -1;
+      } finally {
+        suggestLoading[i] = false;
       }
     };
-    const onDescBlur = (i) => {
-      setTimeout(() => {
-        focusRow.value = -1;
-        suggests[i] = [];
-      }, 200);
-    };
-    const aplicarSugerencia = (i, texto) => {
-      form.items[i].descripcion = (texto || "").toUpperCase();
-      suggests[i] = [];
-      focusRow.value = -1;
+
+    const onDescFocus = (i) => {
+      focusRow.value = i;
+      suggestOpen[i] = true;
+      if (suggestActive[i] == null) suggestActive[i] = 0;
+      const raw = String(form.items[i]?.descripcion || "").trim();
+      if (raw.length >= SUG_MIN_LEN) {
+        clearTimeout(timers[i]);
+        timers[i] = setTimeout(() => fetchQuickSuggest(i), 60);
+      }
     };
 
-    /* ===== Drag & drop handlers (Adjuntos múltiples) ===== */
+    const onDescInput = (i) => {
+      focusRow.value = i;
+      suggestOpen[i] = true;
+      form.items[i].descripcion = (form.items[i].descripcion || "").toUpperCase();
+
+      clearTimeout(timers[i]);
+      timers[i] = setTimeout(() => fetchQuickSuggest(i), SUG_DELAY);
+    };
+
+    const onDescKeydown = (i, ev) => {
+      if (!ev) return;
+      if (!isSuggestOpen(i)) {
+        if (ev.key === "ArrowDown") {
+          const raw = String(form.items[i]?.descripcion || "").trim();
+          if (raw.length >= SUG_MIN_LEN) {
+            suggestOpen[i] = true;
+            fetchQuickSuggest(i);
+            ev.preventDefault();
+          }
+        }
+        return;
+      }
+
+      if (ev.key === "Escape") {
+        closeSuggest(i);
+        ev.preventDefault();
+        return;
+      }
+
+      const list = suggests[i] || [];
+      if (!list.length) return;
+
+      const cur = Number.isFinite(suggestActive[i]) ? suggestActive[i] : 0;
+
+      if (ev.key === "ArrowDown") {
+        suggestActive[i] = Math.min(cur + 1, list.length - 1);
+        ev.preventDefault();
+      } else if (ev.key === "ArrowUp") {
+        suggestActive[i] = Math.max(cur - 1, 0);
+        ev.preventDefault();
+      } else if (ev.key === "Enter" || ev.key === "Tab") {
+        const picked = list[cur];
+        if (picked) aplicarSugerencia(i, picked.text || picked);
+        closeSuggest(i);
+        ev.preventDefault();
+      }
+    };
+
+    const onDescBlur = (i) => {
+      setTimeout(() => {
+        if (focusRow.value === i) focusRow.value = -1;
+        closeSuggest(i);
+      }, 200);
+    };
+
+    const aplicarSugerencia = (i, texto) => {
+      form.items[i].descripcion = (texto || "").toUpperCase();
+      closeSuggest(i);
+      focusRow.value = -1;
+    };
     const onDragOver = (ev) => {
       if (!form.empresa) return;
       isDragging.value = true;
@@ -1895,8 +1972,6 @@ Localización: ${e.localizacion || "—"}`;
       form.autorizaciones = [];
       addToast("success", "Se limpiaron los adjuntos.");
     };
-
-    /* ===== Ítems ===== */
     const agregarFila = () => {
       const nid = form.items.length ? form.items[form.items.length - 1].id + 1 : 1;
       form.items.push({
@@ -1924,8 +1999,6 @@ Localización: ${e.localizacion || "—"}`;
       const filaCompleta = (it?.descripcion?.trim()?.length || 0) > 0 && (it?.numero_interno?.trim()?.length || 0) > 0;
       if (isLast && filaCompleta) agregarFila();
     };
-
-    /* ======= Anticolisión ======= */
     const seedCounterIfNeeded = async (empresa) => {
       const ctrRef = doc(db, "solpe_counters", empresa);
       const snap = await getDoc(ctrRef);
@@ -1948,7 +2021,6 @@ Localización: ${e.localizacion || "—"}`;
       return numero;
     };
 
-    /* ===== Validaciones ===== */
     const asegurarContratoPermitido = () => {
       const code = String(form.numero_contrato || "");
       const set = new Set(centrosAsignados.value || []);
@@ -1976,8 +2048,6 @@ Localización: ${e.localizacion || "—"}`;
       }
       return "";
     };
-
-    /* ===== Envío ===== */
     const guardarSolped = async () => {
       error.value = "";
       okMsg.value = "";
@@ -2044,8 +2114,6 @@ Localización: ${e.localizacion || "—"}`;
           estatus: "Pendiente",
           comentario: "Creación de SOLPED"
         });
-
-        // catálogo sugerencias
         for (const it of form.items) {
           const original = (it.descripcion || "").trim();
           const norm = normalize(original);
@@ -2120,8 +2188,6 @@ Localización: ${e.localizacion || "—"}`;
 
       if (!form.items.length) agregarFila();
     };
-
-    /* ===== Imagen por ítem ===== */
     const subirImagenItem = async (ev, i) => {
       const file = ev?.target?.files?.[0];
       if (!file) return;
@@ -2247,8 +2313,6 @@ Localización: ${e.localizacion || "—"}`;
       suggests,
       focusRow,
       localSaveEnabled,
-
-      // equipos (nuevo)
       showEquiposCard,
       toggleEquiposCard,
       busquedaEquipo,
@@ -2295,6 +2359,13 @@ Localización: ${e.localizacion || "—"}`;
       onDescInput,
       aplicarSugerencia,
       onDescBlur,
+      onDescFocus,
+      onDescKeydown,
+      closeSuggest,
+      isSuggestOpen,
+      suggestActive,
+      suggestLoading,
+      renderSuggestMatch,
 
       subirAdjuntos,
       subirCarpeta,
@@ -2327,12 +2398,10 @@ Localización: ${e.localizacion || "—"}`;
 </script>
 
 <style scoped>
-/* ----- Layout general ----- */
 .solped-page {
   min-height: 100vh;
 }
 
-/* Header responsivo */
 .page-head {
   display: flex;
   align-items: center;
@@ -2349,14 +2418,12 @@ Localización: ${e.localizacion || "—"}`;
   gap: 10px;
 }
 
-/* ----- Card estilo ----- */
 .card-elevated {
   border: 1px solid #e5e7eb !important;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.06) !important;
   border-radius: 0.9rem !important;
 }
 
-/* ✅ Card derecha sticky en desktop */
 .side-card {
   position: sticky;
   top: 16px;
@@ -2367,7 +2434,6 @@ Localización: ${e.localizacion || "—"}`;
   }
 }
 
-/* Dropzone (adjuntos múltiples) */
 .dropzone {
   position: relative;
   cursor: pointer;
@@ -2396,7 +2462,6 @@ Localización: ${e.localizacion || "—"}`;
   line-height: 1.1;
 }
 
-/* Overlay de carga (adjuntos múltiples) */
 .dz-loading {
   position: absolute;
   inset: 0;
@@ -2430,7 +2495,6 @@ Localización: ${e.localizacion || "—"}`;
   border-radius: 0.6rem;
 }
 
-/* Tabla / inputs */
 .table td,
 .table th {
   vertical-align: middle;
@@ -2441,15 +2505,15 @@ Localización: ${e.localizacion || "—"}`;
   object-fit: cover;
   border-radius: 4px;
 }
-
-/* Sugerencias debajo del input */
 .suggest-popover {
   position: absolute;
   z-index: 2000;
   left: 0;
   right: 0;
-  top: 100%;
-  margin-top: 4px;
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
@@ -2459,7 +2523,46 @@ Localización: ${e.localizacion || "—"}`;
   background: #fff;
 }
 
-/* TOASTS */
+.suggest-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+}
+.suggest-item {
+  cursor: pointer;
+}
+.suggest-item.is-active {
+  background: #eff6ff;
+  color: #111827;
+}
+.suggest-item:hover {
+  background: #f1f5f9;
+  color: #111827;
+}
+.suggest-mark {
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+:global(html.theme-dark) .suggest-popover {
+  background: rgba(31, 41, 55, 0.98);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+:global(html.theme-dark) .suggest-header {
+  background: rgba(17, 24, 39, 0.85);
+  border-bottom-color: rgba(148, 163, 184, 0.25);
+}
+:global(html.theme-dark) .suggest-item {
+  color: #e5e7eb;
+}
+:global(html.theme-dark) .suggest-item.is-active,
+:global(html.theme-dark) .suggest-item:hover {
+  background: rgba(59, 130, 246, 0.18);
+}
+:global(html.theme-dark) .suggest-mark {
+  background: rgba(250, 204, 21, 0.22);
+  color: #e5e7eb;
+}
+
 .toast-stack {
   position: fixed;
   right: 16px;
@@ -2491,8 +2594,6 @@ Localización: ${e.localizacion || "—"}`;
 .btn-close-white {
   filter: invert(1) grayscale(100%) brightness(200%);
 }
-
-/* Permitir que el popover sobresalga del contenedor */
 :deep(.card .table-responsive) {
   overflow: visible !important;
 }
@@ -2502,8 +2603,6 @@ Localización: ${e.localizacion || "—"}`;
 :deep(td) {
   overflow: visible !important;
 }
-
-/* ✅ Lista equipos (RESPONSIVA “bonita”) */
 .equipos-list {
   display: flex;
   flex-direction: column;
@@ -2543,7 +2642,6 @@ Localización: ${e.localizacion || "—"}`;
   white-space: nowrap;
 }
 
-/* =====================  RESPONSIVE  ===================== */
 @media (max-width: 768px) {
   .page-head {
     align-items: flex-start;
@@ -2591,15 +2689,18 @@ Localización: ${e.localizacion || "—"}`;
   }
 
   .suggest-popover {
-    position: relative;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 100%;
+    margin-bottom: 6px;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
   }
 
   .side-card {
     position: static;
   }
-
-  /* equipos list: 1 columna y acciones abajo */
   .equipos-item {
     grid-template-columns: 1fr;
   }
@@ -2608,7 +2709,6 @@ Localización: ${e.localizacion || "—"}`;
   }
 }
 
-/* Modo oscuro */
 :global(html.theme-dark) .card-elevated {
   border-color: rgba(255, 255, 255, 0.08) !important;
   background: #111827 !important;
@@ -2648,7 +2748,6 @@ Localización: ${e.localizacion || "—"}`;
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Dropzone de imagen por fila */
 .img-drop {
   position: relative;
   display: flex;
@@ -2714,7 +2813,6 @@ Localización: ${e.localizacion || "—"}`;
   color: #e5e7eb;
 }
 
-/* Overlay de importación Excel */
 .import-overlay {
   position: absolute;
   inset: 0;
@@ -2744,8 +2842,6 @@ Localización: ${e.localizacion || "—"}`;
   color: #e5e7eb;
   border-color: rgba(255, 255, 255, 0.1);
 }
-
-/* Transición fade */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.15s ease;

@@ -1585,7 +1585,7 @@ const cargarSolpedSolicitadas = async () => {
     try {
       const qy = query(
         collection(db, "solped_taller"),
-        where("estatus", "in", ["Pendiente", "Parcial", "Cotizado parcial"])
+        where("estatus", "in", ["Pendiente", "Parcial", "Cotizado parcial","Cotizado Parcial"])
       );
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));

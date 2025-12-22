@@ -755,17 +755,11 @@ const route = useRoute();
 const volver = () => router.back();
 const auth = useAuthStore();
 
-/* =================== Bloqueo por Aprobadas (2 meses) =================== */
-/**
- * REGLA:
- * - Aplica sólo a roles listados en APPLY_TO_ROLES
- * - Bloquea si el COUNT de OC "Aprobado" del usuario en los ÚLTIMOS 2 MESES
- *   (mes actual + mes anterior) es >= MAX_OC_APROBADAS
- */
-const APPLY_TO_ROLES = ['editor']; // agrega más roles si corresponde
+
+const APPLY_TO_ROLES = ['editor'];
 const MAX_OC_APROBADAS = Number(import.meta.env.VITE_MAX_OC_APROBADAS ?? 10);
 
-const userRole = ref(''); // se carga desde Usuarios.role
+const userRole = ref('');
 const totalAprobadasDelUsuario = ref(0);
 const bloqueoPorAprobadas = computed(() => {
   const roleLower = (userRole.value || '').toString().toLowerCase();
@@ -774,11 +768,6 @@ const bloqueoPorAprobadas = computed(() => {
 });
 const formDisabled = computed(() => bloqueoPorAprobadas.value || enviando.value);
 
-/** Rango de "últimos 2 meses" por fechaSubida:
- *  - from: 1° del mes anterior 00:00:00
- *  - to:   1° del mes siguiente 00:00:00 (exclusivo)
- *  Ej: si hoy es Nov 2025, cuenta: Oct 1 00:00:00 -> Dic 1 00:00:00
- */
 const rangeUltimosDosMeses = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -791,16 +780,14 @@ const rangeUltimosDosMeses = () => {
   };
 };
 
-/* =================== Estado base =================== */
 const enviando = ref(false);
 const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
 const comentario = ref("");
 
-/* ===== Responsive helpers ===== */
 const isDesktop = ref(false);
 const showEquiposMobile = ref(false);
-const mostrarEquipos = ref(false); // sidebar desktop (lg)
+const mostrarEquipos = ref(false);
 
 const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 const openEquiposMobile = () => {
@@ -825,7 +812,6 @@ const onResize = () => {
   if (isDesktop.value && wasOpen) cerrarEquiposMobile();
 };
 
-/* =================== Equipos (buscador) =================== */
 const busquedaEquipo = ref("");
 const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);
@@ -1352,7 +1338,7 @@ const obtenerNombreUsuario = async () => {
 const cargarSolpedSolicitadasOptimizada = async () => {
   try {
     let arr = [];
-    const estatusValidos = ["Solicitado", "Pendiente", "Parcial","Cotizado parcial" ];
+    const estatusValidos = ["Solicitado", "Pendiente", "Parcial","Cotizado parcial","Cotizado Parcial" ];
     if (usuarioActual.value) {
       const qy = query(
         collection(db, "solpes"),

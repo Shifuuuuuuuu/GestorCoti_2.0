@@ -177,6 +177,7 @@ export function useRoleMenus() {
       { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear" },
       { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
       { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" },
+      { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
     ];
   });
 
