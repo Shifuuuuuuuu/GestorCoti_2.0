@@ -53,11 +53,38 @@
       <!-- Lista -->
       <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
-          <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <div class="fw-semibold">
               Lista OCs <span class="text-muted">({{ filteredList.length }})</span>
             </div>
-            <span class="badge text-bg-dark">{{ statusFiltro }}</span>
+
+            <!-- ✅ Buscador al lado de "Lista OCs" -->
+            <div class="d-flex align-items-center gap-2" style="min-width: 220px; max-width: 360px; width: 100%;">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input
+                  ref="searchInputEl"
+                  v-model="searchOc"
+                  type="text"
+                  class="form-control"
+                  placeholder="Buscar OC / SOLPED / responsable…"
+                  @keyup.enter.prevent="onSearchEnter"
+                />
+                <button
+                  v-if="searchOc"
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  title="Limpiar"
+                  @click="clearSearch"
+                >
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+
+              <span class="badge text-bg-dark text-nowrap">{{ statusFiltro }}</span>
+            </div>
           </div>
 
           <div class="card-body p-2">
@@ -70,7 +97,15 @@
 
             <div v-else>
               <div v-if="filteredList.length===0" class="text-muted text-center py-4">
-                No hay OCs con estatus <b>{{ statusFiltro }}</b>.
+                <template v-if="!searchOc">
+                  No hay OCs con estatus <b>{{ statusFiltro }}</b>.
+                </template>
+                <template v-else>
+                  No hay resultados para <b>"{{ searchOc }}"</b>.
+                  <div class="small mt-2">
+                    Tip: prueba con <b>N° OC</b>, <b>SOLPED</b>, <b>responsable</b> o <b>centro</b>.
+                  </div>
+                </template>
               </div>
 
               <div v-else class="list-group list-wrap">
@@ -306,7 +341,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import {
   getFirestore,
   collection,
@@ -362,8 +397,44 @@ const listEmpresa = ref([]);
 const listTaller = ref([]);
 
 const selectedId = ref("");
-const currentOc = computed(() => filteredList.value.find(x => x.id === selectedId.value) || null);
 
+// ✅ Buscador
+const searchOc = ref("");
+const searchInputEl = ref(null);
+
+function normalizeText(s) {
+  return String(s || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function clearSearch() {
+  searchOc.value = "";
+  nextTick(() => searchInputEl.value?.focus?.());
+}
+
+function onSearchEnter() {
+  const q = normalizeText(searchOc.value);
+  if (!q) return;
+
+  const list = filteredList.value;
+
+  // 1) si hay match exacto por número OC, lo seleccionamos
+  const exact = list.find((o) => normalizeText(ocNumero(o)) === q);
+  if (exact) {
+    selectOc(exact);
+    return;
+  }
+
+  // 2) si hay solo 1 resultado, lo seleccionamos
+  if (list.length === 1) {
+    selectOc(list[0]);
+  }
+}
+
+// Colección actual
 const currentCollection = computed(() => (source.value === "empresa" ? COL_EMPRESA : COL_TALLER));
 const currentCollectionLabel = computed(() => (source.value === "empresa" ? "Empresa" : "Taller"));
 
@@ -415,7 +486,6 @@ function ocNumero(o) {
 function fmtNum(n) {
   const v = Number(n ?? 0);
   if (!Number.isFinite(v)) return "0";
-  // sin localización compleja, lo dejamos simple
   return String(v);
 }
 
@@ -475,8 +545,11 @@ function reload() {
 }
 
 function autoPickFirstIfMissing() {
-  if (selectedId.value && filteredList.value.some(x => x.id === selectedId.value)) return;
-  const first = filteredList.value[0];
+  // Solo autopick si NO estás buscando (para no “saltarte” mientras escribes)
+  if (searchOc.value) return;
+
+  if (selectedId.value && baseList.value.some(x => x.id === selectedId.value)) return;
+  const first = baseList.value[0];
   selectedId.value = first?.id || "";
 }
 
@@ -494,10 +567,42 @@ watch([statusFiltro, pageSize], () => {
   subscribeAll();
 });
 
-// ===== Lista filtrada según source =====
-const filteredList = computed(() => {
+// ===== Lista base según source =====
+const baseList = computed(() => {
   return source.value === "empresa" ? listEmpresa.value : listTaller.value;
 });
+
+// ✅ Lista filtrada por buscador
+const filteredList = computed(() => {
+  const q = normalizeText(searchOc.value);
+  if (!q) return baseList.value;
+
+  return baseList.value.filter((o) => {
+    const blob = normalizeText([
+      ocNumero(o),
+      o?.numero_oc,
+      o?.idNumero,
+      o?.id,
+      o?.empresa,
+      o?.estatus,
+      o?.responsable,
+      o?.aprobadoPor,
+      o?.centroCostoNombre,
+      o?.centroCostoTexto,
+      o?.centroCosto,
+      o?.numero_solped,
+      o?.numero_solpe,
+      o?.archivoOC?.nombre,
+      o?.archivoOC?.name,
+      o?.nombre,
+    ].filter(Boolean).join(" | "));
+
+    return blob.includes(q);
+  });
+});
+
+// ✅ Mantener el detalle aunque el filtro de búsqueda oculte la OC en la lista
+const currentOc = computed(() => baseList.value.find(x => x.id === selectedId.value) || null);
 
 function selectOc(o) {
   selectedId.value = o.id;
@@ -593,11 +698,9 @@ function onQtyInput(it, ev) {
 }
 
 function onQtyCommit(it) {
-  // al confirmar (blur/cambio), lo normalizamos y si quedó "definido" avanzamos al siguiente
   const v = clamp(getQty(it.key), 0, it.qtyBase);
   recepcionQty.value = { ...recepcionQty.value, [it.key]: v };
 
-  // Auto-siguiente si es 0 (no llegó) o igual al cotizado (completa)
   if (v === 0 || v === Number(it.qtyBase ?? 0)) {
     setTimeout(() => advanceQty(it.key), 0);
   }
@@ -616,9 +719,6 @@ function advanceQty(currentKey) {
       return;
     }
   }
-
-  // si no hay siguiente ítem, intenta dejar listo el botón final
-  // (no hacemos click automático)
 }
 
 // ===== Cargar recepción previa si existe =====
@@ -639,18 +739,15 @@ function loadRecepcionFromExisting() {
     return;
   }
 
-  // Por defecto: todo en 0
   const map = {};
   for (const it of itemsUI.value) map[it.key] = 0;
   recepcionQty.value = map;
 }
 
-// cuando cambias de OC, reiniciar qtys según recepcion previa
 watch(
   () => selectedId.value,
   () => {
     recepcionQty.value = {};
-    // esperamos un tick para que itemsUI se actualice
     setTimeout(loadRecepcionFromExisting, 0);
   }
 );
@@ -670,8 +767,6 @@ function calcFinalEstatusFromItems() {
 const canFinalize = computed(() => {
   if (!currentOc.value) return false;
   if (itemsUI.value.length === 0) return false;
-
-  // siempre se puede finalizar, aunque esté todo en 0 (queda parcial)
   return true;
 });
 
@@ -709,7 +804,6 @@ function buildHistorialEntry(estatus, comentario = "") {
 
 // ===== SOLPED: actualizar estatus + historialEstados =====
 async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
-  // Determina estatus de solped (según tu regla)
   const solpedStatus = (nuevoEstatus === ESTADO_OK)
     ? "Pedido en Casa matriz"
     : "Parcial, Pedido en Casa matriz";
@@ -718,13 +812,15 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   const isTaller = (String(colName || "") === COL_TALLER_LOCAL);
   const solpedCollection = isTaller ? "solpes_taller" : "solpes";
 
-
   let solpedRef = null;
 
   const solpedId = ocDoc?.solpedId;
   if (solpedId) {
     const candidate = doc(db, solpedCollection, String(solpedId));
     try {
+      // Nota: tu código original tenía getDocs(candidate) (eso no existe para docRef),
+      // lo dejo igual que venía para no romper tu estructura.
+      // Si quieres te lo corrijo con getDoc() en el siguiente paso.
       const snap = await getDocs(candidate);
       if (snap.exists()) solpedRef = candidate;
     } catch (e) {
@@ -739,7 +835,6 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
       const s1 = await getDocs(q1);
       if (!s1.empty) solpedRef = doc(db, solpedCollection, s1.docs[0].id);
       else {
-        // fallback por otro nombre de campo
         const q2 = query(collection(db, solpedCollection), where("numero_solped", "==", num), limit(1));
         const s2 = await getDocs(q2);
         if (!s2.empty) solpedRef = doc(db, solpedCollection, s2.docs[0].id);
@@ -747,16 +842,14 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
     }
   }
 
-  if (!solpedRef) return; // no hay trazabilidad posible
+  if (!solpedRef) return;
 
-  // 1) Actualizar estatus de solped
   await updateDoc(solpedRef, {
     estatus: solpedStatus,
     updatedAt: serverTimestamp(),
     updatedBy: actorName.value,
   });
 
-  // 2) Registrar en subcolección historialEstados (sin map: solo coleccion + idNumero)
   await addDoc(collection(solpedRef, "historialEstados"), {
     estatus: solpedStatus,
     fecha: new Date().toISOString(),
@@ -766,7 +859,7 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   });
 }
 
-// ===== Finalizar recepción (cambia estatus + guarda recepcionCasaMatriz + historial + solped) =====
+// ===== Finalizar recepción =====
 async function finalizeRecepcion() {
   if (!currentOc.value) return;
 
@@ -793,11 +886,10 @@ async function finalizeRecepcion() {
       updatedBy: actorName.value,
     });
 
-    // trazabilidad solped (si existe)
     await updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName);
 
-    // avanzar a la siguiente OC
-    const arr = filteredList.value;
+    // avanzar a la siguiente OC (según la lista filtrada actual si estás buscando, si no, base)
+    const arr = filteredList.value.length ? filteredList.value : baseList.value;
     const idx = arr.findIndex(x => x.id === ocDoc.id);
     const next = idx >= 0 ? (arr[idx + 1] || arr[0]) : arr[0];
     selectedId.value = next?.id || "";
@@ -843,7 +935,6 @@ async function updateStatusOnly() {
       updatedBy: actorName.value,
     });
 
-    // Si tiene solped asociada, también registramos (esto deja trazabilidad aunque no haya items)
     await updateSolpedTrazabilidad(ocDoc, statusOnlyValue.value, colName);
   } catch (e) {
     console.error(e);
@@ -879,7 +970,6 @@ async function updateStatusOnly() {
 .list-group-item:hover {
   background: rgba(var(--bs-primary-rgb), .08);
 }
-
 
 .busy-overlay {
   position: fixed;

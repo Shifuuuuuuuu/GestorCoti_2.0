@@ -933,6 +933,44 @@ export default {
     const LS_TALLER_FILTERS   = "hist_taller_filters_v2";
     const LS_SHOW_SIDEBAR     = "hist_taller_show_sidebar";
 
+    // ✅ Persistencia de vista (página + scroll) para HistorialSolpedTaller
+    const LS_TALLER_VIEW = "HISTORIAL_SOLPED_TALLER_VIEW_V1";
+
+    const pendingViewState = ref(null);
+    const didRestoreView = ref(false);
+    const isHydrating = ref(true);
+    const readViewState = () => {
+      try {
+        const raw = localStorage.getItem(LS_TALLER_VIEW);
+        if (!raw) return null;
+        const v = JSON.parse(raw);
+        return {
+          page: Number(v?.page) || 1,
+          scrollY: Number(v?.scrollY) || 0,
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    const writeViewState = (patch = {}) => {
+      try {
+        const current = readViewState() || {};
+        const next = { ...current, ...patch };
+        localStorage.setItem(LS_TALLER_VIEW, JSON.stringify(next));
+      } catch {
+        /* noop */
+      }
+    };
+
+    const persistViewStateNow = () => {
+      writeViewState({
+        page: page.value,
+        scrollY: window.scrollY || 0,
+      });
+    };
+
+
     // Paginación
     const page = ref(1);
     const pageSizeOptions = [10, 20, 30, 40, 50];
@@ -1019,13 +1057,24 @@ export default {
       try {
         const uid = auth?.user?.uid;
         if (!uid) return;
-        const usnap = await getDoc(doc(db, 'Usuarios', uid));
+
+        // intenta "Usuarios"
+        let usnap = await getDoc(doc(db, "Usuarios", uid));
+
+        // fallback a "usuarios" si no existe
+        if (!usnap.exists()) {
+          usnap = await getDoc(doc(db, "usuarios", uid));
+        }
+
         if (usnap.exists()) {
           const u = usnap.data() || {};
-          userRole.value = (u.role || u.rol || '').toString();
+          userRole.value = (u.role || u.rol || "").toString();
         }
-      } catch { /* noop */ }
+      } catch (e) {
+        console.error(e);
+      }
     };
+
 
     const canGenerateOC = (s) => {
       if (!isStrictEditor.value) return false;
@@ -1136,10 +1185,30 @@ export default {
         listaSolicitantes.value = Array.from(setSol).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
 
         loading.value = false;
+        // ✅ Restaurar página/scroll SOLO una vez, cuando ya existe data (totalPages ya está correcto)
+        if (!didRestoreView.value && pendingViewState.value) {
+          didRestoreView.value = true;
+
+          const st = pendingViewState.value;
+          pendingViewState.value = null;
+
+          const targetPage = Math.min(Math.max(1, st.page || 1), totalPages.value);
+          page.value = targetPage;
+
+          nextTick(() => {
+            requestAnimationFrame(() => {
+              window.scrollTo(0, st.scrollY || 0);
+            });
+          });
+
+        }
+        isHydrating.value = false; // ✅
+
       }, (err) => {
         console.error(err);
         error.value = "No se pudieron escuchar las SOLPED de taller.";
         loading.value = false;
+        isHydrating.value = false;
       });
     };
 
@@ -1206,6 +1275,10 @@ export default {
 
     const goOC = (oc) => {
       if (!oc) return;
+
+      // ✅ guardar página + scroll antes de navegar
+      persistViewStateNow();
+
       const docId = oc.__docId;
       if (router.hasRoute("OrdenOCTallerDetalle")) {
         router.push({ name: "OrdenOCTallerDetalle", params: { id: docId }, query: { id: oc.id ?? undefined } });
@@ -1217,6 +1290,10 @@ export default {
     const verDetalleSolped = (s) => {
       try {
         if (!s?.id) return;
+
+        // ✅ guardar página/scroll antes de navegar
+        persistViewStateNow();
+
         if (router.hasRoute("SolpedTallerDetalle")) {
           router.push({
             name: "SolpedTallerDetalle",
@@ -1363,6 +1440,10 @@ export default {
     const goPage = async (p) => {
       if (p < 1) p = 1;
       if (p > totalPages.value) p = totalPages.value;
+
+      // ✅ NUEVO: persistir “dónde estoy” apenas cambio de página
+      writeViewState({ page: p, scrollY: window.scrollY || 0 });
+
       page.value = p;
       solpeExpandidaId.value = null;
       stopAllOCListeners();
@@ -1371,6 +1452,8 @@ export default {
       await ensureDropdownClass();
       initDropdownsIn();
     };
+
+
     const nextPage = () => goPage(page.value + 1);
     const prevPage = () => goPage(page.value - 1);
     const goFirst = () => goPage(1);
@@ -1873,8 +1956,9 @@ export default {
       }
     }
 
-    // Init
     onMounted(async () => {
+      isHydrating.value = true;
+
       try {
         const savedSidebar = localStorage.getItem(LS_SHOW_SIDEBAR);
         if (savedSidebar === "0") showSidebar.value = false;
@@ -1883,9 +1967,14 @@ export default {
       loadPersistedFilters();
       await loadUserRole();
 
+      // ✅ lee la página/scroll guardados (se aplicarán cuando llegue el primer snapshot)
+      pendingViewState.value = readViewState();
+      didRestoreView.value = false;
+
       // Gate de acceso
       if (!(isEditor.value || isWhitelistedViewer.value)) {
         loading.value = false;
+        isHydrating.value = false; // 👈 importante para que no quede “colgado”
         return;
       }
 
@@ -1896,16 +1985,16 @@ export default {
 
       // Bootstrap Dropdown
       await ensureDropdownClass();
-
-      // Inicializa dropdowns tras primer render
       await nextTick();
       initDropdownsIn();
 
-      // Sincroniza preferencias entre pestañas
       window.addEventListener("storage", syncFromStorageEvent);
     });
 
     onUnmounted(() => {
+      // ✅ guarda la página/scroll antes de salir
+      persistViewStateNow();
+
       window.removeEventListener("storage", syncFromStorageEvent);
       stopAllOCListeners();
       stopRealtimeSolpes();
@@ -1913,16 +2002,23 @@ export default {
       document.body.classList.remove("filters-open");
     });
 
-    // Recalcular/persistir filtros
-    watch([filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine], async () => {
-      persistFilters();
-      await goPage(1);
-    }, { deep: true });
+
+    watch(
+      [filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine],
+      async () => {
+        persistFilters();
+        if (isHydrating.value) return; // ✅ NUEVO: no reiniciar página durante restore
+        await goPage(1);
+      },
+      { deep: true }
+    );
 
     watch([pageSize], async () => {
       persistFilters();
+      if (isHydrating.value) return; // ✅ NUEVO
       await goPage(1);
     });
+
 
     // Reinicialización de dropdowns ante cambios relevantes
     watch([pagedList, solpeExpandidaId, showEditModal], async () => {

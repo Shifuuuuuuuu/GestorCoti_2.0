@@ -195,7 +195,6 @@
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     <div class="fw-semibold">Falta subir OC</div>
                   </div>
-                  <!-- Chip de debug visible -->
 
                   <div class="row g-3">
                     <div class="col-12 col-md-6">
@@ -383,7 +382,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick, h } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer
@@ -537,10 +536,8 @@ function estadoKey(estatusRaw) {
   return 'otro';
 }
 
-
 const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
-
 
 function hasArchivoOC(oc) {
   const a = oc?.archivoOC;
@@ -578,8 +575,14 @@ function faltaSubirOC(oc) {
 }
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
-const volver = () => router.back();
+
+const volver = () => {
+  // por si vuelves a una vista anterior y quieres conservar estado aquí también
+  persistRouteState();
+  router.back();
+};
 
 const isDesktop = ref(false);
 const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
@@ -618,7 +621,6 @@ const error = ref('');
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-
 const numeroOC = ref(null);
 const ocEncontrada = ref(null);
 
@@ -626,7 +628,6 @@ const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
 const empresaSegmento = ref('todas');
-
 
 const centrosCosto = {
   "30858":"CONTRATO 30858 INFRA CHUQUICAMATA",
@@ -665,11 +666,11 @@ const centrosCosto = {
   "CANECHE":"CONTRATO TALLER CANECHE",
   "CHUQUICAMATA":"CONTRATO CHUQUICAMATA"
 };
+
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
 const centroSearch = ref('');
-
 
 const page = ref(1);
 const pageSize = ref(5);
@@ -681,6 +682,68 @@ const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageS
 const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
+
+/* ========= NUEVO: Estado para restauración de página ========= */
+const booting = ref(true);
+const ROUTE_STATE_KEY = computed(() => `histOC:routeState:${String(route?.name || 'HistorialOC')}`);
+
+function persistRouteState() {
+  try {
+    const payload = {
+      page: Number(page.value || 1),
+      pageSize: Number(pageSize.value || 5),
+      scrollY: Number(window.scrollY || 0),
+      ts: Date.now()
+    };
+    sessionStorage.setItem(ROUTE_STATE_KEY.value, JSON.stringify(payload));
+  } catch (e) {
+    console.error('persistRouteState error', e);
+  }
+}
+function loadRouteState() {
+  try {
+    const raw = sessionStorage.getItem(ROUTE_STATE_KEY.value);
+    if (!raw) return null;
+    const st = JSON.parse(raw);
+    if (!st || typeof st !== 'object') return null;
+    return st;
+  } catch {
+    return null;
+  }
+}
+
+/* ========= NUEVO: precarga cursores hasta la página deseada ========= */
+async function ensureCursorsForPage(targetPage) {
+  const p = Number(targetPage || 1);
+  if (p <= 1) return;
+
+  // reconstruye cursors[1..p-1] si no están
+  const wh = buildBaseWhere();
+  let prevCursor = null;
+
+  for (let i = 1; i <= p - 1; i++) {
+    if (cursors.value[i]) {
+      prevCursor = cursors.value[i];
+      continue;
+    }
+
+    let q = query(
+      collection(db, 'ordenes_oc'),
+      ...wh,
+      orderBy('fechaSubida', 'desc'),
+      limit(pageSize.value)
+    );
+
+    if (prevCursor) q = query(q, startAfter(prevCursor));
+
+    const snap = await getDocs(q);
+    const last = snap.docs[snap.docs.length - 1] || null;
+    cursors.value[i] = last || null;
+    prevCursor = last || null;
+
+    if (!last) break; // no hay más documentos para seguir avanzando
+  }
+}
 
 const fmtFecha = (f) => {
   try {
@@ -697,7 +760,6 @@ const fmtMoneda = (n, c='CLP') => {
   try { return v.toLocaleString('es-CL', { style: 'currency', currency: c, minimumFractionDigits: 0 }); }
   catch { return `${c} ${v.toLocaleString('es-CL')}`; }
 };
-
 
 const isEditor = computed(() => {
   const r = (auth?.profile?.role || auth?.role || '').toLowerCase().trim();
@@ -832,6 +894,7 @@ const buildBaseWhere = () => {
 
   return wh;
 };
+
 const makePageQuery = (pageNumber=1) => {
   const wh = buildBaseWhere();
   const base = query(
@@ -922,6 +985,7 @@ const applyFilters = () => {
   subscribePage();
   refreshCount();
 };
+
 const limpiarFiltros = () => {
   filtroFecha.value   = '';
   filtroEstatus.value = [];
@@ -937,18 +1001,34 @@ const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(
 const removeCentroChip = () => { centroSearch.value = ''; applyFilters(); };
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
-const goPage = (p) => {
+const goPage = async (p) => {
   if (p < 1) p = 1;
   if (p > totalPages.value) p = totalPages.value;
+
   savedScrollY.value = window.scrollY;
   page.value = p;
+
+  // NUEVO: si alguien salta a una página y no hay cursor previo, lo preparamos
+  if (page.value > 1 && !cursors.value[page.value - 1]) {
+    try { await ensureCursorsForPage(page.value); } catch(e){ console.error('ensureCursorsForPage error', e); }
+  }
+
   subscribePage();
 };
+
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
-const goOC = (oc) => router.push({ name: 'oc-detalle', params: { id: oc.__docId } });
-const goSolped = (oc) => { const id = oc?.solpedId; if (id) router.push({ name: 'SolpedDetalle', params: { id } }); };
+const goOC = (oc) => {
+  persistRouteState();
+  router.push({ name: 'oc-detalle', params: { id: oc.__docId } });
+};
+const goSolped = (oc) => {
+  const id = oc?.solpedId;
+  if (!id) return;
+  persistRouteState();
+  router.push({ name: 'SolpedDetalle', params: { id } });
+};
 
 const buscarOCExacta = async () => {
   ocEncontrada.value = null;
@@ -975,6 +1055,11 @@ const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+/* ========= NUEVO: guardar estado al salir ========= */
+onBeforeRouteLeave(() => {
+  persistRouteState();
+});
+
 /* ========= Init / Cleanup ========= */
 onMounted(async () => {
   computeIsDesktop();
@@ -984,13 +1069,32 @@ onMounted(async () => {
   // carga filtros + sidebar persistidos
   loadPersistedFilters();
 
+  // NUEVO: restaura page + scroll (si vienes “de vuelta”)
+  const st = loadRouteState();
+  if (st) {
+    if ([5,10,20,30,40,50].includes(Number(st.pageSize))) pageSize.value = Number(st.pageSize);
+    const restoredPage = Math.max(1, Number(st.page || 1));
+    const restoredScroll = Math.max(0, Number(st.scrollY || 0));
+
+    page.value = restoredPage;
+    savedScrollY.value = restoredScroll;
+
+    // precargar cursores si la página es > 1 (necesario para startAfter)
+    if (page.value > 1) {
+      try { await ensureCursorsForPage(page.value); } catch(e){ console.error('restore ensureCursorsForPage error', e); }
+    }
+  }
+
   // suscribe y cuenta
   subscribePage();
   await refreshCount();
 
   // sincroniza entre pestañas
   window.addEventListener('storage', onStorageSync);
+
+  booting.value = false;
 });
+
 onBeforeUnmount(() => {
   if (typeof unsubscribe === 'function') unsubscribe();
   window.removeEventListener('resize', handleResize);
@@ -1002,7 +1106,10 @@ onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 /* ========= Observadores ========= */
 watch(
   [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
-  () => { applyFilters(); },
+  () => {
+    if (booting.value) return;
+    applyFilters();
+  },
   { deep: true }
 );
 </script>

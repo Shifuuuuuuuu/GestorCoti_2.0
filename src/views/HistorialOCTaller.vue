@@ -382,7 +382,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer
@@ -390,13 +390,42 @@ import {
 import { useAuthStore } from '../stores/authService';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
-const volver = () => router.back();
 
 /* ========= Claves de persistencia ========= */
 const LS_FILTERS       = 'histOCTaller:filters_v1';
 const LS_SHOW_SIDEBAR  = 'histOCTaller:showSidebar';
 const LS_SOLO_MIAS_KEY = 'histOCTaller:soloMias'; // compat backward
+
+/* ========= NUEVO: estado de ruta (página + scroll) ========= */
+const booting = ref(true);
+const ROUTE_STATE_KEY = computed(() => `histOCTaller:routeState:${String(route?.name || 'HistorialOCTaller')}`);
+
+function persistRouteState() {
+  try {
+    const payload = {
+      page: Number(page.value || 1),
+      pageSize: Number(pageSize.value || 5),
+      scrollY: Number(window.scrollY || 0),
+      ts: Date.now()
+    };
+    sessionStorage.setItem(ROUTE_STATE_KEY.value, JSON.stringify(payload));
+  } catch (e) {
+    console.error('persistRouteState error', e);
+  }
+}
+function loadRouteState() {
+  try {
+    const raw = sessionStorage.getItem(ROUTE_STATE_KEY.value);
+    if (!raw) return null;
+    const st = JSON.parse(raw);
+    if (!st || typeof st !== 'object') return null;
+    return st;
+  } catch {
+    return null;
+  }
+}
 
 /* ========= Estado ========= */
 const loading = ref(true);
@@ -530,7 +559,6 @@ const onCardClick = (oc) => { if (isClickableToDetail(oc)) goOC(oc); };
 function hasArchivoOC(oc) {
   const a = oc?.archivoOC;
 
-  // 1) Array de objetos/strings
   if (Array.isArray(a) && a.length > 0) {
     for (const item of a) {
       if (typeof item === 'string' && item.trim() !== '') return true;
@@ -545,7 +573,6 @@ function hasArchivoOC(oc) {
     }
   }
 
-  // 2) Objeto único
   if (a && typeof a === 'object' && !Array.isArray(a)) {
     if (typeof a.url  === 'string' && a.url.trim()  !== '') return true;
     if (typeof a.path === 'string' && a.path.trim() !== '') return true;
@@ -555,14 +582,11 @@ function hasArchivoOC(oc) {
     ) return true;
   }
 
-  // 3) Primitivos
   if (typeof a === 'string'  && a.trim() !== '') return true;
   if (typeof a === 'boolean' && a === true)      return true;
 
-  // 4) Compatibilidad: aceptar solo archivoOCUrl como evidencia
   if (typeof oc?.archivoOCUrl === 'string' && oc.archivoOCUrl.trim() !== '') return true;
 
-  // ❌ NO contar archivosStorage ni archivosBase64 (suelen ser cotizaciones)
   return false;
 }
 
@@ -571,7 +595,6 @@ function faltaSubirOC(oc) {
   const ek = estadoKey(oc?.estatus);
   const aprobado = ek === 'aprobado';
   const tiene = hasArchivoOC(oc);
-
   return aprobado && !tiene;
 }
 
@@ -669,6 +692,7 @@ const buildBaseWhere = () => {
 
   return wh;
 };
+
 const makePageQuery = (pageNumber=1) => {
   const wh = buildBaseWhere();
   const base = query(
@@ -682,6 +706,38 @@ const makePageQuery = (pageNumber=1) => {
   }
   return base;
 };
+
+/* ========= NUEVO: reconstruir cursores para volver a page>1 ========= */
+async function ensureCursorsForPage(targetPage) {
+  const p = Number(targetPage || 1);
+  if (p <= 1) return;
+
+  const wh = buildBaseWhere();
+  let prevCursor = null;
+
+  for (let i = 1; i <= p - 1; i++) {
+    if (cursors.value[i]) {
+      prevCursor = cursors.value[i];
+      continue;
+    }
+
+    let q = query(
+      collection(db, 'ordenes_oc_taller'),
+      ...wh,
+      orderBy('fechaSubida', 'desc'),
+      limit(pageSize.value)
+    );
+
+    if (prevCursor) q = query(q, startAfter(prevCursor));
+
+    const snap = await getDocs(q);
+    const last = snap.docs[snap.docs.length - 1] || null;
+    cursors.value[i] = last || null;
+    prevCursor = last || null;
+
+    if (!last) break;
+  }
+}
 
 /* ========= Suscripción / Conteo ========= */
 const subscribePage = () => {
@@ -713,6 +769,7 @@ const subscribePage = () => {
     loading.value = false;
   });
 };
+
 const refreshCount = async () => {
   try {
     const wh = buildBaseWhere();
@@ -768,6 +825,7 @@ const applyFilters = () => {
   subscribePage();
   refreshCount();
 };
+
 const limpiarFiltros = () => {
   filtroFecha.value   = '';
   filtroEstatus.value = [];
@@ -779,24 +837,46 @@ const limpiarFiltros = () => {
   pageSize.value = 5;
   applyFilters();
 };
+
 const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x !== s); applyFilters(); };
 const removeCentroChip = () => { centroSearch.value = ''; applyFilters(); };
 const removeCentro = (code) => { selectedCentros.value = selectedCentros.value.filter(c => c !== code); applyFilters(); };
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
-const goPage = (p) => {
+const goPage = async (p) => {
   if (p < 1) p = 1;
   if (p > totalPages.value) p = totalPages.value;
+
   savedScrollY.value = window.scrollY;
   page.value = p;
+
+  if (page.value > 1 && !cursors.value[page.value - 1]) {
+    try { await ensureCursorsForPage(page.value); } catch (e) { console.error('ensureCursorsForPage error', e); }
+  }
+
   subscribePage();
 };
+
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
 /* ========= Navegación ========= */
-const goOC = (oc) => router.push({ name: 'OrdenOCTallerDetalle', params: { id: oc.__docId } });
-const goSolped = (oc) => { const id = oc?.solpedId; if (id) router.push({ name: 'SolpedTallerDetalle', params: { id } }); };
+const volver = () => {
+  persistRouteState();
+  router.back();
+};
+
+const goOC = (oc) => {
+  persistRouteState();
+  router.push({ name: 'OrdenOCTallerDetalle', params: { id: oc.__docId } });
+};
+
+const goSolped = (oc) => {
+  const id = oc?.solpedId;
+  if (!id) return;
+  persistRouteState();
+  router.push({ name: 'SolpedTallerDetalle', params: { id } });
+};
 
 /* ========= Búsqueda exacta ========= */
 const buscarOCExacta = async () => {
@@ -816,30 +896,63 @@ const buscarOCExacta = async () => {
   }
 };
 
+/* ========= NUEVO: guardar estado al salir ========= */
+onBeforeRouteLeave(() => {
+  persistRouteState();
+});
+
 /* ========= Init / watchers ========= */
 onMounted(async () => {
   computeIsDesktop();
   window.addEventListener('resize', handleResize);
 
   loadPersistedFilters();
+
+  // ✅ RESTAURAR PAGE + SCROLL si vienes desde detalle
+  const st = loadRouteState();
+  if (st) {
+    if ([5,10,20,30,40,50].includes(Number(st.pageSize))) pageSize.value = Number(st.pageSize);
+
+    const restoredPage = Math.max(1, Number(st.page || 1));
+    const restoredScroll = Math.max(0, Number(st.scrollY || 0));
+
+    page.value = restoredPage;
+    savedScrollY.value = restoredScroll;
+
+    if (page.value > 1) {
+      try { await ensureCursorsForPage(page.value); } catch (e) { console.error('restore ensureCursorsForPage error', e); }
+    }
+  }
+
   subscribePage();
   await refreshCount();
 
   window.addEventListener('storage', onStorageSync);
+
+  booting.value = false;
 });
+
 onBeforeUnmount(() => {
   if (typeof unsubscribe === 'function') unsubscribe();
   window.removeEventListener('resize', handleResize);
   document.documentElement.style.overflow = '';
 });
-onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 
+onUnmounted(() => {
+  window.removeEventListener('storage', onStorageSync);
+});
+
+/* ✅ IMPORTANTE: evitar que el watch dispare applyFilters() durante la restauración */
 watch(
   [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
-  () => { applyFilters(); },
+  () => {
+    if (booting.value) return;
+    applyFilters();
+  },
   { deep: true }
 );
 </script>
+
 
 <style scoped>
 .hist-oc-page{

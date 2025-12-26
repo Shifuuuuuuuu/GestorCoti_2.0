@@ -944,7 +944,7 @@
 <script setup>
 /* === mismo script con micro-mejoras + dropdowns robustos === */
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer, doc, getDoc, updateDoc, addDoc, setDoc
@@ -972,6 +972,9 @@ const LS = {
   PAGE_SIZE:           'historial_page_size',
   ONLY_DIRECTED:       'historial_only_directed',
   ONLY_MINE:           'historial_only_mine',
+  PAGE:      "historial_page",
+  CURSOR_IDS:"historial_cursor_ids",
+  SCROLL_Y:  "historial_scroll_y",
 };
 
 const safeRead = (k, def=null) => {
@@ -1340,6 +1343,50 @@ const agrupadasPaged = computed(() => agruparPorEmpresa(displayList.value));
 const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
+// ✅ Evita que el watcher dispare applyFilters mientras restauramos estado
+const isRestoring = ref(true);
+
+const persistPaginationState = () => {
+  try {
+    safeWrite(LS.PAGE, page.value);
+    safeWrite(LS.SCROLL_Y, window.scrollY);
+
+    const ids = safeRead(LS.CURSOR_IDS, {}) || {};
+    Object.entries(cursors.value || {}).forEach(([p, snap]) => {
+      if (snap?.id) ids[p] = snap.id; // guardamos SOLO el id del último doc
+    });
+    safeWrite(LS.CURSOR_IDS, ids);
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const restoreCursorsFromLS = async (targetPage) => {
+  const needMax = (Number(targetPage) || 1) - 1; // solo necesito hasta página-1
+  if (needMax <= 0) return;
+
+  const ids = safeRead(LS.CURSOR_IDS, {});
+  if (!ids || typeof ids !== "object") return;
+
+  const entries = Object.entries(ids)
+    .map(([k, v]) => [Number(k), String(v || "")])
+    .filter(([p, id]) => Number.isFinite(p) && p >= 1 && p <= needMax && id)
+    .sort((a, b) => a[0] - b[0]);
+
+  for (const [p, id] of entries) {
+    try {
+      const snap = await getDoc(doc(db, "solpes", id));
+      if (snap.exists()) cursors.value[p] = snap; // startAfter acepta DocumentSnapshot
+    } catch (e) {
+      console.error("No se pudo restaurar cursor página", p, e);
+    }
+  }
+};
+
+// ✅ Cada vez que sales de esta vista, guarda página/scroll/cursors
+onBeforeRouteLeave(() => {
+  persistPaginationState();
+});
 
 /* ---------- Listas auxiliares ---------- */
 const listaEstatus = [
@@ -1624,7 +1671,15 @@ const subscribePage = () => {
       // Cursor para paginación
       const last = snap.docs[snap.docs.length - 1] || null;
       cursors.value[page.value] = last || null;
+      // ✅ persistimos el cursor (id del último doc de ESTA página)
+      if (last?.id) {
+        const ids = safeRead(LS.CURSOR_IDS, {}) || {};
+        ids[page.value] = last.id;
+        safeWrite(LS.CURSOR_IDS, ids);
+      }
 
+      // ✅ persistimos página actual
+      safeWrite(LS.PAGE, page.value);
       loading.value = false;
 
       // 3) Espera render y re-instancia dropdowns de forma segura
@@ -1693,6 +1748,10 @@ const applyFilters = () => {
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
+  safeWrite(LS.PAGE, 1);
+  safeWrite(LS.CURSOR_IDS, {});
+  safeWrite(LS.SCROLL_Y, savedScrollY.value);
+
   subscribePage();
   refreshCount();
 };
@@ -1720,7 +1779,11 @@ const limpiarFiltros = () => {
     LS.EMPRESA_SEG,
     LS.PAGE_SIZE,
     LS.ONLY_DIRECTED,
-    LS.ONLY_MINE
+    LS.ONLY_MINE,
+    LS.PAGE,
+    LS.CURSOR_IDS,
+    LS.SCROLL_Y
+
   ].forEach(safeRemove);
 
   applyFilters();
@@ -1740,7 +1803,19 @@ const removeUsuario = (u) => { filtroUsuario.value = filtroUsuario.value.filter(
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
 /* ---------- Paginación ---------- */
-const goPage = (p) => { if (p < 1) p = 1; if (p > totalPages.value) p = totalPages.value; savedScrollY.value = window.scrollY; page.value = p; subscribePage(); };
+const goPage = (p) => {
+  if (p < 1) p = 1;
+  if (p > totalPages.value) p = totalPages.value;
+
+  savedScrollY.value = window.scrollY;
+  safeWrite(LS.SCROLL_Y, savedScrollY.value);
+
+  page.value = p;
+  safeWrite(LS.PAGE, page.value);
+
+  subscribePage();
+};
+
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
@@ -2047,8 +2122,24 @@ onMounted(async () => {
   await Promise.all([loadUsuarios(), loadCentrosCosto()]);
 
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
-  subscribePage();
+
+  // 1) primero sacamos el conteo (para clamplear página)
   await refreshCount();
+
+  // 2) restaurar page + scroll
+  const savedPg = Number(safeRead(LS.PAGE, 1)) || 1;
+  page.value = Math.min(Math.max(1, savedPg), totalPages.value);
+  savedScrollY.value = Number(safeRead(LS.SCROLL_Y, 0)) || 0;
+
+  // 3) restaurar cursores necesarios (hasta page-1)
+  cursors.value = {};
+  await restoreCursorsFromLS(page.value);
+
+  // 4) ahora sí suscribir a la página correcta
+  subscribePage();
+
+  // ✅ ya terminamos restauración: habilitar watchers
+  isRestoring.value = false;
 });
 onBeforeUnmount(() => {
   if (typeof unsubscribe === 'function') unsubscribe();
@@ -2061,9 +2152,11 @@ onBeforeUnmount(() => {
 watch(
   [empresaSegmento, filtroFechaDesde, filtroFechaHasta, () => filtroEstatus.value.slice(), pageSize],
   () => {
+    if (isRestoring.value) return;
     applyFilters();
   }
 );
+
 watch(showSidebar, (v)=> safeWrite(LS.SHOW_SIDEBAR, !!v));
 watch(selectedCentros, (v)=> safeWrite(LS.SELECTED_CENTROS, v || []), { deep:true });
 watch(tempUsuarioSelSet, (s)=> safeWrite(LS.USUARIOS_TEMP, Array.from(s || new Set())), { deep:true });

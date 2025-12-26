@@ -4,7 +4,7 @@
   <div class="dashboard-page with-sidenav">
     <div class="container py-4 py-md-5 position-relative">
 
-      <!-- Overlay de loading -->
+
       <transition name="fade">
         <div v-if="isLoading" class="loading-overlay" aria-live="polite" aria-busy="true">
           <div class="loading-card">
@@ -15,14 +15,13 @@
         </div>
       </transition>
 
-      <!-- Contenido -->
+
       <div :class="['content-wrap', { 'is-blurred': isLoading }]">
-        <!-- Header -->
+
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
           <h1 class="h5 h4-sm fw-semibold mb-0">Dashboard · Estadísticas</h1>
 
           <div class="d-flex align-items-stretch gap-2 flex-wrap">
-            <!-- Botón Filtros para móviles -->
             <button class="btn btn-outline-secondary btn-sm d-inline-flex d-md-none" @click="toggleFiltros(true)">
               <i class="bi bi-sliders2 me-1"></i> Filtros
             </button>
@@ -33,7 +32,6 @@
           </div>
         </div>
 
-        <!-- Segmento principal -->
         <div class="mb-3">
           <div class="btn-group flex-wrap gap-1">
             <button
@@ -57,7 +55,6 @@
           </div>
         </div>
 
-        <!-- Segmento rápido por empresa (SOLO en SOLPED Empresa) -->
         <div class="mb-3" v-if="segmento==='empresa'">
           <div class="btn-group flex-wrap gap-1">
             <button class="btn" :class="empresaSegmento==='todas' ? 'btn-secondary' : 'btn-outline-secondary'" @click="setEmpresaSeg('todas')" :disabled="isLoading">Todas</button>
@@ -67,7 +64,6 @@
           </div>
         </div>
 
-        <!-- Filtros (≥ md como tarjeta) -->
         <div class="card mb-4 d-none d-md-block">
           <div class="card-body">
             <div class="row g-2 align-items-end">
@@ -124,7 +120,6 @@
                 </select>
               </div>
 
-              <!-- Botón Limpiar (desktop) -->
               <div class="col-12 col-md-2 ms-auto d-flex justify-content-end">
                 <button class="btn btn-outline-secondary w-100" @click="limpiarFiltros" :disabled="isLoading">
                   Limpiar filtros
@@ -133,8 +128,6 @@
             </div>
           </div>
         </div>
-
-        <!-- KPIs base -->
         <div class="row g-3 mb-4">
           <div class="col-6 col-xl-3" v-for="k in kpiCards" :key="k.t">
             <div class="card shadow-sm border-0 h-100">
@@ -147,7 +140,6 @@
           </div>
         </div>
 
-        <!-- KPIs avanzados -->
         <div class="row g-3 mb-4">
           <div class="col-6 col-xl-3" v-for="k in kpiCardsExtra" :key="k.t">
             <div class="card shadow-sm border-0 h-100">
@@ -165,7 +157,6 @@
           </div>
         </div>
 
-        <!-- Gráficos -->
         <div class="row g-4">
           <div class="col-12 col-xxl-6">
             <div class="card shadow-sm border-0">
@@ -197,6 +188,24 @@
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">Distribución por Tipo de {{ tituloSegmento }}</div></div>
               <div class="card-body chart-fixed-h"><canvas ref="cTipoSolpedPie"></canvas></div>
+            </div>
+          </div>
+
+          <div class="col-12 col-xxl-6">
+            <div class="card shadow-sm border-0">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="fw-medium">OC por Tipo SOLPED (Monto)</div>
+                <span class="badge bg-dark-subtle text-dark-emphasis">
+                  {{ ocTipoSolpedAggPayload.totalCount }} OC · {{ formatearCLP(ocTipoSolpedAggPayload.totalMonto) }}
+                </span>
+              </div>
+              <div class="card-body chart-fixed-h">
+                <div class="row g-3">
+                  <div class="col-12 col-md-12">
+                    <div class="pie-box"><canvas ref="cOcTipoSolpedMontoPie"></canvas></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -255,11 +264,8 @@
               </div>
             </div>
           </div>
-          <!-- /NUEVO -->
-
         </div>
 
-        <!-- Tabla “Hoy” -->
         <div class="card shadow-sm border-0 mt-4">
           <div class="card-header d-flex justify-content-between align-items-center">
             <div class="fw-medium">Quién pide más {{ tituloSegmento }} (HOY)</div>
@@ -288,14 +294,13 @@
           </div>
         </div>
 
-        <!-- Error (si ocurre) -->
         <div v-if="lastError" class="alert alert-danger mt-3" role="alert">
           <strong>Error:</strong> {{ lastError }}
         </div>
       </div>
     </div>
 
-    <!-- Offcanvas Filtros (móvil) -->
+
     <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
       <div class="offcanvas-panel offcanvas-panel-sm">
         <div class="offcanvas-header">
@@ -381,7 +386,7 @@ const lastError = ref("");
 const filtrosOpen = ref(false);
 const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
 
-const segmento = ref(localStorage.getItem('xt_dashboard_segmento') || 'empresa'); // 'empresa' | 'taller'
+const segmento = ref(localStorage.getItem('xt_dashboard_segmento') || 'empresa');
 function setSegmento(v) {
   if (v === 'empresa' || v === 'taller') {
     segmento.value = v;
@@ -390,10 +395,9 @@ function setSegmento(v) {
   }
 }
 
-/* ====== Empresa (segmento rápido) ====== */
-const empresasOptions = ["Xtreme Mining","Xtreme Servicio","Xtreme Hormigones","Xtreme Servicios"]; // por compatibilidad de datos
+const empresasOptions = ["Xtreme Mining","Xtreme Servicio","Xtreme Hormigones","Xtreme Servicios"];
 const empresaSegmento = ref('todas');
-const filtroEmpresa = ref(''); // vacío = todas
+const filtroEmpresa = ref('');
 const isExactEmpresa = computed(() => empresasOptions.includes(filtroEmpresa.value));
 function setEmpresaSeg(v) {
   empresaSegmento.value = v;
@@ -401,18 +405,17 @@ function setEmpresaSeg(v) {
   scheduleReload();
 }
 
-// Debounce
+
 let debounceTimer = null;
 function scheduleReload() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => { cargarTodo(true); }, 200);
 }
 
-// ===== Filtros =====
-const filtroMes = ref(defMesActual()); // YYYY-MM
+const filtroMes = ref(defMesActual());
 const filtroEstatusOC = ref("");
 
-// selects
+
 const contratosOptions = ref([]);
 const centroCostoOptions = ref([]);
 const estatusSolpedOptions = ref([]);
@@ -427,7 +430,7 @@ const filtroTipoSolped = ref("");
 const filtroMonedaOC = ref("");
 const filtroResponsableOC = ref("");
 
-// KPIs
+
 const kpis = ref({
   creadasMes: 0,
   completadasMes: 0,
@@ -436,7 +439,7 @@ const kpis = ref({
   ticketProm: 0,
 });
 
-// KPIs extra
+
 const kpisExtra = ref({
   conversionPct: 0,
   leadtimePromDias: 0,
@@ -452,10 +455,12 @@ const kpiCards = computed(() => ([
   { t: `Gasto total (mes)`, v: kpis.value.gastoMes, isMoney: true },
 ]));
 
-// Top hoy tabla
+
 const topHoy = ref([]);
 
-// Chart refs
+const ocTipoAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
+const ocTipoSolpedAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
+
 const cTopCreadores = ref(null);
 const cTopOC = ref(null);
 const cGastoContratoH = ref(null);
@@ -468,22 +473,29 @@ const cConteoContratoH = ref(null);
 const cSolpedPendH = ref(null);
 const cSolpedPendAll = ref(null);
 
-// NUEVO: canvas para VS
 const cVsAprobadasSubidas = ref(null);
 
-// Instancias Chart
+const cOcTipoCountPie = ref(null);
+const cOcTipoMontoPie = ref(null);
+const cOcTipoSolpedCountPie = ref(null);
+const cOcTipoSolpedMontoPie = ref(null);
+
+
 let charts = {
   topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
   tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
   solpedPend: null, solpedPendAll: null,
-  vsEditors: null, // NUEVO
+  vsEditors: null,
+
+  ocTipoCountPie: null,
+  ocTipoMontoPie: null,
+  ocTipoSolpedCountPie: null,
+  ocTipoSolpedMontoPie: null,
 };
 
-// Snap anterior
 let _lastPayloadKey = "";
 let _lastPayloadJSON = "";
 
-/* ====== Fechas / formato ====== */
 const fechaHoyLegible = computed(() => {
   const d = new Date();
   return d.toLocaleDateString("es-CL", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -500,9 +512,9 @@ watch(
   () => { scheduleReload(); }
 );
 
-function onFiltroChange() { /* watcher ya agenda recarga */ }
+function onFiltroChange() {  }
 function refrescar() { cargarTodo(true); }
-function _onResize(){ /* hook por si necesitas recalcular algo en resize */ }
+function _onResize(){}
 
 function limpiarFiltros() {
   empresaSegmento.value = 'todas';
@@ -550,11 +562,10 @@ function formatearCLP(v) {
   return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(v || 0);
 }
 
-/* ====== CACHE ====== */
 const CACHE_TTL_MS = 2 * 60 * 1000;
 function cacheKey() {
   return [
-    "dashV11",
+    "dashV12",
     segmento.value,
     filtroMes.value || "_",
     empresaSegmento.value || "_",
@@ -580,15 +591,110 @@ function getCache() {
 }
 function setCache(payload) { try { sessionStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), payload })); } catch(e){console.error(e)} }
 
-/* ====== Normalizador de texto ====== */
 function _normTxt(v='') {
-  return String(v).normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase();
+  return String(v || "").normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase();
 }
 
-/* ====== VS payload visible ====== */
+
+function ocMonto(o) {
+  if (!o) return 0;
+  if (typeof o.precioTotalConIVA === "number") return o.precioTotalConIVA;
+  if (Array.isArray(o.items)) return o.items.reduce((a, it) => a + (Number(it.precioTotalConIVA) || 0), 0);
+  return 0;
+}
+function ocTipoOC(o) {
+
+  return (o?.tipo_oc || o?.tipoOrden || o?.tipo_orden || o?.tipo || o?.categoria || '—').toString().trim() || '—';
+}
+function ocSolpeNums(o) {
+  const out = new Set();
+  const push = (v) => {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) out.add(n);
+  };
+
+
+  push(o?.numero_solpe);
+  push(o?.numeroSolpe);
+  push(o?.numero_solped);
+  push(o?.numeroSolped);
+  push(o?.solpedNumero);
+
+  // items
+  if (Array.isArray(o?.items)) {
+    for (const it of o.items) {
+      push(it?.numero_solped);
+      push(it?.numero_solpe);
+      push(it?.numeroSolped);
+      push(it?.numeroSolpe);
+    }
+  }
+
+  return [...out];
+}
+function buildSolIndexByNumero(solAll) {
+  const map = new Map();
+  for (const s of (solAll || [])) {
+    const n = Number(s.numero_solpe || s.numeroSolpe || s.numero_solped || s.numeroSolped);
+    if (Number.isFinite(n) && n > 0) map.set(n, s);
+  }
+  return map;
+}
+function solMatchesSolpedFilters(sol) {
+  if (!sol) return false;
+
+
+  if (segmento.value === 'empresa' && filtroEmpresa.value) {
+    const emp = String(sol.empresa || sol.empresas || '');
+    if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+  }
+
+  if (segmento.value === 'empresa') {
+    const c = String(sol.numero_contrato || sol.numeroContrato || '');
+    if (filtroContratoSel.value && c !== filtroContratoSel.value) return false;
+  } else {
+    const cc = String(sol.centro_costo || sol.centroCosto || sol.centroCostoNombre || '');
+    if (filtroCentroCostoSel.value && cc !== filtroCentroCostoSel.value) return false;
+  }
+
+  if (filtroEstatusSolped.value && _normTxt(sol.estatus || sol.estado || '') !== _normTxt(filtroEstatusSolped.value)) return false;
+  if (filtroTipoSolped.value && _normTxt(sol.tipo_solped || '') !== _normTxt(filtroTipoSolped.value)) return false;
+
+  return true;
+}
+function ocTipoSolped(o, solIndexAllByNumero) {
+
+  const direct = (o?.tipo_solped || o?.tipoSolped || '').toString().trim();
+  if (direct) return direct;
+
+
+  const tiposItems = new Set();
+  if (Array.isArray(o?.items)) {
+    for (const it of o.items) {
+      const t = (it?.tipo_solped || it?.tipoSolped || '').toString().trim();
+      if (t) tiposItems.add(t);
+    }
+  }
+  if (tiposItems.size === 1) return [...tiposItems][0];
+  if (tiposItems.size > 1) return "Mixto";
+
+  const nums = ocSolpeNums(o);
+  const tiposSol = new Set();
+  for (const n of nums) {
+    const s = solIndexAllByNumero.get(n);
+    const t = (s?.tipo_solped || '').toString().trim();
+    if (t) tiposSol.add(t);
+  }
+  if (tiposSol.size === 1) return [...tiposSol][0];
+  if (tiposSol.size > 1) return "Mixto";
+
+  return nums.length ? "Sin tipo SOLPED" : "Sin SOLPED";
+}
+
+
 const vsEditorsPayload = ref({ labels: [], aprobadas: [], subidas: [] });
 
-/* ====== Carga / agregaciones ====== */
+
 async function cargarTodo(force=false) {
   isLoading.value = true;
   lastError.value = "";
@@ -627,9 +733,8 @@ async function cargarTodo(force=false) {
       if (filtroEstatusOC.value) ocQ = query(ocQ, where("estatus","==",filtroEstatusOC.value));
       ocPromise = getDocs(ocQ);
 
-      // TODOS LOS REGISTROS (para catálogos y "pendientes all")
-      solAllPromise = getDocs(collection(db, "solpes"));
 
+      solAllPromise = getDocs(collection(db, "solpes"));
     } else {
       const baseTal = query(
         collection(db, "solped_taller"),
@@ -660,6 +765,7 @@ async function cargarTodo(force=false) {
     // === Construcción de opciones (catálogos) desde los datos consultados ===
     const uniq = (arr) =>
       [...new Set(arr.map(v => String(v ?? '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+
     if (segmento.value === 'empresa') {
       contratosOptions.value = uniq(baseSolAll.map(x => x.numero_contrato || x.numeroContrato || ''));
       centroCostoOptions.value = uniq(baseSolAll.map(x => x.nombre_centro_costo || x.centroCostoNombre || ''));
@@ -671,6 +777,9 @@ async function cargarTodo(force=false) {
     tipoSolpedOptions.value    = uniq(baseSolAll.map(x => (x.tipo_solped || '')).map(String));
     monedaOptions.value        = uniq(baseOC.map(o => (o.moneda || 'CLP').toString().toUpperCase()));
     responsableOptions.value   = uniq(baseOC.map(o => (o.responsable || '—').toString()));
+
+    // Index SOLPED (para hacer match OC ↔ SOLPED por número)
+    const solIndexAllByNumero = buildSolIndexByNumero(baseSolAll);
 
     // ===== Filtros sobre SOLPED del mes =====
     const solMes = baseSol.filter(x => {
@@ -697,6 +806,14 @@ async function cargarTodo(force=false) {
       return true;
     });
 
+    // ✅ NUEVO: bandera si hay filtros “de SOLPED” activos (para aplicarlos a OC también)
+    const solpedFiltersActive =
+      (!!filtroEmpresa.value && segmento.value === 'empresa') ||
+      (!!filtroContratoSel.value && segmento.value === 'empresa') ||
+      (!!filtroCentroCostoSel.value && segmento.value === 'taller') ||
+      !!filtroEstatusSolped.value ||
+      !!filtroTipoSolped.value;
+
     // ===== Filtros sobre OC del mes =====
     const ocFiltradas = baseOC.filter(x => {
       const f = x.fechaSubida || x.fecha || x.creado_en;
@@ -708,17 +825,78 @@ async function cargarTodo(force=false) {
         if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
+      // Contrato/CC directo en OC (si existe)
       const valContrato = (x.numero_contrato || x.numeroContrato || '').toString();
       const valCC = (x.nombre_centro_costo || x.centroCostoNombre || x.centro_costo || x.centroCosto || x.centroCostoTexto || '').toString();
       if (segmento.value === 'empresa') {
-        if (filtroContratoSel.value && valContrato !== filtroContratoSel.value) return false;
+        if (filtroContratoSel.value && valContrato && valContrato !== filtroContratoSel.value) return false;
       } else {
-        if (filtroCentroCostoSel.value && valCC !== filtroCentroCostoSel.value) return false;
+        if (filtroCentroCostoSel.value && valCC && valCC !== filtroCentroCostoSel.value) return false;
       }
 
+      // OC filters
       if (filtroEstatusOC.value && _normTxt(x.estatus||'') !== _normTxt(filtroEstatusOC.value)) return false;
       if (filtroMonedaOC.value && (x.moneda || 'CLP').toString().toUpperCase() !== filtroMonedaOC.value) return false;
       if (filtroResponsableOC.value && (x.responsable || '—').toString() !== filtroResponsableOC.value) return false;
+
+      // ✅ FIX CLAVE:
+      // Si hay filtros de SOLPED activos, la OC debe matchear por SOLPED asociado (numero_solpe/numero_solped en doc o items)
+      if (solpedFiltersActive) {
+        const nums = ocSolpeNums(x);
+
+        // Si hay números de SOLPED asociados → al menos uno debe calzar filtros SOLPED
+        if (nums.length) {
+          let ok = false;
+          for (const n of nums) {
+            const sol = solIndexAllByNumero.get(n);
+            if (solMatchesSolpedFilters(sol)) { ok = true; break; }
+          }
+          if (!ok) return false;
+        } else {
+          // Si la OC no tiene link a SOLPED, fallback:
+          // - si OC trae tipo_solped, lo comparamos
+          if (filtroTipoSolped.value) {
+            const t = (x.tipo_solped || x.tipoSolped || '').toString();
+            if (!t || _normTxt(t) !== _normTxt(filtroTipoSolped.value)) return false;
+          }
+          // - si OC trae estatus_solped (raro), lo comparamos
+          if (filtroEstatusSolped.value) {
+            const es = (x.estatus_solped || x.estado_solped || '').toString();
+            if (es && _normTxt(es) !== _normTxt(filtroEstatusSolped.value)) return false;
+          }
+          // - si no hay contrato/CC en OC, no lo forzamos aquí (ya filtraste arriba si existía)
+        }
+      }
+
+      // Si el usuario filtró contrato/CC y la OC no trae ese campo, igual puede pasar por match SOLPED (arriba).
+      // Si no trae SOLPED ni campo, quedará fuera solo si tipo/estatus SOLPED lo exige.
+
+      // Si se filtró contrato/CC y la OC trae un contrato/CC vacío, pero sí tiene SOLPED asociado, también vale por match.
+      if (segmento.value === 'empresa' && filtroContratoSel.value && !valContrato) {
+        const nums = ocSolpeNums(x);
+        if (nums.length) {
+          let ok = false;
+          for (const n of nums) {
+            const sol = solIndexAllByNumero.get(n);
+            const c = String(sol?.numero_contrato || sol?.numeroContrato || '');
+            if (c === filtroContratoSel.value && solMatchesSolpedFilters(sol)) { ok = true; break; }
+          }
+          if (!ok) return false;
+        }
+      }
+      if (segmento.value === 'taller' && filtroCentroCostoSel.value && !valCC) {
+        const nums = ocSolpeNums(x);
+        if (nums.length) {
+          let ok = false;
+          for (const n of nums) {
+            const sol = solIndexAllByNumero.get(n);
+            const cc = String(sol?.centro_costo || sol?.centroCosto || sol?.centroCostoNombre || '');
+            if (cc === filtroCentroCostoSel.value && solMatchesSolpedFilters(sol)) { ok = true; break; }
+          }
+          if (!ok) return false;
+        }
+      }
+
       return true;
     });
 
@@ -727,12 +905,8 @@ async function cargarTodo(force=false) {
     kpis.value.completadasMes = solMes.filter(x => _normTxt(x.estatus || x.estado || "") === "completado").length;
     kpis.value.ocMes = ocFiltradas.length;
 
-    const totalOC = ocFiltradas.reduce((acc, x) => {
-      if (typeof x.precioTotalConIVA === "number") return acc + x.precioTotalConIVA;
-      if (Array.isArray(x.items)) return acc + x.items.reduce((a, it) => a + (Number(it.precioTotalConIVA) || 0), 0);
-      return acc;
-    }, 0);
-    kpis.value.gastoMes = totalOC;
+    const totalOC = ocFiltradas.reduce((acc, x) => acc + ocMonto(x), 0);
+    kpis.value.gastoMes = totalOC; // ✅ ahora sí respeta tipo/estatus/contrato/empresa/cc vía match SOLPED
     kpis.value.ticketProm = ocFiltradas.length ? Math.round(totalOC / ocFiltradas.length) : 0;
 
     /* ===== KPIs avanzados ===== */
@@ -818,10 +992,7 @@ async function cargarTodo(force=false) {
     for (const o of ocFiltradas) {
       const resp = (o.responsable || '—').toString();
       mapCount.set(resp, (mapCount.get(resp) || 0) + 1);
-      const gasto = (typeof o.precioTotalConIVA === "number")
-        ? o.precioTotalConIVA
-        : (Array.isArray(o.items) ? o.items.reduce((a, it) => a + (Number(it.precioTotalConIVA)||0), 0) : 0);
-      mapSpend.set(resp, (mapSpend.get(resp) || 0) + Number(gasto || 0));
+      mapSpend.set(resp, (mapSpend.get(resp) || 0) + ocMonto(o));
     }
     const topOCEntries = [...mapCount.entries()].sort((a,b)=> b[1]-a[1]).slice(0, 10);
     const topOCLabels = topOCEntries.map(([k]) => k);
@@ -831,9 +1002,7 @@ async function cargarTodo(force=false) {
     const gastoContrato = agruparSuma(
       ocFiltradas,
       (x) => (x.numero_contrato || x.nombre_centro_costo || x.centroCosto || x.centroCostoNombre || x.centro_costo || x.centroCostoTexto || '—').toString(),
-      (x) => (typeof x.precioTotalConIVA === "number")
-        ? x.precioTotalConIVA
-        : (Array.isArray(x.items) ? x.items.reduce((a, it) => a + (Number(it.precioTotalConIVA)||0), 0) : 0)
+      (x) => ocMonto(x)
     ).slice(0, 12);
 
     const conteoContrato = contarPor(ocFiltradas, (x) =>
@@ -852,10 +1021,7 @@ async function cargarTodo(force=false) {
         const daySum = ocs.reduce((acc, x) => {
           const fx = normalizarFecha(x.fechaSubida || x.fecha || x.creado_en);
           if (fx.getFullYear()===d.getFullYear() && fx.getMonth()===d.getMonth() && fx.getDate()===d.getDate()) {
-            const val = (typeof x.precioTotalConIVA === "number")
-              ? x.precioTotalConIVA
-              : (Array.isArray(x.items) ? x.items.reduce((a, it) => a + (Number(it.precioTotalConIVA) || 0), 0) : 0);
-            return acc + (Number(val) || 0);
+            return acc + ocMonto(x);
           }
           return acc;
         }, 0);
@@ -913,6 +1079,30 @@ async function cargarTodo(force=false) {
     const pendAllLabels = pendAllEntries.map(([k]) => k);
     const pendAllValues = pendAllEntries.map(([,v]) => v);
 
+    /* ===== ✅ NUEVO: Pies OC por tipo (count y monto) ===== */
+    const aggByKey = (ocs, getKey) => {
+      const mCount = new Map();
+      const mMonto = new Map();
+      for (const o of ocs) {
+        const k = String(getKey(o) || '—').trim() || '—';
+        mCount.set(k, (mCount.get(k) || 0) + 1);
+        mMonto.set(k, (mMonto.get(k) || 0) + ocMonto(o));
+      }
+      const labels = [...mCount.keys()].sort((a,b)=>a.localeCompare(b,'es'));
+      const counts = labels.map(l => mCount.get(l) || 0);
+      const montos = labels.map(l => mMonto.get(l) || 0);
+      return {
+        labels,
+        counts,
+        montos,
+        totalCount: ocs.length,
+        totalMonto: montos.reduce((a,b)=>a+b,0),
+      };
+    };
+
+    const ocTipoAgg = aggByKey(ocFiltradas, ocTipoOC);
+    const ocTipoSolpedAgg = aggByKey(ocFiltradas, (o) => ocTipoSolped(o, solIndexAllByNumero));
+
     /* ===== NUEVO: VS Cotizaciones Aprobadas vs Órdenes Subidas (solo EDITORS) ===== */
     // Traer 'Usuarios' con role editor
     let editorsSet = new Set();
@@ -931,7 +1121,7 @@ async function cargarTodo(force=false) {
     // Reglas de estatus para las dos series
     const isAprobadaLike = (s) => {
       const n = _normTxt(s || "");
-      // Incluye Aprobado, Preaprobado, Revisión Guillermo (como pediste)
+      // Incluye Aprobado, Preaprobado, Revisión Guillermo
       return n === "aprobado" || n === "preaprobado" || n.includes("revision") || n.includes("revisión");
     };
     const isSubidaProveedor = (s) => _normTxt(s || "").includes("proveedor");
@@ -949,7 +1139,6 @@ async function cargarTodo(force=false) {
       porResp.set(resp, cur);
     }
 
-    // Ordenar por actividad total (o por déficit si prefieres)
     const entriesVS = [...porResp.entries()]
       .sort((a,b) => (b[1].aprobadas + b[1].subidas) - (a[1].aprobadas + a[1].subidas))
       .slice(0, 20);
@@ -957,7 +1146,6 @@ async function cargarTodo(force=false) {
     const vsLabels = entriesVS.map(([k]) => k);
     const vsAprobadas = entriesVS.map(([,v]) => v.aprobadas);
     const vsSubidas = entriesVS.map(([,v]) => v.subidas);
-    /* ===== /NUEVO ===== */
 
     const payload = {
       kpis: { ...kpis.value },
@@ -973,11 +1161,11 @@ async function cargarTodo(force=false) {
       solpedPendAll: { labels: pendAllLabels, values: pendAllValues },
 
       // NUEVO payload VS
-      vsEditors: {
-        labels: vsLabels,
-        aprobadas: vsAprobadas,
-        subidas: vsSubidas,
-      }
+      vsEditors: { labels: vsLabels, aprobadas: vsAprobadas, subidas: vsSubidas },
+
+      // ✅ NUEVO payload pies OC
+      ocTipoAgg,
+      ocTipoSolpedAgg,
     };
 
     const thisKey = cacheKey();
@@ -1002,9 +1190,15 @@ function destroyAll() {
   charts = {
     topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
     tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
-    solpedPend: null, solpedPendAll: null, vsEditors: null
+    solpedPend: null, solpedPendAll: null, vsEditors: null,
+
+    ocTipoCountPie: null,
+    ocTipoMontoPie: null,
+    ocTipoSolpedCountPie: null,
+    ocTipoSolpedMontoPie: null,
   };
 }
+
 function drawBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipCb) {
   if (!window.Chart || !canvas) return;
   charts[key]?.destroy?.();
@@ -1032,6 +1226,7 @@ function drawBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipCb
     }
   });
 }
+
 function drawHBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipCb) {
   if (!window.Chart || !canvas) return;
   charts[key]?.destroy?.();
@@ -1056,15 +1251,34 @@ function drawHBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipC
     }
   });
 }
-function drawPie(canvas, key, labels, values) {
+
+function drawPie(canvas, key, labels, values, valueFormatter) {
   if (!window.Chart || !canvas) return;
   charts[key]?.destroy?.();
+
+  const total = values.reduce((a,b)=>a+(Number(b)||0), 0) || 0;
+
   charts[key] = new window.Chart(canvas.getContext('2d'), {
     type: 'pie',
     data: { labels, datasets: [{ data: values }] },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = Number(ctx.parsed) || 0;
+              const pct = total ? (100 * v / total) : 0;
+              const pretty = valueFormatter ? valueFormatter(v) : v;
+              return `${ctx.label}: ${pretty} (${pct.toFixed(1)}%)`;
+            }
+          }
+        }
+      }
+    }
   });
 }
+
 function drawLineMoney(canvas, key, labels, values, dsLabel) {
   if (!window.Chart || !canvas) return;
   charts[key]?.destroy?.();
@@ -1078,6 +1292,7 @@ function drawLineMoney(canvas, key, labels, values, dsLabel) {
     }
   });
 }
+
 // NUEVO: barras agrupadas (dos datasets)
 function drawGroupedBar(canvas, key, labels, series, formatters = {}) {
   if (!window.Chart || !canvas) return;
@@ -1122,6 +1337,10 @@ function pintarDesdePayload(p){
   kpisExtra.value = { ...p.kpisExtra };
   topHoy.value = p.topHoy || [];
 
+  // ✅ payloads pies OC
+  ocTipoAggPayload.value = p.ocTipoAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
+  ocTipoSolpedAggPayload.value = p.ocTipoSolpedAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
+
   // Gráficos existentes
   drawBar(cTopCreadores.value, 'topCread', (p.topCreadores||[]).map(([k])=>k), (p.topCreadores||[]).map(([,v])=>v), 'Creadas');
   drawPie(cEstatusPie.value, 'estatusPie', Object.keys(p.distEstatus || {}), Object.values(p.distEstatus || {}));
@@ -1151,7 +1370,7 @@ function pintarDesdePayload(p){
     drawBar(cSolpedPendAll.value, 'solpedPendAll', p.solpedPendAll.labels, p.solpedPendAll.values, 'Pendientes', null);
   }
 
-  // NUEVO: VS data visible + chart
+  // VS data visible + chart
   vsEditorsPayload.value = p.vsEditors || { labels: [], aprobadas: [], subidas: [] };
   if (p.vsEditors && Array.isArray(p.vsEditors.labels)) {
     drawGroupedBar(
@@ -1164,18 +1383,33 @@ function pintarDesdePayload(p){
       ]
     );
   }
+
+  // ✅ NUEVO: tortas OC (Cantidad y Monto)
+  if (p.ocTipoAgg?.labels?.length) {
+    drawPie(cOcTipoCountPie.value, 'ocTipoCountPie', p.ocTipoAgg.labels, p.ocTipoAgg.counts);
+    drawPie(cOcTipoMontoPie.value, 'ocTipoMontoPie', p.ocTipoAgg.labels, p.ocTipoAgg.montos, formatearCLP);
+  } else {
+    charts.ocTipoCountPie?.destroy?.(); charts.ocTipoMontoPie?.destroy?.();
+  }
+
+  if (p.ocTipoSolpedAgg?.labels?.length) {
+    drawPie(cOcTipoSolpedCountPie.value, 'ocTipoSolpedCountPie', p.ocTipoSolpedAgg.labels, p.ocTipoSolpedAgg.counts);
+    drawPie(cOcTipoSolpedMontoPie.value, 'ocTipoSolpedMontoPie', p.ocTipoSolpedAgg.labels, p.ocTipoSolpedAgg.montos, formatearCLP);
+  } else {
+    charts.ocTipoSolpedCountPie?.destroy?.(); charts.ocTipoSolpedMontoPie?.destroy?.();
+  }
 }
 </script>
 
 <style scoped>
-:root{ --sidenav-w: 264px; } /* AJUSTA al ancho real del sidebar */
+:root{ --sidenav-w: 264px; }
 
 .dashboard-page{ min-height: 100vh; background: #f8fafc; }
-@media (min-width: 992px){ /* lg+ */
+@media (min-width: 992px){
   .dashboard-page.with-sidenav{ padding-left: var(--sidenav-w); }
 }
 
-/* Headings un poco más grandes en ≥ sm */
+
 @media (min-width: 576px){ .h4-sm{ font-size: 1.35rem; } }
 
 .card { border-radius: 1rem; }
@@ -1193,6 +1427,11 @@ function pintarDesdePayload(p){
 /* Charts: altura flexible y canvases llenan ancho */
 .chart-fixed-h{ min-height: 300px; max-height: 380px; }
 canvas{ width:100% !important; height:100% !important; display:block; }
+
+/* Caja para 2 pies dentro del mismo card sin que se rompa */
+.pie-box{
+  height: 260px;
+}
 
 /* Loading UX */
 .loading-overlay {
@@ -1240,6 +1479,6 @@ canvas{ width:100% !important; height:100% !important; display:block; }
 .offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
 
-/* Selects largos */
+
 select.form-select { max-width: 100%; text-overflow: ellipsis; }
 </style>

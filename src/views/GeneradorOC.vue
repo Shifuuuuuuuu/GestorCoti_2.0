@@ -739,12 +739,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, watch, onBeforeUnmount, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  startAt, endAt, onSnapshot, Timestamp, serverTimestamp, getCountFromServer
+  startAt, endAt, onSnapshot, Timestamp, serverTimestamp
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -756,15 +756,39 @@ const volver = () => router.back();
 const auth = useAuthStore();
 
 
-const APPLY_TO_ROLES = ['editor'];
-const MAX_OC_APROBADAS = Number(import.meta.env.VITE_MAX_OC_APROBADAS ?? 10);
 
 const userRole = ref('');
 const totalAprobadasDelUsuario = ref(0);
+const aprobadasState = reactive({
+  loading: false,
+  ok: false,        // true => validación OK
+  error: null,      // error de índice/reglas/red
+  lastCheckedAt: null,
+});
+const normalizePlain = (s) =>
+  String(s || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+// Estatus “aprobado final”
+const esAprobadoFinal = (estatus) => {
+  const k = normalizePlain(estatus);
+  return k === "aprobado" || k === "aprobada";
+};
+const normalizeRole = (s) => normalizePlain(s).replace(/\s+/g, "_");
+
 const bloqueoPorAprobadas = computed(() => {
-  const roleLower = (userRole.value || '').toString().toLowerCase();
-  if (!APPLY_TO_ROLES.includes(roleLower)) return false;
-  return totalAprobadasDelUsuario.value >= MAX_OC_APROBADAS;
+  const roleKey = normalizeRole(userRole.value);
+  const esEditor = roleKey === "editor";
+  if (!esEditor) return false;
+
+  // Fail-safe: si NO pudimos validar en producción, bloquea igual.
+  if (!aprobadasState.ok) return true;
+
+  return totalAprobadasDelUsuario.value >= 10;
 });
 const formDisabled = computed(() => bloqueoPorAprobadas.value || enviando.value);
 
@@ -1145,7 +1169,7 @@ onMounted(async () => {
 /* =================== Resumen OC (mes actual, collection: ordenes_oc) =================== */
 const mostrarResumenOC = ref(false);
 const cargandoResumenOC = ref(false);
-const resumenOC = ref([]); // [{ responsable, aprobado, rechazado, preaprobado, pendiente, revision, proveedor, otros, total }]
+const resumenOC = ref([]);
 const resumenOCPageSize = 10;
 const resumenOCCurrentPage = ref(1);
 let _unsubResumenOC = null;
@@ -1261,55 +1285,111 @@ onBeforeUnmount(() => {
 });
 
 /* =================== Aprobadas (COUNT + Live) - 2 meses =================== */
-async function refrescarAprobadasConCount(){
-  try{
-    const nombre = (usuarioActual.value || '').trim();
-    if (!nombre) { totalAprobadasDelUsuario.value = 0; return; }
+async function refrescarAprobadasConCount() {
+  const nombre = (usuarioActual.value || "").trim();
+
+  aprobadasState.loading = true;
+  aprobadasState.ok = false;
+  aprobadasState.error = null;
+
+  try {
+    if (!nombre) {
+      totalAprobadasDelUsuario.value = 0;
+      aprobadasState.ok = true;
+      return;
+    }
 
     const { from, to } = rangeUltimosDosMeses();
 
-    // Cuenta SOLO las aprobadas con fechaSubida en el rango de 2 meses
-    const qy = query(
+    // ✅ Query “simple”: responsable + rango fecha + orderBy fecha
+    //    (sin where estatus) => menos índices.
+    const qRange = query(
       collection(db, "ordenes_oc"),
       where("responsable", "==", nombre),
-      where("estatus", "==", "Aprobado"),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<",  to)
+      where("fechaSubida", "<", to),
+      orderBy("fechaSubida", "desc"),
+      limit(250)
     );
-    const snap = await getCountFromServer(qy);
-    totalAprobadasDelUsuario.value = snap.data().count || 0;
-  }catch(e){
-    console.error("getCountFromServer error:", e);
+
+    const snap = await getDocs(qRange);
+
+    let c = 0;
+    snap.forEach((d) => {
+      const x = d.data() || {};
+      if (esAprobadoFinal(x.estatus)) c++;
+    });
+
+    totalAprobadasDelUsuario.value = c;
+    aprobadasState.ok = true;
+  } catch (e) {
+    console.error("refrescarAprobadasConCount error:", e);
+    aprobadasState.error = e;
     totalAprobadasDelUsuario.value = 0;
+    // aprobadasState.ok queda false => bloqueo fail-safe
+  } finally {
+    aprobadasState.loading = false;
+    aprobadasState.lastCheckedAt = Date.now();
   }
 }
 
 let _unsubAprobadasLive = null;
-function suscribirAprobadasLiveMinima(){
-  const nombre = (usuarioActual.value || '').trim();
+function suscribirAprobadasLiveMinima() {
+  const nombre = (usuarioActual.value || "").trim();
   if (!nombre) return;
-  try{
+
+  if (_unsubAprobadasLive) {
+    _unsubAprobadasLive();
+    _unsubAprobadasLive = null;
+  }
+
+  try {
     const { from, to } = rangeUltimosDosMeses();
 
-    // Live mínima dentro del rango 2M (para "detectar cambios" y recalc COUNT)
-    const qy = query(
+    const qLive = query(
       collection(db, "ordenes_oc"),
       where("responsable", "==", nombre),
-      where("estatus", "==", "Aprobado"),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<",  to),
+      where("fechaSubida", "<", to),
       orderBy("fechaSubida", "desc"),
-      limit(1)
+      limit(250)
     );
-    _unsubAprobadasLive = onSnapshot(qy, async () => {
-      await refrescarAprobadasConCount();
-    });
-  }catch(e){
-    console.error("suscribirAprobadasLiveMinima:", e);
+
+    _unsubAprobadasLive = onSnapshot(
+      qLive,
+      (snap) => {
+        let c = 0;
+        snap.forEach((d) => {
+          const x = d.data() || {};
+          if (esAprobadoFinal(x.estatus)) c++;
+        });
+        totalAprobadasDelUsuario.value = c;
+
+        // si el listener está OK, consideramos validación OK
+        aprobadasState.ok = true;
+        aprobadasState.error = null;
+      },
+      (err) => {
+        console.error("suscribirAprobadasLiveMinima error:", err);
+        aprobadasState.ok = false;     // => bloqueo fail-safe
+        aprobadasState.error = err;
+      }
+    );
+  } catch (e) {
+    console.error("suscribirAprobadasLiveMinima catch:", e);
+    aprobadasState.ok = false;
+    aprobadasState.error = e;
   }
 }
 // Si cambia el usuario y está abierto el resumen, re-suscribe:
-watch(usuarioActual, (nv) => { if (nv && mostrarResumenOC.value) suscribirResumenOC(nv); });
+watch(
+  () => usuarioActual.value,
+  async (nv) => {
+    if (!nv) return;
+    await refrescarAprobadasConCount();
+    suscribirAprobadasLiveMinima();
+  }
+);
 
 watch(() => usuarioActual.value, async (nv) => {
   if (nv) {
@@ -1486,11 +1566,18 @@ const calcularAprobador = () => {
 const enviarOC = async () => {
   if (enviando.value) return;
 
+  // ✅ SIEMPRE recalcular antes de validar bloqueo (evita conteo viejo)
+  await refrescarAprobadasConCount();
+
   // 🔒 Bloqueo por OCs aprobadas (rol Editor) con rangos de 2 meses
   if (bloqueoPorAprobadas.value) {
+    const msgExtra = aprobadasState.ok
+      ? `Tienes ${totalAprobadasDelUsuario.value} cotizaciones en "Aprobado" (últimos 2 meses).`
+      : `No se pudo validar el límite (índice/reglas).`;
+
     addToast(
       "warning",
-      `Tienes ${totalAprobadasDelUsuario.value} cotizaciones en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`
+      `${msgExtra} Ve al detalle y súbelas antes de continuar.`
     );
     return;
   }
