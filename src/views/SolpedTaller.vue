@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <!-- src/views/SolpedTaller.vue -->
 <template>
   <div class="solped-taller-page">
@@ -236,6 +237,7 @@
                             <span class="kbd">↑</span><span class="kbd">↓</span>
                             <span class="d-none d-md-inline"> navegar · </span>
                             <span class="kbd">Enter</span><span class="d-none d-md-inline"> seleccionar · </span>
+                            <span class="kbd">Tab</span><span class="d-none d-md-inline"> siguiente campo · </span>
                             <span class="kbd">Esc</span>
                           </div>
                         </div>
@@ -250,11 +252,12 @@
                           </li>
                           <li
                             v-for="(s, idx) in suggestions(i)"
-                            :key="idx"
+                            :key="s.id || idx"
                             class="suggest-item"
                             :class="{ 'is-active': idx === suggestActivePos }"
                             @mouseenter="suggestActivePos = idx"
-                            @mousedown.prevent="applySuggestion(i, s)"
+                            @mousedown.prevent="() => {}"
+                            @dblclick.prevent="applySuggestion(i, s)"
                           >
                             <div class="suggest-text">
                               <span v-html="renderSuggestMatch(item.descripcion, (s.descripcion_raw || s.descripcion_upper || ''))"></span>
@@ -459,15 +462,21 @@ export default {
       return nombreOk || ccOk || itemsConContenido;
     };
 
+    // ======================
     // Catálogo (predicciones)
+    // ======================
     const catalog = ref([]);
     const catalogLoading = ref(false);
     const suggestOpenIndex = ref(-1);
     const suggestActivePos = ref(0);
     let suggestHideTimer = null;
     const suggestHovering = ref(false);
+
+    // Límite de sugerencias
+    const SUGGEST_LIMIT = 100;
+
     // Refs para posicionar el popover (evitar recorte dentro de tablas/scroll)
-    const descInputEls = ref([]);            // refs a <textarea> descripción por fila
+    const descInputEls = ref([]); // refs a <textarea> descripción por fila
     const focusedDescIndex = ref(-1);
 
     const suggestPos = reactive({
@@ -504,12 +513,11 @@ export default {
       computeSuggestPos(i);
     };
 
-
     const reposition = () => {
       if (suggestOpenIndex.value >= 0) computeSuggestPos(suggestOpenIndex.value);
     };
 
-const suggestFixedStyle = computed(() => ({
+    const suggestFixedStyle = computed(() => ({
       left: suggestPos.left + "px",
       width: suggestPos.width + "px",
       bottom: suggestPos.bottom + "px",
@@ -537,11 +545,13 @@ const suggestFixedStyle = computed(() => ({
       await updateSuggestPos(i);
     };
 
-    const onDescBlur = (i) => {
+    const onDescBlur = () => {
       focusedDescIndex.value = -1;
-      hideSuggestSoon(i);
-      // al “terminar” (blur) vuelve al tamaño normal
-      setTimeout(() => shrinkDesc(i), 10);
+      hideSuggestSoon();
+      setTimeout(() => {
+        const i = focusedDescIndex.value;
+        if (i >= 0) shrinkDesc(i);
+      }, 10);
     };
 
     const onDescInput = async (i, ev) => {
@@ -551,7 +561,6 @@ const suggestFixedStyle = computed(() => ({
       showSuggestFor(i);
       await updateSuggestPos(i);
     };
-
 
     // Toasts
     const toasts = ref([]);
@@ -579,31 +588,65 @@ const suggestFixedStyle = computed(() => ({
         .replace(/\p{Diacritic}/gu, "")
         .trim();
 
+    const escapeHtml = (s = "") =>
+      String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 
-const escapeHtml = (s = "") =>
-  String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    // Resalta coincidencia (cualquier posición, no solo prefijo)
+    const renderSuggestMatch = (typed, full) => {
+      const t = String(typed || "").trim();
+      const f = String(full || "");
+      if (!t) return escapeHtml(f);
 
-// Resalta coincidencia (simple y seguro)
-const renderSuggestMatch = (typed, full) => {
-  const t = String(typed || "").trim();
-  const f = String(full || "");
-  if (!t) return escapeHtml(f);
+      const fUp = f.toUpperCase();
+      const tUp = t.toUpperCase();
+      const idx = fUp.indexOf(tUp);
 
-  const fUp = f.toUpperCase();
-  const tUp = t.toUpperCase();
+      if (idx >= 0) {
+        const a = escapeHtml(f.slice(0, idx));
+        const b = escapeHtml(f.slice(idx, idx + t.length));
+        const c = escapeHtml(f.slice(idx + t.length));
+        return `${a}<mark>${b}</mark>${c}`;
+      }
+      return escapeHtml(f);
+    };
 
-  if (fUp.startsWith(tUp)) {
-    const a = escapeHtml(f.slice(0, t.length));
-    const b = escapeHtml(f.slice(t.length));
-    return `<mark>${a}</mark>${b}`;
-  }
-  return escapeHtml(f);
-};
+    // ===============
+    // Matching “mejor”
+    // ===============
+    const scoreMatch = (termNorm, textNorm) => {
+      if (!termNorm || !textNorm) return 0;
+
+      // exacto
+      if (termNorm === textNorm) return 1000;
+
+      // empieza por
+      if (textNorm.startsWith(termNorm)) return 900;
+
+      // palabra empieza por (ej: "FILTRO AIRE" si term "AIR")
+      const words = textNorm.split(/\s+/g).filter(Boolean);
+      if (words.some((w) => w.startsWith(termNorm))) return 800;
+
+      // contiene
+      if (textNorm.includes(termNorm)) return 650;
+
+      // contiene por tokens (todas las palabras del término aparecen)
+      const tks = termNorm.split(/\s+/g).filter(Boolean);
+      if (tks.length > 1) {
+        let ok = 0;
+        for (const tk of tks) {
+          if (tk.length >= 2 && textNorm.includes(tk)) ok++;
+        }
+        if (ok === tks.length) return 600;
+        if (ok > 0) return 500 + ok * 10;
+      }
+
+      return 0;
+    };
 
     // ====== Online / Offline listeners ======
     const onOnline = () => {
@@ -973,26 +1016,44 @@ const renderSuggestMatch = (typed, full) => {
       }
     };
 
+    // ✅ Mejor sugeridor + límite 20
     const suggestions = (i) => {
-      const term = normalize(solpe.items[i]?.descripcion || "");
+      const typed = solpe.items[i]?.descripcion || "";
+      const term = normalize(typed);
 
-      // ✅ Si aún no escriben 2 letras, mostramos "top usados" para que SI aparezca el selector
+      const list = catalog.value || [];
+
+      // Si escriben poco, mostrar “top usados”
       if (!term || term.length < 2) {
-        return (catalog.value || []).slice(0, 8);
+        return list.slice(0, SUGGEST_LIMIT);
       }
 
-      // Coincidencias (prioriza que contenga el término)
-      const out = [];
-      for (const it of catalog.value || []) {
-        const text = normalize(it.descripcion_upper || it.descripcion_raw || "");
-        if (text.includes(term)) {
-          out.push(it);
-          if (out.length >= 8) break;
+      // Scoring + orden
+      const scored = [];
+      for (const it of list) {
+        const base = it.descripcion_upper || it.descripcion_raw || "";
+        const text = normalize(base);
+        const sc = scoreMatch(term, text);
+        if (sc > 0) {
+          scored.push({ it, sc });
         }
       }
 
-      // Si no hay match, fallback a top usados
-      return out.length ? out : (catalog.value || []).slice(0, 8);
+      scored.sort((a, b) => {
+        if (b.sc !== a.sc) return b.sc - a.sc;
+        // desempate: usage_count desc
+        const bu = Number(b.it.usage_count || 0);
+        const au = Number(a.it.usage_count || 0);
+        if (bu !== au) return bu - au;
+        return String(a.it.descripcion_upper || a.it.descripcion_raw || "").localeCompare(
+          String(b.it.descripcion_upper || b.it.descripcion_raw || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+      });
+
+      const out = scored.slice(0, SUGGEST_LIMIT).map((x) => x.it);
+      return out.length ? out : list.slice(0, SUGGEST_LIMIT);
     };
 
     const showSuggestFor = async (i) => {
@@ -1001,6 +1062,7 @@ const renderSuggestMatch = (typed, full) => {
       clearTimeout(suggestHideTimer);
       await updateSuggestPos(i);
     };
+
     const hideSuggestSoon = () => {
       clearTimeout(suggestHideTimer);
       suggestHideTimer = setTimeout(() => {
@@ -1009,11 +1071,9 @@ const renderSuggestMatch = (typed, full) => {
     };
 
     const applySuggestion = (i, s) => {
-      // ✅ Descripción siempre se reemplaza por la sugerencia elegida
       solpe.items[i].descripcion = upper(s.descripcion_raw || s.descripcion_upper || "");
 
-      // ✅ Código (opcional): si la sugerencia trae código, REEMPLAZA el actual
-      // (si no trae código, mantenemos lo que el usuario ya tenía escrito)
+      // Código: si la sugerencia trae código, reemplaza; si no, mantiene lo escrito
       if (s.codigo_referencial) {
         solpe.items[i].codigo_referencial = upper(s.codigo_referencial);
       }
@@ -1024,47 +1084,53 @@ const renderSuggestMatch = (typed, full) => {
       autoAgregarSiUltimoCompleto(i);
     };
 
+    // ✅ KEYDOWN: Enter aplica / Tab NO aplica (solo navega)
+    const onDescKeydown = (ev, i) => {
+      const isOpen = (solpe.items[i]?.editando && suggestOpenIndex.value === i);
+      if (!isOpen) return;
 
+      const list = suggestions(i) || [];
+      const hasList = list.length > 0;
 
-const onDescKeydown = (ev, i) => {
-  // Solo actúa si la caja está abierta en esta fila
-  if (!(solpe.items[i]?.editando && suggestOpenIndex.value === i)) return;
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        suggestOpenIndex.value = -1;
+        return;
+      }
 
-  const list = suggestions(i) || [];
-  const hasList = list.length > 0;
+      if (ev.key === "ArrowDown") {
+        if (!hasList) return;
+        ev.preventDefault();
+        suggestActivePos.value = Math.min(list.length - 1, (suggestActivePos.value || 0) + 1);
+        return;
+      }
 
-  if (ev.key === "Escape") {
-    ev.preventDefault();
-    suggestOpenIndex.value = -1;
-    return;
-  }
+      if (ev.key === "ArrowUp") {
+        if (!hasList) return;
+        ev.preventDefault();
+        suggestActivePos.value = Math.max(0, (suggestActivePos.value || 0) - 1);
+        return;
+      }
 
-  if (!hasList) {
-    // si no hay sugerencias, Enter mantiene tu flujo normal (agrega fila si corresponde)
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      autoAgregarSiUltimoCompleto(i);
-    }
-    return;
-  }
+      // ✅ Enter: selecciona sugerencia (si existe). Si no hay sugerencias, evita salto de línea y permite tu flujo normal.
+      if (ev.key === "Enter") {
+        ev.preventDefault(); // evita newline en textarea
+        if (hasList) {
+          const chosen = list[suggestActivePos.value || 0];
+          if (chosen) applySuggestion(i, chosen);
+        } else {
+          autoAgregarSiUltimoCompleto(i);
+        }
+        return;
+      }
 
-  if (ev.key === "ArrowDown") {
-    ev.preventDefault();
-    suggestActivePos.value = Math.min(list.length - 1, (suggestActivePos.value || 0) + 1);
-    return;
-  }
-  if (ev.key === "ArrowUp") {
-    ev.preventDefault();
-    suggestActivePos.value = Math.max(0, (suggestActivePos.value || 0) - 1);
-    return;
-  }
-  if (ev.key === "Enter" || ev.key === "Tab") {
-    ev.preventDefault();
-    const chosen = list[suggestActivePos.value || 0];
-    if (chosen) applySuggestion(i, chosen);
-    return;
-  }
-};
+      // ✅ Tab: NO seleccionar. Solo cerrar dropdown y dejar que el navegador cambie de campo.
+      if (ev.key === "Tab") {
+        // NO preventDefault
+        suggestOpenIndex.value = -1;
+        return;
+      }
+    };
 
     const upsertCatalogForItems = async (items) => {
       try {
@@ -1168,11 +1234,9 @@ const onDescKeydown = (ev, i) => {
             .filter((c) => c.uid && c.fullName)
             .sort((a, b) =>
               (a.fullName || "").localeCompare(b.fullName || "", "es", { sensitivity: "base" })
-);
-
+            );
 
           cotizadoresEmpresa.value = list;
-
 
           solpe.cotizadores = list.map((x) => x.fullName);
 
@@ -1286,7 +1350,6 @@ const onDescKeydown = (ev, i) => {
         fecha: hoy,
         empresa: "Xtreme Servicio",
         nombre_solicitante: "",
-
         cotizadores: Array.isArray(cotizadoresEmpresa.value) ? cotizadoresEmpresa.value.map((x) => x.fullName) : [],
         tipo_solped: "REPUESTOS",
         centro_costo: "",
@@ -1316,10 +1379,8 @@ const onDescKeydown = (ev, i) => {
     onMounted(async () => {
       window.addEventListener("online", onOnline);
       window.addEventListener("offline", onOffline);
-      // Reposicionar popover al hacer scroll/resize (para que NO se recorte)
       window.addEventListener("resize", reposition);
       window.addEventListener("scroll", reposition, true);
-
 
       try {
         const saved = localStorage.getItem(LS_LOCAL_CONSENT);
@@ -1484,7 +1545,6 @@ const onDescKeydown = (ev, i) => {
 
 .td-desc{ min-width: 420px; }
 
-
 .item-row{ transition: background-color .15s ease; }
 .item-row.drag-over{ background: #f8fafc; }
 
@@ -1502,7 +1562,6 @@ const onDescKeydown = (ev, i) => {
 .dropzone .hint{ font-size:.85rem; color:#64748b; }
 .dropzone i{ font-size: 1.5rem; color:#64748b; }
 
-
 .suggest-box{
   position:absolute; z-index: 20; left:0; right:0;
   top: auto;
@@ -1517,7 +1576,6 @@ const onDescKeydown = (ev, i) => {
   overflow: hidden;
 }
 
-
 .suggest-box--fixed{
   position: fixed !important;
   z-index: 4000 !important;
@@ -1528,8 +1586,6 @@ const onDescKeydown = (ev, i) => {
   margin-bottom: 0;
   overflow: auto;
 }
-
-
 
 .suggest-box ul{
   max-height: 240px;
@@ -1567,24 +1623,23 @@ const onDescKeydown = (ev, i) => {
 .suggest-item{
   border-radius: 12px;
   margin: 6px 8px;
-
   padding: .6rem .7rem;
   cursor:pointer;
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
   gap:.6rem;
-  color:#0f172a; /* ✅ mantener legible */
+  color:#0f172a;
 }
 .suggest-item:hover{
   background:#f8fafc;
-  color:#0f172a; /* ✅ no blanco */
+  color:#0f172a;
 }
 .suggest-item.is-active{
   background:#e0f2fe;
   outline: 2px solid rgba(2, 132, 199, .18);
   outline-offset: -2px;
-  color:#0f172a; /* ✅ no blanco */
+  color:#0f172a;
 }
 .suggest-text{ min-width: 0; white-space: normal; overflow: visible; text-overflow: initial; line-height: 1.25; }
 .suggest-box mark{
@@ -1613,13 +1668,6 @@ const onDescKeydown = (ev, i) => {
   pointer-events:none;
   font-size: 1.05rem;
 }
-.input-with-icon > input{
-  padding-left: 44px;
-  height: 46px;
-  font-size: 1.05rem;
-}
-
-
 .input-with-icon > textarea{
   padding-left: 44px;
   min-height: 46px;
@@ -1629,7 +1677,7 @@ const onDescKeydown = (ev, i) => {
   resize: none;
   overflow: hidden;
   border-radius: 12px;
-  color: #0f172a !important; /* mantener negro */
+  color: #0f172a !important;
 }
 .input-with-icon > textarea:focus{
   color: #0f172a !important;
@@ -1638,7 +1686,6 @@ const onDescKeydown = (ev, i) => {
 .desc-input.is-expanded{
   font-size: 1.12rem;
 }
-
 
 /* Dark mode */
 :global(html.theme-dark) .suggest-box{
@@ -1652,7 +1699,6 @@ const onDescKeydown = (ev, i) => {
 :global(html.theme-dark) .suggest-item{
   border-radius: 12px;
   margin: 6px 8px;
-
   color:#e5e7eb;
 }
 :global(html.theme-dark) .suggest-item:hover{
