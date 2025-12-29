@@ -296,7 +296,7 @@
           </div>
           <div class="col-12 col-sm-6 col-md-3">
             <label class="form-label">Fecha</label>
-            <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD">
+            <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD" readonly>
           </div>
           <div class="col-12 col-md-3">
             <label class="form-label">Empresa</label>
@@ -309,10 +309,8 @@
           <div class="col-12 col-md-3">
             <label class="form-label">Estatus</label>
             <select class="form-select" v-model="edit.estatus">
-              <option>Solicitado</option>
-              <option>Cotizando</option>
-              <option>Revisión</option>
-              <option>Completado</option>
+              <option>Cotizado Parcial</option>
+              <option>Cotizado Completado</option>
               <option>Rechazado</option>
               <option>Pendiente</option>
             </select>
@@ -321,15 +319,12 @@
           <!-- Centro de costo -->
           <div class="col-12">
             <label class="form-label">Centro de Costo</label>
-            <div class="input-group input-group-merge-mobile">
-              <select class="form-select" v-model="selectedCentroEdit" @change="applyCentroCosto(edit, selectedCentroEdit)">
-                <option value="">— Selecciona centro —</option>
-                <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
-                  {{ opt.key }} — {{ opt.name }}
-                </option>
-              </select>
-              <input class="form-control" v-model="edit.centro_costo" placeholder="o escribe uno personalizado">
-            </div>
+            <input
+              class="form-control"
+              v-model.trim="edit.centro_costo"
+              placeholder="Escribe el centro de costo"
+            >
+            <div class="form-text">Campo manual (sin sugerencias).</div>
           </div>
 
           <!-- Solicitante / sesión -->
@@ -385,7 +380,9 @@
                     <td class="fw-semibold">{{ it.item }}</td>
                     <td class="small">
                       <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
-                      <div class="text-secondary text-truncate">{{ it.numero_interno || '—' }}</div>
+                      <div class="text-secondary text-truncate">
+                        {{ it.numero_interno || '—' }}
+                      </div>
                     </td>
                     <td>{{ it.cantidad ?? 0 }}</td>
                     <td>{{ it.cantidad_cotizada ?? 0 }}</td>
@@ -419,7 +416,9 @@
                     <div class="fw-semibold">Ítem {{ it.item }}</div>
                     <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
                   </div>
-                  <div class="small mt-1 text-truncate-3"><span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}</div>
+                  <div class="small mt-1 text-truncate-3">
+                    <span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}
+                  </div>
                   <div class="small mt-1">
                     <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
                     <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
@@ -518,11 +517,9 @@
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
                 <option>Solicitado</option>
-                <option>Cotizando</option>
-                <option>Revisión</option>
-                <option>Completado</option>
+                <option>Cotizando Parcial</option>
+                <option>Cotizando Completado</option>
                 <option>Rechazado</option>
-                <option>Pendiente</option>
               </select>
             </div>
 
@@ -749,10 +746,14 @@ import { useRouter } from "vue-router";
 /* ---------- Constantes ---------- */
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
-  "Solicitado","Cotizando","Revisión","Completado","Rechazado","Pendiente","Parcial","OC enviada a proveedor"
+  "Solicitado",
+  "Cotizado Parcial",
+  "Cotizado Completado",
+  "Rechazado",
+  "Pendiente",
+  "OC enviada a proveedor"
 ];
 const COTIZADORES_OPCIONES = [
-  "Luis Orellana",
   "Guillermo Manzor",
   "María José Ballesteros",
   "Ricardo Santibañez",
@@ -1057,7 +1058,6 @@ const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
 const guardando = ref(false);
-const selectedCentroEdit = ref("");
 
 const applyCentroCosto = (target, key) => {
   if (!key || !(key in centrosCosto)) {
@@ -1088,9 +1088,6 @@ function abrirEditor(row){
     usuario_sesion: row.usuario_sesion ?? "",
     historialEstados: Array.isArray(row.historialEstados) ? deepClone(row.historialEstados) : []
   });
-
-  const foundKey = Object.keys(centrosCosto).find(k => centrosCosto[k] === edit.value.centro_costo) || "";
-  selectedCentroEdit.value = foundKey;
 
   editorAbierto.value = true;
 }
@@ -1129,7 +1126,6 @@ function cerrarEditor(){
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
-  selectedCentroEdit.value = "";
 }
 
 /* ---------- Ítems (modal compartido) ---------- */
@@ -1319,6 +1315,20 @@ async function confirmarEliminar(){
   } finally {
     eliminando.value = false;
   }
+}
+
+/* ---------- Historial Estados (helpers) ---------- */
+function agregarHistorial(){
+  if (!edit.value.historialEstados) edit.value.historialEstados = [];
+  edit.value.historialEstados.push({
+    fecha: new Date().toISOString().slice(0,10),
+    estatus: edit.value.estatus || "",
+    usuario: edit.value.usuario_sesion || ""
+  });
+}
+function eliminarHistorial(ix){
+  if (!edit.value.historialEstados) return;
+  edit.value.historialEstados.splice(ix, 1);
 }
 
 /* ---------- Lifecycle ---------- */

@@ -308,11 +308,12 @@
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
             </div>
+
             <div class="col-12 col-sm-6 col-md-3">
-              <label class="form-label">Fecha</label>
-              <!-- Cambia 'datetime-local' por 'date' si no quieres hora -->
-              <input class="form-control" type="datetime-local" v-model="edit.fechaInput">
+              <label class="form-label">Fecha (bloqueada)</label>
+              <input class="form-control" type="datetime-local" v-model="edit.fechaInput" disabled readonly>
             </div>
+
             <div class="col-12 col-md-3">
               <label class="form-label">Empresa</label>
               <select class="form-select" v-model="edit.empresa">
@@ -321,31 +322,38 @@
                 <option>Xtreme Mining</option>
               </select>
             </div>
+
             <div class="col-12 col-md-3">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="edit.estatus">
-                <option>Solicitado</option>
-                <option>Cotizando</option>
-                <option>Revisión</option>
-                <option>Completado</option>
-                <option>Rechazado</option>
-                <option>Pendiente</option>
-                <option>Parcial</option>
-                <option>OC enviada a proveedor</option>
+                <option v-for="s in ESTATUS_OPC" :key="'ed-'+s" :value="s">{{ s }}</option>
               </select>
             </div>
 
-            <!-- Centro de costo -->
+            <!-- Centro de costo (2 selects: contrato y nombre) -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
-              <div class="input-group input-group-merge-mobile">
-                <select class="form-select" v-model="selectedCentroEdit" @change="setCentroFromKey(edit, selectedCentroEdit)">
-                  <option value="">— Selecciona centro —</option>
-                  <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
-                    {{ opt.key }} — {{ opt.name }}
-                  </option>
-                </select>
-                <input class="form-control" :value="edit.nombre_centro_costo" placeholder="(se autocompleta)">
+
+              <div class="row g-2">
+                <div class="col-12 col-md-4">
+                  <select class="form-select" v-model="selectedCentroEditKey" @change="onCentroEditKeyChange">
+                    <option value="">— Nº contrato (key) —</option>
+                    <option v-for="opt in centrosOpts" :key="'k-'+opt.key" :value="opt.key">
+                      {{ opt.key }}
+                    </option>
+                  </select>
+                  <div class="form-text">Selecciona por número/contrato.</div>
+                </div>
+
+                <div class="col-12 col-md-8">
+                  <select class="form-select" v-model="selectedCentroEditName" @change="onCentroEditNameChange">
+                    <option value="">— Nombre centro de costo —</option>
+                    <option v-for="opt in centrosOpts" :key="'n-'+opt.key" :value="opt.name">
+                      {{ opt.name }}
+                    </option>
+                  </select>
+                  <div class="form-text">Selecciona por nombre (actualiza también el contrato).</div>
+                </div>
               </div>
             </div>
 
@@ -596,28 +604,35 @@
             <div class="col-md-2">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
-                <option>Solicitado</option>
-                <option>Cotizando</option>
-                <option>Revisión</option>
-                <option>Completado</option>
-                <option>Rechazado</option>
-                <option>Pendiente</option>
-                <option>Parcial</option>
-                <option>OC enviada a proveedor</option>
+                <option v-for="s in ESTATUS_OPC" :key="'nw-'+s" :value="s">{{ s }}</option>
               </select>
             </div>
 
-            <!-- Centro de costo -->
+            <!-- Centro de costo (2 selects también) -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
-              <div class="input-group">
-                <select class="form-select" v-model="selectedCentroNuevo" @change="setCentroFromKey(nuevo, selectedCentroNuevo)">
-                  <option value="">— Selecciona centro —</option>
-                  <option v-for="opt in centrosOpts" :key="opt.key" :value="opt.key">
-                    {{ opt.key }} — {{ opt.name }}
-                  </option>
-                </select>
-                <input class="form-control" :value="nuevo.nombre_centro_costo || ''" placeholder="(se autocompleta)" readonly>
+
+              <div class="row g-2">
+                <div class="col-12 col-md-4">
+                  <select class="form-select" v-model="selectedCentroNuevoKey" @change="onCentroNuevoKeyChange">
+                    <option value="">— Nº contrato (key) —</option>
+                    <option v-for="opt in centrosOpts" :key="'nk-'+opt.key" :value="opt.key">
+                      {{ opt.key }}
+                    </option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-8">
+                  <select class="form-select" v-model="selectedCentroNuevoName" @change="onCentroNuevoNameChange">
+                    <option value="">— Nombre centro de costo —</option>
+                    <option v-for="opt in centrosOpts" :key="'nn-'+opt.key" :value="opt.name">
+                      {{ opt.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="small text-secondary mt-2">
+                Guardará: <strong>{{ nuevo.numero_contrato || '—' }}</strong> — {{ nuevo.nombre_centro_costo || '—' }}
               </div>
             </div>
 
@@ -797,15 +812,60 @@ import { useRouter } from "vue-router";
 /* ---------- Constantes ---------- */
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
-  "Solicitado","Cotizando","Revisión","Completado","Rechazado","Pendiente","Parcial","OC enviada a proveedor"
+  "Solicitado",
+  "Cotizando",
+  "Cotizando Parcial",
+  "Cotizando Completado",
+  "Cotizado parcial",
+  "Revisión",
+  "Cotizado Completado",
+  "Rechazado",
+  "Pendiente",
+  "Parcial",
+  "OC enviada a proveedor",
+  "Completado",
 ];
 const DIRIGIDO_OPCIONES = [
-  "Luis Orellana","Guillermo Manzor","Camila Ricci","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
+  "Guillermo Manzor","Camila Ricci","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
 ];
 
 /* Centros de Costo (rellenar con tus claves reales) */
 const centrosCosto = {
-  // '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
+  '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
+  'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
+  '20915': 'CONTRATO 20915 SUM. HORMIGON DAND',
+  '23302-CARPETAS': 'CONTRATO 23302 CARPETAS',
+  '23302-AMPL': 'CONTRATO 23302 AMPLIACION',
+  'OFANDES': 'OFICINA LOS ANDES',
+  'CASAMATRIZ': 'CASA MATRIZ',
+  'RRHH': 'RRHH',
+  'FINANZAS': 'FINANZAS',
+  'SUST': 'SUSTENTABILIDAD',
+  'SOPTI': 'SOPORTE TI',
+  'STRIPCENTER': 'STRIP CENTER',
+  'PLANIF': 'PLANIFICACION',
+  'PPSB': 'PLANTA PREDOSIFICADO SAN BERNARDO',
+  'PHUSB': 'PLANTA HORMIGON URB.SAN BERNARDO',
+  'ALTOMAIPO': 'ALTO MAIPO',
+  'PHURAN': 'PLANTA HORMIGON URB. RANCAGUA',
+  'PARAN': 'PLANTA ARIDOS RANCAGUA',
+  'PASB': 'PLANTA ARIDOS SAN BERNARDO',
+  '22368': 'CONTRATO 22368 SUM HORMIGON DET',
+  '28662': 'CONTRATO 28662 CARPETAS',
+  '29207': 'CONTRATO 29207 MINERIA',
+  'HROMIGONES DET': 'CONTRATO SUMINISTRO DE HORMIGONES DET',
+  'HORMIGONES DAMD': 'CONTRATO SUMINISTRO DE HORMIGONES DAND',
+  '23302': 'CONTRATO MANTENCIÓN Y REPARACIÓN DE INFRAESTRUCTURA DAND',
+  'DET': 'CONTRATO REPARACIÓN DE CARPETAS DE RODADO DET',
+  'SANJOAQUIN': 'SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN',
+  'URBANOS': 'SUMINISTRO DE HORMIGONES URBANOS SAN BERNARDO Y OLIVAR',
+  'CS': 'CONTRATO DE SUMINISTRO DE HORMIGONES CS',
+  'PREDOSIFICADO': 'CONTRATO HORMIGONES Y PREDOSIFICADO',
+  'CANECHE': 'CONTRATO TALLER CANECHE',
+  'INFRAESTRUCTURA': 'CONTRATO INFRAESTRUCTURA DET',
+  'CHUQUICAMATA': 'CONTRATO CHUQUICAMATA',
+  'CARPETASDET': 'CONTRATO CARPETAS DET',
+  '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM'
 };
 const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}));
 
@@ -859,7 +919,6 @@ const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id
 const tz = "America/Santiago";
 function pad(n){ return n.toString().padStart(2,"0"); }
 function toInputLocal(date){
-  // Devuelve 'YYYY-MM-DDTHH:MM' en TZ local
   const d = new Date(date);
   const y = d.getFullYear();
   const m = pad(d.getMonth()+1);
@@ -869,9 +928,7 @@ function toInputLocal(date){
   return `${y}-${m}-${day}T${hh}:${mm}`;
 }
 function fromInputToDate(inputStr){
-  // inputStr tipo 'YYYY-MM-DDTHH:MM' o 'YYYY-MM-DD'
   if (!inputStr) return null;
-  // Interpretar como hora local del navegador
   const hasTime = inputStr.includes("T");
   if (hasTime) {
     const [dPart,tPart] = inputStr.split("T");
@@ -1044,7 +1101,6 @@ function buildFilterQuery(){
   let order = null;
 
   if (filtroFecha.value) {
-    // rango del día local
     const d0 = new Date(filtroFecha.value + "T00:00");
     const d1 = new Date(filtroFecha.value + "T23:59:59.999");
     const ts0 = Timestamp.fromDate(d0);
@@ -1111,7 +1167,7 @@ function limpiarFiltros(){
   filtroEstatusHeader.value = "";
   aplicarFiltros();
 }
-// ---- badge para estatus (JS puro) ----
+
 const badgeClass = (estatus) => {
   const s = ((estatus || '') + '').toLowerCase();
   if (s.includes('complet'))   return 'bg-success-subtle text-success-emphasis';
@@ -1126,7 +1182,6 @@ const badgeClass = (estatus) => {
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
-/* Aplicar desde el offcanvas móvil */
 const mobileFiltersOpen = ref(false);
 function mobileApplyFilters(){
   aplicarFiltros();
@@ -1142,7 +1197,11 @@ const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
 const guardando = ref(false);
-const selectedCentroEdit = ref("");
+
+// Centro de costo: 2 selects en editor
+const selectedCentroEditKey = ref("");
+const selectedCentroEditName = ref("");
+
 const archivoAutorizacionEdit = ref(null);
 
 /* Historial subcolección (live) */
@@ -1150,7 +1209,7 @@ const historialEstadosLive = ref([]);
 let unsubHistorial = null;
 const guardandoHist = ref(false);
 const histForm = ref({
-  fecha: "",
+  fechaInput: "",
   estatus: "",
   comentario: "",
   usuario: ""
@@ -1171,6 +1230,22 @@ function setCentroFromKey(targetObj, key){
   }
   targetObj.numero_contrato = key;
   targetObj.nombre_centro_costo = centrosCosto[key];
+}
+function setCentroFromName(targetObj, name){
+  if (!name) { setCentroFromKey(targetObj, ""); return ""; }
+  const key = Object.keys(centrosCosto).find(k => centrosCosto[k] === name) || "";
+  setCentroFromKey(targetObj, key);
+  return key;
+}
+
+/* Sync handlers editor */
+function onCentroEditKeyChange(){
+  setCentroFromKey(edit.value, selectedCentroEditKey.value);
+  selectedCentroEditName.value = edit.value.nombre_centro_costo || "";
+}
+function onCentroEditNameChange(){
+  const key = setCentroFromName(edit.value, selectedCentroEditName.value);
+  selectedCentroEditKey.value = key;
 }
 
 function subscribeHistorialEstados(solpeId){
@@ -1197,17 +1272,45 @@ function subscribeHistorialEstados(solpeId){
 
 function resetHistForm(){
   histForm.value = {
-    fecha: toInputLocal(new Date()),
+    fechaInput: toInputLocal(new Date()),
     estatus: "",
     comentario: "",
     usuario: edit.value?.usuario || ""
   };
 }
 
+function pickRowDate(row){
+  try{
+    if (row?.fecha_ts?.toDate) return row.fecha_ts.toDate();
+    if (row?.fecha instanceof Date) return row.fecha;
+    if (typeof row?.fecha === "string") {
+      const d = new Date(row.fecha);
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (typeof row?.fecha_str === "string") {
+      const d = new Date(row.fecha_str);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }catch(e){console.log(e)}
+  return null;
+}
+
 function abrirEditor(row){
   seleccion.value = row;
 
+  // Fecha original (SE PRESERVA: no editable y no se sobreescribe)
+  const d = pickRowDate(row);
+  const originalTs = row?.fecha_ts ?? (d ? Timestamp.fromDate(d) : null);
+  const originalStr = row?.fecha_str ?? row?.fecha ?? (d ? toCLString(d) : "");
+
   edit.value = {
+    // se mantienen visibles, pero NO se guardan desde el input
+    fechaInput: d ? toInputLocal(d) : "",
+
+    // respaldo para guardar sin cambios
+    __fecha_ts: originalTs,
+    __fecha_str: originalStr,
+
     autorizacion_nombre: row.autorizacion_nombre ?? null,
     autorizacion_url: row.autorizacion_url ?? null,
     dirigidoA: Array.isArray(row.dirigidoA) ? [...row.dirigidoA] : [],
@@ -1222,12 +1325,19 @@ function abrirEditor(row){
     usuario: row.usuario ?? ""
   };
 
-  const foundKey = edit.value.numero_contrato && centrosCosto[edit.value.numero_contrato]
-    ? edit.value.numero_contrato
-    : Object.keys(centrosCosto).find(k => centrosCosto[k] === edit.value.nombre_centro_costo) || "";
-  selectedCentroEdit.value = foundKey;
+  // Centro de costo: setear ambos selects
+  selectedCentroEditKey.value = edit.value.numero_contrato || "";
+  selectedCentroEditName.value = edit.value.nombre_centro_costo || (centrosCosto[selectedCentroEditKey.value] || "");
 
-  // Subcolección historial
+  // Si el nombre no calza con el key, re-sincroniza por key si existe
+  if (selectedCentroEditKey.value && centrosCosto[selectedCentroEditKey.value]) {
+    edit.value.nombre_centro_costo = centrosCosto[selectedCentroEditKey.value];
+    selectedCentroEditName.value = edit.value.nombre_centro_costo;
+  } else if (selectedCentroEditName.value) {
+    const k = setCentroFromName(edit.value, selectedCentroEditName.value);
+    selectedCentroEditKey.value = k;
+  }
+
   subscribeHistorialEstados(row.__id);
   resetHistForm();
 
@@ -1246,11 +1356,13 @@ function cerrarEditor(){
   seleccion.value = null;
   edit.value = {};
   archivoAutorizacionEdit.value = null;
+  selectedCentroEditKey.value = "";
+  selectedCentroEditName.value = "";
   if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
   if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
 }
 
-/* ---------- Guardar Edición ---------- */
+/* ---------- Guardar Edición (fecha bloqueada, NO se actualiza) ---------- */
 async function guardarEdicion(){
   if (!seleccion.value) return;
   guardando.value = true;
@@ -1272,22 +1384,37 @@ async function guardarEdicion(){
       const n = parseInt(edit.value.numero_solpe, 10);
       edit.value.numero_solpe = isNaN(n) ? null : n;
     }
+
     // Normalizar ítems
-    edit.value.items = (edit.value.items || []).map(it => ({
+    const items = (edit.value.items || []).map(it => ({
       ...it,
       item: Number(it.item ?? 0),
       cantidad: Number(it.cantidad ?? 0),
       cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
     }));
 
-    // Manejo de fecha (input -> ts + str)
-    const picked = fromInputToDate(edit.value.fechaInput);
-    const fecha_str = picked ? toCLString(picked) : "";
+    // ✅ FECHA: se preserva original (no editable y no se recalcula)
+    const fecha_str = (edit.value.__fecha_str ?? seleccion.value.fecha_str ?? seleccion.value.fecha ?? "") || "";
+    const fecha_ts  = (edit.value.__fecha_ts ?? seleccion.value.fecha_ts) ?? null;
 
     const payload = {
-      ...edit.value,
+      autorizacion_nombre: edit.value.autorizacion_nombre ?? null,
+      autorizacion_url: edit.value.autorizacion_url ?? null,
+      dirigidoA: Array.isArray(edit.value.dirigidoA) ? edit.value.dirigidoA : [],
+      empresa: edit.value.empresa ?? "Xtreme Servicio",
+      estatus: edit.value.estatus ?? "Pendiente",
+      items,
+      nombre_centro_costo: edit.value.nombre_centro_costo ?? "",
+      nombre_solped: edit.value.nombre_solped ?? "",
+      numero_contrato: edit.value.numero_contrato ?? "",
+      numero_solpe: edit.value.numero_solpe ?? null,
+      tipo_solped: edit.value.tipo_solped ?? "",
+      usuario: edit.value.usuario ?? "",
+
+      // preservadas
       fecha_str,
-      fecha: fecha_str // compat tabla/UI actual
+      fecha: fecha_str,
+      ...(fecha_ts ? { fecha_ts } : {})
     };
 
     await updateDoc(dref, payload);
@@ -1305,25 +1432,48 @@ async function guardarEdicion(){
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
-const selectedCentroNuevo = ref("");
+
+// Centro de costo: 2 selects en nuevo
+const selectedCentroNuevoKey = ref("");
+const selectedCentroNuevoName = ref("");
+
 const archivoAutorizacionNuevo = ref(null);
 
 function defaultNueva(){
   return {
-    autorizacion_nombre: null, autorizacion_url: null, dirigidoA: [],
-    empresa: "Xtreme Servicio", estatus: "Pendiente",
-    items: [], nombre_centro_costo: "", nombre_solped: "",
-    numero_contrato: "", numero_solpe: null, tipo_solped: "", usuario: "",
+    autorizacion_nombre: null,
+    autorizacion_url: null,
+    dirigidoA: [],
+    empresa: "Xtreme Servicio",
+    estatus: "Pendiente",
+    items: [],
+    nombre_centro_costo: "",
+    nombre_solped: "",
+    numero_contrato: "",
+    numero_solpe: null,
+    tipo_solped: "",
+    usuario: "",
+    fechaInput: toInputLocal(new Date())
   };
 }
 function abrirModalNueva(){
   nuevo.value = defaultNueva();
-  selectedCentroNuevo.value = "";
+  selectedCentroNuevoKey.value = "";
+  selectedCentroNuevoName.value = "";
   archivoAutorizacionNuevo.value = null;
   if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
   modalNueva.value = true;
 }
 function cerrarModalNueva(){ modalNueva.value = false; }
+
+function onCentroNuevoKeyChange(){
+  setCentroFromKey(nuevo.value, selectedCentroNuevoKey.value);
+  selectedCentroNuevoName.value = nuevo.value.nombre_centro_costo || "";
+}
+function onCentroNuevoNameChange(){
+  const key = setCentroFromName(nuevo.value, selectedCentroNuevoName.value);
+  selectedCentroNuevoKey.value = key;
+}
 
 function onArchivoAutorizacionEdit(e){
   const f = (e.target.files || [])[0];
@@ -1341,21 +1491,32 @@ function onArchivoAutorizacionNuevo(e){
 async function crearNueva(){
   try {
     creando.value = true;
-    setCentroFromKey(nuevo.value, selectedCentroNuevo.value);
 
     if (typeof nuevo.value.numero_solpe === "string") {
       const n = parseInt(nuevo.value.numero_solpe, 10);
       nuevo.value.numero_solpe = isNaN(n) ? null : n;
     }
 
-    const picked = fromInputToDate(nuevo.value.fechaInput);
-    const fecha_str = picked ? toCLString(picked) : "";
+    const picked = fromInputToDate(nuevo.value.fechaInput) || new Date();
+    const fecha_str = toCLString(picked);
+    const fecha_ts = Timestamp.fromDate(picked);
 
     const payload = {
-      ...nuevo.value,
-
+      autorizacion_nombre: nuevo.value.autorizacion_nombre ?? null,
+      autorizacion_url: nuevo.value.autorizacion_url ?? null,
+      dirigidoA: Array.isArray(nuevo.value.dirigidoA) ? nuevo.value.dirigidoA : [],
+      empresa: nuevo.value.empresa ?? "Xtreme Servicio",
+      estatus: nuevo.value.estatus ?? "Pendiente",
+      items: [],
+      nombre_centro_costo: nuevo.value.nombre_centro_costo ?? "",
+      nombre_solped: nuevo.value.nombre_solped ?? "",
+      numero_contrato: nuevo.value.numero_contrato ?? "",
+      numero_solpe: nuevo.value.numero_solpe ?? null,
+      tipo_solped: nuevo.value.tipo_solped ?? "",
+      usuario: nuevo.value.usuario ?? "",
       fecha_str,
-      fecha: fecha_str
+      fecha: fecha_str,
+      fecha_ts
     };
 
     const docRef = await addDoc(collection(db, "solpes"), payload);
@@ -1516,6 +1677,7 @@ async function guardarItemForm(){
     addToast("danger", "No se pudo guardar el ítem.");
   }
 }
+
 const prettyFecha = (f) => {
   try {
     if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
@@ -1524,6 +1686,7 @@ const prettyFecha = (f) => {
   } catch(e) { console.error(e); }
   return '—';
 };
+
 function eliminarItem(idx){
   edit.value.items.splice(idx, 1);
 }
