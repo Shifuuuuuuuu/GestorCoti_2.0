@@ -2,8 +2,6 @@
 <!-- src/views/Inicio.vue -->
 <template>
   <div class="inicio-wrapper container py-4 px-3 px-md-5">
-
-    <!-- ENCABEZADO / HERO -->
     <div class="row g-4 align-items-center mb-4">
       <div class="col-lg-7">
         <span class="badge rounded-pill bg-light text-muted border small mb-2">
@@ -12,7 +10,7 @@
         </span>
 
         <h1 class="fw-bold mb-2">
-          Bienvenido{{ userName ? `, ${userName}` : '' }}
+          Bienvenido{{ userName ? `, ${userName}` : "" }}
         </h1>
 
         <p class="text-muted mb-3 lead-sm">
@@ -28,8 +26,6 @@
           cierre de cada ítem.
         </p>
       </div>
-
-      <!-- Panel de contexto -->
       <div class="col-lg-5">
         <div class="card shadow-sm border-0 h-100 inicio-panel">
           <div class="card-header bg-dark text-white fw-semibold py-2 px-3">
@@ -53,6 +49,10 @@
               <li class="mb-1">
                 Los <strong>aprobadores</strong> validan montos, condiciones y
                 documentación según sus criterios de aceptación.
+              </li>
+              <li class="mb-1">
+                La <strong>recepción</strong> confirma entrega (productos/servicios),
+                cantidades, conformidad y respaldo documental.
               </li>
               <li class="mb-1">
                 Cada cambio (estado, comentario, archivo) queda registrado en
@@ -79,7 +79,6 @@
       </div>
     </div>
 
-    <!-- FLUJO DE PROCESO -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body p-3 p-md-4">
         <div class="d-flex align-items-center mb-3 gap-2">
@@ -87,13 +86,15 @@
           <div>
             <h5 class="mb-0">Flujo general de compras</h5>
             <small class="text-muted">
-              Ciclo SOLPED → Cotización → Aprobación → Cierre
+              Ciclo SOLPED → Cotización → Aprobación → Recepción → Cierre
             </small>
           </div>
         </div>
 
-        <div class="row g-3 align-items-stretch text-center text-md-start flujo-row">
-          <div class="col-md-3">
+        <div
+          class="row g-3 align-items-stretch text-center text-md-start row-cols-1 row-cols-md-2 row-cols-xl-5 flujo-row"
+        >
+          <div class="col">
             <div class="flujo-step h-100">
               <div class="flujo-icon bg-step-1 mb-2">
                 <span>1</span>
@@ -106,50 +107,60 @@
             </div>
           </div>
 
-          <div class="col-md-3">
+          <div class="col">
             <div class="flujo-step h-100">
               <div class="flujo-icon bg-step-2 mb-2">
                 <span>2</span>
               </div>
               <h6 class="fw-semibold mb-1">Cotización</h6>
               <p class="text-muted small mb-0">
-                Compras analiza la solicitud, gestiona proveedores y genera
-                Cotización asociando precios, condiciones y respaldos.
+                Compras analiza la solicitud, gestiona proveedores y genera la
+                cotización asociando precios, condiciones y respaldos.
               </p>
             </div>
           </div>
 
-          <div class="col-md-3">
+          <div class="col">
             <div class="flujo-step h-100">
               <div class="flujo-icon bg-step-3 mb-2">
                 <span>3</span>
               </div>
-              <h6 class="fw-semibold mb-1">Aprobación</h6>
+              <h6 class="fw-semibold mb-1">Aprobación de cotización</h6>
               <p class="text-muted small mb-0">
-                Los aprobadores revisan montos, límites, contratos y archivos,
+                Los aprobadores revisan montos, límites, contrato y archivos;
                 registran observaciones y aprueban o rechazan.
               </p>
             </div>
           </div>
 
-          <div class="col-md-3">
+          <div class="col">
             <div class="flujo-step h-100">
               <div class="flujo-icon bg-step-4 mb-2">
                 <span>4</span>
               </div>
+              <h6 class="fw-semibold mb-1">Recepción</h6>
+              <p class="text-muted small mb-0">
+                Se registra la recepción de productos/servicios: confirmación
+                de entrega, cantidades, conformidad y documentos (guías/facturas).
+              </p>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="flujo-step h-100">
+              <div class="flujo-icon bg-step-5 mb-2">
+                <span>5</span>
+              </div>
               <h6 class="fw-semibold mb-1">Cierre y seguimiento</h6>
               <p class="text-muted small mb-0">
-                Se actualiza el estado de cada ítem (pendiente, parcial,
-                completado) y se analiza la operación desde los reportes y el
-                Dashboard.
+                Se cierra el proceso y se actualiza el estado de cada ítem
+                (pendiente, parcial, completado), con reportes y trazabilidad.
               </p>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- ROLES Y RESPONSABILIDADES -->
     <div class="row g-3 mb-4 small">
       <div class="col-md-4">
         <div class="card h-100 shadow-sm border-0">
@@ -192,7 +203,7 @@
             <ul class="list-unstyled mb-0">
               <li class="mb-1">
                 <i class="bi bi-check-circle text-success me-1"></i>
-                Generan Cotizaciones vinculadas a las SOLPED asignadas.
+                Generan cotizaciones vinculadas a las SOLPED asignadas.
               </li>
               <li class="mb-1">
                 <i class="bi bi-check-circle text-success me-1"></i>
@@ -238,7 +249,6 @@
       </div>
     </div>
 
-    <!-- SECCIÓN FINAL: QUÉ PUEDES HACER AQUÍ -->
     <div class="row g-3 small">
       <div class="col-md-12">
         <div class="card border-0 shadow-sm h-100">
@@ -272,8 +282,8 @@
     </div>
 
     <p class="mt-4 text-center text-muted small">
-      Usa el menú lateral o superior para navegar entre SOLPED, Cotizaciones
-      , Administración y Dashboard.
+      Usa el menú lateral o superior para navegar entre SOLPED, Cotizaciones,
+      Recepción, Administración y Dashboard.
     </p>
   </div>
 </template>
@@ -284,7 +294,6 @@ import { useAuthStore } from "@/stores/authService";
 
 const auth = useAuthStore();
 
-// Nombre del usuario para el saludo
 const userName = computed(() => {
   const base =
     auth?.profile?.fullName ||
@@ -300,12 +309,10 @@ const userName = computed(() => {
   max-width: 1200px;
 }
 
-/* Pequeña variación de tono en el panel derecho */
 .inicio-panel {
   border-radius: 0.9rem;
 }
 
-/* Pasos del flujo */
 .flujo-row {
   position: relative;
 }
@@ -339,15 +346,15 @@ const userName = computed(() => {
   background: #c62828;
 }
 .bg-step-4 {
+  background: #f59e0b;
+}
+.bg-step-5 {
   background: #6b7280;
 }
-
-/* Lead un poquito más pequeña que .lead normal */
 .lead-sm {
   font-size: 1rem;
 }
 
-/* Ajustes responsive */
 @media (max-width: 767.98px) {
   .inicio-wrapper {
     padding-top: 1rem;
