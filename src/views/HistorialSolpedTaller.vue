@@ -1079,7 +1079,7 @@ export default {
     const canGenerateOC = (s) => {
       if (!isStrictEditor.value) return false;
       const st = (s?.estatus || '').toString().trim().toLowerCase();
-      return st === 'pendiente' || st === 'parcial';
+      return st === 'pendiente' || st === 'parcial'|| st === 'cotizado parcial';
     };
 
     const irAGenerarOCTaller = (s) => {
@@ -2029,7 +2029,7 @@ export default {
     });
 
     // Constantes
-    const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial"];
+    const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial","Cotizado Parcial","Cotizado Completado"];
 
     // Autorización
     const abrirAutorizacion = (s) => { if (!s?.autorizacion_url) return; window.open(s.autorizacion_url, "_blank"); };

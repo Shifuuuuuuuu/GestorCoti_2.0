@@ -1383,18 +1383,15 @@ const restoreCursorsFromLS = async (targetPage) => {
   }
 };
 
-// ✅ Cada vez que sales de esta vista, guarda página/scroll/cursors
 onBeforeRouteLeave(() => {
   persistPaginationState();
 });
 
-/* ---------- Listas auxiliares ---------- */
 const listaEstatus = [
   'Completado','Rechazado','Solicitado','Pendiente','Preaprobado',
-  'OC enviada a proveedor','Parcial'
+  'OC enviada a proveedor','Parcial','Cotizado parcial','Cotizado Completado'
 ];
 
-/* ---------- Helpers UI ---------- */
 const prettyFecha = (f) => {
   try {
     if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
@@ -1861,7 +1858,7 @@ const copiarSolped = (s) => {
 
 /* ---------- Generar OC ---------- */
 const irAGenerarOC = (s) => { const q = { fromSolpedId: s.id }; try { router.push({ name: 'GeneradorOC', query: q }); } catch { router.push({ path: '/generar-oc', query: q }); } };
-const canGenerateOC = (s) => { const st = (s?.estatus || '').toString().trim().toLowerCase(); return st === 'pendiente' || st === 'parcial'; };
+const canGenerateOC = (s) => { const st = (s?.estatus || '').toString().trim().toLowerCase(); return st === 'pendiente' || st === 'parcial'|| st === 'cotizado parcial'; };
 
 /* ---------- Comentarios / estados ---------- */
 const agregarComentario = async (s) => {
