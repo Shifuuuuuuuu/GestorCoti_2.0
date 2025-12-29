@@ -1051,7 +1051,7 @@ const onChangeSolped = async () => {
       const data = snap.data() || {};
 
       const st = (data.estatus || '').toString().trim().toLowerCase();
-      if (!(st === 'pendiente' || st === 'parcial')) {
+      if (!(st === 'pendiente' || st === 'parcial'|| st === 'cotizado parcial')) {
         addToast('warning', 'Esta SOLPED no está en estado Pendiente o Parcial.');
         solpedSeleccionada.value = null;
         solpedSeleccionadaId.value = '';
