@@ -225,30 +225,69 @@
               <input class="form-control" type="date" v-model="filtroFecha">
             </div>
 
-            <!-- Solicitante -->
+            <!-- Solicitante (UI pro) -->
             <div class="col-12">
-              <label class="form-label">Solicitante</label>
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label mb-0 fw-semibold">
+                  <i class="bi bi-person-badge me-1 text-primary"></i>
+                  Solicitante
+                </label>
+
+                <span class="badge rounded-pill text-bg-light border">
+                  <i class="bi bi-collection me-1"></i>
+                  {{ solicitantesOpts.length }}
+                </span>
+              </div>
+
               <div class="input-group">
+                <span class="input-group-text bg-white">
+                  <i class="bi bi-search text-muted"></i>
+                </span>
+
                 <input
                   class="form-control"
                   v-model.trim="filtroSolicitante"
-                  placeholder="Ej: FRANK PINTO"
+                  placeholder="Buscar o seleccionar… (ej: FRANK PINTO)"
+                  list="solicitantesList"
+                  autocomplete="off"
                 >
+
                 <button
                   v-if="filtroSolicitante"
-                  class="btn btn-outline-secondary"
+                  class="btn btn-light border"
                   @click="filtroSolicitante=''"
-                  title="Limpiar solicitante">
-                  <i class="bi bi-x-lg"></i>
+                  title="Limpiar"
+                  type="button"
+                >
+                  <i class="bi bi-x-circle"></i>
                 </button>
               </div>
-              <div class="form-check mt-2">
-                <input id="chkExacto" class="form-check-input" type="checkbox" v-model="filtroSolicExacto">
-                <label class="form-check-label" for="chkExacto">Coincidencia exacta</label>
-              </div>
-              <div class="form-text">Si no está marcado, se filtra por “contiene”.</div>
-            </div>
 
+              <!-- SUGERENCIAS -->
+              <datalist id="solicitantesList">
+                <option v-for="n in solicitantesOpts" :key="n" :value="n"></option>
+              </datalist>
+
+              <div class="d-flex align-items-center justify-content-between mt-2">
+                <div class="form-check form-switch m-0">
+                  <input
+                    id="chkExacto"
+                    class="form-check-input"
+                    type="checkbox"
+                    v-model="filtroSolicExacto"
+                  >
+                  <label class="form-check-label small text-muted" for="chkExacto">
+                    Coincidencia exacta
+                  </label>
+                </div>
+
+                <span class="small text-muted">
+                  <i class="bi bi-info-circle me-1"></i>
+                  {{ filtroSolicExacto ? 'Exacto' : 'Contiene' }}
+                </span>
+              </div>
+
+            </div>
             <!-- Estatus (multi) -->
             <div class="col-12">
               <label class="form-label mb-2">Estatus</label>
@@ -258,7 +297,6 @@
                   <span class="form-check-label">{{ s }}</span>
                 </label>
               </div>
-              <div class="form-text">Puedes seleccionar varios (hasta 10) para usar la consulta con <code>in</code>.</div>
             </div>
           </div>
         </div>
@@ -957,6 +995,34 @@ function onBuscarNumero(){
     cargando.value = false;
   });
 }
+const solicitantesOpts = ref([]);
+let unsubSolicitantes = null;
+
+function subscribeSolicitantesOpts(){
+  if (unsubSolicitantes) { unsubSolicitantes(); unsubSolicitantes = null; }
+
+  const qy = query(
+    collection(db, "solped_taller"),
+    orderBy("numero_solpe", "desc"),
+    limit(800)
+  );
+
+  unsubSolicitantes = onSnapshot(qy, (snap) => {
+    const map = new Map();
+    snap.forEach((d) => {
+      const n = (d.data()?.nombre_solicitante || "").toString().trim();
+      if (!n) return;
+      const key = normalize(n);
+      if (!map.has(key)) map.set(key, n);
+    });
+
+    solicitantesOpts.value = Array
+      .from(map.values())
+      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+  }, (err) => {
+    console.error("subscribeSolicitantesOpts:", err);
+  });
+}
 
 function limpiarBusqueda(){
   buscarNumero.value = "";
@@ -1332,7 +1398,7 @@ function eliminarHistorial(ix){
 }
 
 /* ---------- Lifecycle ---------- */
-onMounted(() => { subscribePage(1); });
+onMounted(() => { subscribePage(1); subscribeSolicitantesOpts(); });
 onBeforeUnmount(() => { cleanupSubs(); });
 </script>
 

@@ -46,11 +46,11 @@
       </div>
 
       <!-- ===== Bloqueo por OCs Aprobadas (rol Editor) ===== -->
-      <div
-        v-if="bloqueoPorAprobadas"
-        class="alert alert-danger d-flex align-items-start gap-2 mb-3"
-        role="alert"
-      >
+        <div
+          v-if="mostrarBloqueoAprobadas"
+          class="alert alert-danger d-flex align-items-start gap-2 mb-3"
+          role="alert"
+        >
         <i class="bi bi-exclamation-triangle-fill fs-5"></i>
         <div>
           <div class="fw-semibold">
@@ -230,7 +230,7 @@
               <div class="fw-semibold d-flex align-items-center gap-2">
                 <span>Subir Cotización</span>
                 <!-- Candado en header cuando bloqueado -->
-                <span v-if="bloqueoPorAprobadas"
+                <span v-if="mostrarBloqueoAprobadas"
                       class="badge bg-danger-subtle text-danger-emphasis d-inline-flex align-items-center gap-1"
                       title="Debes subir las OC de tus cotizaciones Aprobadas">
                   <i class="bi bi-lock-fill"></i> Bloqueado
@@ -261,7 +261,7 @@
             </div>
 
             <!-- Overlay de bloqueo -->
-            <div v-if="bloqueoPorAprobadas" class="lock-overlay">
+            <div v-if="mostrarBloqueoAprobadas" class="lock-overlay">
               <div class="lock-box text-center">
                 <i class="bi bi-lock-fill display-6 d-block mb-2"></i>
                 <div class="fw-semibold">Formulario bloqueado</div>
@@ -275,22 +275,40 @@
             <div class="card-body">
               <!-- Fieldset para deshabilitar todo de una -->
               <fieldset :disabled="formDisabled" style="border:0;padding:0;margin:0">
+              <!-- Nº de Cotización -->
+              <div class="mb-3">
+                <label class="form-label d-flex align-items-center justify-content-between">
+                  <span>N° de Cotización</span>
+                  <small v-if="cargandoNuevoId" class="text-secondary">Cargando…</small>
+                </label>
 
-                <!-- Nº de Cotización -->
-                <div class="mb-3">
-                  <label class="form-label">N° de Cotización</label>
-                  <div class="input-group">
-                    <span class="input-group-text">N°</span>
-                    <input
-                      class="form-control fw-semibold"
-                      :class="{'border-primary': !!nuevoIdVisual}"
-                      type="text"
-                      :value="(nuevoIdVisual ?? '—').toString()"
-                      readonly>
-                  </div>
-                  <div class="form-text">Se asigna automáticamente y es de solo lectura.</div>
+                <div class="input-group">
+                  <span class="input-group-text">N°</span>
+
+                  <input
+                    class="form-control fw-semibold"
+                    :class="{'border-primary': !!nuevoIdVisual && !cargandoNuevoId}"
+                    type="text"
+                    :value="cargandoNuevoId ? '' : (nuevoIdVisual ?? '—').toString()"
+                    :placeholder="cargandoNuevoId ? 'Cargando…' : '—'"
+                    readonly
+                  >
+
+                  <!-- Botón recargar (muestra spinner mientras carga) -->
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    @click="cargarSiguienteNumero"
+                    :disabled="cargandoNuevoId"
+                    title="Recargar número"
+                  >
+                    <span v-if="!cargandoNuevoId"><i class="bi bi-arrow-clockwise"></i></span>
+                    <span v-else class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  </button>
                 </div>
 
+                <div class="form-text">Se asigna automáticamente y es de solo lectura.</div>
+              </div>
                 <!-- Asociar SOLPED -->
                 <div class="form-check form-switch mb-3">
                   <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped">
@@ -785,12 +803,14 @@ const bloqueoPorAprobadas = computed(() => {
   const esEditor = roleKey === "editor";
   if (!esEditor) return false;
 
-  // Fail-safe: si NO pudimos validar en producción, bloquea igual.
-  if (!aprobadasState.ok) return true;
+  if (!aprobadasListo.value) return false; // 👈 clave: no bloquear al inicio
 
+  if (!aprobadasState.ok) return true;     // fail-safe
   return totalAprobadasDelUsuario.value >= 10;
 });
-const formDisabled = computed(() => bloqueoPorAprobadas.value || enviando.value);
+
+// 👇 Para deshabilitar el formulario SOLO cuando realmente se muestra el bloqueo
+const formDisabled = computed(() => mostrarBloqueoAprobadas.value || enviando.value);
 
 const rangeUltimosDosMeses = () => {
   const now = new Date();
@@ -807,6 +827,8 @@ const rangeUltimosDosMeses = () => {
 const enviando = ref(false);
 const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
+const cargandoNuevoId = ref(false);
+
 const comentario = ref("");
 
 const isDesktop = ref(false);
@@ -1440,15 +1462,22 @@ const cargarSolpedSolicitadasOptimizada = async () => {
 };
 
 const cargarSiguienteNumero = async () => {
+  if (cargandoNuevoId.value) return; // evita dobles llamadas
+  cargandoNuevoId.value = true;
+
   try {
     const qy = query(collection(db, "ordenes_oc"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const last = snap.docs[0]?.data()?.id || 0;
     nuevoIdVisual.value = Number(last) + 1;
-  } catch {
+  } catch (e) {
+    console.error("cargarSiguienteNumero error:", e);
     nuevoIdVisual.value = 1;
+  } finally {
+    cargandoNuevoId.value = false;
   }
 };
+
 
 /* =================== Cambios SOLPED en UI =================== */
 const onToggleUsarSolped = () => {
@@ -1825,6 +1854,19 @@ const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario) => 
     estatus: "Cotización enviada - Revisión Guillermo"
   });
 };
+
+const aprobadasListo = computed(() =>
+  aprobadasState.lastCheckedAt !== null && !aprobadasState.loading
+);
+
+const mostrarBloqueoAprobadas = computed(() => {
+  const roleKey = normalizeRole(userRole.value);
+  const esEditor = roleKey === "editor";
+  if (!esEditor) return false;
+  if (!aprobadasListo.value) return false;
+
+  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 10;
+});
 
 const mapearItemsSegunRegla = (itemsFuente) => {
   const salida = (itemsFuente || []).map(item => {

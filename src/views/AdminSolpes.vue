@@ -265,20 +265,40 @@
                 <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
-
             <div class="col-12 col-sm-6">
-              <label class="form-label">Usuario</label>
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label mb-0 fw-semibold">
+                  <i class="bi bi-person-circle me-1 text-primary"></i>
+                  Usuario
+                </label>
+
+                <span class="badge rounded-pill text-bg-light border">
+                  <i class="bi bi-people me-1"></i>
+                  {{ usuariosOpts.length }}
+                </span>
+              </div>
+
               <div class="input-group">
+                <span class="input-group-text bg-white">
+                  <i class="bi bi-funnel text-muted"></i>
+                </span>
+
                 <select class="form-select" v-model="filtroUsuario">
                   <option value="">Todos</option>
                   <option v-for="u in usuariosOpts" :key="u" :value="u">{{ u }}</option>
                 </select>
-                <button v-if="filtroUsuario" class="btn btn-outline-secondary" @click="filtroUsuario=''">
-                  <i class="bi bi-x-lg"></i>
+
+                <button
+                  v-if="filtroUsuario"
+                  class="btn btn-light border"
+                  type="button"
+                  @click="filtroUsuario=''"
+                  title="Limpiar usuario"
+                >
+                  <i class="bi bi-x-circle"></i>
                 </button>
               </div>
             </div>
-
             <div class="col-12">
               <label class="form-label">Fecha</label>
               <input class="form-control" type="date" v-model="filtroFecha">
@@ -804,7 +824,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { db } from "../stores/firebase";
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, addDoc, updateDoc, deleteDoc, Timestamp
+  doc, addDoc, updateDoc, deleteDoc, Timestamp,getDocs
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
@@ -826,7 +846,7 @@ const ESTATUS_OPC = [
   "Completado",
 ];
 const DIRIGIDO_OPCIONES = [
-  "Guillermo Manzor","Camila Ricci","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
+  "Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
 ];
 
 /* Centros de Costo (rellenar con tus claves reales) */
@@ -906,6 +926,52 @@ const totalFiltrosActivos = computed(() => {
   n += (filtroEstatus.value?.length || 0);
   return n;
 });
+const usuariosLoading = ref(false);
+const usuariosLoadedOnce = ref(false);
+
+// ✅ Trae TODOS los usuarios únicos que hayan creado SOLPED (campo "usuario")
+async function cargarUsuariosCreadoras({ force = false } = {}) {
+  if (usuariosLoading.value) return;
+  if (usuariosLoadedOnce.value && !force) return;
+
+  usuariosLoading.value = true;
+
+  try {
+    const set = new Set();
+    let cursor = null;
+    const PAGE = 1000;
+
+    while (true) {
+      const qy = cursor
+        ? query(collection(db, "solpes"), orderBy("usuario"), startAfter(cursor), limit(PAGE))
+        : query(collection(db, "solpes"), orderBy("usuario"), limit(PAGE));
+
+      const snap = await getDocs(qy);
+      if (snap.empty) break;
+
+      snap.forEach((d) => {
+        const u = (d.data()?.usuario ?? "").toString().trim();
+        if (u) set.add(u);
+      });
+
+      cursor = snap.docs[snap.docs.length - 1];
+      if (snap.size < PAGE) break; // ya no hay más
+    }
+
+    usuariosOpts.value = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, "es", { sensitivity: "base" })
+    );
+
+    usuariosLoadedOnce.value = true;
+  } catch (e) {
+    console.error(e);
+    addToast("warning", "No se pudieron cargar los usuarios (creadores) para el filtro.");
+  } finally {
+    usuariosLoading.value = false;
+  }
+}
+
+
 
 /* ---------- Toasts ---------- */
 const toasts = ref([]);
@@ -997,6 +1063,7 @@ function cargarUsuarios(){
     console.error(e);
     addToast("warning","No se pudieron cargar los usuarios para el filtro.");
   }
+  return cargarUsuariosCreadoras();
 }
 
 function subscribePage(page){

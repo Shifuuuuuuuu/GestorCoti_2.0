@@ -278,20 +278,43 @@
             </div>
 
             <div class="card-body">
-              <!-- Nº de Cotización (ID correlativo) -->
+              <!-- Nº de Cotización -->
               <div class="mb-3">
                 <label class="form-label">N° de Cotización</label>
+
                 <div class="input-group">
                   <span class="input-group-text">N°</span>
+
                   <input
                     class="form-control fw-semibold"
                     :class="{'border-primary': !!nuevoIdVisual}"
                     type="text"
-                    :value="(nuevoIdVisual ?? '—').toString()"
-                    readonly>
+                    :value="cargandoNumero ? 'Cargando…' : (nuevoIdVisual ?? '—').toString()"
+                    readonly
+                  >
+
+                  <!-- Spinner + Recarga -->
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    @click="cargarSiguienteNumero"
+                    :disabled="cargandoNumero"
+                    title="Recargar número"
+                  >
+                    <span
+                      v-if="cargandoNumero"
+                      class="spinner-border spinner-border-sm"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    <i v-else class="bi bi-arrow-clockwise"></i>
+                  </button>
+                </div>
+
+                <div v-if="errorNumero" class="form-text text-danger">
+                  {{ errorNumero }}
                 </div>
               </div>
-
               <!-- Asociar SOLPED -->
               <div class="form-check form-switch mb-3">
                 <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped">
@@ -851,6 +874,8 @@ const auth = useAuthStore();
 const enviando = ref(false);
 const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
+const cargandoNumero = ref(false);
+const errorNumero = ref("");
 const comentario = ref("");
 
 /* Equipos: oculto por defecto */
@@ -1600,15 +1625,31 @@ const cargarSolpedSolicitadas = async () => {
 };
 
 const cargarSiguienteNumero = async () => {
+  if (cargandoNumero.value) return;
+
+  cargandoNumero.value = true;
+  errorNumero.value = "";
+
   try {
-    const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
+    const qy = query(
+      collection(db, "ordenes_oc_taller"),
+      orderBy("id", "desc"),
+      limit(1)
+    );
+
     const snap = await getDocs(qy);
     const last = snap.docs[0]?.data()?.id || 0;
+
     nuevoIdVisual.value = Number(last) + 1;
-  } catch {
+  } catch (e) {
+    console.error("cargarSiguienteNumero (taller):", e);
     nuevoIdVisual.value = 1;
+    errorNumero.value = "No se pudo obtener el número. Se asignó 1 por defecto.";
+  } finally {
+    cargandoNumero.value = false;
   }
 };
+
 
 const copiarEquipo = async (e) => {
   const texto =
