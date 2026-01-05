@@ -121,6 +121,7 @@
                     <option>EDP</option>
                     <option>MATERIAS PRIMA</option>
                     <option>INSUMOS DE MINERÍA</option>
+                    <option>INSUMOS DE TALLER</option>
                   </select>
                 </div>
 

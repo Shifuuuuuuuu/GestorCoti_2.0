@@ -55,7 +55,6 @@ export const useAuthStore = defineStore("auth", {
               (snap) => {
                 this.profile = snap.exists() ? snap.data() : null;
 
-                // ⬇️ sincroniza preferencia UI cuando llega/actualiza perfil
                 try { ui.loadFromProfile(this.profile); } catch (e){console.error(e)}
 
                 this.initializing = false;

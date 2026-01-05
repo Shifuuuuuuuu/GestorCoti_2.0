@@ -37,15 +37,13 @@ const AdminConfig        = () => import("../views/AdminConfig.vue");
 const AdminGestionDocs   = () => import ("../views/AdminGestionDocs.vue")
 const AprobacionDocs     = () => import ("../views/AprobacionDocs.vue");
 const RecepcionOC = () => import("../views/RecepcionOC.vue");
+const AiInspectorView = () => import ("../views/AiInspectorView.vue")
 
 const routes = [
   // LOGIN (pública)
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
-
-  // 🔹 INICIO (home después de login)
+  { path: "/Chatbot",  name: "AiInspectorView", component: AiInspectorView, meta: { requiresAuth: true}},
   { path: "/inicio", name: "Inicio", component: Inicio, meta: { requiresAuth: true } },
-
-  // ✅ raíz -> Inicio (si ya está logueado el guardia lo deja pasar)
   { path: "/", redirect: { name: "Inicio" } },
 
   // EMPRESA

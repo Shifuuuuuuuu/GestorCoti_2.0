@@ -144,6 +144,7 @@ export function useRoleMenus() {
         { name: "HistorialSolpedTaller", text: "Historial SOLPED (Taller)", icon: "bi-clock-history" },
         { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver" },
         { name: "DashboardEstadisticas", text: "Dashboard", icon: "bi bi-bar-chart-line" },
+        { name: "AiInspectorView", text: "Chatbot", icon: "bi bi-robot" }
       ];
     }
 
@@ -178,6 +179,7 @@ export function useRoleMenus() {
       { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
       { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" },
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
+      { name: "AiInspectorView", text: "Chatbot", icon:"bi bi-robot" }
     ];
   });
 
