@@ -179,7 +179,8 @@ export function useRoleMenus() {
       { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
       { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" },
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
-      { name: "AiInspectorView", text: "Chatbot", icon:"bi bi-robot" }
+      { name: "AiInspectorView", text: "Chatbot", icon:"bi bi-robot" },
+      { name: "GenerarCotizacion", text: "Generador de cotización", icon: "bi bi-clipboard2-minus"}
     ];
   });
 

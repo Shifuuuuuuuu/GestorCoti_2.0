@@ -38,7 +38,7 @@ const AdminGestionDocs   = () => import ("../views/AdminGestionDocs.vue")
 const AprobacionDocs     = () => import ("../views/AprobacionDocs.vue");
 const RecepcionOC = () => import("../views/RecepcionOC.vue");
 const AiInspectorView = () => import ("../views/AiInspectorView.vue")
-
+const GenerarCotizacion = () => import ("../views/GenerarCotizacion.vue")
 const routes = [
   // LOGIN (pública)
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
@@ -86,6 +86,7 @@ const routes = [
   { path: "/gestor-docs", name: "AdminGestionDocs", component: AdminGestionDocs, meta: { requiresAuth: true} },
   { path: "/aprobacion-docs", name: "AprobacionDocs", component: AprobacionDocs, meta: { requiresAuth: true} },
   { path: "/recepcion-oc", name: "RecepcionOC", component: RecepcionOC, meta: { requiresAuth: true } },
+  { path: "/generador-coti",name: "GenerarCotizacion", component: GenerarCotizacion, meta: {requiresAuth: true}},
   { path: "/:pathMatch(.*)*", redirect: { name: "Inicio" } },
 ];
 AprobacionDocs

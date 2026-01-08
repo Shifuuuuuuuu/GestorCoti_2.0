@@ -4,7 +4,6 @@
   <div class="dashboard-page with-sidenav">
     <div class="container py-4 py-md-5 position-relative">
 
-
       <transition name="fade">
         <div v-if="isLoading" class="loading-overlay" aria-live="polite" aria-busy="true">
           <div class="loading-card">
@@ -15,9 +14,7 @@
         </div>
       </transition>
 
-
       <div :class="['content-wrap', { 'is-blurred': isLoading }]">
-
         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
           <h1 class="h5 h4-sm fw-semibold mb-0">Dashboard · Estadísticas</h1>
 
@@ -32,6 +29,7 @@
           </div>
         </div>
 
+        <!-- Segmentos -->
         <div class="mb-3">
           <div class="btn-group flex-wrap gap-1">
             <button
@@ -43,6 +41,7 @@
             >
               🏢 SOLPED Empresa
             </button>
+
             <button
               class="btn"
               :class="segmento==='taller' ? 'btn-primary' : 'btn-outline-primary'"
@@ -52,9 +51,21 @@
             >
               🛠 SOLPED Taller
             </button>
+
+            <!-- ✅ NUEVO -->
+            <button
+              class="btn"
+              :class="segmento==='general' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="setSegmento('general')"
+              :disabled="isLoading"
+              title="Suma de Empresa + Taller"
+            >
+              🧩 SOLPED General
+            </button>
           </div>
         </div>
 
+        <!-- Filtro empresa (solo segmento empresa) -->
         <div class="mb-3" v-if="segmento==='empresa'">
           <div class="btn-group flex-wrap gap-1">
             <button class="btn" :class="empresaSegmento==='todas' ? 'btn-secondary' : 'btn-outline-secondary'" @click="setEmpresaSeg('todas')" :disabled="isLoading">Todas</button>
@@ -64,6 +75,7 @@
           </div>
         </div>
 
+        <!-- Filtros (desktop) -->
         <div class="card mb-4 d-none d-md-block">
           <div class="card-body">
             <div class="row g-2 align-items-end">
@@ -80,7 +92,7 @@
                 </select>
               </div>
 
-              <div class="col-12 col-md-3" v-else>
+              <div class="col-12 col-md-3" v-else-if="segmento==='taller'">
                 <label class="form-label">Centro de Costo</label>
                 <select class="form-select" v-model="filtroCentroCostoSel" @change="onFiltroChange" :disabled="isLoading">
                   <option value="">Todos</option>
@@ -88,6 +100,7 @@
                 </select>
               </div>
 
+              <!-- En General ocultamos contrato/cc (porque mezcla ambas) -->
               <div class="col-12 col-md-2">
                 <label class="form-label">Estatus SOLPED</label>
                 <select class="form-select" v-model="filtroEstatusSolped" @change="onFiltroChange" :disabled="isLoading">
@@ -167,11 +180,55 @@
 
           <div class="col-12 col-xxl-6">
             <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">Top generadores de OC (mes)</div></div>
-              <div class="card-body chart-fixed-h">
-                <canvas ref="cTopOC"></canvas>
-                <div class="text-end small text-muted mt-2">
-                  Gasto total del mes: <strong>{{ formatearCLP(kpis.gastoMes) }}</strong>
+              <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <div class="fw-medium">Top generadores de OC (mes)</div>
+
+                <span class="badge bg-dark-subtle text-dark-emphasis">
+                  Gasto mes: <strong class="ms-1">{{ formatearCLP(kpis.gastoMes) }}</strong>
+                </span>
+              </div>
+
+              <div class="card-body">
+                <div class="chart-fixed-h">
+                  <canvas ref="cTopOC"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="fw-medium">Desglose OC por cotizador y estatus (mes)</div>
+                <span class="badge bg-dark-subtle text-dark-emphasis" v-if="ocStatusByUserPayload?.users?.length">
+                  {{ ocStatusByUserPayload.users.length }} usuarios (top)
+                </span>
+              </div>
+
+              <div class="card-body">
+                <div class="chart-fixed-h mb-3" style="min-height: 420px;">
+                  <canvas ref="cOcStatusByUser"></canvas>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0 table-sticky">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="min-width: 220px;">Cotizador</th>
+                        <th class="text-end" v-for="st in OC_ESTATUS_CANON" :key="'h-'+st">{{ st }}</th>
+                        <th class="text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ocStatusByUserPayload.rows" :key="row.user">
+                        <td class="fw-medium">{{ row.user }}</td>
+                        <td class="text-end" v-for="st in OC_ESTATUS_CANON" :key="row.user+'-'+st">{{ row.counts[st] || 0 }}</td>
+                        <td class="text-end fw-semibold">{{ row.total }}</td>
+                      </tr>
+                      <tr v-if="!ocStatusByUserPayload.rows.length">
+                        <td colspan="99" class="text-center text-muted py-3">Sin datos para el mes con estos filtros.</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -239,14 +296,14 @@
 
           <div class="col-12">
             <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">Gasto por Contrato </div></div>
+              <div class="card-header"><div class="fw-medium">Gasto por Contrato / CC</div></div>
               <div class="card-body chart-fixed-h"><canvas ref="cGastoContratoH"></canvas></div>
             </div>
           </div>
 
           <div class="col-12">
             <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">OC por Contrato </div></div>
+              <div class="card-header"><div class="fw-medium">OC por Contrato / CC</div></div>
               <div class="card-body chart-fixed-h"><canvas ref="cConteoContratoH"></canvas></div>
             </div>
           </div>
@@ -254,7 +311,7 @@
           <div class="col-12">
             <div class="card shadow-sm border-0">
               <div class="card-header d-flex align-items-center justify-content-between">
-                <div class="fw-medium">Cotizaciones aprobadas vs Órdenes subidas </div>
+                <div class="fw-medium">Cotizaciones aprobadas vs Órdenes subidas</div>
                 <span class="badge bg-dark-subtle text-dark-emphasis" v-if="vsEditorsPayload?.labels?.length">
                   {{ vsEditorsPayload.labels.length }} usuarios
                 </span>
@@ -300,7 +357,6 @@
       </div>
     </div>
 
-
     <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
       <div class="offcanvas-panel offcanvas-panel-sm">
         <div class="offcanvas-header">
@@ -322,7 +378,7 @@
               </select>
             </div>
 
-            <div class="col-12" v-else>
+            <div class="col-12" v-else-if="segmento==='taller'">
               <label class="form-label">Centro de Costo</label>
               <select class="form-select" v-model="filtroCentroCostoSel" @change="onFiltroChange" :disabled="isLoading">
                 <option value="">Todos</option>
@@ -377,10 +433,19 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
-import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/stores/firebase";
 
-/* ====== Estado UI ====== */
+
+const OC_ESTATUS_CANON = [
+  "Aprobado",
+  "Preaprobado",
+  "Pendiente de Aprobación",
+  "Revisión Guillermo",
+  "Enviada a proveedor",
+  "Rechazado",
+];
+
 const isLoading = ref(false);
 const lastError = ref("");
 const filtrosOpen = ref(false);
@@ -388,9 +453,16 @@ const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
 
 const segmento = ref(localStorage.getItem('xt_dashboard_segmento') || 'empresa');
 function setSegmento(v) {
-  if (v === 'empresa' || v === 'taller') {
+  if (v === 'empresa' || v === 'taller' || v === 'general') {
     segmento.value = v;
     localStorage.setItem('xt_dashboard_segmento', v);
+    if (v === 'general') {
+      empresaSegmento.value = 'todas';
+      filtroEmpresa.value = '';
+      filtroContratoSel.value = '';
+      filtroCentroCostoSel.value = '';
+    }
+
     scheduleReload();
   }
 }
@@ -405,7 +477,6 @@ function setEmpresaSeg(v) {
   scheduleReload();
 }
 
-
 let debounceTimer = null;
 function scheduleReload() {
   clearTimeout(debounceTimer);
@@ -414,7 +485,6 @@ function scheduleReload() {
 
 const filtroMes = ref(defMesActual());
 const filtroEstatusOC = ref("");
-
 
 const contratosOptions = ref([]);
 const centroCostoOptions = ref([]);
@@ -430,7 +500,6 @@ const filtroTipoSolped = ref("");
 const filtroMonedaOC = ref("");
 const filtroResponsableOC = ref("");
 
-
 const kpis = ref({
   creadasMes: 0,
   completadasMes: 0,
@@ -439,7 +508,6 @@ const kpis = ref({
   ticketProm: 0,
 });
 
-
 const kpisExtra = ref({
   conversionPct: 0,
   leadtimePromDias: 0,
@@ -447,7 +515,11 @@ const kpisExtra = ref({
   comentariosTallerMes: 0,
 });
 
-const tituloSegmento = computed(() => (segmento.value === 'empresa' ? 'SOLPED' : 'SOLPED Taller'));
+const tituloSegmento = computed(() => {
+  if (segmento.value === 'empresa') return 'SOLPED';
+  if (segmento.value === 'taller') return 'SOLPED Taller';
+  return 'SOLPED (Empresa + Taller)';
+});
 
 const kpiCards = computed(() => ([
   { t: `${tituloSegmento.value} completadas (mes)`, v: kpis.value.completadasMes },
@@ -456,11 +528,17 @@ const kpiCards = computed(() => ([
 ]));
 
 
+
+/* ====== Datos auxiliares ====== */
 const topHoy = ref([]);
 
 const ocTipoAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
 const ocTipoSolpedAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
 
+/* ✅ NUEVO payload para desglose por usuario/estatus */
+const ocStatusByUserPayload = ref({ users: [], rows: [], datasets: [] });
+
+/* ====== Refs charts ====== */
 const cTopCreadores = ref(null);
 const cTopOC = ref(null);
 const cGastoContratoH = ref(null);
@@ -472,7 +550,6 @@ const cMonedaPie = ref(null);
 const cConteoContratoH = ref(null);
 const cSolpedPendH = ref(null);
 const cSolpedPendAll = ref(null);
-
 const cVsAprobadasSubidas = ref(null);
 
 const cOcTipoCountPie = ref(null);
@@ -480,17 +557,20 @@ const cOcTipoMontoPie = ref(null);
 const cOcTipoSolpedCountPie = ref(null);
 const cOcTipoSolpedMontoPie = ref(null);
 
+/* ✅ NUEVO */
+const cOcStatusByUser = ref(null);
 
 let charts = {
   topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
   tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
-  solpedPend: null, solpedPendAll: null,
-  vsEditors: null,
+  solpedPend: null, solpedPendAll: null, vsEditors: null,
 
   ocTipoCountPie: null,
   ocTipoMontoPie: null,
   ocTipoSolpedCountPie: null,
   ocTipoSolpedMontoPie: null,
+
+  ocStatusByUser: null,
 };
 
 let _lastPayloadKey = "";
@@ -512,7 +592,7 @@ watch(
   () => { scheduleReload(); }
 );
 
-function onFiltroChange() {  }
+function onFiltroChange() {}
 function refrescar() { cargarTodo(true); }
 function _onResize(){}
 
@@ -565,7 +645,7 @@ function formatearCLP(v) {
 const CACHE_TTL_MS = 2 * 60 * 1000;
 function cacheKey() {
   return [
-    "dashV12",
+    "dashV13",
     segmento.value,
     filtroMes.value || "_",
     empresaSegmento.value || "_",
@@ -589,13 +669,33 @@ function getCache() {
     return o.payload || null;
   } catch { return null; }
 }
-function setCache(payload) { try { sessionStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), payload })); } catch(e){console.error(e)} }
+function setCache(payload) { try { sessionStorage.setItem(cacheKey(), JSON.stringify({ t: Date.now(), payload })); } catch(e){ console.error(e); } }
 
 function _normTxt(v='') {
   return String(v || "").normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase();
 }
 
+/* ====== Canon de estatus OC ====== */
+function canonOcStatus(raw) {
+  const n = _normTxt(raw || "");
+  if (!n) return "Pendiente de Aprobación";
 
+  if (n.includes("aprobado") && !n.includes("pre")) return "Aprobado";
+  if (n.includes("pre") && n.includes("aprob")) return "Preaprobado";
+  if (n.includes("prepaprob")) return "Preaprobado"; // typo frecuente
+  if (n.includes("pend")) return "Pendiente de Aprobación";
+  if (n.includes("revision guillermo") || (n.includes("revision") && n.includes("guillermo")) || (n.includes("revisión") && n.includes("guillermo"))) {
+    return "Revisión Guillermo";
+  }
+  if (n.includes("proveedor")) return "Enviada a proveedor";
+  if (n.includes("rech")) return "Rechazado";
+
+  // fallback
+  if (n.includes("aprob")) return "Aprobado";
+  return "Pendiente de Aprobación";
+}
+
+/* ====== Utils OC/SOLPED ====== */
 function ocMonto(o) {
   if (!o) return 0;
   if (typeof o.precioTotalConIVA === "number") return o.precioTotalConIVA;
@@ -603,7 +703,6 @@ function ocMonto(o) {
   return 0;
 }
 function ocTipoOC(o) {
-
   return (o?.tipo_oc || o?.tipoOrden || o?.tipo_orden || o?.tipo || o?.categoria || '—').toString().trim() || '—';
 }
 function ocSolpeNums(o) {
@@ -613,14 +712,12 @@ function ocSolpeNums(o) {
     if (Number.isFinite(n) && n > 0) out.add(n);
   };
 
-
   push(o?.numero_solpe);
   push(o?.numeroSolpe);
   push(o?.numero_solped);
   push(o?.numeroSolped);
   push(o?.solpedNumero);
 
-  // items
   if (Array.isArray(o?.items)) {
     for (const it of o.items) {
       push(it?.numero_solped);
@@ -629,7 +726,6 @@ function ocSolpeNums(o) {
       push(it?.numeroSolpe);
     }
   }
-
   return [...out];
 }
 function buildSolIndexByNumero(solAll) {
@@ -640,19 +736,21 @@ function buildSolIndexByNumero(solAll) {
   }
   return map;
 }
+
 function solMatchesSolpedFilters(sol) {
   if (!sol) return false;
 
-
+  // Empresa solo aplica en segmento empresa
   if (segmento.value === 'empresa' && filtroEmpresa.value) {
     const emp = String(sol.empresa || sol.empresas || '');
     if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
   }
 
+  // Contrato/CC solo aplica si corresponde
   if (segmento.value === 'empresa') {
     const c = String(sol.numero_contrato || sol.numeroContrato || '');
     if (filtroContratoSel.value && c !== filtroContratoSel.value) return false;
-  } else {
+  } else if (segmento.value === 'taller') {
     const cc = String(sol.centro_costo || sol.centroCosto || sol.centroCostoNombre || '');
     if (filtroCentroCostoSel.value && cc !== filtroCentroCostoSel.value) return false;
   }
@@ -662,11 +760,10 @@ function solMatchesSolpedFilters(sol) {
 
   return true;
 }
-function ocTipoSolped(o, solIndexAllByNumero) {
 
+function ocTipoSolped(o, solIndexAllByNumero) {
   const direct = (o?.tipo_solped || o?.tipoSolped || '').toString().trim();
   if (direct) return direct;
-
 
   const tiposItems = new Set();
   if (Array.isArray(o?.items)) {
@@ -691,13 +788,128 @@ function ocTipoSolped(o, solIndexAllByNumero) {
   return nums.length ? "Sin tipo SOLPED" : "Sin SOLPED";
 }
 
+/* ✅ NUEVO: SOLPED completado-like (incluye cotizado parcial/completado) */
+function solIsCompletedLike(sol) {
+  const canon = canonSolpedStatus(sol?.estatus || sol?.estado || "");
+  const n = _normTxt(canon);
 
+  if (!n) return false;
+  if (n === "completado") return true;
+
+  // ✅ incluye cotizado/cotizando parcial o completado
+  if ((n.includes("cotizado") || n.includes("cotizando")) && (n.includes("parcial") || n.includes("complet"))) {
+    return true;
+  }
+
+  return false;
+}
+
+// ✅ Normaliza estatus SOLPED para conteos (arregla "Cotizando" -> "Cotizado")
+function canonSolpedStatus(raw) {
+  const txt = String(raw || "").trim();
+  const n = _normTxt(txt);
+
+  // si viene "cotizando parcial" lo convertimos a "Cotizado Parcial"
+  if (n.includes("cotizando") && n.includes("parcial")) return "Cotizado Parcial";
+
+  // si viene "cotizando completado" o similar
+  if (n.includes("cotizando") && n.includes("complet")) return "Cotizado Completado";
+
+  // si ya viene bien, devolvemos el original (pero con capitalización estándar cuando aplique)
+  if (n.includes("cotizado") && n.includes("parcial")) return "Cotizado Parcial";
+  if (n.includes("cotizado") && n.includes("complet")) return "Cotizado Completado";
+
+  return txt; // otros estatus quedan iguales
+}
+
+/* ====== Catálogos (rápidos) ====== */
+const CATALOG_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+function catKey() { return `dashCatV2:${segmento.value}`; }
+function getCatalogCache() {
+  try {
+    const raw = sessionStorage.getItem(catKey());
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o?.t || !o?.payload) return null;
+    if (Date.now() - o.t > CATALOG_TTL_MS) return null;
+    return o.payload;
+  } catch { return null; }
+}
+function setCatalogCache(payload) {
+  try { sessionStorage.setItem(catKey(), JSON.stringify({ t: Date.now(), payload })); } catch(e) {console.log(e)}
+}
+function uniqSorted(arr) {
+  return [...new Set(arr.map(v => String(v ?? '').trim()).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'es'));
+}
+
+async function cargarCatalogosRapidos() {
+  const hit = getCatalogCache();
+  if (hit) {
+    contratosOptions.value = hit.contratos || [];
+    centroCostoOptions.value = hit.cc || [];
+    estatusSolpedOptions.value = hit.estSol || [];
+    tipoSolpedOptions.value = hit.tipoSol || [];
+    return;
+  }
+
+  try {
+    // Tomamos una “muestra grande” reciente (limit) en vez de traerse toda la colección
+    const sample = [];
+
+    if (segmento.value === 'empresa') {
+      const snap = await getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(1200)));
+      snap.forEach(d => sample.push(d.data() || {}));
+      contratosOptions.value = uniqSorted(sample.map(x => x.numero_contrato || x.numeroContrato || ''));
+      centroCostoOptions.value = uniqSorted(sample.map(x => x.nombre_centro_costo || x.centroCostoNombre || ''));
+    } else if (segmento.value === 'taller') {
+      const snap = await getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(1200)));
+      snap.forEach(d => sample.push(d.data() || {}));
+      contratosOptions.value = [];
+      centroCostoOptions.value = uniqSorted(sample.map(x => x.centro_costo || x.centroCosto || x.centroCostoNombre || ''));
+    } else {
+      // general: mezcla
+      const [a, b] = await Promise.allSettled([
+        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(900))),
+        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(900))),
+      ]);
+      if (a.status === "fulfilled") a.value.forEach(d => sample.push(d.data() || {}));
+      if (b.status === "fulfilled") b.value.forEach(d => sample.push(d.data() || {}));
+      contratosOptions.value = [];
+      centroCostoOptions.value = [];
+    }
+
+    estatusSolpedOptions.value = uniqSorted(sample.map(x => (x.estatus || x.estado || '')).map(String));
+    tipoSolpedOptions.value = uniqSorted(sample.map(x => (x.tipo_solped || '')).map(String));
+
+    setCatalogCache({
+      contratos: contratosOptions.value,
+      cc: centroCostoOptions.value,
+      estSol: estatusSolpedOptions.value,
+      tipoSol: tipoSolpedOptions.value,
+    });
+  } catch (e) {
+    console.warn("No se pudo cargar catálogos rápidos", e);
+  }
+}
+
+/* ====== VS payload ====== */
 const vsEditorsPayload = ref({ labels: [], aprobadas: [], subidas: [] });
 
+/* ====== Helper: chunks para queries IN ====== */
+function chunkArray(arr, size=10) {
+  const out = [];
+  for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
+  return out;
+}
 
+/* ====== Cargar dashboard ====== */
 async function cargarTodo(force=false) {
   isLoading.value = true;
   lastError.value = "";
+
+  // catálogos “rápidos” (no bloquea)
+  cargarCatalogosRapidos().catch(()=>{});
 
   if (!force) {
     const hit = getCache();
@@ -713,218 +925,207 @@ async function cargarTodo(force=false) {
   })();
 
   try {
-    let solPromise, ocPromise, solAllPromise;
+    /* === 1) Traer datos base por mes (queries acotadas) === */
+    let solDocsMes = [];
+    let solDocsMesTaller = [];
+    let ocDocsMes = [];
+    let ocDocsMesTaller = [];
+    let solAllForPend = []; // para "pendientes (todos los meses)" (muestra limitada)
 
     if (segmento.value === 'empresa') {
-      const baseSol = query(
-        collection(db, "solpes"),
-        where("fecha", ">=", startStr),
-        where("fecha", "<", endStr),
-        orderBy("fecha", "asc")
-      );
-      solPromise = getDocs(baseSol);
+      const solQ = query(collection(db, "solpes"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
+      const ocQ  = query(collection(db, "ordenes_oc"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
 
-      let ocQ = query(
-        collection(db, "ordenes_oc"),
-        where("fechaSubida", ">=", start),
-        where("fechaSubida", "<", end),
-        orderBy("fechaSubida", "asc")
-      );
-      if (filtroEstatusOC.value) ocQ = query(ocQ, where("estatus","==",filtroEstatusOC.value));
-      ocPromise = getDocs(ocQ);
+      const [solSnap, ocSnap, solPendSnap] = await Promise.allSettled([
+        getDocs(solQ),
+        getDocs(ocQ),
+        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(2500))),
+      ]);
 
-
-      solAllPromise = getDocs(collection(db, "solpes"));
-    } else {
-      const baseTal = query(
-        collection(db, "solped_taller"),
-        where("fecha", ">=", startStr),
-        where("fecha", "<", endStr),
-        orderBy("fecha", "asc")
-      );
-      solPromise = getDocs(baseTal);
-
-      let ocTQ = query(
-        collection(db, "ordenes_oc_taller"),
-        where("fechaSubida", ">=", start),
-        where("fechaSubida", "<", end),
-        orderBy("fechaSubida", "asc")
-      );
-      if (filtroEstatusOC.value) ocTQ = query(ocTQ, where("estatus","==",filtroEstatusOC.value));
-      ocPromise = getDocs(ocTQ);
-
-      solAllPromise = getDocs(collection(db, "solped_taller"));
+      solDocsMes = solSnap.status === "fulfilled" ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      ocDocsMes  = ocSnap.status  === "fulfilled" ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))  : [];
+      solAllForPend = solPendSnap.status === "fulfilled" ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
     }
 
-    const [solSnap, ocSnap, solAllSnap] = await Promise.allSettled([solPromise, ocPromise, solAllPromise]);
+    if (segmento.value === 'taller') {
+      const solQ = query(collection(db, "solped_taller"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
+      const ocQ  = query(collection(db, "ordenes_oc_taller"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
 
-    const baseSol = solSnap.status === "fulfilled" ? solSnap.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
-    const baseOC  = ocSnap.status  === "fulfilled" ? ocSnap.value.docs.map(d => ({ id: d.id, ...d.data() }))  : [];
-    const baseSolAll = solAllSnap.status === "fulfilled" ? solAllSnap.value.docs.map(d => ({ id: d.id, ...d.data() })) : [];
+      const [solSnap, ocSnap, solPendSnap] = await Promise.allSettled([
+        getDocs(solQ),
+        getDocs(ocQ),
+        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(2500))),
+      ]);
 
-    // === Construcción de opciones (catálogos) desde los datos consultados ===
-    const uniq = (arr) =>
-      [...new Set(arr.map(v => String(v ?? '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
-
-    if (segmento.value === 'empresa') {
-      contratosOptions.value = uniq(baseSolAll.map(x => x.numero_contrato || x.numeroContrato || ''));
-      centroCostoOptions.value = uniq(baseSolAll.map(x => x.nombre_centro_costo || x.centroCostoNombre || ''));
-    } else {
-      contratosOptions.value = []; // no aplica
-      centroCostoOptions.value = uniq(baseSolAll.map(x => x.centro_costo || x.centroCosto || x.centroCostoNombre || ''));
+      solDocsMesTaller = solSnap.status === "fulfilled" ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      ocDocsMesTaller  = ocSnap.status  === "fulfilled" ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))  : [];
+      solAllForPend = solPendSnap.status === "fulfilled" ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
     }
-    estatusSolpedOptions.value = uniq(baseSolAll.map(x => (x.estatus || x.estado || '')).map(String));
-    tipoSolpedOptions.value    = uniq(baseSolAll.map(x => (x.tipo_solped || '')).map(String));
-    monedaOptions.value        = uniq(baseOC.map(o => (o.moneda || 'CLP').toString().toUpperCase()));
-    responsableOptions.value   = uniq(baseOC.map(o => (o.responsable || '—').toString()));
 
-    // Index SOLPED (para hacer match OC ↔ SOLPED por número)
-    const solIndexAllByNumero = buildSolIndexByNumero(baseSolAll);
+    if (segmento.value === 'general') {
+      const solEmpQ = query(collection(db, "solpes"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
+      const solTalQ = query(collection(db, "solped_taller"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
+      const ocEmpQ  = query(collection(db, "ordenes_oc"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
+      const ocTalQ  = query(collection(db, "ordenes_oc_taller"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
 
-    // ===== Filtros sobre SOLPED del mes =====
-    const solMes = baseSol.filter(x => {
+      const [solEmp, solTal, ocEmp, ocTal, pendEmp, pendTal] = await Promise.allSettled([
+        getDocs(solEmpQ),
+        getDocs(solTalQ),
+        getDocs(ocEmpQ),
+        getDocs(ocTalQ),
+        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(1500))),
+        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(1500))),
+      ]);
+
+      solDocsMes = solEmp.status === "fulfilled" ? solEmp.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      solDocsMesTaller = solTal.status === "fulfilled" ? solTal.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      ocDocsMes = ocEmp.status === "fulfilled" ? ocEmp.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      ocDocsMesTaller = ocTal.status === "fulfilled" ? ocTal.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+
+      const pendA = pendEmp.status === "fulfilled" ? pendEmp.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      const pendB = pendTal.status === "fulfilled" ? pendTal.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      solAllForPend = [...pendA, ...pendB];
+    }
+
+    /* === 2) Unificar listas según segmento === */
+    const baseSolMes = (segmento.value === "empresa") ? solDocsMes
+                    : (segmento.value === "taller")  ? solDocsMesTaller
+                    : [...solDocsMes, ...solDocsMesTaller];
+
+    const baseOCMes = (segmento.value === "empresa") ? ocDocsMes
+                  : (segmento.value === "taller")  ? ocDocsMesTaller
+                  : [...ocDocsMes, ...ocDocsMesTaller];
+
+    /* === 3) Catálogos OC (desde lo del mes: rápido) === */
+    monedaOptions.value = uniqSorted(baseOCMes.map(o => (o.moneda || 'CLP').toString().toUpperCase()));
+    responsableOptions.value = uniqSorted(baseOCMes.map(o => (o.responsable || '—').toString()));
+
+    /* === 4) Filtro SOLPED del mes === */
+    const solMes = baseSolMes.filter(x => {
       const f = x.fechaSubida || x.creado_en || x.fecha;
       if (!isInRange(f, start, end)) return false;
 
-      // Empresa (solo en segmento empresa)
+      // Empresa sólo en empresa (no general)
       if (segmento.value === 'empresa' && filtroEmpresa.value) {
         const emp = String(x.empresa || x.empresas || '');
         if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
-      // Contrato / Centro de costo exactos
+      // Contrato/CC solo cuando aplica
       if (segmento.value === 'empresa') {
         if (filtroContratoSel.value && String(x.numero_contrato || x.numeroContrato || '') !== filtroContratoSel.value) return false;
-      } else {
+      } else if (segmento.value === 'taller') {
         if (filtroCentroCostoSel.value && String(x.centro_costo || x.centroCosto || x.centroCostoNombre || '') !== filtroCentroCostoSel.value) return false;
       }
 
-      // Estatus y Tipo
       if (filtroEstatusSolped.value && _normTxt(x.estatus || x.estado || '') !== _normTxt(filtroEstatusSolped.value)) return false;
       if (filtroTipoSolped.value && _normTxt(x.tipo_solped || '') !== _normTxt(filtroTipoSolped.value)) return false;
 
       return true;
     });
 
-    // ✅ NUEVO: bandera si hay filtros “de SOLPED” activos (para aplicarlos a OC también)
     const solpedFiltersActive =
-      (!!filtroEmpresa.value && segmento.value === 'empresa') ||
-      (!!filtroContratoSel.value && segmento.value === 'empresa') ||
-      (!!filtroCentroCostoSel.value && segmento.value === 'taller') ||
+      ((segmento.value === 'empresa') && (!!filtroEmpresa.value || !!filtroContratoSel.value)) ||
+      ((segmento.value === 'taller') && !!filtroCentroCostoSel.value) ||
       !!filtroEstatusSolped.value ||
       !!filtroTipoSolped.value;
 
-    // ===== Filtros sobre OC del mes =====
-    const ocFiltradas = baseOC.filter(x => {
+    /* === 5) Construir índice SOLPED “target” (solo los necesarios por OC) === */
+    const nums = new Set();
+    for (const o of baseOCMes) ocSolpeNums(o).forEach(n => nums.add(n));
+    const numsArr = [...nums];
+
+    const solIndexDocs = [];
+    // añadimos los del mes ya traídos (sirven de base)
+    solIndexDocs.push(...baseSolMes);
+
+    // intentamos traer por IN (batched) para mejorar match (si fallara, seguimos con los del mes)
+    async function fetchByNumero(collName) {
+      if (!numsArr.length) return;
+      const chunks = chunkArray(numsArr, 10); // safe
+      for (const ch of chunks) {
+        try {
+          const snap = await getDocs(query(collection(db, collName), where("numero_solpe", "in", ch)));
+          snap.forEach(d => solIndexDocs.push({ id:d.id, ...d.data() }));
+        } catch (e) {
+          // si hay mismatch de tipos o falta índice, no bloqueamos
+          console.warn(`No se pudo fetchByNumero(${collName})`, e);
+          break;
+        }
+      }
+    }
+
+    if (segmento.value === "empresa") await fetchByNumero("solpes");
+    else if (segmento.value === "taller") await fetchByNumero("solped_taller");
+    else {
+      await Promise.allSettled([fetchByNumero("solpes"), fetchByNumero("solped_taller")]);
+    }
+
+    const solIndexAllByNumero = buildSolIndexByNumero(solIndexDocs);
+
+    /* === 6) Filtro OC del mes (incluye match a SOLPED si hay filtros de SOLPED activos) === */
+    const ocFiltradas = baseOCMes.filter(x => {
       const f = x.fechaSubida || x.fecha || x.creado_en;
       if (!isInRange(f, start, end)) return false;
 
-      // Empresa (solo en segmento empresa)
+      // Empresa solo en segmento empresa
       if (segmento.value === 'empresa' && filtroEmpresa.value) {
         const emp = String(x.empresa || x.empresas || '');
         if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
-      // Contrato/CC directo en OC (si existe)
+      // Contrato/CC directo (si existe) solo cuando aplica (no en general)
       const valContrato = (x.numero_contrato || x.numeroContrato || '').toString();
       const valCC = (x.nombre_centro_costo || x.centroCostoNombre || x.centro_costo || x.centroCosto || x.centroCostoTexto || '').toString();
       if (segmento.value === 'empresa') {
         if (filtroContratoSel.value && valContrato && valContrato !== filtroContratoSel.value) return false;
-      } else {
+      } else if (segmento.value === 'taller') {
         if (filtroCentroCostoSel.value && valCC && valCC !== filtroCentroCostoSel.value) return false;
       }
 
-      // OC filters
+      // filtros OC
       if (filtroEstatusOC.value && _normTxt(x.estatus||'') !== _normTxt(filtroEstatusOC.value)) return false;
       if (filtroMonedaOC.value && (x.moneda || 'CLP').toString().toUpperCase() !== filtroMonedaOC.value) return false;
       if (filtroResponsableOC.value && (x.responsable || '—').toString() !== filtroResponsableOC.value) return false;
 
-      // ✅ FIX CLAVE:
-      // Si hay filtros de SOLPED activos, la OC debe matchear por SOLPED asociado (numero_solpe/numero_solped en doc o items)
+      // match SOLPED si hay filtros SOLPED activos
       if (solpedFiltersActive) {
-        const nums = ocSolpeNums(x);
-
-        // Si hay números de SOLPED asociados → al menos uno debe calzar filtros SOLPED
-        if (nums.length) {
+        const ns = ocSolpeNums(x);
+        if (ns.length) {
           let ok = false;
-          for (const n of nums) {
+          for (const n of ns) {
             const sol = solIndexAllByNumero.get(n);
             if (solMatchesSolpedFilters(sol)) { ok = true; break; }
           }
           if (!ok) return false;
         } else {
-          // Si la OC no tiene link a SOLPED, fallback:
-          // - si OC trae tipo_solped, lo comparamos
+          // fallback mínimo si no hay solpe en la OC
           if (filtroTipoSolped.value) {
             const t = (x.tipo_solped || x.tipoSolped || '').toString();
             if (!t || _normTxt(t) !== _normTxt(filtroTipoSolped.value)) return false;
           }
-          // - si OC trae estatus_solped (raro), lo comparamos
-          if (filtroEstatusSolped.value) {
-            const es = (x.estatus_solped || x.estado_solped || '').toString();
-            if (es && _normTxt(es) !== _normTxt(filtroEstatusSolped.value)) return false;
-          }
-          // - si no hay contrato/CC en OC, no lo forzamos aquí (ya filtraste arriba si existía)
-        }
-      }
-
-      // Si el usuario filtró contrato/CC y la OC no trae ese campo, igual puede pasar por match SOLPED (arriba).
-      // Si no trae SOLPED ni campo, quedará fuera solo si tipo/estatus SOLPED lo exige.
-
-      // Si se filtró contrato/CC y la OC trae un contrato/CC vacío, pero sí tiene SOLPED asociado, también vale por match.
-      if (segmento.value === 'empresa' && filtroContratoSel.value && !valContrato) {
-        const nums = ocSolpeNums(x);
-        if (nums.length) {
-          let ok = false;
-          for (const n of nums) {
-            const sol = solIndexAllByNumero.get(n);
-            const c = String(sol?.numero_contrato || sol?.numeroContrato || '');
-            if (c === filtroContratoSel.value && solMatchesSolpedFilters(sol)) { ok = true; break; }
-          }
-          if (!ok) return false;
-        }
-      }
-      if (segmento.value === 'taller' && filtroCentroCostoSel.value && !valCC) {
-        const nums = ocSolpeNums(x);
-        if (nums.length) {
-          let ok = false;
-          for (const n of nums) {
-            const sol = solIndexAllByNumero.get(n);
-            const cc = String(sol?.centro_costo || sol?.centroCosto || sol?.centroCostoNombre || '');
-            if (cc === filtroCentroCostoSel.value && solMatchesSolpedFilters(sol)) { ok = true; break; }
-          }
-          if (!ok) return false;
         }
       }
 
       return true;
     });
 
-    /* ===== KPIs base ===== */
+    /* ===== KPIs ===== */
     kpis.value.creadasMes = solMes.length;
-    kpis.value.completadasMes = solMes.filter(x => _normTxt(x.estatus || x.estado || "") === "completado").length;
+    kpis.value.completadasMes = solMes.filter(solIsCompletedLike).length; // ✅ incluye cotizado parcial/completado
     kpis.value.ocMes = ocFiltradas.length;
 
     const totalOC = ocFiltradas.reduce((acc, x) => acc + ocMonto(x), 0);
-    kpis.value.gastoMes = totalOC; // ✅ ahora sí respeta tipo/estatus/contrato/empresa/cc vía match SOLPED
+    kpis.value.gastoMes = totalOC;
     kpis.value.ticketProm = ocFiltradas.length ? Math.round(totalOC / ocFiltradas.length) : 0;
 
     /* ===== KPIs avanzados ===== */
-    let conversionPct = 0;
-    if (segmento.value === 'taller') {
-      const setSol = new Set(solMes.map(x => Number(x.numero_solpe)).filter(Boolean));
-      const setOcSol = new Set();
-      for (const o of ocFiltradas) {
-        if (Array.isArray(o.items)) {
-          o.items.forEach(it => { const n = Number(it.numero_solped || it.numero_solpe); if (n) setOcSol.add(n); });
-        }
-      }
-      const match = [...setSol].filter(n => setOcSol.has(n)).length;
-      conversionPct = setSol.size ? (100 * match / setSol.size) : 0;
-    } else {
-      const ocConSol = ocFiltradas.filter(o => _normTxt(o.tipo_solped || "") !== "sin solped").length;
-      conversionPct = solMes.length ? (100 * ocConSol / solMes.length) : 0;
-    }
+    // conversión: aproximación por match OC ↔ SOLPED (por numero)
+    const setSol = new Set(solMes.map(x => Number(x.numero_solpe || x.numeroSolpe || x.numero_solped || x.numeroSolped)).filter(Boolean));
+    const setOcSol = new Set();
+    for (const o of ocFiltradas) ocSolpeNums(o).forEach(n => setOcSol.add(n));
+    const match = [...setSol].filter(n => setOcSol.has(n)).length;
+    const conversionPct = setSol.size ? (100 * match / setSol.size) : 0;
 
     const toDays = (ms) => (ms / (1000*60*60*24));
     const leadTimes = [];
@@ -943,7 +1144,8 @@ async function cargarTodo(force=false) {
     const rechazoPct = ocFiltradas.length ? (100 * rechazadas / ocFiltradas.length) : 0;
 
     let comentariosTallerMes = 0;
-    if (segmento.value === 'taller') {
+    // solo cuenta comentarios si estás viendo taller o general (porque puede incluir docs de taller)
+    if (segmento.value !== 'empresa') {
       for (const s of solMes) if (Array.isArray(s.comentarios)) comentariosTallerMes += s.comentarios.length;
     }
 
@@ -981,11 +1183,11 @@ async function cargarTodo(force=false) {
       return m;
     };
 
-    const topCreadores = contarPor(solMes, (x) =>
-      (segmento.value === 'empresa')
-        ? (x.usuario || x.dirigidoA?.[0] || '—')
-        : (x.nombre_solicitante || x.usuario_sesion || x.usuario || '—')
-    ).slice(0, 10);
+    const topCreadores = contarPor(solMes, (x) => {
+      if (segmento.value === 'empresa') return (x.usuario || x.dirigidoA?.[0] || '—');
+      // taller o general (puede venir con campos de ambos)
+      return (x.nombre_solicitante || x.usuario_sesion || x.usuario || x.dirigidoA?.[0] || '—');
+    }).slice(0, 10);
 
     const mapCount = new Map();
     const mapSpend = new Map();
@@ -1009,28 +1211,28 @@ async function cargarTodo(force=false) {
       (x.numero_contrato || x.nombre_centro_costo || x.centroCosto || x.centroCostoNombre || x.centro_costo || x.centroCostoTexto || '—').toString()
     ).slice(0, 12);
 
-    const distEstatus = agruparConteo(solMes, (x) => (x.estatus || x.estado || '—').toString());
+    const distEstatus = agruparConteo(solMes, (x) => canonSolpedStatus(x.estatus || x.estado || '—'));
     const distTipoSolped = agruparConteo(solMes, (x) => (x.tipo_solped || '—').toString());
 
-    const serieDiariaGasto = (ocs, start, end) => {
+    const bucket = new Map();
+    for (const o of ocFiltradas) {
+      const fx = normalizarFecha(o.fechaSubida || o.fecha || o.creado_en);
+      const key = fx.toISOString().slice(0,10);
+      bucket.set(key, (bucket.get(key) || 0) + ocMonto(o));
+    }
+    const serieDiariaGasto = (startD, endD) => {
       const labels = [];
       const values = [];
-      const d = new Date(start);
-      while (d < end) {
-        labels.push(d.toISOString().slice(0,10));
-        const daySum = ocs.reduce((acc, x) => {
-          const fx = normalizarFecha(x.fechaSubida || x.fecha || x.creado_en);
-          if (fx.getFullYear()===d.getFullYear() && fx.getMonth()===d.getMonth() && fx.getDate()===d.getDate()) {
-            return acc + ocMonto(x);
-          }
-          return acc;
-        }, 0);
-        values.push(daySum);
+      const d = new Date(startD);
+      while (d < endD) {
+        const k = d.toISOString().slice(0,10);
+        labels.push(k);
+        values.push(bucket.get(k) || 0);
         d.setDate(d.getDate()+1);
       }
       return { labels, values };
     };
-    const serieGasto = serieDiariaGasto(ocFiltradas, start, end);
+    const serieGasto = serieDiariaGasto(start, end);
 
     const aprobEntries = [];
     for (const o of ocFiltradas) {
@@ -1046,7 +1248,7 @@ async function cargarTodo(force=false) {
 
     const hoyList = solMes.filter(x => esHoy(x.fecha || x.creado_en || x.fechaSubida));
     const topHoyArr = contarPor(
-      hoyList.map(x => ({ nombre: (segmento.value === 'empresa') ? (x.usuario || x.dirigidoA?.[0]) : (x.nombre_solicitante || x.usuario_sesion || x.usuario) })),
+      hoyList.map(x => ({ nombre: (x.usuario || x.nombre_solicitante || x.usuario_sesion || x.dirigidoA?.[0] || '—') })),
       (r) => (r && r.nombre) || '—'
     ).slice(0, 10);
     topHoy.value = topHoyArr.map(([nombre, cantidad]) => ({ nombre, cantidad }));
@@ -1075,11 +1277,12 @@ async function cargarTodo(force=false) {
     const pendLabels = pendEntries.map(([k]) => k);
     const pendValues = pendEntries.map(([,v]) => v);
 
-    const pendAllEntries = pendientesPorDirigidoA(baseSolAll, ['pendiente']).slice(0, 15);
+    // "todos los meses": usamos muestra limitada (solAllForPend)
+    const pendAllEntries = pendientesPorDirigidoA(solAllForPend, ['pendiente']).slice(0, 15);
     const pendAllLabels = pendAllEntries.map(([k]) => k);
     const pendAllValues = pendAllEntries.map(([,v]) => v);
 
-    /* ===== ✅ NUEVO: Pies OC por tipo (count y monto) ===== */
+    /* ===== Pies OC ===== */
     const aggByKey = (ocs, getKey) => {
       const mCount = new Map();
       const mMonto = new Map();
@@ -1091,20 +1294,11 @@ async function cargarTodo(force=false) {
       const labels = [...mCount.keys()].sort((a,b)=>a.localeCompare(b,'es'));
       const counts = labels.map(l => mCount.get(l) || 0);
       const montos = labels.map(l => mMonto.get(l) || 0);
-      return {
-        labels,
-        counts,
-        montos,
-        totalCount: ocs.length,
-        totalMonto: montos.reduce((a,b)=>a+b,0),
-      };
+      return { labels, counts, montos, totalCount: ocs.length, totalMonto: montos.reduce((a,b)=>a+b,0) };
     };
-
     const ocTipoAgg = aggByKey(ocFiltradas, ocTipoOC);
     const ocTipoSolpedAgg = aggByKey(ocFiltradas, (o) => ocTipoSolped(o, solIndexAllByNumero));
 
-    /* ===== NUEVO: VS Cotizaciones Aprobadas vs Órdenes Subidas (solo EDITORS) ===== */
-    // Traer 'Usuarios' con role editor
     let editorsSet = new Set();
     try {
       const usersQ = query(collection(db, "Usuarios"), where("role", "in", ["editor", "Editor"]));
@@ -1118,16 +1312,13 @@ async function cargarTodo(force=false) {
       console.warn("No se pudo cargar Usuarios (role=editor). VS quedará vacío.", e);
     }
 
-    // Reglas de estatus para las dos series
     const isAprobadaLike = (s) => {
       const n = _normTxt(s || "");
-      // Incluye Aprobado, Preaprobado, Revisión Guillermo
       return n === "aprobado" || n === "preaprobado" || n.includes("revision") || n.includes("revisión");
     };
     const isSubidaProveedor = (s) => _normTxt(s || "").includes("proveedor");
 
-    // Agrupar por responsable, solo si está en editorsSet
-    const porResp = new Map(); // resp -> { aprobadas: n, subidas: n }
+    const porResp = new Map();
     for (const o of ocFiltradas) {
       const resp = (o.responsable || "—").toString().trim();
       if (!resp || !editorsSet.has(resp)) continue;
@@ -1147,6 +1338,41 @@ async function cargarTodo(force=false) {
     const vsAprobadas = entriesVS.map(([,v]) => v.aprobadas);
     const vsSubidas = entriesVS.map(([,v]) => v.subidas);
 
+    const perUser = new Map();
+    const perUserTotal = new Map();
+    for (const o of ocFiltradas) {
+      const user = (o.responsable || "—").toString().trim() || "—";
+      const st = canonOcStatus(o.estatus);
+      if (!perUser.has(user)) perUser.set(user, new Map());
+      const m = perUser.get(user);
+      m.set(st, (m.get(st) || 0) + 1);
+      perUserTotal.set(user, (perUserTotal.get(user) || 0) + 1);
+    }
+
+    const usersTop = [...perUserTotal.entries()]
+      .sort((a,b) => b[1]-a[1])
+      .slice(0, 15)
+      .map(([u]) => u);
+
+    const datasetsStatus = OC_ESTATUS_CANON.map((st) => ({
+      label: st,
+      data: usersTop.map(u => (perUser.get(u)?.get(st) || 0)),
+      borderWidth: 1,
+      maxBarThickness: 26,
+    }));
+
+    const rows = usersTop.map((u) => {
+      const counts = {};
+      let total = 0;
+      for (const st of OC_ESTATUS_CANON) {
+        const v = perUser.get(u)?.get(st) || 0;
+        counts[st] = v;
+        total += v;
+      }
+      return { user: u, counts, total };
+    });
+
+    /* ===== Payload ===== */
     const payload = {
       kpis: { ...kpis.value },
       kpisExtra: { ...kpisExtra.value },
@@ -1160,12 +1386,16 @@ async function cargarTodo(force=false) {
       solpedPend: { labels: pendLabels, values: pendValues },
       solpedPendAll: { labels: pendAllLabels, values: pendAllValues },
 
-      // NUEVO payload VS
       vsEditors: { labels: vsLabels, aprobadas: vsAprobadas, subidas: vsSubidas },
 
-      // ✅ NUEVO payload pies OC
       ocTipoAgg,
       ocTipoSolpedAgg,
+
+      ocStatusByUser: {
+        users: usersTop,
+        rows,
+        datasets: datasetsStatus,
+      }
     };
 
     const thisKey = cacheKey();
@@ -1184,9 +1414,9 @@ async function cargarTodo(force=false) {
   }
 }
 
-/* ====== Charts ====== */
+
 function destroyAll() {
-  Object.values(charts).forEach(ch => { try { ch && ch.destroy && ch.destroy(); } catch(e) {console.error(e)} });
+  Object.values(charts).forEach(ch => { try { ch && ch.destroy && ch.destroy(); } catch(e) { console.error(e); } });
   charts = {
     topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
     tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
@@ -1196,6 +1426,8 @@ function destroyAll() {
     ocTipoMontoPie: null,
     ocTipoSolpedCountPie: null,
     ocTipoSolpedMontoPie: null,
+
+    ocStatusByUser: null,
   };
 }
 
@@ -1293,7 +1525,6 @@ function drawLineMoney(canvas, key, labels, values, dsLabel) {
   });
 }
 
-// NUEVO: barras agrupadas (dos datasets)
 function drawGroupedBar(canvas, key, labels, series, formatters = {}) {
   if (!window.Chart || !canvas) return;
   charts[key]?.destroy?.();
@@ -1331,17 +1562,69 @@ function drawGroupedBar(canvas, key, labels, series, formatters = {}) {
   });
 }
 
+
+function drawMultiBarsByUser(canvas, key, labels, datasets) {
+  if (!window.Chart || !canvas) return;
+  charts[key]?.destroy?.();
+
+
+  const ds = (datasets || []).map(d => ({
+    ...d,
+    borderWidth: 1,
+
+    barThickness: 10,
+    maxBarThickness: 14,
+    categoryPercentage: 0.9,
+    barPercentage: 0.9,
+  }));
+
+  charts[key] = new window.Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: { labels, datasets: ds },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: "y",
+      plugins: {
+        legend: {
+          display: true,
+          position: "top",
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x ?? 0}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          stacked: false,
+          ticks: { precision: 0 }
+        },
+        y: {
+          stacked: false,
+          ticks: { autoSkip: false }
+        }
+      }
+    }
+  });
+}
+
 function pintarDesdePayload(p){
-  // KPIs/tabla
+
   kpis.value = { ...p.kpis };
   kpisExtra.value = { ...p.kpisExtra };
   topHoy.value = p.topHoy || [];
 
-  // ✅ payloads pies OC
+
   ocTipoAggPayload.value = p.ocTipoAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
   ocTipoSolpedAggPayload.value = p.ocTipoSolpedAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
 
-  // Gráficos existentes
+
+  ocStatusByUserPayload.value = p.ocStatusByUser || { users: [], rows: [], datasets: [] };
+
+
   drawBar(cTopCreadores.value, 'topCread', (p.topCreadores||[]).map(([k])=>k), (p.topCreadores||[]).map(([,v])=>v), 'Creadas');
   drawPie(cEstatusPie.value, 'estatusPie', Object.keys(p.distEstatus || {}), Object.values(p.distEstatus || {}));
   drawLineMoney(cGastoLine.value, 'gastoLine', p.serieGasto.labels, p.serieGasto.values, 'Gasto diario');
@@ -1363,14 +1646,10 @@ function pintarDesdePayload(p){
     );
   }
 
-  if (p.solpedPend) {
-    drawBar(cSolpedPendH.value, 'solpedPend', p.solpedPend.labels, p.solpedPend.values, 'Pendientes', null);
-  }
-  if (p.solpedPendAll) {
-    drawBar(cSolpedPendAll.value, 'solpedPendAll', p.solpedPendAll.labels, p.solpedPendAll.values, 'Pendientes', null);
-  }
+  if (p.solpedPend) drawBar(cSolpedPendH.value, 'solpedPend', p.solpedPend.labels, p.solpedPend.values, 'Pendientes', null);
+  if (p.solpedPendAll) drawBar(cSolpedPendAll.value, 'solpedPendAll', p.solpedPendAll.labels, p.solpedPendAll.values, 'Pendientes', null);
 
-  // VS data visible + chart
+
   vsEditorsPayload.value = p.vsEditors || { labels: [], aprobadas: [], subidas: [] };
   if (p.vsEditors && Array.isArray(p.vsEditors.labels)) {
     drawGroupedBar(
@@ -1384,7 +1663,7 @@ function pintarDesdePayload(p){
     );
   }
 
-  // ✅ NUEVO: tortas OC (Cantidad y Monto)
+
   if (p.ocTipoAgg?.labels?.length) {
     drawPie(cOcTipoCountPie.value, 'ocTipoCountPie', p.ocTipoAgg.labels, p.ocTipoAgg.counts);
     drawPie(cOcTipoMontoPie.value, 'ocTipoMontoPie', p.ocTipoAgg.labels, p.ocTipoAgg.montos, formatearCLP);
@@ -1398,6 +1677,18 @@ function pintarDesdePayload(p){
   } else {
     charts.ocTipoSolpedCountPie?.destroy?.(); charts.ocTipoSolpedMontoPie?.destroy?.();
   }
+
+  if (p.ocStatusByUser?.users?.length && p.ocStatusByUser?.datasets?.length) {
+    drawMultiBarsByUser(
+      cOcStatusByUser.value,
+      "ocStatusByUser",
+      p.ocStatusByUser.users,
+      p.ocStatusByUser.datasets
+    );
+  } else {
+    charts.ocStatusByUser?.destroy?.();
+  }
+
 }
 </script>
 
@@ -1409,7 +1700,6 @@ function pintarDesdePayload(p){
   .dashboard-page.with-sidenav{ padding-left: var(--sidenav-w); }
 }
 
-
 @media (min-width: 576px){ .h4-sm{ font-size: 1.35rem; } }
 
 .card { border-radius: 1rem; }
@@ -1417,20 +1707,22 @@ function pintarDesdePayload(p){
 .card-body { min-height: 280px; }
 .table > :not(caption) > * > * { vertical-align: middle; }
 
-/* Botoneras que envuelven bien en móviles */
 .btn-group.flex-wrap .btn{ border-radius: .5rem !important; }
 .btn-group.flex-wrap .btn + .btn{ margin-left: .25rem; }
 @media (max-width: 576px){
   .btn-group.flex-wrap{ gap: .25rem; }
 }
 
-/* Charts: altura flexible y canvases llenan ancho */
-.chart-fixed-h{ min-height: 300px; max-height: 380px; }
+.chart-fixed-h{ min-height: 300px; max-height: 420px; }
 canvas{ width:100% !important; height:100% !important; display:block; }
 
-/* Caja para 2 pies dentro del mismo card sin que se rompa */
-.pie-box{
-  height: 260px;
+.pie-box{ height: 260px; }
+
+
+.table-sticky thead th{
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 /* Loading UX */
@@ -1478,7 +1770,6 @@ canvas{ width:100% !important; height:100% !important; display:block; }
 }
 .offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
-
 
 select.form-select { max-width: 100%; text-overflow: ellipsis; }
 </style>

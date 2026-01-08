@@ -835,6 +835,7 @@ const ESTATUS_OPC = [
   "Solicitado",
   "Cotizando",
   "Cotizando Parcial",
+  "Cotizado Parcial",
   "Cotizando Completado",
   "Cotizado parcial",
   "Revisión",

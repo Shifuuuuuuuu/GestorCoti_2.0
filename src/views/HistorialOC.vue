@@ -51,33 +51,69 @@
         <div>{{ error }}</div>
       </div>
 
-      <!-- Buscador exacto por N° OC -->
+      <!-- ✅ ÚNICA BARRA DE BÚSQUEDA: número OC + nombre archivo (variantes) -->
       <div class="card card-elevated mb-3">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">🔎 Buscar por N° de Cotización</div>
-          <div class="small text-secondary">Búsqueda exacta</div>
+          <div class="fw-semibold">🔎 Buscar cotización (N° o archivo)</div>
+          <div class="small text-secondary">Página + Firestore</div>
         </div>
+
         <div class="card-body">
-          <div class="row g-2">
+          <div class="row g-2 align-items-center">
             <div class="col-12 col-sm-9">
-              <input type="number" class="form-control" v-model.number="numeroOC" @keyup.enter="buscarOCExacta" placeholder="Ej: 1628">
+              <input
+                type="text"
+                class="form-control"
+                v-model="searchText"
+                @keyup.enter="buscarGlobal"
+                placeholder="Ej: OC 62587 CAREN / CAREN.pdf / 2851"
+              />
             </div>
+
             <div class="col-12 col-sm-3 d-grid">
-              <button class="btn btn-danger" @click="buscarOCExacta">
-                <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2"></span>
+              <button class="btn btn-danger" @click="buscarGlobal">
+                <span v-if="loadingGlobalSearch" class="spinner-border spinner-border-sm me-2"></span>
                 Buscar
               </button>
             </div>
           </div>
-          <div v-if="ocEncontrada" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
-            <div class="me-auto">
-              <div class="fw-semibold">Resultado: N° {{ ocEncontrada.id ?? '—' }}</div>
-              <div class="small text-secondary">
-                {{ ocEncontrada.empresa }} · {{ ocEncontrada.nombre_centro_costo || ocEncontrada.centroCostoNombre || '—' }}
-                · {{ fmtFecha(ocEncontrada.fechaSubida) }}
-              </div>
+
+          <!-- Coincidencias SOLO para informar (no filtra el listado) -->
+          <div v-if="lastSearchTextTrim && pageMatchesCount >= 0" class="mt-2 small text-secondary">
+            Coincidencias en esta página (por nombre de archivo): <strong>{{ pageMatchesCount }}</strong>
+          </div>
+
+          <!-- Resultados Firestore -->
+          <div v-if="resultadosBusqueda.length" class="mt-3">
+            <div class="small text-secondary mb-2">
+              Resultados Firestore: {{ resultadosBusqueda.length }}
+              <span v-if="busquedaIncluyoNumero" class="text-muted">· incluye búsqueda por N°</span>
+              <span v-if="busquedaIncluyoNombre" class="text-muted">· incluye búsqueda por nombre</span>
             </div>
-            <button class="btn btn-sm btn-outline-primary" @click="goOC(ocEncontrada)">Ver detalle</button>
+
+            <div
+              v-for="r in resultadosBusqueda"
+              :key="r.__docId"
+              class="alert alert-light d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2"
+            >
+              <div class="me-auto">
+                <div class="fw-semibold">🧾 N° {{ r.id ?? '—' }}</div>
+                <div class="small text-secondary">
+                  {{ r.empresa }} · {{ fmtFecha(r.fechaSubida) }}
+                </div>
+                <div class="small">
+                  <strong>Archivo:</strong> {{ getArchivoNombre(r) || '—' }}
+                </div>
+              </div>
+
+              <button class="btn btn-sm btn-outline-primary" @click="goOC(r)">
+                Ver detalle
+              </button>
+            </div>
+          </div>
+
+          <div v-else-if="searchedOnce" class="alert alert-warning mt-3 mb-0">
+            No se encontraron coincidencias en Firestore con ese texto.
           </div>
         </div>
       </div>
@@ -176,7 +212,6 @@
                   :class="isEditor ? estadoHeaderClass(oc.estatus) : ''"
                 >
                   <div class="d-flex align-items-center gap-3">
-
                     <div class="fw-semibold">
                       🧾 N° <span class="text-danger">{{ oc.id ?? '—' }}</span>
                     </div>
@@ -385,7 +420,9 @@ import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
-  collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer
+  collection, query, where, orderBy, limit,
+  startAfter, startAt, endAt,
+  getDocs, getCountFromServer
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
@@ -512,7 +549,192 @@ const FiltroForm = {
     ]
   }
 };
+/* ===================== BÚSQUEDA ÚNICA (N° + nombre variantes) ===================== */
+function _stripExt(name) {
+  const s = String(name || '').trim();
+  return s.replace(/\.(pdf|png|jpg|jpeg)$/i, '').trim();
+}
 
+function _extractBestNumber(text) {
+  const matches = String(text || '').match(/\d{2,}/g) || [];
+  if (!matches.length) return '';
+  matches.sort((a, b) => b.length - a.length);
+  return matches[0] || '';
+}
+
+function _extractOcNumberFromNorm(norm) {
+  // "oc 62587" o "oc62587" -> "62587"
+  const m = String(norm || '').match(/\boc\s*([0-9]{2,})\b/i);
+  return m ? m[1] : '';
+}
+
+function _buildNameVariants(raw) {
+  // Genera candidatos exactos para where('archivoOC.nombre' == X)
+  const out = new Set();
+  const r = String(raw || '').trim();
+  if (!r) return [];
+
+  const base = _stripExt(r);
+
+  out.add(r);
+  out.add(base);
+
+  // si no trae .pdf, probar con .pdf
+  if (!/\.pdf$/i.test(r)) out.add(`${r}.pdf`);
+  if (!/\.pdf$/i.test(base)) out.add(`${base}.pdf`);
+
+  // también: si trae "OC 62587" y existe el archivo "OC 62587 CAREN.pdf"
+  // no se puede adivinar "CAREN" exacto, PERO esto ayuda si el nombre real es exactamente "OC 62587.pdf"
+  // (no molesta, solo agrega opciones)
+  const norm = _normTxt(r);
+  const num = _extractOcNumberFromNorm(norm) || _extractBestNumber(r);
+  if (num) {
+    out.add(`OC ${num}`);
+    out.add(`OC ${num}.pdf`);
+    out.add(`oc ${num}`);
+    out.add(`oc ${num}.pdf`);
+  }
+
+  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 10);
+}
+
+async function _safeGetDocs(q) {
+  try { return await getDocs(q); }
+  catch (e) { console.warn('getDocs error:', e); return null; }
+}
+
+const buscarGlobal = async () => {
+  resultadosBusqueda.value = [];
+  searchedOnce.value = false;
+  missingLowerHint.value = false;
+  busquedaIncluyoNumero.value = false;
+  busquedaIncluyoNombre.value = false;
+
+  const raw = String(searchText.value || "").trim();
+  if (!raw) return;
+
+  lastSearchText.value = raw;
+
+  const norm = _normTxt(raw);
+  const baseNorm = _normTxt(_stripExt(raw));
+
+  const bestNumStr = _extractBestNumber(raw);
+  const ocNumStr = _extractOcNumberFromNorm(norm) || bestNumStr;
+  const ocNum = ocNumStr ? Number(ocNumStr) : NaN;
+  const hasNum = !!ocNumStr && !Number.isNaN(ocNum) && ocNum > 0;
+
+  loadingGlobalSearch.value = true;
+
+  try {
+    const merged = new Map();
+
+    const addDocSnap = (docSnap) => {
+      if (!docSnap) return;
+      if (!merged.has(docSnap.id)) merged.set(docSnap.id, { __docId: docSnap.id, ...docSnap.data() });
+    };
+
+    const addSnap = (snap) => {
+      if (!snap?.docs?.length) return;
+      snap.docs.forEach(addDocSnap);
+    };
+
+    // ✅ IMPORTANTE: búsqueda global NO respeta filtros del sidebar (como lo dejaste)
+    const baseCol = collection(db, "ordenes_oc");
+
+    /* (1) Buscar por número (id / numero_oc / archivoOC.ocNumber si existe) */
+    if (hasNum) {
+      busquedaIncluyoNumero.value = true;
+
+      // id como número
+      addSnap(await _safeGetDocs(query(baseCol, where("id", "==", ocNum), limit(10))));
+
+      // id como string (por si lo guardaste como "62587")
+      addSnap(await _safeGetDocs(query(baseCol, where("id", "==", String(ocNumStr)), limit(10))));
+
+      // campo legacy
+      addSnap(await _safeGetDocs(query(baseCol, where("numero_oc", "==", ocNum), limit(20))));
+      addSnap(await _safeGetDocs(query(baseCol, where("numero_oc", "==", String(ocNumStr)), limit(20))));
+
+      // ✅ si guardas esto al subir (recomendado)
+      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.ocNumber", "==", ocNum), limit(20))));
+      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.ocNumber", "==", String(ocNumStr)), limit(20))));
+    }
+
+    busquedaIncluyoNombre.value = true;
+
+    const variants = _buildNameVariants(raw);
+
+    for (const v of variants) {
+      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.nombre", "==", v), limit(20))));
+      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.name", "==", v), limit(20))));
+      addSnap(await _safeGetDocs(query(baseCol, where("archivoOCNombre", "==", v), limit(20))));
+      addSnap(await _safeGetDocs(query(baseCol, where("nombre", "==", v), limit(20))));
+
+      if (merged.size >= 20) break;
+    }
+
+    const lowerCandidates = new Set();
+    if (norm) lowerCandidates.add(norm);
+    if (baseNorm) lowerCandidates.add(baseNorm);
+    if (hasNum) lowerCandidates.add(`oc ${ocNumStr}`);
+
+    for (const lc of Array.from(lowerCandidates).filter((x) => x.length >= 3).slice(0, 5)) {
+      const sEq = await _safeGetDocs(query(baseCol, where("archivoOC.nombreLower", "==", lc), limit(20)));
+      if (!sEq) missingLowerHint.value = true;
+      addSnap(sEq);
+      if (merged.size >= 20) break;
+    }
+    const prefixCandidates = new Set();
+    if (baseNorm) prefixCandidates.add(baseNorm);
+    if (norm) prefixCandidates.add(norm);
+    if (hasNum) prefixCandidates.add(`oc ${ocNumStr}`);
+
+    for (const pfx of Array.from(prefixCandidates).filter((x) => x.length >= 3).slice(0, 3)) {
+      const sPfx = await _safeGetDocs(
+        query(
+          baseCol,
+          orderBy("archivoOC.nombreLower"),
+          startAt(pfx),
+          endAt(pfx + "\uf8ff"),
+          limit(20)
+        )
+      );
+      if (!sPfx) missingLowerHint.value = true;
+      addSnap(sPfx);
+      if (merged.size >= 20) break;
+    }
+    if (merged.size === 0 && (baseNorm || norm || hasNum)) {
+      const qRecent = query(baseCol, orderBy("fechaSubida", "desc"), limit(500));
+      const sRecent = await _safeGetDocs(qRecent);
+
+      const qn = baseNorm || norm;
+      if (sRecent?.docs?.length) {
+        for (const d of sRecent.docs) {
+          const data = d.data() || {};
+          const fname = _normTxt(getArchivoNombre(data));
+          const hasHit =
+            (qn && fname.includes(qn)) ||
+            (hasNum && fname.includes(String(ocNumStr))) ||
+            (hasNum && fname.includes(String(ocNum)));
+
+          if (hasHit) addDocSnap(d);
+          if (merged.size >= 20) break;
+        }
+      }
+    }
+
+    resultadosBusqueda.value = Array.from(merged.values());
+    searchedOnce.value = true;
+  } catch (e) {
+    console.error("buscarGlobal error", e);
+    searchedOnce.value = true;
+  } finally {
+    loadingGlobalSearch.value = false;
+  }
+};
+
+
+/* ===================== Helpers ===================== */
 function _estadoKeyPlano(v) {
   return String(v ?? '')
     .toLowerCase()
@@ -570,16 +792,45 @@ function hasArchivoOC(oc) {
   return false;
 }
 
+function _normTxt(v) {
+  return String(v ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getArchivoNombre(oc) {
+  const a = oc?.archivoOC;
+
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
+    if (a.nombre) return String(a.nombre);
+  }
+
+  if (Array.isArray(a) && a.length) {
+    const firstObj = a.find(x => x && typeof x === 'object' && x.nombre);
+    if (firstObj?.nombre) return String(firstObj.nombre);
+
+    const firstStr = a.find(x => typeof x === 'string' && x.trim());
+    if (firstStr) return String(firstStr);
+  }
+
+  if (oc?.archivoOCNombre) return String(oc.archivoOCNombre);
+  if (oc?.nombre) return String(oc.nombre);
+  return '';
+}
+
 function faltaSubirOC(oc) {
   return estadoKey(oc?.estatus) === 'aprobado' && !hasArchivoOC(oc);
 }
 
+/* ===================== Router/Auth ===================== */
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
 
 const volver = () => {
-  // por si vuelves a una vista anterior y quieres conservar estado aquí también
   persistRouteState();
   router.back();
 };
@@ -614,16 +865,31 @@ const handleResize = () => {
   if (isDesktop.value && wasMobileOpen) closeFiltersMobile();
 };
 
+/* ===================== State ===================== */
 const loading = ref(true);
-const loadingSearch = ref(false);
 const error = ref('');
 
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-const numeroOC = ref(null);
-const ocEncontrada = ref(null);
+/** ✅ Input único */
+const searchText = ref('');
 
+/** ✅ Texto “aplicado” al apretar Buscar (para conteo en página) */
+const lastSearchText = ref('');
+const lastSearchTextTrim = computed(() => String(lastSearchText.value || '').trim());
+
+/** Resultados Firestore (del botón Buscar) */
+const resultadosBusqueda = ref([]);
+const loadingGlobalSearch = ref(false);
+const searchedOnce = ref(false);
+
+/** Flags UI */
+const busquedaIncluyoNumero = ref(false);
+const busquedaIncluyoNombre = ref(false);
+const missingLowerHint = ref(false);
+
+// filtros
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
@@ -672,6 +938,7 @@ const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
 const centroSearch = ref('');
 
+/* ===================== Paginación/estado ===================== */
 const page = ref(1);
 const pageSize = ref(5);
 const totalCount = ref(0);
@@ -680,10 +947,8 @@ const pageTo   = computed(() => Math.min(totalCount.value, page.value * pageSize
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
 
 const cursors = ref({});
-let unsubscribe = null;
 const savedScrollY = ref(0);
 
-/* ========= NUEVO: Estado para restauración de página ========= */
 const booting = ref(true);
 const ROUTE_STATE_KEY = computed(() => `histOC:routeState:${String(route?.name || 'HistorialOC')}`);
 
@@ -712,12 +977,10 @@ function loadRouteState() {
   }
 }
 
-/* ========= NUEVO: precarga cursores hasta la página deseada ========= */
 async function ensureCursorsForPage(targetPage) {
   const p = Number(targetPage || 1);
   if (p <= 1) return;
 
-  // reconstruye cursors[1..p-1] si no están
   const wh = buildBaseWhere();
   let prevCursor = null;
 
@@ -741,7 +1004,7 @@ async function ensureCursorsForPage(targetPage) {
     cursors.value[i] = last || null;
     prevCursor = last || null;
 
-    if (!last) break; // no hay más documentos para seguir avanzando
+    if (!last) break;
   }
 }
 
@@ -793,7 +1056,6 @@ const removeCentro = (code) => {
   applyFilters();
 };
 
-/* ========= Flags ========= */
 const isDigits = (v) => /^[0-9\-]+$/.test((v||'').trim());
 const centroNombreFiltroActivo = computed(() => centroSearch.value && !isDigits(centroSearch.value));
 const clientCentrosOverflow = computed(() => selectedCentros.value.length > 10);
@@ -807,10 +1069,8 @@ const hasActiveFilters = computed(() =>
   selectedCentros.value.length > 0
 );
 
-/* ========= Usuario actual ========= */
 const currentUserName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || '').trim());
 
-/* ========= Persistencia local ========= */
 const LS_FILTERS = 'histOC:filters_v1';
 const LS_SOLO_MIAS_KEY = 'histOC:soloMias';
 
@@ -909,14 +1169,15 @@ const makePageQuery = (pageNumber=1) => {
   return base;
 };
 
-/* ========= Suscripción ========= */
-const subscribePage = () => {
-  if (typeof unsubscribe === 'function') { unsubscribe(); unsubscribe = null; }
-
+/* ========= Carga de página (NO realtime) ========= */
+const fetchPage = async () => {
   loading.value = true;
-  const q = makePageQuery(page.value);
+  error.value = '';
 
-  unsubscribe = onSnapshot(q, async (snap) => {
+  try {
+    const q = makePageQuery(page.value);
+    const snap = await getDocs(q);
+
     let docs = snap.docs.map(d => ({ __docId: d.id, ...d.data() }));
 
     if (clientCentrosOverflow.value) {
@@ -933,11 +1194,11 @@ const subscribePage = () => {
 
     await nextTick();
     window.scrollTo(0, savedScrollY.value);
-  }, (e) => {
+  } catch (e) {
     console.error(e);
     error.value = 'No se pudieron cargar las cotizaciones de la página.';
     loading.value = false;
-  });
+  }
 };
 
 const refreshCount = async () => {
@@ -963,8 +1224,17 @@ function applyClientFilters(arr) {
     });
   }
 
+  // ✅ IMPORTANTE: ya NO filtramos la lista por searchText.
+  // La búsqueda por searchText es SOLO con el botón Buscar (resultadosBusqueda abajo).
+
   return out;
 }
+
+const pageMatchesCount = computed(() => {
+  const qn = _normTxt(lastSearchText.value);
+  if (!qn) return 0;
+  return (pageDocs.value || []).filter(oc => _normTxt(getArchivoNombre(oc)).includes(qn)).length;
+});
 
 const agruparPorEmpresa = (arr=[]) => {
   const out = {};
@@ -982,7 +1252,7 @@ const applyFilters = () => {
   page.value = 1;
   cursors.value = {};
   savedScrollY.value = window.scrollY;
-  subscribePage();
+  fetchPage();
   refreshCount();
 };
 
@@ -1008,12 +1278,11 @@ const goPage = async (p) => {
   savedScrollY.value = window.scrollY;
   page.value = p;
 
-  // NUEVO: si alguien salta a una página y no hay cursor previo, lo preparamos
   if (page.value > 1 && !cursors.value[page.value - 1]) {
     try { await ensureCursorsForPage(page.value); } catch(e){ console.error('ensureCursorsForPage error', e); }
   }
 
-  subscribePage();
+  fetchPage();
 };
 
 const nextPage = () => goPage(page.value + 1);
@@ -1030,23 +1299,6 @@ const goSolped = (oc) => {
   router.push({ name: 'SolpedDetalle', params: { id } });
 };
 
-const buscarOCExacta = async () => {
-  ocEncontrada.value = null;
-  const n = Number(numeroOC.value || 0);
-  if (!n) return;
-  loadingSearch.value = true;
-  try {
-    const wh = buildBaseWhere();
-    const q = query(collection(db, 'ordenes_oc'), ...wh, where('id','==', n), limit(1));
-    const snap = await getDocs(q);
-    if (!snap.empty) ocEncontrada.value = { __docId: snap.docs[0].id, ...snap.docs[0].data() };
-  } catch (e) {
-    console.error(e);
-  } finally {
-    loadingSearch.value = false;
-  }
-};
-
 const showScrollTop = ref(false);
 const onScroll = () => {
   showScrollTop.value = window.scrollY > 300;
@@ -1055,21 +1307,17 @@ const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-/* ========= NUEVO: guardar estado al salir ========= */
 onBeforeRouteLeave(() => {
   persistRouteState();
 });
 
-/* ========= Init / Cleanup ========= */
 onMounted(async () => {
   computeIsDesktop();
   window.addEventListener('resize', handleResize);
   window.addEventListener('scroll', onScroll, { passive: true });
 
-  // carga filtros + sidebar persistidos
   loadPersistedFilters();
 
-  // NUEVO: restaura page + scroll (si vienes “de vuelta”)
   const st = loadRouteState();
   if (st) {
     if ([5,10,20,30,40,50].includes(Number(st.pageSize))) pageSize.value = Number(st.pageSize);
@@ -1079,31 +1327,26 @@ onMounted(async () => {
     page.value = restoredPage;
     savedScrollY.value = restoredScroll;
 
-    // precargar cursores si la página es > 1 (necesario para startAfter)
     if (page.value > 1) {
       try { await ensureCursorsForPage(page.value); } catch(e){ console.error('restore ensureCursorsForPage error', e); }
     }
   }
 
-  // suscribe y cuenta
-  subscribePage();
+  await fetchPage();
   await refreshCount();
 
-  // sincroniza entre pestañas
   window.addEventListener('storage', onStorageSync);
 
   booting.value = false;
 });
 
 onBeforeUnmount(() => {
-  if (typeof unsubscribe === 'function') unsubscribe();
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('scroll', onScroll);
   document.documentElement.style.overflow = '';
 });
 onUnmounted(() => { window.removeEventListener('storage', onStorageSync); });
 
-/* ========= Observadores ========= */
 watch(
   [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
   () => {
@@ -1115,6 +1358,7 @@ watch(
 </script>
 
 <style scoped>
+/* (tu CSS igual, no lo cambié) */
 .hist-oc-page{ min-height:100vh; }
 .card-elevated{
   border:1px solid #e5e7eb !important;
