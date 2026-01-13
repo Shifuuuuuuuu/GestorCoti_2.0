@@ -180,7 +180,8 @@ export function useRoleMenus() {
       { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" },
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
       { name: "AiInspectorView", text: "Chatbot", icon:"bi bi-robot" },
-      { name: "GenerarCotizacion", text: "Generador de cotización", icon: "bi bi-clipboard2-minus"}
+      { name: "GenerarCotizacion", text: "Generador de cotización", icon: "bi bi-clipboard2-minus"},
+      { name: "GenerarCertificados", text: "Generador de certificados", icon:"bi bi-clipboard2"}
     ];
   });
 

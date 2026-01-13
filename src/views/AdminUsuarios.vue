@@ -538,7 +538,9 @@ const centrosCosto = {
   'INFRAESTRUCTURA': 'CONTRATO INFRAESTRUCTURA DET',
   'CHUQUICAMATA': 'CONTRATO CHUQUICAMATA',
   'CARPETASDET': 'CONTRATO CARPETAS DET',
-  '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM'
+  '30-10-11': 'GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM',
+  '10-10-20': 'TALLER SAN BERNARDO',
+  '31155': 'DIVISION ANDINA 4600031155'
 };
 const ccLista = Object.entries(centrosCosto).map(([key, label]) => ({ key, label }));
 const nombreContrato = (k) => centrosCosto[k] || k;

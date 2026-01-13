@@ -53,11 +53,11 @@
         <div class="card-body">
           <div class="row g-2 align-items-end">
             <div class="col-12 col-md-6">
-              <label class="form-label">Buscar (equipo, marca o código)</label>
+              <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
               <input
                 class="form-control"
                 v-model="busqueda"
-                placeholder="Ej: SILO, RANDON, JK-2864" />
+                placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label">Filtrar por Clasificación</label>
@@ -97,6 +97,8 @@
                   <tr>
                     <th style="width:34px;"></th>
                     <th style="min-width:120px;">Código</th>
+                    <th style="min-width:120px;">N° Interno</th>
+                    <th class="d-none d-md-table-cell" style="min-width:140px;">N° Motor</th>
                     <th>Equipo</th>
                     <th class="d-none d-md-table-cell">Marca / Modelo</th>
                     <th class="d-none d-lg-table-cell">Clasificación</th>
@@ -106,17 +108,37 @@
                     <th class="text-end pe-3" style="width:160px;">Acciones</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   <tr v-for="e in paginado" :key="e.__id">
                     <td><i class="bi bi-truck-front text-secondary"></i></td>
 
                     <td class="fw-semibold text-nowrap">
                       <div class="text-truncate" style="max-width:120px;">{{ e.codigo || '—' }}</div>
-                      <!-- En XS mostramos debajo algunos datos -->
+
+                      <!-- XS: resumen -->
                       <div class="small text-secondary d-md-none mt-1">
-                        <span class="me-2">{{ e.marca || '—' }}</span>
-                        <span v-if="e.modelo">/ {{ e.modelo }}</span>
+                        <div class="d-flex flex-wrap gap-2">
+                          <span><strong>Int:</strong> {{ e.numero_interno || '—' }}</span>
+                          <span><strong>Motor:</strong> {{ e.numero_motor || '—' }}</span>
+                        </div>
+                        <div class="mt-1">
+                          <span class="me-2">{{ e.marca || '—' }}</span>
+                          <span v-if="e.modelo">/ {{ e.modelo }}</span>
+                        </div>
                       </div>
+                    </td>
+
+                    <td class="text-nowrap">
+                      <span class="badge bg-primary-subtle text-primary-emphasis">
+                        {{ e.numero_interno || '—' }}
+                      </span>
+                    </td>
+
+                    <td class="small d-none d-md-table-cell">
+                      <span class="badge bg-info-subtle text-info-emphasis">
+                        {{ e.numero_motor || '—' }}
+                      </span>
                     </td>
 
                     <td class="small">
@@ -141,7 +163,6 @@
                     <td class="small d-none d-xl-table-cell">{{ e.localizacion || '—' }}</td>
 
                     <td class="text-end pe-3">
-                      <!-- md+: botones con texto -->
                       <div class="btn-group btn-group-sm d-none d-md-inline-flex">
                         <button class="btn btn-outline-primary" @click="abrirEditar(e)">Editar</button>
                         <button class="btn btn-outline-danger"
@@ -151,7 +172,7 @@
                           Eliminar
                         </button>
                       </div>
-                      <!-- xs/sm: iconos -->
+
                       <div class="d-inline-flex d-md-none gap-1">
                         <button class="btn btn-outline-primary btn-sm" @click="abrirEditar(e)" title="Editar">
                           <i class="bi bi-pencil-square"></i>
@@ -191,6 +212,7 @@
                 </ul>
               </nav>
             </div>
+
           </div>
         </div>
       </div>
@@ -209,6 +231,17 @@
                 <label class="form-label">Código</label>
                 <input class="form-control" v-model="form.codigo" placeholder="Ej: JK-2864" />
               </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label">N° Interno</label>
+                <input class="form-control" v-model="form.numero_interno" placeholder="Ej: GE-456" />
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">N° Motor</label>
+                <input class="form-control" v-model="form.numero_motor" placeholder="Ej: QS213-03" />
+              </div>
+
               <div class="col-12 col-md-6">
                 <label class="form-label">Año</label>
                 <input class="form-control" type="number" v-model.number="form.ano" min="1900" max="2100" />
@@ -223,6 +256,7 @@
                 <label class="form-label">Marca</label>
                 <input class="form-control" v-model="form.marca" placeholder="RANDON" />
               </div>
+
               <div class="col-12 col-md-6">
                 <label class="form-label">Modelo</label>
                 <input class="form-control" v-model="form.modelo" placeholder="SRLTV0327" />
@@ -245,7 +279,7 @@
 
               <div class="col-12">
                 <label class="form-label">Localización</label>
-                <input class="form-control" v-model="form.localizacion" placeholder="22368 DET\ CANECHE" />
+                <input class="form-control" v-model="form.localizacion" placeholder="22368 DET\\ CANECHE" />
               </div>
 
               <div class="col-12" v-if="esEdicion && (form.creado || form.actualizado)">
@@ -254,6 +288,7 @@
                   <div v-if="form.actualizado">Actualizado: {{ fmtFecha(form.actualizado) }}</div>
                 </div>
               </div>
+
             </div>
           </div>
 
@@ -279,11 +314,8 @@
           <div class="offcanvas-body">
             <div class="row g-3">
               <div class="col-12">
-                <label class="form-label">Buscar (equipo, marca o código)</label>
-                <input
-                  class="form-control"
-                  v-model="busqueda"
-                  placeholder="Ej: SILO, RANDON, JK-2864" />
+                <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
+                <input class="form-control" v-model="busqueda" placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
               </div>
 
               <div class="col-12">
@@ -337,8 +369,13 @@
             <strong>{{ confirmRow?.codigo || confirmRow?.equipo || '—' }}</strong>?
           </p>
           <ul class="list-unstyled small mb-0">
+            <li><span class="text-secondary">Código:</span> <strong>{{ confirmRow?.codigo || '—' }}</strong></li>
+            <li><span class="text-secondary">N° Interno:</span> <strong>{{ confirmRow?.numero_interno || '—' }}</strong></li>
+            <li><span class="text-secondary">N° Motor:</span> <strong>{{ confirmRow?.numero_motor || '—' }}</strong></li>
             <li><span class="text-secondary">Equipo:</span> <strong>{{ confirmRow?.equipo || '—' }}</strong></li>
-            <li><span class="text-secondary">Marca/Modelo:</span> <strong>{{ confirmRow?.marca || '—' }} <span v-if="confirmRow?.modelo">/ {{ confirmRow?.modelo }}</span></strong></li>
+            <li><span class="text-secondary">Marca/Modelo:</span>
+              <strong>{{ confirmRow?.marca || '—' }} <span v-if="confirmRow?.modelo">/ {{ confirmRow?.modelo }}</span></strong>
+            </li>
             <li><span class="text-secondary">Clasificación:</span> <strong>{{ confirmRow?.clasificacion1 || '—' }}</strong></li>
             <li><span class="text-secondary">Localización:</span> <strong>{{ confirmRow?.localizacion || '—' }}</strong></li>
           </ul>
@@ -378,6 +415,9 @@ type Equipo = {
   modelo?: string;
   numero_chasis?: string;
   tipo_equipo?: string;
+
+  numero_interno?: string;
+  numero_motor?: string;
 };
 
 /* ===== Estado general ===== */
@@ -436,15 +476,21 @@ const cargarEquipos = async () => {
         marca: data.marca || '',
         modelo: data.modelo || '',
         numero_chasis: data.numero_chasis || '',
-        tipo_equipo: data.tipo_equipo || ''
+        tipo_equipo: data.tipo_equipo || '',
+
+        // ✅ internos + motor (compat camelCase)
+        numero_interno: data.numero_interno || data.numeroInterno || '',
+        numero_motor: data.numero_motor || data.numeroMotor || '',
       });
     });
+
     arr.sort((a,b) => {
       const ba = (b.creado?.toMillis?.() ?? 0);
       const aa = (a.creado?.toMillis?.() ?? 0);
       if (ba !== aa) return ba - aa;
       return (a.equipo||'').localeCompare(b.equipo||'');
     });
+
     equipos.value = arr;
     paginaActual.value = 1;
   } catch (e) {
@@ -469,7 +515,19 @@ const filtrados = computed(() => {
   const clasif = (filtroClasificacion.value || '').toLowerCase().trim();
 
   return equipos.value.filter(e => {
-    const valores = [ e.equipo || '', e.marca || '', e.codigo || '' ].map(v => v.toLowerCase());
+    const valores = [
+      e.equipo || '',
+      e.marca || '',
+      e.codigo || '',
+      e.numero_interno || '',
+      e.numero_motor || '',
+      e.modelo || '',
+      e.numero_chasis || '',
+      e.localizacion || '',
+      e.tipo_equipo || '',
+      e.clasificacion1 || ''
+    ].map(v => v.toLowerCase());
+
     const okTexto = q ? valores.some(v => v.includes(q)) : true;
     const okClasif = clasif ? (e.clasificacion1 || '').toLowerCase() === clasif : true;
     return okTexto && okClasif;
@@ -482,7 +540,6 @@ const paginado = computed(() => {
   return filtrados.value.slice(start, start + pageSize);
 });
 
-// menos botones en pantallas pequeñas
 const visiblePages = computed(() => {
   const isSmall = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 576px)').matches;
   const maxButtons = isSmall ? 5 : 7;
@@ -502,6 +559,8 @@ const abrirCrear = () => {
   esEdicion.value = false;
   form.value = {
     codigo: '',
+    numero_interno: '',
+    numero_motor: '',
     equipo: '',
     marca: '',
     modelo: '',
@@ -513,11 +572,13 @@ const abrirCrear = () => {
   };
   offOpen.value = true;
 };
+
 const abrirEditar = (e:Equipo) => {
   esEdicion.value = true;
   form.value = { ...e };
   offOpen.value = true;
 };
+
 const cerrarOff = () => { offOpen.value = false; };
 
 /* ===== Offcanvas filtros (móvil) ===== */
@@ -539,6 +600,8 @@ const guardar = async () => {
   try {
     const payload:any = {
       codigo: (form.value.codigo || '').trim(),
+      numero_interno: (form.value.numero_interno || '').trim() || 'No hay información',
+      numero_motor: (form.value.numero_motor || '').trim() || 'No hay información',
       equipo: (form.value.equipo || 'No hay información').trim() || 'No hay información',
       marca: (form.value.marca || 'No hay información').trim() || 'No hay información',
       modelo: (form.value.modelo || 'No hay información').trim() || 'No hay información',
@@ -566,7 +629,6 @@ const guardar = async () => {
 
     await cargarEquipos();
     offOpen.value = false;
-
   } catch (e) {
     console.error(e);
     addToast('danger','No se pudo guardar el equipo.');
@@ -579,8 +641,10 @@ const guardar = async () => {
 const confirmOpen = ref(false);
 const confirmRow  = ref<Equipo | null>(null);
 const eliminando  = ref(false);
+
 function abrirConfirm(e:Equipo){ confirmRow.value = e; confirmOpen.value = true; }
 function cerrarConfirm(){ if (!eliminando.value){ confirmOpen.value = false; confirmRow.value = null; } }
+
 async function confirmarEliminar(){
   if (!confirmRow.value) return;
   accionando.value = true;
@@ -620,20 +684,31 @@ const normTxt = (s:any) => String(s ?? '')
   .toString()
   .normalize('NFD').replace(/\p{Diacritic}/gu,'')
   .trim();
+
+// clave para headers: colapsa espacios / saltos de línea / underscores
+const normKey = (s:any) => normTxt(s)
+  .toLowerCase()
+  .replace(/[\r\n\t]+/g, ' ')
+  .replace(/[_]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
 const toStr = (s:any) => normTxt(s);
 const toInt = (v:any) => {
   const n = Number(String(v).replace(/[^\d-]/g,''));
   return Number.isFinite(n) ? n : undefined;
 };
+
 function buildKeywords(e:any){
   const base = [
-    e.codigo, e.equipo, e.marca, e.modelo, e.numero_chasis,
+    e.codigo, e.numero_interno, e.numero_motor,
+    e.equipo, e.marca, e.modelo, e.numero_chasis,
     e.localizacion, e.clasificacion1, e.tipo_equipo
   ].map(normTxt).filter(Boolean);
 
   const tokens = new Set<string>();
   for (const p of base){
-    for (const w of p.split(/[^a-z0-9]+/).filter(Boolean)){
+    for (const w of p.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)){
       tokens.add(w);
       for (let i=1;i<=Math.min(10,w.length);i++){
         tokens.add(w.slice(0,i));
@@ -645,10 +720,16 @@ function buildKeywords(e:any){
 
 function mapRow(raw:any){
   const get = (k: string, alt: string[] = []) => {
-    const keys = [k, ...alt];
-    for (const cand of keys){
-      const found = Object.keys(raw).find(h => normTxt(h).toLowerCase() === normTxt(cand).toLowerCase());
-      if (found) return raw[found];
+    const keys = [k, ...alt].map(normKey);
+    const headerKeys = Object.keys(raw);
+
+    for (const h of headerKeys){
+      const nh = normKey(h);
+      if (keys.includes(nh)) return raw[h];
+
+      // fallback: compara sin espacios (por si viene "NUMEROINTERNO")
+      const nh2 = nh.replace(/\s+/g,'');
+      if (keys.some(x => x.replace(/\s+/g,'') === nh2)) return raw[h];
     }
     return undefined;
   };
@@ -663,8 +744,20 @@ function mapRow(raw:any){
   const numero_chasis   = toStr(get('NUMERO DE CHASIS', ['N° Chasis','N CHASIS','Numero chasis']));
   const localizacion    = toStr(get('Localización', ['Localizacion','Ubicacion']));
 
+  // ✅ numero interno (tu Excel viene como "numero interno" a veces)
+  const numero_interno  = toStr(get('NUMERO INTERNO', [
+    'numero interno','Numero interno','N° Interno','N Interno','Interno','NUMERO_INTERNO','NUMERO  INTERNO'
+  ]));
+
+  // ✅ numero de motor (tu Excel viene como "NUMERO DE MOTOR")
+  const numero_motor    = toStr(get('NUMERO DE MOTOR', [
+    'Numero de motor','numero de motor','NUMERO MOTOR','Numero motor','N° Motor','N Motor','MOTOR'
+  ]));
+
   return {
     codigo: codigo || '',
+    numero_interno,
+    numero_motor,
     equipo,
     ano,
     marca,
@@ -687,20 +780,36 @@ async function importarExcel(file: File){
     const wb = XLSX.read(data, { type: 'array' });
     const sheetName = wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+    const rows:any[] = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
 
     if (!rows.length){ addToast('warning','El archivo está vacío.'); return; }
 
+    // Debug: headers reales detectados
+    console.log('Headers detectados:', Object.keys(rows[0] || {}));
+
     const parsed = rows.map(mapRow)
       .filter(r => (r.codigo || r.numero_chasis || r.equipo));
+
     if (!parsed.length){ addToast('warning','No se encontraron filas válidas.'); return; }
+
+    const conInterno = parsed.filter(r => (r.numero_interno || '').trim()).length;
+    const conMotor   = parsed.filter(r => (r.numero_motor || '').trim()).length;
+
+    if (conInterno === 0){
+      addToast('warning','No se detectó "NUMERO INTERNO" en el Excel. Revisa el encabezado.', 4500);
+    }
+    if (conMotor === 0){
+      addToast('warning','No se detectó "NUMERO DE MOTOR" en el Excel. Revisa el encabezado.', 4500);
+    }
 
     // Índices de existentes
     importMsg.value = 'Cargando datos existentes…';
     importPct.value = 10;
+
     const snap = await getDocs(collection(db,'equipos'));
     const byCodigo = new Map<string, any>();
     const byChasis = new Map<string, any>();
+
     snap.forEach(d => {
       const x:any = { __id: d.id, ...d.data() };
       const c = String(x.codigo || '').trim().toLowerCase();
@@ -709,10 +818,10 @@ async function importarExcel(file: File){
       if (ch) byChasis.set(ch, x);
     });
 
-    // Procesar por lotes
+    // Firestore batch limit = 500 ops
     const total = parsed.length;
     let done = 0;
-    const chunkSize = 400;
+    const chunkSize = 450;
 
     for (let i=0; i<parsed.length; i+=chunkSize){
       const slice = parsed.slice(i, i+chunkSize);
@@ -721,6 +830,8 @@ async function importarExcel(file: File){
       for (const r of slice){
         const incoming:any = {
           codigo: r.codigo || '',
+          numero_interno: r.numero_interno || '',
+          numero_motor: r.numero_motor || '',
           equipo: r.equipo || '',
           marca: r.marca || '',
           modelo: r.modelo || '',
@@ -738,6 +849,8 @@ async function importarExcel(file: File){
         if (found){
           const merged:any = {
             codigo: incoming.codigo || (found.codigo || ''),
+            numero_interno: incoming.numero_interno || (found.numero_interno || found.numeroInterno || 'No hay información'),
+            numero_motor: incoming.numero_motor || (found.numero_motor || found.numeroMotor || 'No hay información'),
             equipo: incoming.equipo || (found.equipo || 'No hay información'),
             marca: incoming.marca || (found.marca || 'No hay información'),
             modelo: incoming.modelo || (found.modelo || 'No hay información'),
@@ -748,11 +861,14 @@ async function importarExcel(file: File){
             localizacion: incoming.localizacion || (found.localizacion || 'No hay información'),
           };
           merged.keywords = buildKeywords(merged);
+
           const refDoc = doc(db, 'equipos', found.__id);
           batch.update(refDoc, { ...merged, actualizado: serverTimestamp() });
         } else {
           const payload:any = {
             codigo: incoming.codigo,
+            numero_interno: incoming.numero_interno || 'No hay información',
+            numero_motor: incoming.numero_motor || 'No hay información',
             equipo: incoming.equipo || 'No hay información',
             marca: incoming.marca || 'No hay información',
             modelo: incoming.modelo || 'No hay información',
@@ -763,8 +879,8 @@ async function importarExcel(file: File){
             localizacion: incoming.localizacion || 'No hay información',
           };
           payload.keywords = buildKeywords(payload);
-          const refCol = collection(db, 'equipos');
-          const refDoc = doc(refCol);
+
+          const refDoc = doc(collection(db, 'equipos'));
           batch.set(refDoc, { ...payload, creado: serverTimestamp(), actualizado: serverTimestamp() });
         }
       }
@@ -781,7 +897,7 @@ async function importarExcel(file: File){
     addToast('success', `Importación completada: ${total} fila(s) procesadas.`);
   } catch (e){
     console.error(e);
-    addToast('danger','Error al importar. Revisa el archivo y los encabezados.');
+    addToast('danger','Error al importar. Revisa consola y encabezados del Excel.');
   } finally {
     importando.value = false;
     setTimeout(()=>{ importMsg.value = ''; importPct.value = 0; }, 800);
@@ -797,8 +913,6 @@ async function importarExcel(file: File){
     radial-gradient(900px 400px at 110% 0%, rgba(0,0,0,.03), transparent 60%),
     #f8fafc;
 }
-
-/* Headings un poco más grandes en ≥ sm */
 @media (min-width: 576px){
   .h4-sm{ font-size: 1.35rem; }
 }
@@ -869,14 +983,10 @@ async function importarExcel(file: File){
 .table-responsive thead th{
   z-index: 1; border-bottom: 1px solid var(--bs-border-color);
 }
-
-/* Limites de truncado para móviles */
 @media (max-width: 576px){
   thead th:first-child, tbody td:first-child{ width: 34px !important; }
   td .text-truncate{ max-width: 180px; }
 }
-
-/* Paginación mejor en móviles */
 .pagination .page-link{ min-width: 34px; text-align:center; }
 
 /* Progreso import */

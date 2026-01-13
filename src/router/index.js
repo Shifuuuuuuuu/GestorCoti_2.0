@@ -39,6 +39,7 @@ const AprobacionDocs     = () => import ("../views/AprobacionDocs.vue");
 const RecepcionOC = () => import("../views/RecepcionOC.vue");
 const AiInspectorView = () => import ("../views/AiInspectorView.vue")
 const GenerarCotizacion = () => import ("../views/GenerarCotizacion.vue")
+const GenerarCertificados = () => import("../views/GenerarCertificados.vue")
 const routes = [
   // LOGIN (pública)
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
@@ -87,6 +88,7 @@ const routes = [
   { path: "/aprobacion-docs", name: "AprobacionDocs", component: AprobacionDocs, meta: { requiresAuth: true} },
   { path: "/recepcion-oc", name: "RecepcionOC", component: RecepcionOC, meta: { requiresAuth: true } },
   { path: "/generador-coti",name: "GenerarCotizacion", component: GenerarCotizacion, meta: {requiresAuth: true}},
+  { path: "/generador-certificados", name:"GenerarCertificados", component: GenerarCertificados, meta: {requiresAuth: true}},
   { path: "/:pathMatch(.*)*", redirect: { name: "Inicio" } },
 ];
 AprobacionDocs
