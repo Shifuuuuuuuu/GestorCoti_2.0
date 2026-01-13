@@ -6,9 +6,19 @@
       <div>
         <h1 class="h4 fw-semibold mb-1">Generador de Certificados</h1>
         <div class="text-muted small">Mantención / Operatividad · Vista previa · Guarda en Firestore + PDF</div>
+
+        <div v-if="isEditing" class="mt-2">
+          <span class="badge text-bg-warning text-dark border">
+            Editando Certificado N° {{ String(editingNumero || "—") }}
+          </span>
+        </div>
       </div>
 
       <div class="d-flex gap-2">
+        <button class="btn btn-outline-dark" @click="openHistorial">
+          <i class="bi bi-clock-history me-1"></i> Historial
+        </button>
+
         <button class="btn btn-outline-secondary" @click="resetAll">
           <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
         </button>
@@ -16,7 +26,7 @@
         <button class="btn btn-primary" :disabled="!canSave || saving" @click="guardarCertificado">
           <span v-if="saving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
           <i v-else class="bi bi-save2 me-1"></i>
-          Guardar + PDF
+          {{ isEditing ? "Actualizar + PDF" : "Guardar + PDF" }}
         </button>
 
         <button class="btn btn-outline-dark" :disabled="!hasPreview" @click="generarPdfSolo">
@@ -61,12 +71,12 @@
 
               <div class="col-12">
                 <label class="form-label d-flex align-items-center justify-content-between">
-                  <span>N° Certificado (auto)</span>
+                  <span>N° Certificado</span>
                   <button
                     class="btn btn-sm btn-outline-secondary"
                     type="button"
                     @click="cargarProximoNumero"
-                    :disabled="loadingCounter"
+                    :disabled="loadingCounter || isEditing"
                     title="Actualizar número desde Firestore"
                   >
                     <span v-if="loadingCounter" class="spinner-border spinner-border-sm me-2"></span>
@@ -76,6 +86,9 @@
                 </label>
 
                 <input class="form-control" :value="displayNumero" disabled />
+                <div class="form-text" v-if="isEditing">
+                  Estás editando: se mantiene el número del certificado.
+                </div>
               </div>
             </div>
 
@@ -208,8 +221,11 @@
                   <label class="form-label">Observaciones</label>
                   <textarea v-model.trim="form.observaciones" class="form-control" rows="3" placeholder="Observaciones…"></textarea>
                 </div>
-
               </div>
+            </div>
+
+            <div v-if="saveErr" class="alert alert-danger mt-3 mb-0">
+              ❌ {{ saveErr }}
             </div>
           </div>
         </div>
@@ -341,20 +357,162 @@
         </div>
 
         <div v-if="saveOk" class="alert alert-success mt-3">
-          ✅ Certificado guardado en Firestore.
+          ✅ Certificado guardado/actualizado en Firestore.
           <span v-if="lastSavedId" class="small text-muted">ID: {{ lastSavedId }}</span>
-        </div>
-
-        <div v-if="saveErr" class="alert alert-danger mt-3">
-          ❌ {{ saveErr }}
         </div>
       </div>
     </div>
+
+    <!-- =========================
+         MODAL HISTORIAL
+         ========================= -->
+    <div class="modal fade" tabindex="-1" ref="histModalEl" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header">
+            <div class="d-flex align-items-center gap-2">
+              <h5 class="modal-title mb-0">Historial de Certificados</h5>
+              <span class="badge text-bg-light border" v-if="histCount">{{ histCount }}</span>
+            </div>
+            <button type="button" class="btn-close" @click="closeHistorial"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+              <div class="input-group" style="max-width: 620px;">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input class="form-control" v-model.trim="histSearch" placeholder="Buscar por N°, tipo, interno/patente, fecha…" />
+                <button class="btn btn-outline-secondary" @click="loadHistorial" :disabled="histLoading" type="button">
+                  <span v-if="histLoading" class="spinner-border spinner-border-sm me-2"></span>
+                  <i v-else class="bi bi-arrow-clockwise me-1"></i>
+                  Actualizar
+                </button>
+              </div>
+
+              <div class="ms-auto d-flex gap-2">
+                <button class="btn btn-outline-secondary" @click="closeHistorial" type="button">Cerrar</button>
+              </div>
+            </div>
+
+            <div v-if="histErr" class="alert alert-danger">{{ histErr }}</div>
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 120px;">N°</th>
+                    <th style="width: 140px;">Fecha</th>
+                    <th style="width: 160px;">Tipo</th>
+                    <th>Equipo</th>
+                    <th class="text-end" style="width: 320px;">Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr v-if="histLoading">
+                    <td colspan="5" class="py-4 text-center text-muted">
+                      <span class="spinner-border spinner-border-sm me-2"></span> Cargando certificados…
+                    </td>
+                  </tr>
+
+                  <tr v-for="c in historialFiltrado" :key="c.id">
+                    <td>
+                      <span class="badge text-bg-dark">#{{ String(c.numero || 0) }}</span>
+                    </td>
+                    <td class="small">{{ fmtDMY(c.fechaEmisionStr) }}</td>
+                    <td class="fw-semibold">
+                      <span class="badge" :class="c.tipo === 'MANTENCION' ? 'text-bg-primary' : 'text-bg-success'">
+                        {{ c.tipo || "—" }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="fw-semibold">
+                        {{ c.interno || "—" }}
+                        <span class="text-muted">·</span>
+                        {{ c.patente || "—" }}
+                      </div>
+                      <div class="small text-muted">
+                        {{ c.marca || "" }} {{ c.modelo || "" }}
+                      </div>
+                    </td>
+
+                    <td class="text-end">
+                      <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" @click="editarDesdeHistorial(c)" type="button">
+                          <i class="bi bi-pencil me-1"></i> Editar
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" @click="openDeleteConfirm(c)" type="button">
+                          <i class="bi bi-trash me-1"></i> Eliminar
+                        </button>
+                        <button class="btn btn-sm btn-danger" @click="reDescargarCertificado(c)" type="button">
+                          <i class="bi bi-download me-1"></i> PDF
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr v-if="!histLoading && !historialFiltrado.length">
+                    <td colspan="5" class="py-4 text-center text-muted">
+                      No hay certificados para mostrar.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="small text-muted mt-2">
+              Tip: “Editar” carga el certificado en el formulario. Luego usa “Actualizar + PDF”.
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" @click="closeHistorial" type="button">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================
+         MODAL CONFIRMAR ELIMINACIÓN
+         ========================= -->
+    <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header">
+            <h5 class="modal-title mb-0">Confirmar eliminación</h5>
+            <button type="button" class="btn-close" @click="closeDeleteConfirm"></button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="delErr" class="alert alert-danger">{{ delErr }}</div>
+            <p class="mb-2">
+              ¿Seguro que deseas eliminar el certificado <b>#{{ String(delNumero || "—") }}</b>?
+            </p>
+            <div class="text-muted small">
+              Esta acción no se puede deshacer.
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" @click="closeDeleteConfirm" :disabled="delBusy" type="button">
+              Cancelar
+            </button>
+            <button class="btn btn-danger" @click="confirmDelete" :disabled="delBusy" type="button">
+              <span v-if="delBusy" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="bi bi-trash me-1"></i>
+              Sí, eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { Modal } from "bootstrap";
 import { getApp } from "firebase/app";
 import {
   getFirestore,
@@ -367,9 +525,11 @@ import {
   limit,
   getDocs,
   getDoc,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
-import { PDFDocument, StandardFonts, rgb} from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import logoMiningImg from "../assets/Logo Xtreme Mining.png";
 import firmaImg from "../assets/firma_juan_cubillos.png";
 import timbreOperativoImg from "../assets/timbre_operativo.png";
@@ -393,6 +553,22 @@ const db = getFirestore(app, DATABASE_ID);
 
 const ciudad = "Santiago";
 
+
+const histModalEl = ref(null);
+const delModalEl = ref(null);
+let histModal = null;
+let delModal = null;
+
+onMounted(() => {
+  if (histModalEl.value) histModal = new Modal(histModalEl.value, { backdrop: true, keyboard: true, focus: true });
+  if (delModalEl.value) delModal = new Modal(delModalEl.value, { backdrop: "static", keyboard: true, focus: true });
+});
+
+onBeforeUnmount(() => {
+  try { histModal?.dispose?.(); } catch(e) {console.log(e)}
+  try { delModal?.dispose?.(); } catch(e) {console.log(e)}
+});
+
 const loadingEquipos = ref(false);
 const equiposCache = ref([]);
 const equipoSearch = ref("");
@@ -408,6 +584,114 @@ const previewRef = ref(null);
 const loadingCounter = ref(false);
 const counterNext = ref(null);
 const counterDocId = ref(null);
+
+
+const isEditing = ref(false);
+const editingId = ref(null);
+const editingNumero = ref(null);
+
+
+const histLoading = ref(false);
+const histErr = ref("");
+const histSearch = ref("");
+const histList = ref([]);
+
+const histCount = computed(() => histList.value.length);
+
+function openHistorial() {
+  histErr.value = "";
+  histModal?.show();
+  loadHistorial();
+}
+function closeHistorial() {
+  histErr.value = "";
+  histModal?.hide();
+}
+
+const historialFiltrado = computed(() => {
+  const q = String(histSearch.value || "").toLowerCase().trim();
+  if (!q) return histList.value;
+
+  return histList.value.filter((c) => {
+    const n = String(c.numero || "").includes(q);
+    const tipo = String(c.tipo || "").toLowerCase().includes(q);
+    const interno = String(c.interno || "").toLowerCase().includes(q);
+    const patente = String(c.patente || "").toLowerCase().includes(q);
+    const fecha = String(c.fechaEmisionStr || "").includes(q);
+    return n || tipo || interno || patente || fecha;
+  });
+});
+
+async function loadHistorial() {
+  histLoading.value = true;
+  histErr.value = "";
+  try {
+    const qy = query(collection(db, "certificados"), orderBy("createdAt", "desc"), limit(100));
+    const snap = await getDocs(qy);
+
+    histList.value = snap.docs.map((d) => {
+      const data = d.data() || {};
+      const eq = data.equipoSnapshot || {};
+      return {
+        id: d.id,
+        numero: data.numero || 0,
+        tipo: data.tipo || "",
+        fechaEmisionStr: data.fechaEmisionStr || "",
+        interno: eq.numeroInterno || "",
+        patente: eq.patente || "",
+        marca: eq.marca || "",
+        modelo: eq.modelo || "",
+      };
+    });
+  } catch (e) {
+    console.error(e);
+    histErr.value = "No se pudo cargar el historial. Revisa permisos/reglas y consola.";
+  } finally {
+    histLoading.value = false;
+  }
+}
+
+
+const delId = ref(null);
+const delNumero = ref(null);
+const delBusy = ref(false);
+const delErr = ref("");
+
+function openDeleteConfirm(c) {
+  delErr.value = "";
+  delBusy.value = false;
+  delId.value = c?.id || null;
+  delNumero.value = c?.numero || null;
+  delModal?.show();
+}
+
+function closeDeleteConfirm() {
+  delErr.value = "";
+  delModal?.hide();
+}
+
+async function confirmDelete() {
+  if (!delId.value || delBusy.value) return;
+
+  delBusy.value = true;
+  delErr.value = "";
+  try {
+    await deleteDoc(doc(db, "certificados", delId.value));
+
+    if (isEditing.value && editingId.value === delId.value) {
+      resetAll();
+    }
+
+    await loadHistorial();
+    delModal?.hide();
+  } catch (e) {
+    console.error(e);
+    delErr.value = "No se pudo eliminar. Revisa permisos/reglas y consola.";
+  } finally {
+    delBusy.value = false;
+  }
+}
+
 
 const todayISO = () => {
   const d = new Date();
@@ -504,7 +788,7 @@ function seleccionarEquipo(e) {
 async function loadEquiposCache() {
   loadingEquipos.value = true;
   try {
-    const q = query(collection(db, "equipos"), orderBy("actualizado", "desc"), limit(300));
+    const q = query(collection(db, "equipos"), orderBy("actualizado", "desc"), limit(650));
     const snap = await getDocs(q);
     equiposCache.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } finally {
@@ -543,7 +827,9 @@ function recalcMantencion() {
 function onTipoChange() {
   saveOk.value = false;
   saveErr.value = "";
-  form.value.numero = null;
+
+  if (!isEditing.value) form.value.numero = null;
+
   if (form.value.tipo === "OPERATIVIDAD") form.value.equipoNuevo = false;
 }
 
@@ -559,13 +845,11 @@ const cuerpoPrincipal = computed(() => {
   if (form.value.tipo === "OPERATIVIDAD") {
     return "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
   }
-
   if (form.value.equipoNuevo) {
     return "aún no cumple con el kilometraje para poder realizar la primera mantención programada.";
   }
   return "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
 });
-
 
 const hasPreview = computed(() => !!(selectedEquipo.value && form.value.patente && form.value.numeroInterno));
 
@@ -596,6 +880,7 @@ const displayNumero = computed(() => {
 
   return "—";
 });
+
 
 async function resolveCounterDocId() {
   if (counterDocId.value) return counterDocId.value;
@@ -630,6 +915,7 @@ async function cargarProximoNumero() {
     loadingCounter.value = false;
   }
 }
+
 
 function buildPayload(numeroAsignado) {
   const payload = {
@@ -681,14 +967,104 @@ function buildPayload(numeroAsignado) {
   return payload;
 }
 
+
+function safeFilePart(str) {
+  return String(str || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function buildPdfFilename() {
+  const prefix = form.value.tipo === "MANTENCION" ? "C.MANTENCION" : "C.OPERATIVIDAD";
+  const codigoEquipo = safeFilePart(form.value.numeroInterno || form.value.codigo || "SIN-CODIGO");
+  const fecha = safeFilePart(fmtDMY(form.value.fechaEmision || todayISO()));
+  return `${prefix} ${codigoEquipo} ${fecha}.pdf`;
+}
+
+function downloadPdf(bytes, filename) {
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function fetchAsArrayBuffer(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error("No se pudo cargar asset: " + url);
   return await res.arrayBuffer();
 }
 
+function modelFromDoc(data) {
+  const eq = data?.equipoSnapshot || {};
+  const mant = data?.mantencion || {};
+  const op = data?.operatividad || {};
+  return {
+    tipo: data?.tipo || "MANTENCION",
+    fechaEmision: data?.fechaEmisionStr || todayISO(),
+    unidadLectura: data?.unidadLectura || "Km",
 
-async function buildPdfBytes({ numero}) {
+    patente: eq.patente || "",
+    numeroInterno: eq.numeroInterno || "",
+    marca: eq.marca || "",
+    modelo: eq.modelo || "",
+    tipoEquipo: eq.tipoEquipo || "",
+    numeroChasis: eq.numeroChasis || "",
+    numeroMotor: eq.numeroMotor || "",
+
+    equipoNuevo: !!mant.equipoNuevo,
+    ultimaOt: mant.ultimaOt || "",
+    fechaUltimaOt: mant.fechaUltimaOtStr || "",
+    kmOtRaw: Number.isFinite(mant.lecturaOt) ? String(mant.lecturaOt) : "",
+    kmActualRaw: Number.isFinite(mant.lecturaActual) ? String(mant.lecturaActual) : "",
+    intervaloRaw: Number.isFinite(mant.intervalo) ? String(mant.intervalo) : "10000",
+    proximaMantencionRaw: Number.isFinite(mant.proximaMantencion) ? String(mant.proximaMantencion) : "",
+
+    estadoOperatividad: op.estado || "Operativo",
+    fechaInspeccion: op.fechaInspeccionStr || todayISO(),
+    observaciones: op.observaciones || "",
+
+    cuerpoPrincipal: data?.texto?.cuerpoPrincipal || "",
+  };
+}
+
+function modelFromForm() {
+  return {
+    tipo: form.value.tipo,
+    fechaEmision: form.value.fechaEmision,
+    unidadLectura: form.value.unidadLectura || "Km",
+
+    patente: form.value.patente,
+    numeroInterno: form.value.numeroInterno,
+    marca: form.value.marca,
+    modelo: form.value.modelo,
+    tipoEquipo: form.value.tipoEquipo,
+    numeroChasis: form.value.numeroChasis,
+    numeroMotor: form.value.numeroMotor,
+
+    equipoNuevo: !!form.value.equipoNuevo,
+    ultimaOt: form.value.ultimaOt,
+    fechaUltimaOt: form.value.fechaUltimaOt,
+    kmOtRaw: form.value.kmOtRaw,
+    kmActualRaw: form.value.kmActualRaw,
+    intervaloRaw: form.value.intervaloRaw,
+    proximaMantencionRaw: form.value.proximaMantencionRaw,
+
+    estadoOperatividad: form.value.estadoOperatividad,
+    fechaInspeccion: form.value.fechaInspeccion,
+    observaciones: form.value.observaciones,
+
+    cuerpoPrincipal: cuerpoPrincipal.value,
+  };
+}
+
+async function buildPdfBytesFromModel(model, numero) {
+  const m = model;
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]);
   const { width, height } = page.getSize();
@@ -699,7 +1075,7 @@ async function buildPdfBytes({ numero}) {
   const dark = rgb(0.08, 0.08, 0.08);
   const borderColor = rgb(0.18, 0.18, 0.18);
 
-  const unidadLocal = form.value.unidadLectura || "Km";
+  const unidadLocal = m.unidadLectura || "Km";
 
   const M = 22;
   const innerPad = 22;
@@ -743,6 +1119,7 @@ async function buildPdfBytes({ numero}) {
     }
     return y;
   };
+
   page.drawRectangle({
     x: M,
     y: M,
@@ -751,11 +1128,9 @@ async function buildPdfBytes({ numero}) {
     borderColor,
     borderWidth: 1.0,
   });
-
   {
-    const isOp = form.value.tipo === "OPERATIVIDAD";
-    const isMant = form.value.tipo === "MANTENCION";
-
+    const isOp = m.tipo === "OPERATIVIDAD";
+    const isMant = m.tipo === "MANTENCION";
     let stampSrc = null;
     if (isOp) stampSrc = timbreOperativoSrc;
     if (isMant) stampSrc = timbreCheckSrc;
@@ -772,21 +1147,14 @@ async function buildPdfBytes({ numero}) {
 
       const opacity = isOp ? 0.34 : 0.28;
 
-      page.drawImage(stamp, {
-        x: stampX,
-        y: stampY,
-        width: stampW,
-        height: stampH,
-        opacity,
-      });
+      page.drawImage(stamp, { x: stampX, y: stampY, width: stampW, height: stampH, opacity });
     }
   }
-
 
   let y = height - M - innerPad;
 
   const logoMiningBytes = await fetchAsArrayBuffer(logoMiningSrc);
-  const logoMining = logoMiningSrc.toLowerCase().includes(".png")
+  const logoMining = String(logoMiningSrc).toLowerCase().includes(".png")
     ? await pdfDoc.embedPng(logoMiningBytes)
     : await pdfDoc.embedJpg(logoMiningBytes);
 
@@ -801,11 +1169,11 @@ async function buildPdfBytes({ numero}) {
   });
 
   drawRight(`CERTIFICADO N° ${numero}`, y - 4, 10.5, bold, dark);
-  drawRight(`${ciudad}, ${fmtDMY(form.value.fechaEmision)}`, y - 20, 9.8, font, dark);
+  drawRight(`${ciudad}, ${fmtDMY(m.fechaEmision)}`, y - 20, 9.8, font, dark);
 
   y -= (logoMiningH + 24);
 
-  const tipoTxt = form.value.tipo === "MANTENCION" ? "MANTENCIÓN" : "OPERATIVIDAD";
+  const tipoTxt = m.tipo === "MANTENCION" ? "MANTENCIÓN" : "OPERATIVIDAD";
   drawCentered(`CERTIFICADO DE ${tipoTxt}`, y, 12.5, bold, dark);
   y -= 32;
 
@@ -813,29 +1181,26 @@ async function buildPdfBytes({ numero}) {
   const lineH = 14;
   const blockW = Math.min(470, contentWidth);
 
-  const placa = form.value.patente || "—";
-  const interno = form.value.numeroInterno || "—";
+  const placa = m.patente || "—";
+  const interno = m.numeroInterno || "—";
 
   const cuerpoOperatividad =
     "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
 
+  const cuerpo = m.cuerpoPrincipal || (m.tipo === "OPERATIVIDAD" ? cuerpoOperatividad : cuerpoOperatividad);
+
   const intro =
     `Xtreme Mining Ltda. Mediante el presente documento, certifica que el equipo identificado con la placa ${placa} ` +
     `Número interno ${interno}, ` +
-    (form.value.tipo === "OPERATIVIDAD" ? cuerpoOperatividad : cuerpoPrincipal.value);
+    cuerpo;
 
   y = drawWrappedBlockLeft(intro, y, bodySize, blockW, lineH, font, dark);
   y -= 10;
 
-
-  const debeMostrarUltimaMantencion =
-    (form.value.tipo === "MANTENCION" && !form.value.equipoNuevo) ||
-    (form.value.tipo === "OPERATIVIDAD");
-
-  if (debeMostrarUltimaMantencion) {
-    const lecturaOT = fmtCL(parseIntLoose(form.value.kmOtRaw));
-    const ultimaOT = form.value.ultimaOt || "—";
-    const fechaUlt = fmtDMY(form.value.fechaUltimaOt);
+  if (m.tipo === "MANTENCION" && !m.equipoNuevo) {
+    const lecturaOT = fmtCL(parseIntLoose(m.kmOtRaw));
+    const ultimaOT = m.ultimaOt || "—";
+    const fechaUlt = fmtDMY(m.fechaUltimaOt);
 
     const p1 =
       `Su última mantención realizada el ${fechaUlt} a los ${lecturaOT}${unidadLocal} y registrada con la orden de trabajo ` +
@@ -851,29 +1216,39 @@ async function buildPdfBytes({ numero}) {
     y -= 16;
   }
 
-
-  if (form.value.tipo === "MANTENCION" && form.value.equipoNuevo) {
+  if (m.tipo === "MANTENCION" && m.equipoNuevo) {
     const pNew =
       "Se señala que el equipo es nuevo, y que se encuentra en óptimas condiciones para operar con normalidad en minería.";
     y = drawWrappedBlockLeft(pNew, y, bodySize, blockW, lineH, font, dark);
     y -= 16;
   }
 
+  if (m.tipo === "OPERATIVIDAD") {
+    const pOp = `Se constata el estado: ${m.estadoOperatividad || "—"} (inspección: ${fmtDMY(m.fechaInspeccion)}).`;
+    y = drawWrappedBlockLeft(pOp, y, bodySize, blockW, lineH, font, dark);
+    y -= 12;
+
+    if (m.observaciones) {
+      y = drawWrappedBlockLeft(`Observaciones: ${m.observaciones}`, y, bodySize, blockW, lineH, font, dark);
+      y -= 12;
+    }
+  }
+
   drawCentered("Detalles del equipo", y, 10.5, bold, dark);
   y -= 18;
 
-  const lectura = fmtCL(parseIntLoose(form.value.kmActualRaw));
-  const prox = fmtCL(parseIntLoose(form.value.proximaMantencionRaw));
+  const lectura = fmtCL(parseIntLoose(m.kmActualRaw));
+  const prox = fmtCL(parseIntLoose(m.proximaMantencionRaw));
 
   const rowsAll = [
-    ["* Marca:", form.value.marca || "—"],
-    ["* Modelo:", form.value.modelo || "—"],
-    ["* Tipo de equipo:", form.value.tipoEquipo || "—"],
-    ["* N° Chasis:", form.value.numeroChasis || "—"],
-    ["* N° Motor:", form.value.numeroMotor || "—"],
-    ["* N° Interno:", form.value.numeroInterno || "—"],
+    ["* Marca:", m.marca || "—"],
+    ["* Modelo:", m.modelo || "—"],
+    ["* Tipo de equipo:", m.tipoEquipo || "—"],
+    ["* N° Chasis:", m.numeroChasis || "—"],
+    ["* N° Motor:", m.numeroMotor || "—"],
+    ["* N° Interno:", m.numeroInterno || "—"],
     ["* Lectura actual:", `${lectura}${lectura === "—" ? "" : ` ${unidadLocal}`}`],
-    ...(form.value.tipo === "MANTENCION"
+    ...(m.tipo === "MANTENCION"
       ? [["* Próxima Mantención:", `${prox}${prox === "—" ? "" : ` ${unidadLocal}`}`]]
       : []),
   ];
@@ -931,7 +1306,7 @@ async function buildPdfBytes({ numero}) {
 
   if (firmaSrc) {
     const sigBytes = await fetchAsArrayBuffer(firmaSrc);
-    const sig = firmaSrc.toLowerCase().includes(".png")
+    const sig = String(firmaSrc).toLowerCase().includes(".png")
       ? await pdfDoc.embedPng(sigBytes)
       : await pdfDoc.embedJpg(sigBytes);
 
@@ -950,42 +1325,46 @@ async function buildPdfBytes({ numero}) {
   drawCentered(FIRMANTE.rut, signLineY - 32, 9.2, font, dark);
   drawCentered(FIRMANTE.cargo, signLineY - 46, 9.2, font, dark);
 
-
-
   return await pdfDoc.save();
 }
 
-
-
-function downloadPdf(bytes, filename) {
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 async function generarPdfSolo() {
   if (!hasPreview.value) return;
 
   const numeroTemp = displayNumero.value === "—" ? "SN" : displayNumero.value;
-  const bytes = await buildPdfBytes({ numero: numeroTemp, idDoc: "SIN_GUARDAR", onlyPdf: true });
-
+  const bytes = await buildPdfBytesFromModel(modelFromForm(), numeroTemp);
   downloadPdf(bytes, buildPdfFilename());
 }
 
 
 async function guardarCertificado() {
+  if (saving.value) return;
   saving.value = true;
   saveOk.value = false;
   saveErr.value = "";
   lastSavedId.value = "";
 
   try {
+    if (isEditing.value && editingId.value) {
+      const numero = Number(form.value.numero || editingNumero.value);
+      const payload = buildPayload(numero);
+
+      delete payload.createdAt;
+      payload.updatedAt = serverTimestamp();
+
+      await updateDoc(doc(db, "certificados", editingId.value), payload);
+
+      lastSavedId.value = editingId.value;
+      saveOk.value = true;
+
+      const bytes = await buildPdfBytesFromModel(modelFromForm(), numero);
+      downloadPdf(bytes, buildPdfFilename());
+
+      await loadHistorial();
+      return;
+    }
+
     const certificadosRef = collection(db, "certificados");
     const id = await resolveCounterDocId();
     const counterRef = doc(db, "counters_certificados", id);
@@ -1013,13 +1392,97 @@ async function guardarCertificado() {
     lastSavedId.value = result.id;
     saveOk.value = true;
 
-    const bytes = await buildPdfBytes({ numero: result.numero, idDoc: result.id, onlyPdf: false });
+    const bytes = await buildPdfBytesFromModel(modelFromForm(), result.numero);
     downloadPdf(bytes, buildPdfFilename());
+
+    await loadHistorial();
   } catch (err) {
     console.error(err);
-    saveErr.value = "Error guardando o generando PDF. Revisa consola y reglas/permisos de Firestore.";
+    saveErr.value = "Error guardando/actualizando o generando PDF. Revisa consola y reglas/permisos de Firestore.";
   } finally {
     saving.value = false;
+  }
+}
+
+
+async function editarDesdeHistorial(c) {
+  try {
+    const snap = await getDoc(doc(db, "certificados", c.id));
+    if (!snap.exists()) {
+      alert("No se encontró el certificado.");
+      return;
+    }
+
+    const data = snap.data() || {};
+    const m = modelFromDoc(data);
+    isEditing.value = true;
+    editingId.value = c.id;
+    editingNumero.value = data.numero || c.numero || null;
+
+    form.value.tipo = m.tipo || "MANTENCION";
+    form.value.fechaEmision = m.fechaEmision || todayISO();
+    form.value.numero = Number(editingNumero.value || null);
+    form.value.unidadLectura = m.unidadLectura || "Km";
+
+    form.value.patente = m.patente || "";
+    form.value.numeroInterno = m.numeroInterno || "";
+    form.value.marca = m.marca || "";
+    form.value.modelo = m.modelo || "";
+    form.value.tipoEquipo = m.tipoEquipo || "";
+    form.value.numeroChasis = m.numeroChasis || "";
+    form.value.numeroMotor = m.numeroMotor || "";
+
+    form.value.equipoNuevo = !!m.equipoNuevo;
+    form.value.ultimaOt = m.ultimaOt || "";
+    form.value.fechaUltimaOt = m.fechaUltimaOt || "";
+    form.value.kmOtRaw = m.kmOtRaw || "";
+    form.value.kmActualRaw = m.kmActualRaw || "";
+    form.value.intervaloRaw = m.intervaloRaw || "10000";
+    form.value.proximaMantencionRaw = m.proximaMantencionRaw || "";
+
+    form.value.estadoOperatividad = m.estadoOperatividad || "Operativo";
+    form.value.fechaInspeccion = m.fechaInspeccion || todayISO();
+    form.value.observaciones = m.observaciones || "";
+    const equipoId = data.equipoId || null;
+    const found = equipoId ? equiposCache.value.find((x) => x.id === equipoId) : null;
+    if (found) {
+      selectedEquipo.value = found;
+    } else {
+      selectedEquipo.value = { id: equipoId || "snapshot", ...data.equipoSnapshot };
+    }
+
+    recalcMantencion();
+
+    closeHistorial();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (e) {
+    console.error(e);
+    alert("No se pudo cargar para editar. Revisa consola.");
+  }
+}
+
+async function reDescargarCertificado(c) {
+  try {
+    const snap = await getDoc(doc(db, "certificados", c.id));
+    if (!snap.exists()) {
+      alert("No se encontró el certificado.");
+      return;
+    }
+
+    const data = snap.data() || {};
+    const numero = data.numero || c.numero || "SN";
+    const model = modelFromDoc(data);
+
+    const bytes = await buildPdfBytesFromModel(model, numero);
+    const prefix = model.tipo === "MANTENCION" ? "C.MANTENCION" : "C.OPERATIVIDAD";
+    const codigoEquipo = safeFilePart(model.numeroInterno || "SIN-CODIGO");
+    const fecha = safeFilePart(fmtDMY(model.fechaEmision || todayISO()));
+    const filename = `${prefix} ${codigoEquipo} ${fecha}.pdf`;
+
+    downloadPdf(bytes, filename);
+  } catch (e) {
+    console.error(e);
+    alert("No se pudo generar el PDF. Revisa consola.");
   }
 }
 
@@ -1029,28 +1492,15 @@ function scrollToPreview() {
   if (!el) return;
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
-function safeFilePart(str) {
-  return String(str || "")
-    .trim()
-    .replace(/[\\/:*?"<>|]/g, "")
-    .replace(/\s+/g, " ");
-}
-
-function buildPdfFilename() {
-  const prefix = form.value.tipo === "MANTENCION" ? "C.MANTENCION" : "C.OPERATIVIDAD";
-
-  const codigoEquipo = safeFilePart(form.value.numeroInterno || form.value.codigo || "SIN-CODIGO");
-
-  const fecha = safeFilePart(fmtDMY(form.value.fechaEmision || todayISO()));
-
-  return `${prefix} ${codigoEquipo} ${fecha}.pdf`;
-}
 
 function resetAll() {
   selectedEquipo.value = null;
   equipoSearch.value = "";
-  form.value.numero = null;
+  isEditing.value = false;
+  editingId.value = null;
+  editingNumero.value = null;
 
+  form.value.numero = null;
   form.value.tipo = "MANTENCION";
   form.value.unidadLectura = "Km";
 
@@ -1064,6 +1514,9 @@ function resetAll() {
   form.value.estadoOperatividad = "Operativo";
   form.value.fechaInspeccion = todayISO();
   form.value.observaciones = "";
+
+  form.value.fechaEmision = todayISO();
+
   form.value.patente = "";
   form.value.numeroInterno = "";
   form.value.marca = "";
