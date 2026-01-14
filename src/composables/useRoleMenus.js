@@ -124,7 +124,6 @@ export function useRoleMenus() {
       pushIfMissing(base, { name: "AprobacionOC", text: "Aprobador OC", icon: "bi-patch-check" });
     }
 
-    // ✅ Juan (y Admin) => Generador de Cotización SOLO en EMPRESA
     if (canSeeGenerarCotizacion.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
@@ -132,7 +131,6 @@ export function useRoleMenus() {
         icon: "bi bi-clipboard2-minus",
       });
     }
-
     if (canSeeAprobacionDocs.value) {
       pushIfMissing(base, {
         name: "AprobacionDocs",
@@ -196,17 +194,19 @@ export function useRoleMenus() {
       pushIfMissing(base, { name: "SolpedTaller", text: "Crear SOLPED (Taller)", icon: "bi-wrench-adjustable-circle" });
     }
 
-    // ✅ Evitar duplicado: NO agregar GenerarCotizacion en TALLER para Juan
-    if (canSeeGenerarCotizacion.value && !isJuanCubillos.value) {
+    if (canSeeGenerarCotizacion.value && !isJuanCubillos.value && !isAdmin.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
         text: "Generador de cotización",
         icon: "bi bi-clipboard2-minus",
       });
     }
-
-    if (canSeeAprobacionDocs.value) {
-      pushIfMissing(base, { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" });
+    if (canSeeAprobacionDocs.value && !isAdmin.value) {
+      pushIfMissing(base, {
+        name: "AprobacionDocs",
+        text: "Aprobador de Facturas",
+        icon: "bi bi-clipboard2-check",
+      });
     }
 
     return base;
@@ -227,10 +227,8 @@ export function useRoleMenus() {
       { name: "AdminConfig", text: "Configuracion Reglas", icon: "bi bi-pc-display-horizontal" },
       { name: "SoporteGestion", text: "SoporteGestion", icon: "bi bi-person-gear" },
       { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
-      { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" },
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
       { name: "AiInspectorView", text: "Chatbot", icon: "bi bi-robot" },
-      { name: "GenerarCotizacion", text: "Generador de cotización", icon: "bi bi-clipboard2-minus" },
       { name: "GenerarCertificados", text: "Generador de certificados", icon: "bi bi-clipboard2" },
     ];
   });

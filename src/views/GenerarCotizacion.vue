@@ -113,19 +113,50 @@
 
             <hr class="my-4" />
 
+            <!-- ✅ CONDICIONES (número + opciones fijas) -->
             <h2 class="h6 fw-bold mb-3">Condiciones</h2>
+
             <div class="row g-3">
               <div class="col-12 col-md-4">
                 <label class="form-label fw-semibold">Plazo de entrega</label>
-                <input class="form-control" v-model.trim="form.plazoEntrega" placeholder="Ej: 2 días hábiles" />
+                <div class="input-group">
+                  <input
+                    type="number"
+                    class="form-control text-end"
+                    v-model.number="form.plazoEntregaDias"
+                    min="1"
+                    step="1"
+                    @blur="form.plazoEntregaDias = sanitizePositiveInt(form.plazoEntregaDias, 2)"
+                  />
+                  <span class="input-group-text">días hábiles</span>
+                </div>
+                <div class="form-text">Se mostrará como: <b>{{ formPlazoEntregaStr }}</b></div>
               </div>
+
               <div class="col-12 col-md-4">
                 <label class="form-label fw-semibold">Validez</label>
-                <input class="form-control" v-model.trim="form.validez" placeholder="Ej: 7 días" />
+                <div class="input-group">
+                  <input
+                    type="number"
+                    class="form-control text-end"
+                    v-model.number="form.validezDias"
+                    min="1"
+                    step="1"
+                    @blur="form.validezDias = sanitizePositiveInt(form.validezDias, 7)"
+                  />
+                  <span class="input-group-text">días</span>
+                </div>
+                <div class="form-text">Se mostrará como: <b>{{ formValidezStr }}</b></div>
               </div>
+
               <div class="col-12 col-md-4">
                 <label class="form-label fw-semibold">Condición de pago</label>
-                <input class="form-control" v-model.trim="form.pago" placeholder="Ej: Transferencia / 30 días" />
+                <select class="form-select" v-model="form.pagoTipo">
+                  <option v-for="o in PAGO_OPTS" :key="o.value" :value="o.value">
+                    {{ o.label }}
+                  </option>
+                </select>
+                <div class="form-text">Se mostrará como: <b>{{ formPagoStr }}</b></div>
               </div>
             </div>
 
@@ -190,9 +221,9 @@
 
               <div class="d-flex justify-content-between align-items-start">
                 <div class="small">
-                  <div><b>Plazo:</b> {{ form.plazoEntrega }}</div>
-                  <div><b>Validez:</b> {{ form.validez }}</div>
-                  <div><b>Pago:</b> {{ form.pago }}</div>
+                  <div><b>Plazo:</b> {{ formPlazoEntregaStr }}</div>
+                  <div><b>Validez:</b> {{ formValidezStr }}</div>
+                  <div><b>Pago:</b> {{ formPagoStr }}</div>
                 </div>
 
                 <div class="preview-totals">
@@ -228,6 +259,7 @@
       </div>
     </div>
 
+    <!-- HISTORIAL -->
     <div class="modal fade" tabindex="-1" ref="histModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -315,6 +347,7 @@
       </div>
     </div>
 
+    <!-- EDITAR (ABRIR) -->
     <div class="modal fade" tabindex="-1" ref="actModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -403,6 +436,54 @@
 
               <hr class="my-4" />
 
+              <!-- ✅ CONDICIONES EN MODAL -->
+              <h6 class="fw-bold mb-3">Condiciones</h6>
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold">Plazo de entrega</label>
+                  <div class="input-group">
+                    <input
+                      type="number"
+                      class="form-control text-end"
+                      v-model.number="actForm.plazoEntregaDias"
+                      min="1"
+                      step="1"
+                      @blur="actForm.plazoEntregaDias = sanitizePositiveInt(actForm.plazoEntregaDias, 2)"
+                    />
+                    <span class="input-group-text">días hábiles</span>
+                  </div>
+                  <div class="form-text">Se mostrará como: <b>{{ actPlazoEntregaStr }}</b></div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold">Validez</label>
+                  <div class="input-group">
+                    <input
+                      type="number"
+                      class="form-control text-end"
+                      v-model.number="actForm.validezDias"
+                      min="1"
+                      step="1"
+                      @blur="actForm.validezDias = sanitizePositiveInt(actForm.validezDias, 7)"
+                    />
+                    <span class="input-group-text">días</span>
+                  </div>
+                  <div class="form-text">Se mostrará como: <b>{{ actValidezStr }}</b></div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold">Condición de pago</label>
+                  <select class="form-select" v-model="actForm.pagoTipo">
+                    <option v-for="o in PAGO_OPTS" :key="o.value" :value="o.value">
+                      {{ o.label }}
+                    </option>
+                  </select>
+                  <div class="form-text">Se mostrará como: <b>{{ actPagoStr }}</b></div>
+                </div>
+              </div>
+
+              <hr class="my-4" />
+
               <div class="d-flex justify-content-end">
                 <div style="min-width: 260px;" class="small">
                   <div class="d-flex justify-content-between">
@@ -444,40 +525,42 @@
         </div>
       </div>
     </div>
-      <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header">
-              <h5 class="modal-title mb-0">Confirmar eliminación</h5>
-              <button type="button" class="btn-close" @click="closeDeleteConfirm"></button>
+
+    <!-- ELIMINAR -->
+    <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header">
+            <h5 class="modal-title mb-0">Confirmar eliminación</h5>
+            <button type="button" class="btn-close" @click="closeDeleteConfirm"></button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="delErr" class="alert alert-danger">{{ delErr }}</div>
+
+            <p class="mb-2">
+              ¿Seguro que deseas eliminar la cotización
+              <b>#{{ String(delNumero || 0).padStart(3, "0") }}</b>?
+            </p>
+            <div class="text-muted small">
+              Esta acción no se puede deshacer.
             </div>
+          </div>
 
-            <div class="modal-body">
-              <div v-if="delErr" class="alert alert-danger">{{ delErr }}</div>
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" @click="closeDeleteConfirm" :disabled="delBusy" type="button">
+              Cancelar
+            </button>
 
-              <p class="mb-2">
-                ¿Seguro que deseas eliminar la cotización
-                <b>#{{ String(delNumero || 0).padStart(3, "0") }}</b>?
-              </p>
-              <div class="text-muted small">
-                Esta acción no se puede deshacer.
-              </div>
-            </div>
-
-            <div class="modal-footer">
-              <button class="btn btn-outline-secondary" @click="closeDeleteConfirm" :disabled="delBusy" type="button">
-                Cancelar
-              </button>
-
-              <button class="btn btn-danger" @click="confirmDelete" :disabled="delBusy" type="button">
-                <span v-if="delBusy" class="spinner-border spinner-border-sm me-2"></span>
-                <i v-else class="bi bi-trash me-1"></i>
-                Sí, eliminar
-              </button>
-            </div>
+            <button class="btn btn-danger" @click="confirmDelete" :disabled="delBusy" type="button">
+              <span v-if="delBusy" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="bi bi-trash me-1"></i>
+              Sí, eliminar
+            </button>
           </div>
         </div>
       </div>
+    </div>
 
   </div>
 </template>
@@ -511,6 +594,42 @@ const emisor = {
   razon: "XTREME SERVICIOS",
 };
 
+/** ✅ Pago options */
+const PAGO_OPTS = [
+  { value: "CREDITO", label: "Crédito" },
+  { value: "DEBITO", label: "Débito" },
+  { value: "A_CONVENIR", label: "A convenir" },
+];
+
+function pagoLabel(tipo) {
+  return (PAGO_OPTS.find((x) => x.value === tipo) || PAGO_OPTS[2]).label;
+}
+
+function pluralDia(n) {
+  return Number(n) === 1 ? "día" : "días";
+}
+
+function sanitizePositiveInt(val, fallback) {
+  const n = Math.floor(Number(val));
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return n;
+}
+
+/** compat: parse "2 días hábiles" -> 2 */
+function parseFirstInt(text, fallback) {
+  const m = String(text || "").match(/(\d+)/);
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function parsePagoTipo(text) {
+  const t = String(text || "").toLowerCase();
+  if (t.includes("cr")) return "CREDITO";
+  if (t.includes("dé") || t.includes("debi")) return "DEBITO";
+  if (t.includes("a convenir")) return "A_CONVENIR";
+  return "A_CONVENIR";
+}
+
 const todayISO = () => {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -532,9 +651,12 @@ const form = ref({
   fecha: todayISO(),
   clienteEmpresa: "Xtreme Mining",
   items: [makeItem()],
-  plazoEntrega: "2 días hábiles",
-  validez: "7 días",
-  pago: "A convenir",
+
+  // ✅ nuevas condiciones estructuradas
+  plazoEntregaDias: 2,
+  validezDias: 7,
+  pagoTipo: "A_CONVENIR",
+
   firmaNombre: "Guillermo Manzor",
   firmaTelefono: "+56954146017",
   firmaEmail: "gmanzor@xtrememining.cl",
@@ -542,14 +664,22 @@ const form = ref({
   telEmpresa: "+56 9 3430 3873",
 });
 
+const formPlazoEntregaStr = computed(() => {
+  const n = sanitizePositiveInt(form.value.plazoEntregaDias, 2);
+  return `${n} ${pluralDia(n)} hábiles`;
+});
+const formValidezStr = computed(() => {
+  const n = sanitizePositiveInt(form.value.validezDias, 7);
+  return `${n} ${pluralDia(n)}`;
+});
+const formPagoStr = computed(() => pagoLabel(form.value.pagoTipo));
+
 const saving = ref(false);
 const errors = ref({});
-
 
 const isEditing = ref(false);
 const editingId = ref(null);
 const editingNumero = ref(null);
-
 
 const histModalEl = ref(null);
 const actModalEl = ref(null);
@@ -557,6 +687,7 @@ const delModalEl = ref(null);
 let histModal = null;
 let actModal = null;
 let delModal = null;
+
 onMounted(() => {
   if (histModalEl.value) {
     histModal = new Modal(histModalEl.value, { backdrop: true, keyboard: true, focus: true });
@@ -564,16 +695,15 @@ onMounted(() => {
   if (actModalEl.value) {
     actModal = new Modal(actModalEl.value, { backdrop: true, keyboard: true, focus: true });
   }
-    if (delModalEl.value) {
+  if (delModalEl.value) {
     delModal = new Modal(delModalEl.value, { backdrop: "static", keyboard: true, focus: true });
   }
-
 });
 
 onBeforeUnmount(() => {
-  try { histModal?.dispose?.(); } catch(e) {console.log(e)}
-  try { actModal?.dispose?.(); } catch(e) {console.log(e)}
-  try { delModal?.dispose?.(); } catch(e) {console.log(e)}
+  try { histModal?.dispose?.(); } catch(e) { console.log(e); }
+  try { actModal?.dispose?.(); } catch(e) { console.log(e); }
+  try { delModal?.dispose?.(); } catch(e) { console.log(e); }
 });
 
 const histLoading = ref(false);
@@ -629,7 +759,6 @@ async function loadHistorial() {
   }
 }
 
-
 function roundCLP(n) {
   return Math.round(Number(n || 0));
 }
@@ -659,7 +788,6 @@ const totalNeto = computed(() => form.value.items.reduce((acc, it) => acc + item
 const totalIva = computed(() => form.value.items.reduce((acc, it) => acc + itemIva(it), 0));
 const totalGeneral = computed(() => roundCLP(totalNeto.value + totalIva.value));
 
-
 function addItem() {
   form.value.items.push(makeItem());
 }
@@ -667,7 +795,6 @@ function removeItem(idx) {
   if (form.value.items.length <= 1) return;
   form.value.items.splice(idx, 1);
 }
-
 
 function resetForm() {
   errors.value = {};
@@ -679,9 +806,9 @@ function resetForm() {
     fecha: todayISO(),
     clienteEmpresa: "Xtreme Mining",
     items: [makeItem()],
-    plazoEntrega: "2 días hábiles",
-    validez: "7 días",
-    pago: "A convenir",
+    plazoEntregaDias: 2,
+    validezDias: 7,
+    pagoTipo: "A_CONVENIR",
     firmaNombre: "Guillermo Manzor",
     firmaTelefono: "+56954146017",
     firmaEmail: "gmanzor@xtrememining.cl",
@@ -719,6 +846,23 @@ async function getNextNumeroCotizacion() {
   });
 }
 
+function buildCondicionesFromForm(src) {
+  const plazoDias = sanitizePositiveInt(src.plazoEntregaDias, 2);
+  const valDias = sanitizePositiveInt(src.validezDias, 7);
+  const pagoTipo = src.pagoTipo || "A_CONVENIR";
+  return {
+    // ✅ strings para PDF + lectura humana
+    plazoEntrega: `${plazoDias} ${pluralDia(plazoDias)} hábiles`,
+    validez: `${valDias} ${pluralDia(valDias)}`,
+    pago: pagoLabel(pagoTipo),
+
+    // ✅ estructurados
+    plazoEntregaDias: plazoDias,
+    validezDias: valDias,
+    pagoTipo,
+  };
+}
+
 async function guardarYGenerar() {
   if (saving.value) return;
   errors.value = {};
@@ -739,16 +883,14 @@ async function guardarYGenerar() {
 
     const user = auth?.currentUser || null;
 
+    const condiciones = buildCondicionesFromForm(form.value);
+
     if (isEditing.value && editingId.value) {
       const payloadUpdate = {
         fecha: form.value.fecha,
         emisor: { ...emisor },
         cliente: { empresa: form.value.clienteEmpresa.trim() },
-        condiciones: {
-          plazoEntrega: form.value.plazoEntrega.trim(),
-          validez: form.value.validez.trim(),
-          pago: form.value.pago.trim(),
-        },
+        condiciones,
         contacto: {
           web: form.value.web.trim(),
           telEmpresa: form.value.telEmpresa.trim(),
@@ -777,7 +919,7 @@ async function guardarYGenerar() {
         fecha: form.value.fecha,
         emisor: { ...emisor },
         cliente: { empresa: form.value.clienteEmpresa.trim() },
-        condiciones: { ...payloadUpdate.condiciones },
+        condiciones,
         contacto: { ...payloadUpdate.contacto },
         firma: { ...payloadUpdate.firma },
         ivaRate,
@@ -799,11 +941,7 @@ async function guardarYGenerar() {
       fecha: form.value.fecha,
       emisor: { ...emisor },
       cliente: { empresa: form.value.clienteEmpresa.trim() },
-      condiciones: {
-        plazoEntrega: form.value.plazoEntrega.trim(),
-        validez: form.value.validez.trim(),
-        pago: form.value.pago.trim(),
-      },
+      condiciones,
       contacto: {
         web: form.value.web.trim(),
         telEmpresa: form.value.telEmpresa.trim(),
@@ -834,7 +972,7 @@ async function guardarYGenerar() {
   }
 }
 
-
+/** ===== MODAL ABRIR ===== */
 const actId = ref(null);
 const actNumero = ref(0);
 const actLoading = ref(false);
@@ -842,11 +980,28 @@ const actSaving = ref(false);
 const actErr = ref("");
 const actErrors = ref({});
 
+/** guardamos lo que viene del doc para no perder firma/contacto */
+const actFirma = ref({ nombre: "", telefono: "", email: "" });
+const actContacto = ref({ web: "", telEmpresa: "" });
+
 const actForm = ref({
   fecha: todayISO(),
   clienteEmpresa: "",
   items: [makeItem()],
+  plazoEntregaDias: 2,
+  validezDias: 7,
+  pagoTipo: "A_CONVENIR",
 });
+
+const actPlazoEntregaStr = computed(() => {
+  const n = sanitizePositiveInt(actForm.value.plazoEntregaDias, 2);
+  return `${n} ${pluralDia(n)} hábiles`;
+});
+const actValidezStr = computed(() => {
+  const n = sanitizePositiveInt(actForm.value.validezDias, 7);
+  return `${n} ${pluralDia(n)}`;
+});
+const actPagoStr = computed(() => pagoLabel(actForm.value.pagoTipo));
 
 const actTotalNeto = computed(() => actForm.value.items.reduce((acc, it) => acc + itemNeto(it), 0));
 const actTotalIva = computed(() => actForm.value.items.reduce((acc, it) => acc + itemIva(it), 0));
@@ -905,6 +1060,25 @@ async function openActions(c) {
         }))
       : [makeItem()];
 
+    // ✅ cargar condiciones (compatibles con viejas)
+    const cond = data.condiciones || {};
+    actForm.value.plazoEntregaDias =
+      Number(cond.plazoEntregaDias) > 0 ? Number(cond.plazoEntregaDias) : parseFirstInt(cond.plazoEntrega, 2);
+    actForm.value.validezDias =
+      Number(cond.validezDias) > 0 ? Number(cond.validezDias) : parseFirstInt(cond.validez, 7);
+    actForm.value.pagoTipo = cond.pagoTipo || parsePagoTipo(cond.pago);
+
+    // ✅ mantener firma/contacto para PDF
+    actFirma.value = {
+      nombre: data?.firma?.nombre || "",
+      telefono: data?.firma?.telefono || "",
+      email: data?.firma?.email || "",
+    };
+    actContacto.value = {
+      web: data?.contacto?.web || "www.xtrememining.cl",
+      telEmpresa: data?.contacto?.telEmpresa || "+56 9 3430 3873",
+    };
+
     histModal?.hide();
     actModal?.show();
   } catch (e) {
@@ -945,10 +1119,12 @@ async function actGuardarYDescargar() {
 
     const user = auth?.currentUser || null;
 
+    const condiciones = buildCondicionesFromForm(actForm.value);
+
     const payloadUpdate = {
       fecha: actForm.value.fecha,
-      emisor: { ...emisor },
       cliente: { empresa: actForm.value.clienteEmpresa.trim() },
+      condiciones,
       ivaRate,
       items: itemsComputed,
       totales: {
@@ -968,9 +1144,9 @@ async function actGuardarYDescargar() {
       fecha: actForm.value.fecha,
       emisor: { ...emisor },
       cliente: { empresa: actForm.value.clienteEmpresa.trim() },
-      condiciones: {},
-      contacto: {},
-      firma: {},
+      condiciones,
+      contacto: { ...actContacto.value },
+      firma: { ...actFirma.value },
       ivaRate,
       items: itemsComputed,
       totales: { neto: actTotalNeto.value, iva: actTotalIva.value, total: actTotalGeneral.value },
@@ -990,6 +1166,7 @@ async function actGuardarYDescargar() {
   }
 }
 
+/** ===== ELIMINAR ===== */
 const delId = ref(null);
 const delNumero = ref(0);
 const delBusy = ref(false);
@@ -1035,7 +1212,6 @@ async function confirmDelete() {
   }
 }
 
-
 async function actDescargarDesdeFirestore() {
   if (!actId.value) return;
   try {
@@ -1069,7 +1245,7 @@ async function reDescargarCotizacion(c) {
   }
 }
 
-
+/** ===== PDF ===== */
 function wrapTextByWidth(text, font, fontSize, maxWidth, maxLines = 2) {
   const words = String(text || "").split(/\s+/).filter(Boolean);
   const lines = [];
@@ -1094,6 +1270,14 @@ function wrapTextByWidth(text, font, fontSize, maxWidth, maxLines = 2) {
     lines[last] = s.length > 1 ? s.slice(0, Math.max(1, s.length - 1)) + "…" : "…";
   }
   return lines;
+}
+
+function ensureCondStrings(cond = {}) {
+  // si vienen nuevos campos, armamos strings para el PDF
+  const plazo = cond.plazoEntrega || (cond.plazoEntregaDias ? `${cond.plazoEntregaDias} ${pluralDia(cond.plazoEntregaDias)} hábiles` : "");
+  const validez = cond.validez || (cond.validezDias ? `${cond.validezDias} ${pluralDia(cond.validezDias)}` : "");
+  const pago = cond.pago || (cond.pagoTipo ? pagoLabel(cond.pagoTipo) : "");
+  return { plazo, validez, pago };
 }
 
 async function buildPdf(data) {
@@ -1128,6 +1312,7 @@ async function buildPdf(data) {
     borderColor: borderPlomo,
     borderWidth: 1.4,
   });
+
   const logoBytes = await fetch(logoUrl).then((r) => r.arrayBuffer());
   const logoPng = await pdfDoc.embedPng(logoBytes);
   const logoW = 200;
@@ -1246,6 +1431,7 @@ async function buildPdf(data) {
 
   y -= 6;
   page.drawLine({ start: { x: tableX, y }, end: { x: tableX + tableW, y }, thickness: 1.2, color: rgb(0.35, 0.35, 0.35) });
+
   const footerH = 26;
   const footerY = 28;
 
@@ -1256,9 +1442,10 @@ async function buildPdf(data) {
 
   const totalsX = M + innerW - 210;
 
-  page.drawText(`Plazo de entrega: ${data?.condiciones?.plazoEntrega || ""}`, { x: M, y: condTopY + 18, size: 10, font, color: gray });
-  page.drawText(`Validez: ${data?.condiciones?.validez || ""}`, { x: M, y: condTopY + 4, size: 10, font, color: gray });
-  page.drawText(`Condición de pago: ${data?.condiciones?.pago || ""}`, { x: M, y: condTopY - 10, size: 10, font, color: gray });
+  const condStr = ensureCondStrings(data?.condiciones || {});
+  page.drawText(`Plazo de entrega: ${condStr.plazo || ""}`, { x: M, y: condTopY + 18, size: 10, font, color: gray });
+  page.drawText(`Validez: ${condStr.validez || ""}`, { x: M, y: condTopY + 4, size: 10, font, color: gray });
+  page.drawText(`Condición de pago: ${condStr.pago || ""}`, { x: M, y: condTopY - 10, size: 10, font, color: gray });
 
   const v1 = fmtCLP(data?.totales?.neto || 0);
   const v2 = fmtCLP(data?.totales?.iva || 0);
@@ -1272,6 +1459,7 @@ async function buildPdf(data) {
 
   page.drawText("A PAGAR:", { x: totalsX, y: condTopY - 12, size: 11.5, font: fontBold, color: black });
   page.drawText(v3, { x: M + innerW - fontBold.widthOfTextAtSize(v3, 11.5), y: condTopY - 12, size: 11.5, font: fontBold, color: black });
+
   const firmaNombre = data?.firma?.nombre || "";
   const firmaTel = data?.firma?.telefono || "";
   const firmaMail = data?.firma?.email || "";

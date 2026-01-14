@@ -21,47 +21,69 @@
         >
           <option value="" disabled>Selecciona un lote…</option>
           <option v-for="l in lotesForTab" :key="l.id" :value="l.id">
-            {{ l.nombre || ("Lote " + l.id.slice(0,6)) }}
+            {{ l.nombre || ("Lote " + l.id.slice(0, 6)) }}
           </option>
         </select>
 
         <div class="btn-group">
-          <button class="btn btn-outline-dark" :class="{active: tab==='staging'}" @click="tab='staging'">Revisión local</button>
-          <button class="btn btn-outline-dark" :class="{active: tab==='cloud'}" @click="tab='cloud'">En Firestore</button>
+          <button class="btn btn-outline-dark" :class="{ active: tab === 'staging' }" @click="tab = 'staging'">
+            Revisión local
+          </button>
+          <button class="btn btn-outline-dark" :class="{ active: tab === 'cloud' }" @click="tab = 'cloud'">
+            En Firestore
+          </button>
         </div>
       </div>
     </div>
 
     <!-- ✅ Mensajes según tab -->
-    <div v-if="tab==='staging' && lotesForTab.length===0" class="alert alert-warning">
+    <div v-if="tab === 'staging' && lotesForTab.length === 0" class="alert alert-warning">
       No hay lotes <b>pendientes</b> para revisión local. Crea un lote nuevo.
     </div>
-    <div v-else-if="tab==='cloud' && lotesForTab.length===0" class="alert alert-warning">
-      No hay lotes en <b>en_revision</b> o <b>Revisión completa</b> para ver en Firestore.
+    <div v-else-if="tab === 'cloud' && lotesForTab.length === 0" class="alert alert-warning">
+      No hay lotes en <b>en_revision</b> o <b>revision_completada</b> para ver en Firestore.
     </div>
 
-    <div v-if="tab==='staging'" class="row g-3">
+    <!-- ========================= -->
+    <!-- TAB: STAGING -->
+    <!-- ========================= -->
+    <div v-if="tab === 'staging'" class="row g-3">
       <div class="col-12 col-lg-5">
         <div class="card shadow-sm">
           <div class="card-header d-flex align-items-center justify-content-between">
             <div class="fw-semibold">Borradores (local)</div>
 
             <div class="d-flex gap-2">
-              <label class="btn btn-danger btn-sm mb-0" :class="{ disabled: loteLocked }" :title="loteLocked ? 'Este lote ya no está en pendiente. Crea un lote nuevo para subir.' : ''">
+              <label
+                class="btn btn-danger btn-sm mb-0"
+                :class="{ disabled: loteLocked }"
+                :title="
+                  loteLocked
+                    ? 'Este lote ya no está en pendiente. Crea un lote nuevo para subir.'
+                    : ''
+                "
+              >
                 <i class="bi bi-upload me-1"></i> Cargar PDFs (paquetes)
-                <input type="file" multiple accept="application/pdf" class="d-none" @change="onPickFilesLocal" :disabled="loteLocked" />
+                <input
+                  type="file"
+                  multiple
+                  accept="application/pdf"
+                  class="d-none"
+                  @change="onPickFilesLocal"
+                  :disabled="loteLocked"
+                />
               </label>
 
-              <button class="btn btn-outline-secondary btn-sm" @click="clearStaging" :disabled="staged.length===0">
+              <button class="btn btn-outline-secondary btn-sm" @click="clearStaging" :disabled="staged.length === 0">
                 <i class="bi bi-trash me-1"></i> Limpiar
               </button>
             </div>
           </div>
 
           <div class="card-body">
-
             <div v-if="loteLocked" class="alert alert-danger py-2">
-              Este lote ya está en <b>{{ selectedLote?.estado || 'en_revision' }}</b>. Para subir más PDFs, crea un lote nuevo.
+              Este lote ya está en <b>{{ selectedLote?.estado || "en_revision" }}</b>. Para subir más PDFs, crea un lote
+              nuevo.
             </div>
 
             <div v-if="localBusy" class="p-2 rounded border bg-light-subtle mb-3">
@@ -70,8 +92,11 @@
                 <div class="flex-grow-1">
                   <div class="small fw-semibold">Procesando PDFs…</div>
                   <div class="small text-muted">{{ localStatus }}</div>
-                  <div class="progress mt-1" style="height: 8px;">
-                    <div class="progress-bar bg-danger progress-bar-striped progress-bar-animated" :style="{ width: localProgress + '%' }"></div>
+                  <div class="progress mt-1" style="height: 8px">
+                    <div
+                      class="progress-bar bg-danger progress-bar-striped progress-bar-animated"
+                      :style="{ width: localProgress + '%' }"
+                    ></div>
                   </div>
                 </div>
                 <div class="small fw-semibold">{{ localProgress }}%</div>
@@ -87,7 +112,7 @@
               <span class="badge text-bg-dark">Sin OC: {{ stagedMissingRefOcCount }}</span>
             </div>
 
-            <div class="list-group" style="max-height: 65vh; overflow:auto;">
+            <div class="list-group" style="max-height: 65vh; overflow: auto">
               <button
                 v-for="s in staged"
                 :key="s.id"
@@ -99,51 +124,41 @@
                 <div class="d-flex justify-content-between align-items-start">
                   <div class="me-2">
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                      <span class="badge" :class="tipoBadge(s.tipo)">{{ (s.tipo || 'factura').toUpperCase() }}</span>
+                      <span class="badge" :class="tipoBadge(s.tipo)">{{ (s.tipo || "factura").toUpperCase() }}</span>
 
-                      <span
-                        v-if="s.tipo==='oc' && s.numero"
-                        class="badge oc-strong-badge"
-                        title="OC"
-                      >
+                      <span v-if="s.tipo === 'oc' && s.numero" class="badge oc-strong-badge" title="OC">
                         OC N° {{ s.numero }}
                       </span>
 
-                      <span
-                        v-else-if="s.tipo!=='oc' && (s.refOc || '').trim()"
-                        class="badge text-bg-light"
-                        title="OC asociada"
-                      >
+                      <span v-else-if="s.tipo !== 'oc' && (s.refOc || '').trim()" class="badge text-bg-light" title="OC asociada">
                         OC: {{ s.refOc }}
                       </span>
 
-                      <span
-                        v-else-if="s.tipo!=='oc'"
-                        class="badge text-bg-danger"
-                        title="Falta OC asociada"
-                      >
+                      <span v-else-if="s.tipo !== 'oc'" class="badge text-bg-danger" title="Falta OC asociada">
                         Sin OC
                       </span>
 
                       <span class="badge" :class="s.coherence?.ok ? 'text-bg-success' : 'text-bg-danger'">
-                        {{ s.coherence?.ok ? 'OK' : 'REVISAR' }}
+                        {{ s.coherence?.ok ? "OK" : "REVISAR" }}
                       </span>
                       <span class="badge text-bg-light">{{ s.pagesCount }} pág</span>
-                      <span v-if="s.tipo==='oc' && !s.numero" class="badge text-bg-danger">FALTA N°</span>
+                      <span v-if="s.tipo === 'oc' && !s.numero" class="badge text-bg-danger">FALTA N°</span>
                     </div>
 
-                    <div class="fw-semibold mt-1 text-truncate" style="max-width: 360px;">
+                    <div class="fw-semibold mt-1 text-truncate" style="max-width: 360px">
                       {{ s.parentName }} · parte {{ s.partIndex }}/{{ s.totalParts }}
                     </div>
 
                     <small class="text-muted">
-                      N°: <span class="fw-semibold">{{ s.numero || '—' }}</span>
-                      <span v-if="s.tipo!=='oc'"> · OC: <span class="fw-semibold">{{ s.refOc || '—' }}</span></span>
+                      N°: <span class="fw-semibold">{{ s.numero || "—" }}</span>
+                      <span v-if="s.tipo !== 'oc'">
+                        · OC: <span class="fw-semibold">{{ s.refOc || "—" }}</span></span
+                      >
                       · Páginas: {{ s.pageRange }}
                     </small>
 
                     <div v-if="!s.coherence?.ok" class="small text-danger mt-1">
-                      <div v-for="(r, i) in (s.coherence?.reasons || [])" :key="i">• {{ r }}</div>
+                      <div v-for="(r, i) in s.coherence?.reasons || []" :key="i">• {{ r }}</div>
                     </div>
                   </div>
 
@@ -158,13 +173,17 @@
                 </div>
               </button>
 
-              <div v-if="staged.length===0" class="text-muted text-center py-4">
+              <div v-if="staged.length === 0" class="text-muted text-center py-4">
                 Sube PDFs. Esto separa 1 página = 1 documento y clasifica automáticamente.
               </div>
             </div>
 
             <div class="d-grid gap-2 mt-3">
-              <button class="btn btn-success" @click="uploadStagingToLote" :disabled="!selectedLoteId || staged.length===0 || uploadBusy || loteLocked">
+              <button
+                class="btn btn-success"
+                @click="uploadStagingToLote"
+                :disabled="!selectedLoteId || staged.length === 0 || uploadBusy || loteLocked"
+              >
                 <i class="bi bi-cloud-arrow-up me-1"></i> Subir revisados al lote
               </button>
 
@@ -173,14 +192,15 @@
                   <span>{{ uploadStatus }}</span>
                   <span class="fw-semibold">{{ uploadProgress }}%</span>
                 </div>
-                <div class="progress" style="height: 10px;">
-                  <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" :style="{ width: uploadProgress + '%' }"></div>
+                <div class="progress" style="height: 10px">
+                  <div
+                    class="progress-bar bg-success progress-bar-striped progress-bar-animated"
+                    :style="{ width: uploadProgress + '%' }"
+                  ></div>
                 </div>
               </div>
 
-              <small class="text-muted">
-                *Sube cada “parte” como documento separado.
-              </small>
+              <small class="text-muted"> *Sube cada “parte” como documento separado. </small>
             </div>
           </div>
         </div>
@@ -192,41 +212,51 @@
             <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
               Vista previa (local)
               <span v-if="selectedStageFull" class="badge" :class="tipoBadge(stageForm.tipo)">
-                {{ (stageForm.tipo || 'factura').toUpperCase() }}
+                {{ (stageForm.tipo || "factura").toUpperCase() }}
               </span>
 
               <span v-if="selectedStageFull" class="badge text-bg-light">
-                <template v-if="stageForm.tipo==='oc'">
-                  N°: {{ stageForm.numero || '—' }}
-                </template>
-                <template v-else>
-                  OC: {{ stageForm.refOc || '—' }}
-                </template>
+                <template v-if="stageForm.tipo === 'oc'"> N°: {{ stageForm.numero || "—" }} </template>
+                <template v-else> OC: {{ stageForm.refOc || "—" }} </template>
               </span>
             </div>
 
             <div class="d-flex gap-2">
               <button
-                v-if="selectedStageFull && stageForm.tipo!=='oc'"
+                v-if="selectedStageFull && stageForm.tipo !== 'oc'"
                 class="btn btn-outline-secondary btn-sm"
                 type="button"
                 @click="gotoNextStagingMissingRefOc(selectedStageFull.id)"
-                :disabled="stagedMissingRefOcCount===0"
+                :disabled="stagedMissingRefOcCount === 0"
                 title="Ir al siguiente borrador sin OC"
               >
                 Siguiente sin OC
               </button>
 
-              <a v-if="stagePreviewUrl" class="btn btn-outline-dark btn-sm" :href="stagePreviewUrl" target="_blank">
-                <i class="bi bi-box-arrow-up-right"></i>
-              </a>
+              <button
+                v-if="selectedStageFull && !stagePreviewUrl"
+                class="btn btn-outline-dark btn-sm"
+                type="button"
+                @click="openStagePreview"
+              >
+                <i class="bi bi-eye me-1"></i> Ver
+              </button>
+
+              <button
+                v-if="stagePreviewUrl"
+                class="btn btn-outline-secondary btn-sm"
+                type="button"
+                @click="closeStagePreview"
+              >
+                <i class="bi bi-eye-slash me-1"></i> Ocultar
+              </button>
             </div>
           </div>
 
           <div class="card-body">
             <div v-if="selectedStageFull" class="mb-3 p-2 rounded border bg-light-subtle">
               <div class="d-flex flex-wrap gap-2 align-items-end">
-                <div style="min-width: 180px;">
+                <div style="min-width: 180px">
                   <label class="form-label mb-1 small text-muted">Tipo</label>
                   <select class="form-select form-select-sm" v-model="stageForm.tipo" @change="onStageTipoChanged">
                     <option value="oc">OC</option>
@@ -237,19 +267,15 @@
 
                 <div class="flex-grow-1">
                   <label class="form-label mb-1 small text-muted">
-                    <template v-if="stageForm.tipo==='oc'">
-                      Número <span class="text-danger">*</span>
-                    </template>
-                    <template v-else>
-                      OC asociada <span class="text-danger">*</span>
-                    </template>
+                    <template v-if="stageForm.tipo === 'oc'"> Número <span class="text-danger">*</span> </template>
+                    <template v-else> OC asociada <span class="text-danger">*</span> </template>
                   </label>
 
                   <div class="input-group input-group-sm">
                     <input
                       class="form-control"
                       v-model="stageMainValue"
-                      :placeholder="stageForm.tipo==='oc' ? 'Ej: 62570' : 'Ej: 62570 (OC asociada)'"
+                      :placeholder="stageForm.tipo === 'oc' ? 'Ej: 62570' : 'Ej: 62570 (OC asociada)'"
                       @keyup.enter="saveStageQuick"
                       :class="stageCanSave ? '' : 'is-invalid'"
                     />
@@ -275,7 +301,7 @@
                 <div class="small text-muted mb-1">Sugerencias detectadas (click para usar):</div>
                 <div class="d-flex flex-wrap gap-2">
                   <button
-                    v-for="c in (selectedStageFull.ocCandidates || [])"
+                    v-for="c in selectedStageFull.ocCandidates || []"
                     :key="c.value + ':' + c.score"
                     class="btn btn-outline-primary btn-sm"
                     type="button"
@@ -285,7 +311,10 @@
                     {{ c.value }}
                   </button>
                   <button
-                    v-if="selectedStageFull.refOc && !(selectedStageFull.ocCandidates||[]).some(x=>x.value===selectedStageFull.refOc)"
+                    v-if="
+                      selectedStageFull.refOc &&
+                      !(selectedStageFull.ocCandidates || []).some((x) => x.value === selectedStageFull.refOc)
+                    "
                     class="btn btn-outline-primary btn-sm"
                     type="button"
                     @click="useStageSuggested(selectedStageFull.refOc)"
@@ -295,38 +324,135 @@
                 </div>
               </div>
 
-              <div v-if="stageForm.tipo!=='oc'" class="small text-muted mt-2">
+              <div v-if="stageForm.tipo !== 'oc'" class="small text-muted mt-2">
                 Tip: escribe la OC y presiona <b>Enter</b> para guardar y avanzar al siguiente “Sin OC”.
               </div>
             </div>
 
-            <div v-if="stagePreviewUrl" class="ratio ratio-1x1" style="min-height: 620px;">
-              <iframe :src="stagePreviewUrl" style="border:0;"></iframe>
+            <div v-if="stagePreviewUrl" class="ratio ratio-1x1" style="min-height: 620px">
+              <iframe :src="stagePreviewUrl" style="border: 0"></iframe>
             </div>
-            <div v-else class="text-muted text-center py-5">
-              Selecciona una parte para previsualizar.
-            </div>
+            <div v-else class="text-muted text-center py-5">Selecciona una parte para previsualizar.</div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- ========================= -->
+    <!-- TAB: CLOUD -->
+    <!-- ========================= -->
     <div v-else class="row g-3">
       <div v-if="!selectedLoteId" class="col-12">
         <div class="alert alert-warning">Selecciona un lote para empezar.</div>
       </div>
 
       <template v-else>
+        <!-- ✅ NUEVO: FIRMAR OCs APROBADAS (por lote) -->
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
+                <i class="bi bi-pen me-1"></i>
+                Firma masiva (OCs aprobadas del lote)
+                <span class="badge text-bg-success">Aprobadas sin firma: {{ ocsAprobadasSinFirma.length }}</span>
+                <span class="badge text-bg-secondary">Seleccionadas: {{ selectedToSignIds.length }}</span>
+              </div>
+
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-dark btn-sm" @click="selectAllOcsToSign" :disabled="ocsAprobadasSinFirma.length === 0">
+                  <i class="bi bi-check2-square me-1"></i> Seleccionar todas
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" @click="clearSelectedOcsToSign" :disabled="selectedToSignIds.length === 0">
+                  <i class="bi bi-eraser me-1"></i> Limpiar
+                </button>
+
+                <button class="btn btn-danger btn-sm" @click="openSignModal" :disabled="selectedToSignIds.length === 0">
+                  <i class="bi bi-pen-fill me-1"></i> Firmar y guardar
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div v-if="ocsAprobadasSinFirma.length === 0" class="text-muted">
+                No hay OCs aprobadas pendientes de firma en este lote.
+              </div>
+
+              <div v-else class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th style="width: 44px"></th>
+                      <th style="width: 110px">OC</th>
+                      <th>Archivo</th>
+                      <th style="width: 140px">Estado</th>
+                      <th style="width: 160px">Última actualización</th>
+                      <th style="width: 120px" class="text-end">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="d in ocsAprobadasSinFirma" :key="d.id">
+                      <td>
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          :checked="selectedToSignIds.includes(d.id)"
+                          @change="toggleSelectOcToSign(d.id)"
+                        />
+                      </td>
+                      <td>
+                        <span class="badge oc-strong-badge">OC {{ d.numero || "—" }}</span>
+                      </td>
+                      <td class="text-truncate" style="max-width: 520px">
+                        {{ d.archivo?.name || d.origen?.parentName || d.id }}
+                      </td>
+                      <td>
+                        <span class="badge text-bg-success">APROBADO</span>
+                        <span class="badge text-bg-warning ms-1">SIN FIRMA</span>
+                        <span v-if="!docHasAnySource(d)" class="badge text-bg-danger ms-1">SIN PDF</span>
+                      </td>
+                      <td class="small text-muted">
+                        {{ docUpdatedAtText(d) }}
+                      </td>
+                      <td class="text-end">
+                        <a v-if="pdfUrlForDoc(d)" class="btn btn-outline-dark btn-sm" :href="pdfUrlForDoc(d)" target="_blank">
+                          <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                        <button v-else class="btn btn-outline-secondary btn-sm" disabled title="Sin url/storagePath">
+                          <i class="bi bi-ban"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div class="small text-muted mt-2">
+                  *Esto firma la <b>OC</b> y guarda el PDF firmado en <b>Firebase Storage</b>, actualizando el campo
+                  <code>firmado</code> en Firestore.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMNA IZQ: LISTA DOCS -->
         <div class="col-12 col-lg-4">
           <div class="card shadow-sm">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">Documentos del lote</div>
               <div class="btn-group">
-                <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='pendiente'}" @click="filtroEstado='pendiente'">Pendientes</button>
-                <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='aprobado'}" @click="filtroEstado='aprobado'">Aprobados</button>
-                <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='rechazado'}" @click="filtroEstado='rechazado'">Rechazados</button>
-                <button class="btn btn-outline-dark btn-sm" :class="{active: filtroEstado==='todos'}" @click="filtroEstado='todos'">Todos</button>
-                <button class="btn btn-outline-danger btn-sm" :class="{active: filtroEstado==='sin_oc'}" @click="filtroEstado='sin_oc'">
+                <button class="btn btn-outline-dark btn-sm" :class="{ active: filtroEstado === 'pendiente' }" @click="filtroEstado = 'pendiente'">
+                  Pendientes
+                </button>
+                <button class="btn btn-outline-dark btn-sm" :class="{ active: filtroEstado === 'aprobado' }" @click="filtroEstado = 'aprobado'">
+                  Aprobados
+                </button>
+                <button class="btn btn-outline-dark btn-sm" :class="{ active: filtroEstado === 'rechazado' }" @click="filtroEstado = 'rechazado'">
+                  Rechazados
+                </button>
+                <button class="btn btn-outline-dark btn-sm" :class="{ active: filtroEstado === 'todos' }" @click="filtroEstado = 'todos'">
+                  Todos
+                </button>
+                <button class="btn btn-outline-danger btn-sm" :class="{ active: filtroEstado === 'sin_oc' }" @click="filtroEstado = 'sin_oc'">
                   Sin OC ({{ docsSinOc.length }})
                 </button>
               </div>
@@ -343,18 +469,13 @@
               </div>
 
               <div class="d-flex flex-wrap gap-2 mb-3">
-
-                <button
-                  class="btn btn-outline-secondary btn-sm"
-                  @click="downloadLotePdfOrdenado"
-                  :disabled="!selectedLoteId || filteredDocs.length === 0"
-                >
+                <button class="btn btn-outline-secondary btn-sm" @click="downloadLotePdfOrdenado" :disabled="!selectedLoteId || filteredDocs.length === 0">
                   <i class="bi bi-file-earmark-pdf me-1"></i>
                   Descargar lote (PDF en orden)
                 </button>
               </div>
 
-              <div class="list-group" style="max-height: 60vh; overflow:auto;">
+              <div class="list-group" style="max-height: 60vh; overflow: auto">
                 <button
                   v-for="d in filteredDocs"
                   :key="d.id"
@@ -366,54 +487,44 @@
                   <div class="d-flex justify-content-between align-items-start">
                     <div class="me-2">
                       <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span class="badge" :class="tipoBadge(d.tipo)">{{ d.tipo?.toUpperCase() || '—' }}</span>
-                        <span class="badge" :class="estadoBadge(d.estado)">{{ d.estado || '—' }}</span>
+                        <span class="badge" :class="tipoBadge(d.tipo)">{{ d.tipo?.toUpperCase() || "—" }}</span>
+                        <span class="badge" :class="estadoBadge(d.estado)">{{ d.estado || "—" }}</span>
 
-                        <span
-                          v-if="d.tipo==='oc' && d.numero"
-                          class="badge oc-strong-badge"
-                          title="Orden de compra"
-                        >
+                        <span v-if="d.tipo === 'oc' && d.numero" class="badge oc-strong-badge" title="Orden de compra">
                           OC N° {{ d.numero }}
                         </span>
 
-                        <span
-                          v-else-if="docRefOc(d)"
-                          class="badge text-bg-light"
-                          title="OC asociada"
-                        >
-                          OC: {{ docRefOc(d) }}
-                        </span>
+                        <span v-else-if="docRefOc(d)" class="badge text-bg-light" title="OC asociada"> OC: {{ docRefOc(d) }} </span>
 
-                        <span
-                          v-else-if="d.tipo!=='oc'"
-                          class="badge text-bg-danger"
-                          title="Falta OC"
-                        >
-                          Sin OC
+                        <span v-else-if="d.tipo !== 'oc'" class="badge text-bg-danger" title="Falta OC"> Sin OC </span>
+
+                        <span v-if="d.tipo === 'oc' && d.estado === 'aprobado' && !d.firmado?.url" class="badge text-bg-warning">
+                          sin firma
+                        </span>
+                        <span v-if="d.tipo === 'oc' && d.firmado?.url" class="badge text-bg-success">
+                          firmada
                         </span>
                       </div>
 
-                      <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px;">
-                        {{ d.archivo?.name || 'PDF' }}
+                      <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px">
+                        {{ d.archivo?.name || "PDF" }}
                       </div>
 
                       <small class="text-muted">
-                        N°: <span class="fw-semibold">{{ d.numero || '—' }}</span>
+                        N°: <span class="fw-semibold">{{ d.numero || "—" }}</span>
                         <span v-if="d.origen?.pageRange"> · Páginas: {{ d.origen.pageRange }}</span>
                       </small>
                     </div>
                   </div>
                 </button>
 
-                <div v-if="filteredDocs.length===0" class="text-muted text-center py-4">
-                  Sin documentos con ese filtro.
-                </div>
+                <div v-if="filteredDocs.length === 0" class="text-muted text-center py-4">Sin documentos con ese filtro.</div>
               </div>
             </div>
           </div>
         </div>
 
+        <!-- COLUMNA DER: VISOR COMPARATIVO (ya existente) -->
         <div class="col-12 col-lg-8">
           <div class="card shadow-sm">
             <div class="card-header">
@@ -427,7 +538,7 @@
                     <span class="input-group-text">Izq.</span>
                     <select class="form-select form-select-sm" v-model="leftDocId">
                       <option value="">—</option>
-                      <option v-for="d in docsOrdered" :key="'L'+d.id" :value="d.id">
+                      <option v-for="d in docsOrdered" :key="'L' + d.id" :value="d.id">
                         {{ labelDoc(d) }}
                       </option>
                     </select>
@@ -436,17 +547,12 @@
                     <span class="input-group-text">Der.</span>
                     <select class="form-select form-select-sm" v-model="rightDocId">
                       <option value="">—</option>
-                      <option v-for="d in docsOrdered" :key="'R'+d.id" :value="d.id">
+                      <option v-for="d in docsOrdered" :key="'R' + d.id" :value="d.id">
                         {{ labelDoc(d) }}
                       </option>
                     </select>
                   </div>
-                  <button
-                    class="btn btn-outline-secondary btn-sm"
-                    type="button"
-                    @click="swapSides"
-                    :disabled="!leftDocId && !rightDocId"
-                  >
+                  <button class="btn btn-outline-secondary btn-sm" type="button" @click="swapSides" :disabled="!leftDocId && !rightDocId">
                     <i class="bi bi-arrow-left-right me-1"></i> Intercambiar
                   </button>
                 </div>
@@ -454,7 +560,6 @@
             </div>
 
             <div class="card-body">
-
               <div v-if="selectedDocNeedsOc" class="mb-3 p-2 rounded border bg-light-subtle">
                 <div class="small text-muted mb-2">
                   Esta <b>{{ selectedDoc?.tipo }}</b> no tiene OC detectada. Escribe la OC, guarda y avanzará a la siguiente “Sin OC”.
@@ -462,19 +567,12 @@
 
                 <div class="input-group input-group-sm">
                   <span class="input-group-text">OC</span>
-                  <input
-                    class="form-control"
-                    v-model="refOcDraft"
-                    placeholder="Ej: 62570"
-                    @keyup.enter="saveRefOcAndNext"
-                  />
+                  <input class="form-control" v-model="refOcDraft" placeholder="Ej: 62570" @keyup.enter="saveRefOcAndNext" />
                   <button class="btn btn-dark" type="button" @click="saveRefOcAndNext" :disabled="savingRefOc || !refOcDraft.trim()">
                     <span v-if="!savingRefOc"><i class="bi bi-check2 me-1"></i> Guardar y siguiente</span>
                     <span v-else><span class="spinner-border spinner-border-sm me-2"></span>Guardando…</span>
                   </button>
-                  <button class="btn btn-outline-secondary" type="button" @click="gotoNextMissingOc(selectedDoc?.id)">
-                    Siguiente sin OC
-                  </button>
+                  <button class="btn btn-outline-secondary" type="button" @click="gotoNextMissingOc(selectedDoc?.id)">Siguiente sin OC</button>
                 </div>
 
                 <div class="small text-muted mt-2">
@@ -486,15 +584,13 @@
                 <div class="col-12 col-md-6">
                   <div class="border rounded p-2 h-100">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                      <div class="fw-semibold small">
-                        {{ leftDocTitle }}
-                      </div>
+                      <div class="fw-semibold small">{{ leftDocTitle }}</div>
                       <a v-if="leftUrl" class="btn btn-outline-dark btn-sm" :href="leftUrl" target="_blank">
                         <i class="bi bi-box-arrow-up-right"></i>
                       </a>
                     </div>
-                    <div v-if="leftUrl" class="ratio ratio-1x1" style="min-height: 420px;">
-                      <iframe :src="leftUrl" style="border:0;"></iframe>
+                    <div v-if="leftUrl" class="ratio ratio-1x1" style="min-height: 420px">
+                      <iframe :src="leftUrl" style="border: 0"></iframe>
                     </div>
                     <div v-else class="text-muted text-center py-5">Selecciona un documento para este lado.</div>
                   </div>
@@ -503,19 +599,21 @@
                 <div class="col-12 col-md-6">
                   <div class="border rounded p-2 h-100">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                      <div class="fw-semibold small">
-                        {{ rightDocTitle }}
-                      </div>
+                      <div class="fw-semibold small">{{ rightDocTitle }}</div>
                       <a v-if="rightUrl" class="btn btn-outline-dark btn-sm" :href="rightUrl" target="_blank">
                         <i class="bi bi-box-arrow-up-right"></i>
                       </a>
                     </div>
-                    <div v-if="rightUrl" class="ratio ratio-1x1" style="min-height: 420px;">
-                      <iframe :src="rightUrl" style="border:0;"></iframe>
+                    <div v-if="rightUrl" class="ratio ratio-1x1" style="min-height: 420px">
+                      <iframe :src="rightUrl" style="border: 0"></iframe>
                     </div>
                     <div v-else class="text-muted text-center py-5">Selecciona un documento para este lado.</div>
                   </div>
                 </div>
+              </div>
+
+              <div v-if="rightDoc && rightDoc.tipo === 'oc' && rightDoc.estado === 'aprobado' && !rightDoc.firmado?.url" class="alert alert-warning mt-3 mb-0">
+                <i class="bi bi-info-circle me-2"></i>Esta OC está <b>aprobada</b> pero aún <b>no firmada</b>. Puedes firmarla arriba en “Firma masiva”.
               </div>
             </div>
           </div>
@@ -523,6 +621,7 @@
       </template>
     </div>
 
+    <!-- MODAL: CREAR LOTE -->
     <div class="modal fade" ref="createLoteModalEl" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -542,6 +641,7 @@
       </div>
     </div>
 
+    <!-- MODAL: EDITAR STAGE -->
     <div class="modal fade" ref="editStageModalEl" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -558,14 +658,12 @@
             </select>
 
             <label class="form-label">
-              <template v-if="editStage.tipo==='oc'">Número</template>
+              <template v-if="editStage.tipo === 'oc'">Número</template>
               <template v-else>OC asociada</template>
             </label>
 
             <input class="form-control" v-model="editStageMainValue" placeholder="Ej: 62570" />
-            <div class="form-text">
-              En OC completa el número; en factura/guía completa la OC asociada para emparejar.
-            </div>
+            <div class="form-text">En OC completa el número; en factura/guía completa la OC asociada para emparejar.</div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -575,44 +673,98 @@
       </div>
     </div>
 
+    <!-- ✅ MODAL: FIRMA MASIVA -->
+    <div class="modal fade" ref="signModalEl" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              Firmar y guardar
+              <span class="badge text-bg-secondary ms-2">{{ selectedToSignIds.length }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="alert alert-light border mb-3">
+              Se firmarán las OCs seleccionadas y se guardará el PDF firmado en Storage.
+            </div>
+
+            <div class="small text-muted mb-1">Firma:</div>
+              <div class="border rounded p-2 bg-light-subtle d-flex justify-content-center">
+                <img :src="firmaAlejandroUrl" alt="Firma Alejandro" style="max-height: 140px; max-width: 100%; object-fit: contain" />
+            </div>
+
+            <div v-if="signValidationError" class="alert alert-danger mt-3 mb-0">
+              <i class="bi bi-exclamation-triangle me-2"></i>{{ signValidationError }}
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn btn-danger" @click="signSelectedOcs" :disabled="!canSignNow">
+              <i class="bi bi-pen-fill me-1"></i> Firmar y guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERLAY BUSY -->
     <transition name="fade">
-      <div v-if="localBusy || uploadBusy || exportBusy" class="busy-overlay">
+      <div v-if="localBusy || uploadBusy || exportBusy || signBusy" class="busy-overlay">
         <div class="busy-card shadow-lg">
           <div class="d-flex align-items-center gap-3">
             <div class="busy-icon">
-              <div class="spinner-border text-danger" role="status" v-if="localBusy && !uploadBusy && !exportBusy"></div>
+              <div class="spinner-border text-danger" role="status" v-if="localBusy && !uploadBusy && !exportBusy && !signBusy"></div>
               <div class="spinner-border text-success" role="status" v-else-if="uploadBusy"></div>
-              <div class="spinner-border text-secondary" role="status" v-else></div>
+              <div class="spinner-border text-secondary" role="status" v-else-if="exportBusy"></div>
+              <div class="spinner-border text-danger" role="status" v-else></div>
             </div>
 
             <div class="flex-grow-1">
               <div class="fw-semibold">
-                {{ uploadBusy ? "Subiendo lote a Firestore…" : (exportBusy ? "Generando PDF del lote…" : "Procesando PDFs…") }}
+                {{
+                  uploadBusy
+                    ? "Subiendo lote a Firestore…"
+                    : exportBusy
+                      ? "Generando PDF del lote…"
+                      : signBusy
+                        ? "Firmando OCs…"
+                        : "Procesando PDFs…"
+                }}
               </div>
               <div class="small text-muted">
-                {{ uploadBusy ? uploadStatus : (exportBusy ? exportStatus : localStatus) }}
+                {{
+                  uploadBusy
+                    ? uploadStatus
+                    : exportBusy
+                      ? exportStatus
+                      : signBusy
+                        ? signStatus
+                        : localStatus
+                }}
               </div>
 
-              <div class="progress mt-2" style="height: 10px;">
+              <div class="progress mt-2" style="height: 10px">
                 <div
                   class="progress-bar progress-bar-striped progress-bar-animated"
-                  :class="uploadBusy ? 'bg-success' : (exportBusy ? 'bg-secondary' : 'bg-danger')"
-                  :style="{ width: (uploadBusy ? uploadProgress : (exportBusy ? exportProgress : localProgress)) + '%' }"
+                  :class="uploadBusy ? 'bg-success' : exportBusy ? 'bg-secondary' : 'bg-danger'"
+                  :style="{
+                    width:
+                      (uploadBusy ? uploadProgress : exportBusy ? exportProgress : signBusy ? signProgress : localProgress) + '%',
+                  }"
                 ></div>
               </div>
 
               <div class="d-flex justify-content-between mt-1 small text-muted">
-                <span>{{ uploadBusy ? uploadProgress : (exportBusy ? exportProgress : localProgress) }}%</span>
-                <span v-if="uploadBusy && uploadBytesTotal">
-                  {{ fmtBytes(uploadBytesDone) }} / {{ fmtBytes(uploadBytesTotal) }}
-                </span>
+                <span>{{ uploadBusy ? uploadProgress : exportBusy ? exportProgress : signBusy ? signProgress : localProgress }}%</span>
+                <span v-if="uploadBusy && uploadBytesTotal">{{ fmtBytes(uploadBytesDone) }} / {{ fmtBytes(uploadBytesTotal) }}</span>
               </div>
             </div>
           </div>
 
-          <div class="busy-tip mt-3 small text-muted">
-            No cierres la pestaña mientras termina 🙏
-          </div>
+          <div class="busy-tip mt-3 small text-muted">No cierres la pestaña mientras termina 🙏</div>
         </div>
       </div>
     </transition>
@@ -628,10 +780,21 @@ import * as bootstrap from "bootstrap";
 import { splitPdfPack } from "@/utils/pdfPackSplitter";
 import { stagePut, stageList, stageDelete, stageClear, stageGet } from "@/services/stagingDb";
 import { useAuthStore } from "@/stores/authService";
+import firmaAlejandroUrl from "@/assets/firma-alejandro.png";
+
+import { signPdfWithImageSmart } from "@/utils/ocSigner";
 
 import {
-  getFirestore, collection, doc, addDoc, setDoc, updateDoc,
-  onSnapshot, query, orderBy, serverTimestamp
+  getFirestore,
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL, getBytes } from "firebase/storage";
 
@@ -639,12 +802,8 @@ const db = getFirestore();
 const storage = getStorage();
 
 const auth = useAuthStore();
-const actorName = computed(() =>
-  auth?.profile?.Nombre_completo ||
-  auth?.profile?.nombre ||
-  auth?.user?.displayName ||
-  auth?.user?.email ||
-  "usuario"
+const actorName = computed(
+  () => auth?.profile?.Nombre_completo || auth?.profile?.nombre || auth?.user?.displayName || auth?.user?.email || "usuario"
 );
 
 const tab = ref("staging");
@@ -666,8 +825,8 @@ const selectedStageFull = ref(null);
 const stagePreviewUrl = ref("");
 const localBusy = ref(false);
 const uploadBusy = ref(false);
-
 const exportBusy = ref(false);
+
 const localProgress = ref(0);
 const localStatus = ref("");
 
@@ -678,6 +837,18 @@ const exportProgress = ref(0);
 const exportStatus = ref("");
 const uploadBytesDone = ref(0);
 const uploadBytesTotal = ref(0);
+
+const signBusy = ref(false);
+const signProgress = ref(0);
+const signStatus = ref("");
+
+const signModalEl = ref(null);
+let signModal;
+
+const signaturePreviewUrl = ref("");
+const signValidationError = ref("");
+
+const selectedToSignIds = ref([]);
 
 function normalizeText(s) {
   return (s || "")
@@ -692,9 +863,30 @@ function normalizeText(s) {
 function normEstado(s) {
   const v = normalizeText(String(s || ""));
   if (!v) return "pendiente";
-  if (v === "en revision" || v === "en-revision" || v === "en_revision") return "en_revision";
-  if (v === "revision completa" || v === "revisión completa" || v === "revision_completa") return "revision_completa";
+
   if (v === "pendiente") return "pendiente";
+  if (v === "en revision" || v === "en-revision" || v === "en_revision") return "en_revision";
+
+  if (
+    v === "revision_completada" ||
+    v === "revision completada" ||
+    v === "revisión completada" ||
+    v === "revision_completa" ||
+    v === "revision completa" ||
+    v === "revisión completa"
+  ) {
+    return "revision_completada";
+  }
+
+  if (
+    v === "doc_descargados" ||
+    v === "docs_descargados" ||
+    v === "documentos descargados" ||
+    v === "documentos_descargados"
+  ) {
+    return "doc_descargados";
+  }
+
   return v;
 }
 
@@ -702,12 +894,13 @@ const lotesForTab = computed(() => {
   const t = tab.value;
 
   if (t === "staging") {
-    return lotes.value.filter(l => normEstado(l.estado) === "pendiente");
+    return lotes.value.filter((l) => normEstado(l.estado) === "pendiente");
   }
 
-  return lotes.value.filter(l => {
+
+  return lotes.value.filter((l) => {
     const st = normEstado(l.estado);
-    return st === "en_revision" || st === "revision_completa";
+    return st === "en_revision" || st === "revision_completada" || st === "doc_descargados";
   });
 });
 
@@ -726,14 +919,13 @@ function ensureSelectedLoteForTab() {
     return;
   }
 
-  const exists = list.some(l => l.id === selectedLoteId.value);
+  const exists = list.some((l) => l.id === selectedLoteId.value);
   if (!selectedLoteId.value || !exists) {
     selectedLoteId.value = list[0].id;
   }
 
   if (tab.value === "cloud") onChangeLote();
 }
-
 
 const selectedLote = computed(() => lotes.value.find((x) => x.id === selectedLoteId.value) || null);
 const loteLocked = computed(() => {
@@ -747,7 +939,10 @@ function fmtBytes(n) {
   const units = ["B", "KB", "MB", "GB"];
   let i = 0;
   let x = v;
-  while (x >= 1024 && i < units.length - 1) { x /= 1024; i++; }
+  while (x >= 1024 && i < units.length - 1) {
+    x /= 1024;
+    i++;
+  }
   return `${x.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
@@ -766,11 +961,7 @@ function downloadBlob(blob, filename) {
 
 function getSelectedLoteSafeName(suffix) {
   const lote = lotes.value.find((x) => x.id === selectedLoteId.value) || null;
-  const base =
-    (lote?.nombre || `Lote_${(selectedLoteId.value || "").slice(0, 6)}`).replace(
-      /[^\w\-]+/g,
-      "_"
-    );
+  const base = (lote?.nombre || `Lote_${(selectedLoteId.value || "").slice(0, 6)}`).replace(/[^\w\-]+/g, "_");
   return `${base}_${suffix}`;
 }
 
@@ -852,8 +1043,7 @@ async function addRejectedSummary(outPdf, list) {
     const archivo = d.archivo?.name || d.origen?.parentName || d.id;
 
     const motivo = d?.motivo || d?.rechazo?.motivo || "—";
-
-    const motivoLines = wrapText(font, motivo, 9, (pageW - margin) - (margin + 320));
+    const motivoLines = wrapText(font, motivo, 9, pageW - 36 - (36 + 320));
     const rowH = Math.max(14, motivoLines.length * 10);
 
     if (y - rowH < margin + 20) {
@@ -864,7 +1054,7 @@ async function addRejectedSummary(outPdf, list) {
 
     page.drawText(String(oc || "—"), { x: margin, y, size: 9, font });
     page.drawText(tipoNum || "—", { x: margin + 70, y, size: 9, font });
-    page.drawText(archivo, { x: margin + 150, y, size: 9, font });
+    page.drawText(archivo, { x: margin + 150, y: y, size: 9, font });
 
     let my = y;
     for (const ln of motivoLines.slice(0, 6)) {
@@ -883,6 +1073,65 @@ async function addRejectedSummary(outPdf, list) {
   }
 }
 
+/**
+ * ✅ Marca el lote como descargado por filtro y si ya descargaste:
+ * - TODOS, o
+ * - APROBADOS + RECHAZADOS
+ * entonces cambia el estado a doc_descargados (y ya no aparece en cloud)
+ */
+async function markLoteDownloadProgress(estadoName) {
+  if (!selectedLoteId.value) return;
+
+  const lote = selectedLote.value || null;
+  const prev = lote?.descargas || {};
+  const now = serverTimestamp();
+
+  const prevA = !!prev?.aprobadoAt;
+  const prevR = !!prev?.rechazadoAt;
+  const prevT = !!prev?.todosAt;
+
+  const nextA = prevA || estadoName === "aprobado";
+  const nextR = prevR || estadoName === "rechazado";
+  const nextT = prevT || estadoName === "todos";
+
+  const payload = {
+    updatedAt: now,
+    updatedBy: actorName.value,
+    "descargas.lastAt": now,
+    "descargas.lastBy": actorName.value,
+    "descargas.lastFiltro": estadoName,
+  };
+
+  if (estadoName === "aprobado") {
+    payload["descargas.aprobadoAt"] = now;
+    payload["descargas.aprobadoBy"] = actorName.value;
+  } else if (estadoName === "rechazado") {
+    payload["descargas.rechazadoAt"] = now;
+    payload["descargas.rechazadoBy"] = actorName.value;
+  } else if (estadoName === "todos") {
+    payload["descargas.todosAt"] = now;
+    payload["descargas.todosBy"] = actorName.value;
+  }
+
+  const shouldFinalize = nextT || (nextA && nextR);
+
+  if (shouldFinalize) {
+    payload.estado = "doc_descargados";
+    payload.descargadosAt = now;
+    payload.descargadosBy = actorName.value;
+  }
+
+  await updateDoc(doc(db, "lotes_docs", selectedLoteId.value), payload);
+
+  await addHist("lote_descarga", {
+    filtro: estadoName,
+    finalizado: shouldFinalize,
+  });
+
+  if (shouldFinalize) {
+    await addHist("lote_estado", { estado: "doc_descargados" });
+  }
+}
 
 async function downloadLotePdfOrdenado() {
   const list = filteredDocs.value;
@@ -934,7 +1183,6 @@ async function downloadLotePdfOrdenado() {
         const bytes = await getDocBytesPreferStorage(d);
 
         if (!isPdfDoc(d)) {
-          console.warn("Documento no-PDF omitido en export:", d.id);
           exportProgress.value = Math.min(99, Math.round(((i + 1) / Math.max(1, sorted.length)) * 100));
           continue;
         }
@@ -982,9 +1230,12 @@ async function downloadLotePdfOrdenado() {
 
     const finalBytes = await outPdf.save({ useObjectStreams: true });
     const blob = new Blob([finalBytes], { type: "application/pdf" });
+
     exportProgress.value = 100;
     exportStatus.value = "Listo ✅ Descargando…";
     downloadBlob(blob, fileName);
+    await markLoteDownloadProgress(estadoName);
+
   } finally {
     setTimeout(() => {
       exportBusy.value = false;
@@ -1048,7 +1299,7 @@ const docsOrdered = computed(() => {
   });
 });
 
-const docsSinOc = computed(() => docsOrdered.value.filter(d => d.tipo !== "oc" && !docRefOc(d)));
+const docsSinOc = computed(() => docsOrdered.value.filter((d) => d.tipo !== "oc" && !docRefOc(d)));
 
 const stageForm = ref({ tipo: "factura", numero: "", refOc: "" });
 const stageQuickSaving = ref(false);
@@ -1060,7 +1311,7 @@ const stageMainValue = computed({
   set(v) {
     if (stageForm.value.tipo === "oc") stageForm.value.numero = v;
     else stageForm.value.refOc = v;
-  }
+  },
 });
 
 const stageCanSave = computed(() => {
@@ -1076,15 +1327,13 @@ const stageSuggested = computed(() => {
   return String(cand || "").trim();
 });
 
-const stagedMissingRefOcCount = computed(() =>
-  staged.value.filter(x => x.tipo !== "oc" && !String(x.refOc || "").trim()).length
-);
+const stagedMissingRefOcCount = computed(() => staged.value.filter((x) => x.tipo !== "oc" && !String(x.refOc || "").trim()).length);
 
 function findNextStagingMissingRefOc(afterId) {
   const list = staged.value || [];
   if (!list.length) return null;
 
-  let idx = list.findIndex(x => x.id === afterId);
+  let idx = list.findIndex((x) => x.id === afterId);
   if (idx < 0) idx = -1;
 
   for (let step = 1; step <= list.length; step++) {
@@ -1102,7 +1351,6 @@ async function gotoNextStagingMissingRefOc(afterId) {
 
 const createLoteModalEl = ref(null);
 const editStageModalEl = ref(null);
-
 let createLoteModal, editStageModal;
 
 const newLoteNombre = ref("");
@@ -1111,13 +1359,13 @@ const editStage = ref(null);
 const editStageMainValue = computed({
   get() {
     if (!editStage.value) return "";
-    return editStage.value.tipo === "oc" ? (editStage.value.numero || "") : (editStage.value.refOc || "");
+    return editStage.value.tipo === "oc" ? editStage.value.numero || "" : editStage.value.refOc || "";
   },
   set(v) {
     if (!editStage.value) return;
     if (editStage.value.tipo === "oc") editStage.value.numero = v;
     else editStage.value.refOc = v;
-  }
+  },
 });
 
 const tipoBadge = (t) => {
@@ -1134,7 +1382,7 @@ const estadoBadge = (s) => {
 };
 const labelDoc = (d) => {
   const n = d?.numero ? `N°${d.numero}` : "Sin N°";
-  const nm = d?.archivo?.name ? d.archivo.name : (d?.id ? d.id.slice(0, 6) : "doc");
+  const nm = d?.archivo?.name ? d.archivo.name : d?.id ? d.id.slice(0, 6) : "doc";
   return `${n} · ${nm}`;
 };
 
@@ -1168,13 +1416,14 @@ const filteredDocs = computed(() => {
 const leftDoc = computed(() => docs.value.find((d) => d.id === leftDocId.value) || null);
 const rightDoc = computed(() => docs.value.find((d) => d.id === rightDocId.value) || null);
 
-const pdfUrlForDoc = (d) => (d ? (d.firmado?.url || d.archivo?.url || "") : "");
+const pdfUrlForDoc = (d) => (d ? d.firmado?.url || d.archivo?.url || "" : "");
 
-const leftUrl = computed(() => pdfUrlForDoc(leftDoc.value));
-const rightUrl = computed(() => pdfUrlForDoc(rightDoc.value));
+const leftUrl = computed(() => makeViewerUrl(pdfUrlForDoc(leftDoc.value)));
+const rightUrl = computed(() => makeViewerUrl(pdfUrlForDoc(rightDoc.value)));
 
-const leftDocTitle = computed(() => leftDoc.value ? labelDoc(leftDoc.value) : "Documento izquierdo");
-const rightDocTitle = computed(() => rightDoc.value ? labelDoc(rightDoc.value) : "Documento derecho");
+
+const leftDocTitle = computed(() => (leftDoc.value ? labelDoc(leftDoc.value) : "Documento izquierdo"));
+const rightDocTitle = computed(() => (rightDoc.value ? labelDoc(rightDoc.value) : "Documento derecho"));
 
 const stagedCounts = computed(() => {
   const c = { oc: 0, factura: 0, guia: 0, bad: 0 };
@@ -1193,9 +1442,13 @@ const selectedDocNeedsOc = computed(() => !!selectedDoc.value && selectedDoc.val
 const refOcDraft = ref("");
 const savingRefOc = ref(false);
 
-watch(selectedDoc, (d) => {
-  refOcDraft.value = docRefOc(d) || "";
-}, { immediate: true });
+watch(
+  selectedDoc,
+  (d) => {
+    refOcDraft.value = docRefOc(d) || "";
+  },
+  { immediate: true }
+);
 
 function findOcDocByNumero(ocNumero) {
   const n = String(ocNumero || "").trim();
@@ -1210,7 +1463,7 @@ function gotoNextMissingOc(afterId) {
     return;
   }
   let idx = -1;
-  if (afterId) idx = list.findIndex(x => x.id === afterId);
+  if (afterId) idx = list.findIndex((x) => x.id === afterId);
   const next = list[(idx + 1) % list.length];
   selectDoc(next);
 }
@@ -1232,12 +1485,7 @@ async function saveRefOcAndNext() {
       updatedBy: actorName.value,
     });
 
-    await addHist("assign_oc_manual", {
-      docId: d.id,
-      tipo: d.tipo,
-      numero: d.numero || "",
-      refOc: oc,
-    });
+    await addHist("assign_oc_manual", { docId: d.id, tipo: d.tipo, numero: d.numero || "", refOc: oc });
 
     const ocDoc = findOcDocByNumero(oc);
     if (ocDoc) {
@@ -1251,54 +1499,183 @@ async function saveRefOcAndNext() {
   }
 }
 
-let unsubLotes = null;
-let unsubDocs = null;
 
-onMounted(async () => {
-  createLoteModal = new bootstrap.Modal(createLoteModalEl.value);
-  editStageModal = new bootstrap.Modal(editStageModalEl.value);
+function docHasAnySource(d) {
+  const sp = d?.archivo?.storagePath || d?.firmado?.storagePath;
+  const url = d?.archivo?.url || d?.firmado?.url;
+  return !!(sp || url);
+}
 
-  const qL = query(collection(db, "lotes_docs"), orderBy("createdAt", "desc"));
-  unsubLotes = onSnapshot(qL, (snap) => {
-    lotes.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    ensureSelectedLoteForTab();
-  });
+function docUpdatedAtText(d) {
+  const ts = d?.updatedAt?.toDate ? d.updatedAt.toDate() : null;
+  if (ts) return ts.toLocaleString();
+  const cts = d?.createdAt?.toDate ? d.createdAt.toDate() : null;
+  return cts ? cts.toLocaleString() : "—";
+}
 
-  await loadStaging();
+const ocsAprobadasSinFirma = computed(() => {
+  return docs.value
+    .filter((d) => d.tipo === "oc")
+    .filter((d) => d.estado === "aprobado")
+    .filter((d) => !d.firmado?.url && !d.firmado?.storagePath);
 });
 
-onBeforeUnmount(() => {
-  if (unsubLotes) unsubLotes();
-  if (unsubDocs) unsubDocs();
-  if (stagePreviewUrl.value) URL.revokeObjectURL(stagePreviewUrl.value);
+function toggleSelectOcToSign(docId) {
+  const id = String(docId || "");
+  if (!id) return;
+  const cur = new Set(selectedToSignIds.value);
+  if (cur.has(id)) cur.delete(id);
+  else cur.add(id);
+  selectedToSignIds.value = Array.from(cur);
+}
+
+function selectAllOcsToSign() {
+  selectedToSignIds.value = ocsAprobadasSinFirma.value.map((d) => d.id);
+}
+function clearSelectedOcsToSign() {
+  selectedToSignIds.value = [];
+}
+
+
+const canSignNow = computed(() => {
+  if (!selectedLoteId.value) return false;
+  if (!selectedToSignIds.value.length) return false;
+  return true;
 });
 
-watch(tab, async (t) => {
-  if (t === "staging") {
-    if (unsubDocs) unsubDocs();
-    unsubDocs = null;
-    docs.value = [];
-    selectedDocId.value = null;
-    leftDocId.value = "";
-    rightDocId.value = "";
-    refOcDraft.value = "";
-    await loadStaging();
+
+function validateBeforeSign() {
+  signValidationError.value = "";
+  if (!selectedLoteId.value) {
+    signValidationError.value = "Falta lote seleccionado.";
+    return false;
   }
-  ensureSelectedLoteForTab();
-});
+  if (!selectedToSignIds.value.length) {
+    signValidationError.value = "No hay OCs seleccionadas.";
+    return false;
+  }
+
+  const missingPdf = selectedToSignIds.value
+    .map((id) => docs.value.find((d) => d.id === id))
+    .filter(Boolean)
+    .filter((d) => !docHasAnySource(d));
+
+  if (missingPdf.length) {
+    signValidationError.value = "Hay OCs sin url/storagePath. Corrige el lote antes de firmar.";
+    return false;
+  }
+
+  return true;
+}
+
+function openSignModal() {
+  signValidationError.value = "";
+  signModal.show();
+}
+
+
+function uploadDataToStorage(data, path, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const r = sRef(storage, path);
+    const task = uploadBytesResumable(r, data);
+
+    task.on(
+      "state_changed",
+      (snap) => {
+        if (opts?.onProgress) opts.onProgress(snap);
+      },
+      reject,
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref);
+        resolve(url);
+      }
+    );
+  });
+}
+
+async function signSelectedOcs() {
+  if (!validateBeforeSign()) return;
+
+  signModal.hide();
+  signBusy.value = true;
+  signProgress.value = 0;
+  signStatus.value = "Preparando…";
+
+  const loteId = selectedLoteId.value;
+  const ids = [...selectedToSignIds.value];
+
+  try {
+    const resp = await fetch(firmaAlejandroUrl);
+    if (!resp.ok) throw new Error("No se pudo cargar firma-alejandro.png desde assets");
+    const blob = await resp.blob();
+    const img = new File([blob], "firma-alejandro.png", { type: blob.type || "image/png" });
+
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const d = docs.value.find((x) => x.id === id);
+      if (!d) continue;
+
+      signStatus.value = `Firmando OC ${d.numero || "—"} (${i + 1}/${ids.length})`;
+      const baseStart = Math.round((i / Math.max(1, ids.length)) * 100);
+      const baseEnd = Math.round(((i + 1) / Math.max(1, ids.length)) * 100);
+
+      signProgress.value = Math.min(99, baseStart + 2);
+      const originalBytes = await getDocBytesPreferStorage(d);
+      const signedBytes = await signPdfWithImageSmart(originalBytes, img, (p) => {
+        const frac = Math.max(0, Math.min(1, p / 60));
+        const mapped = Math.round(baseStart + frac * (baseEnd - baseStart) * 0.65);
+        signProgress.value = Math.min(99, mapped);
+      });
+      const nextVersion = Number(d?.version || 1) + 1;
+      const signedPath = `lotes_docs/${loteId}/docs/${d.id}/signed_v${nextVersion}.pdf`;
+
+      const url = await uploadDataToStorage(signedBytes, signedPath, {
+        onProgress: (snap) => {
+          const frac = snap.totalBytes ? snap.bytesTransferred / snap.totalBytes : 0;
+          const mapped = Math.round(baseStart + 0.7 * (baseEnd - baseStart) + frac * 0.25 * (baseEnd - baseStart));
+          signProgress.value = Math.min(99, mapped);
+        },
+      });
+      await updateDoc(doc(db, "lotes_docs", loteId, "docs", d.id), {
+        firmado: { url, storagePath: signedPath, at: serverTimestamp(), by: actorName.value, version: nextVersion },
+        version: nextVersion,
+        updatedAt: serverTimestamp(),
+        updatedBy: actorName.value,
+      });
+
+      await addHist("oc_signed", { docId: d.id, numero: d.numero || "", version: nextVersion });
+
+      signProgress.value = Math.min(99, baseEnd);
+    }
+
+    signStatus.value = "Listo ✅ OCs firmadas y guardadas";
+    signProgress.value = 100;
+
+    selectedToSignIds.value = [];
+  } catch (e) {
+    console.error(e);
+    alert("Error firmando: " + (e?.message || String(e)));
+  } finally {
+    setTimeout(() => {
+      signBusy.value = false;
+      signProgress.value = 0;
+      signStatus.value = "";
+    }, 600);
+  }
+}
 
 async function loadStaging() {
   staged.value = await stageList();
   if (!staged.value.find((x) => x.id === selectedStageId.value)) {
     selectedStageId.value = null;
     selectedStageFull.value = null;
-    setStagePreview(null);
+    setStagePreview();
   }
 }
 
-function setStagePreview(blob) {
+function setStagePreview() {
   if (stagePreviewUrl.value) URL.revokeObjectURL(stagePreviewUrl.value);
-  stagePreviewUrl.value = blob ? URL.createObjectURL(blob) : "";
+  stagePreviewUrl.value = "";
 }
 
 async function selectStage(s) {
@@ -1314,7 +1691,19 @@ async function selectStage(s) {
     refOc: selectedStageFull.value.refOc || "",
   };
 
-  setStagePreview(full?.blob || null);
+  setStagePreview();
+}
+
+function openStagePreview() {
+  const blob = selectedStageFull.value?.blob || null;
+  if (!blob) return;
+  if (stagePreviewUrl.value) URL.revokeObjectURL(stagePreviewUrl.value);
+  stagePreviewUrl.value = URL.createObjectURL(blob);
+}
+
+function closeStagePreview() {
+  if (stagePreviewUrl.value) URL.revokeObjectURL(stagePreviewUrl.value);
+  stagePreviewUrl.value = "";
 }
 
 function onStageTipoChanged() {}
@@ -1346,22 +1735,15 @@ async function saveStageQuick() {
 
     const coherence = buildCoherence(nextTipo, nextNumero, nextRefOc);
 
-    await stagePut({
-      ...current,
-      tipo: nextTipo,
-      numero: nextNumero,
-      refOc: nextRefOc,
-      coherence,
-    });
+    await stagePut({ ...current, tipo: nextTipo, numero: nextNumero, refOc: nextRefOc, coherence });
 
     await loadStaging();
 
     const again = await stageGet(selectedStageFull.value.id);
     selectedStageFull.value = { ...selectedStageFull.value, ...again, tipo: nextTipo, numero: nextNumero, refOc: nextRefOc, coherence };
     stageForm.value = { tipo: nextTipo, numero: nextNumero, refOc: nextRefOc };
-    if (nextTipo !== "oc" && nextRefOc) {
-      await gotoNextStagingMissingRefOc(selectedStageFull.value.id);
-    }
+
+    if (nextTipo !== "oc" && nextRefOc) await gotoNextStagingMissingRefOc(selectedStageFull.value.id);
   } finally {
     stageQuickSaving.value = false;
   }
@@ -1429,11 +1811,7 @@ async function onPickFilesLocal(e) {
     await loadStaging();
 
     if (errors.length) {
-      alert(
-        `Se procesaron ${processedFiles}/${files.length} PDFs.\n` +
-        `Fallaron ${errors.length}.\n` +
-        `Revisa consola.`
-      );
+      alert(`Se procesaron ${processedFiles}/${files.length} PDFs.\nFallaron ${errors.length}.\nRevisa consola.`);
     }
   } finally {
     setTimeout(() => {
@@ -1448,7 +1826,7 @@ async function removeStage(id) {
   if (selectedStageId.value === id) {
     selectedStageId.value = null;
     selectedStageFull.value = null;
-    setStagePreview(null);
+    setStagePreview();
   }
   await stageDelete(id);
   await loadStaging();
@@ -1457,7 +1835,7 @@ async function removeStage(id) {
 async function clearStaging() {
   selectedStageId.value = null;
   selectedStageFull.value = null;
-  setStagePreview(null);
+  setStagePreview();
   await stageClear();
   await loadStaging();
 }
@@ -1477,47 +1855,17 @@ async function saveEditStage() {
 
   const coherence = buildCoherence(tipo, numero, refOc);
 
-  await stagePut({
-    ...full,
-    tipo,
-    numero,
-    refOc,
-    coherence,
-  });
+  await stagePut({ ...full, tipo, numero, refOc, coherence });
 
   editStageModal.hide();
   await loadStaging();
 
   if (selectedStageId.value === editStage.value.id) {
     const again = await stageGet(editStage.value.id);
-    selectedStageFull.value = {
-      ...selectedStageFull.value,
-      ...again,
-      tipo,
-      numero,
-      refOc,
-      coherence
-    };
-    setStagePreview(again?.blob || null);
+    selectedStageFull.value = { ...selectedStageFull.value, ...again, tipo, numero, refOc, coherence };
+    setStagePreview();
     stageForm.value = { tipo, numero, refOc };
   }
-}
-
-function uploadDataToStorage(data, path, opts = {}) {
-  return new Promise((resolve, reject) => {
-    const r = sRef(storage, path);
-    const task = uploadBytesResumable(r, data);
-
-    task.on(
-      "state_changed",
-      (snap) => { if (opts?.onProgress) opts.onProgress(snap); },
-      reject,
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref);
-        resolve(url);
-      }
-    );
-  });
 }
 
 async function uploadStagingToLote() {
@@ -1642,7 +1990,6 @@ function selectDoc(d) {
     leftDocId.value = d.id;
     if (ocDoc) rightDocId.value = ocDoc.id;
     else if (!rightDocId.value || rightDocId.value === d.id) rightDocId.value = "";
-
     return;
   }
 
@@ -1697,6 +2044,8 @@ function onChangeLote() {
   rightDocId.value = "";
   refOcDraft.value = "";
 
+  selectedToSignIds.value = [];
+
   if (unsubDocs) unsubDocs();
   unsubDocs = null;
 
@@ -1708,12 +2057,61 @@ function onChangeLote() {
     docs.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   });
 }
+let unsubLotes = null;
+let unsubDocs = null;
+
+onMounted(async () => {
+  createLoteModal = new bootstrap.Modal(createLoteModalEl.value);
+  editStageModal = new bootstrap.Modal(editStageModalEl.value);
+  signModal = new bootstrap.Modal(signModalEl.value);
+
+  const qL = query(collection(db, "lotes_docs"), orderBy("createdAt", "desc"));
+  unsubLotes = onSnapshot(qL, (snap) => {
+    lotes.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    ensureSelectedLoteForTab();
+  });
+
+  await loadStaging();
+});
+function makeViewerUrl(url) {
+  if (!url) return "";
+  const clean = String(url || "");
+  if (/\.pdf(\?|$)/i.test(clean) || clean.includes("application/pdf")) {
+    return `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(clean)}`;
+  }
+  return clean;
+}
+
+onBeforeUnmount(() => {
+  if (unsubLotes) unsubLotes();
+  if (unsubDocs) unsubDocs();
+  if (stagePreviewUrl.value) URL.revokeObjectURL(stagePreviewUrl.value);
+
+  if (signaturePreviewUrl.value) URL.revokeObjectURL(signaturePreviewUrl.value);
+});
+
+watch(tab, async (t) => {
+  if (t === "staging") {
+    if (unsubDocs) unsubDocs();
+    unsubDocs = null;
+    docs.value = [];
+    selectedDocId.value = null;
+    leftDocId.value = "";
+    rightDocId.value = "";
+    refOcDraft.value = "";
+    selectedToSignIds.value = [];
+    await loadStaging();
+  }
+  ensureSelectedLoteForTab();
+});
 </script>
 
 <style scoped>
-.bg-light-subtle { background: rgba(0,0,0,.03); }
+.bg-light-subtle {
+  background: rgba(0, 0, 0, 0.03);
+}
 
-.busy-overlay{
+.busy-overlay {
   position: fixed;
   inset: 0;
   z-index: 2000;
@@ -1721,50 +2119,56 @@ function onChangeLote() {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(0,0,0,.35);
+  background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
 }
 
-.busy-card{
+.busy-card {
   width: min(560px, 94vw);
   background: #fff;
   border-radius: 18px;
   padding: 18px 18px 14px;
 }
 
-.busy-icon{
+.busy-icon {
   width: 44px;
   height: 44px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 14px;
-  background: rgba(0,0,0,.03);
+  background: rgba(0, 0, 0, 0.03);
 }
 
-.busy-tip{
-  opacity: .85;
+.busy-tip {
+  opacity: 0.85;
 }
 
-.fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
-.oc-strong-badge{
-  font-size: .92rem;
-  padding: .38rem .62rem;
+.oc-strong-badge {
+  font-size: 0.92rem;
+  padding: 0.38rem 0.62rem;
   border-radius: 999px;
   background: #0d6efd;
   color: #fff;
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
   font-weight: 700;
 }
 
-.list-group-item.active{
-  background-color: rgba(13,110,253,.12) !important;
-  border-color: rgba(13,110,253,.25) !important;
+.list-group-item.active {
+  background-color: rgba(13, 110, 253, 0.12) !important;
+  border-color: rgba(13, 110, 253, 0.25) !important;
   color: #212529 !important;
 }
-.list-group-item.active .text-muted{
-  color: rgba(33,37,41,.65) !important;
+.list-group-item.active .text-muted {
+  color: rgba(33, 37, 41, 0.65) !important;
 }
 </style>
