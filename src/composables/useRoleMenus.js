@@ -17,14 +17,9 @@ export function useRoleMenus() {
   const fullName = computed(() =>
     (auth?.profile?.fullName || auth?.user?.displayName || "").trim()
   );
-  const email = computed(() =>
-    (auth?.user?.email || "").trim().toLowerCase()
-  );
+  const email = computed(() => (auth?.user?.email || "").trim().toLowerCase());
 
-  const role = computed(() =>
-    (auth?.profile?.role || auth?.role || "").trim()
-  );
-
+  const role = computed(() => (auth?.profile?.role || auth?.role || "").trim());
   const roleKey = computed(() => normalizeRoleKey(role.value));
 
   const isTallerCMUser = computed(() => {
@@ -47,6 +42,23 @@ export function useRoleMenus() {
     return n === "alejandro candia" || email.value === "acp@xtrememining.cl";
   });
 
+  // ✅ NUEVO: usuarios que deben ver "Generador de cotización"
+  // (puedes agregar correos reales si quieres hacerlo aún más robusto)
+  const isPatricioBustos = computed(() => {
+    const n = normalize(fullName.value);
+    return n === "patricio bustos"; // || email.value === "pbustos@xtrememining.cl";
+  });
+
+  const isAxelBasicContreras = computed(() => {
+    const n = normalize(fullName.value);
+    return n === "axel basic contreras"; // || email.value === "abasic@xtrememining.cl";
+  });
+
+  const isGriselleMatus = computed(() => {
+    const n = normalize(fullName.value);
+    return n === "griselle matus"; // || email.value === "gmatus@xtrememining.cl";
+  });
+
   const isGenerador = computed(() => roleKey.value === "generador_solped");
   const isEditor = computed(() => roleKey.value === "editor");
   const isAprobadorEditor = computed(
@@ -62,7 +74,17 @@ export function useRoleMenus() {
     );
   });
 
-  const canSeeGenerarCotizacion = computed(() => isAdmin.value || isJuanCubillos.value);
+  // ✅ MODIFICADO: ahora también incluye Patricio, Axel y Griselle
+  const canSeeGenerarCotizacion = computed(() => {
+    return (
+      isAdmin.value ||
+      isJuanCubillos.value ||
+      isPatricioBustos.value ||
+      isAxelBasicContreras.value ||
+      isGriselleMatus.value
+    );
+  });
+
   const canSeeAprobacionDocs = computed(() => isAdmin.value || isAlejandroCandia.value);
 
   const existsByName = (arr, name) => arr.some((it) => it && it.name === name);
@@ -70,7 +92,7 @@ export function useRoleMenus() {
     if (!existsByName(arr, item.name)) arr.push(item);
   };
 
-  const alejandroUnifiedMenu = () => ([
+  const alejandroUnifiedMenu = () => [
     { name: "AprobacionOC", text: "Aprobador Cotización", icon: "bi-patch-check" },
     { name: "AprobacionOCTaller", text: "Aprobador Cotización (Taller)", icon: "bi-patch-check" },
     { name: "AprobacionDocs", text: "Aprobador de Facturas", icon: "bi bi-clipboard2-check" },
@@ -80,7 +102,7 @@ export function useRoleMenus() {
     { name: "historial-oc", text: "Historial Cotizaciones", icon: "bi-journal-text" },
     { name: "HistorialSolpedTaller", text: "Historial SOLPED (Taller)", icon: "bi-clock-history" },
     { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
-  ]);
+  ];
 
   const empresaMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
@@ -131,6 +153,7 @@ export function useRoleMenus() {
         icon: "bi bi-clipboard2-minus",
       });
     }
+
     if (canSeeAprobacionDocs.value) {
       pushIfMissing(base, {
         name: "AprobacionDocs",
@@ -187,20 +210,29 @@ export function useRoleMenus() {
     }
 
     if (isGuillermo.value) {
-      pushIfMissing(base, { name: "AprobacionOCTaller", text: "Aprobador OC (Taller)", icon: "bi-patch-check" });
+      pushIfMissing(base, {
+        name: "AprobacionOCTaller",
+        text: "Aprobador OC (Taller)",
+        icon: "bi-patch-check",
+      });
     }
 
     if (isJuanCubillos.value) {
-      pushIfMissing(base, { name: "SolpedTaller", text: "Crear SOLPED (Taller)", icon: "bi-wrench-adjustable-circle" });
+      pushIfMissing(base, {
+        name: "SolpedTaller",
+        text: "Crear SOLPED (Taller)",
+        icon: "bi-wrench-adjustable-circle",
+      });
     }
 
-    if (canSeeGenerarCotizacion.value && !isJuanCubillos.value && !isAdmin.value) {
+    if (!canSeeGenerarCotizacion.value && !isJuanCubillos.value && !isAdmin.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
         text: "Generador de cotización",
         icon: "bi bi-clipboard2-minus",
       });
     }
+
     if (canSeeAprobacionDocs.value && !isAdmin.value) {
       pushIfMissing(base, {
         name: "AprobacionDocs",
