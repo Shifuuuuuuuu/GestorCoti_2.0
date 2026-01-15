@@ -6,7 +6,6 @@ import { useAuthStore } from "@/stores/authService";
 import { useUIStore } from "@/stores/ui";
 import { useRoleMenus } from "@/composables/useRoleMenus";
 import BrandCarousel from "@/components/BrandCarousel.vue";
-
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/stores/firebase";
 
@@ -27,6 +26,8 @@ const fullName = computed(
 
 const role = computed(() => (auth?.profile?.role || auth?.role || "").trim());
 
+const emailLower = computed(() => String(auth?.user?.email || "").trim().toLowerCase());
+
 const photoUrl = computed(
   () =>
     auth?.user?.photoURL ||
@@ -41,8 +42,9 @@ const isNavbar = computed(() => ui.isNavbar);
 
 const appVersion = computed(
   // eslint-disable-next-line no-undef
-  () => (typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__)
+  () => (typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__) || "3.3.4"
 );
+
 
 const go = (loc) => {
   router.push(loc);
@@ -63,6 +65,7 @@ const goInicioFromCarousel = () => {
 const isActive = (nameOrPath) =>
   !!nameOrPath && (route.name === nameOrPath || route.path === nameOrPath);
 
+
 const winW = ref(typeof window !== "undefined" ? window.innerWidth : 1200);
 const onResize = () => {
   winW.value = window.innerWidth;
@@ -77,6 +80,14 @@ watch(
 );
 
 watch(() => route.fullPath, () => ui.closeSidebar?.());
+
+onMounted(() => {
+  window.addEventListener("resize", onResize);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", onResize);
+});
+
 
 const showSettings = ref(false);
 
@@ -121,11 +132,9 @@ const onKey = (e) => {
 
 onMounted(() => {
   window.addEventListener("keydown", onKey);
-  window.addEventListener("resize", onResize);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKey);
-  window.removeEventListener("resize", onResize);
 });
 
 const PRIMARY_OPTIONS = [
@@ -153,6 +162,7 @@ const PRIMARY_OPTIONS = [
   { k: "cobre", n: "Cobre", c: "#b87333" },
 ];
 
+
 const normalize = (s) =>
   String(s || "")
     .trim()
@@ -162,9 +172,55 @@ const normalize = (s) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const isEditorRole = computed(
-  () => normalize(role.value).replace(/\s+/g, "_") === "editor"
+const roleKey = computed(() => normalize(role.value).replace(/\s+/g, "_"));
+
+const isEditorRole = computed(() => roleKey.value === "editor");
+const isAprobadorEditorRole = computed(
+  () => roleKey.value === "aprobador_editor" || roleKey.value === "aprobador/editor"
 );
+
+const isGuillermo = computed(() => {
+  const n = normalize(fullName.value);
+  return n === "guillermo manzor" || emailLower.value === "gmanzor@xtrememining.cl";
+});
+const isJuanCubillos = computed(() => {
+  const n = normalize(fullName.value);
+  return n === "juan cubillos" || emailLower.value === "jcubillos@xtrememining.cl";
+});
+const isAlejandroCandia = computed(() => {
+  const n = normalize(fullName.value);
+  return n === "alejandro candia" || emailLower.value === "acp@xtrememining.cl";
+});
+
+function getStartOfTodayMs() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function tsToMs(ts) {
+  if (!ts) return 0;
+  if (typeof ts.toMillis === "function") return ts.toMillis();
+  if (typeof ts.seconds === "number") {
+    const nanos = typeof ts.nanoseconds === "number" ? ts.nanoseconds : 0;
+    return ts.seconds * 1000 + Math.floor(nanos / 1e6);
+  }
+  if (ts instanceof Date) return ts.getTime();
+  if (typeof ts === "string") {
+    const ms = Date.parse(ts);
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  return 0;
+}
+
+function playNotif() {
+  try {
+    const a = new Audio("/notif.mp3");
+    a.volume = 0.25;
+    a.play().catch(() => {});
+  } catch(e) {console.log(e)}
+}
+
 
 const unreadEmpresa = ref(0);
 const unreadTaller = ref(0);
@@ -174,7 +230,6 @@ const tallerTimes = ref([]);
 
 const empresaIds = ref(new Set());
 const tallerIds = ref(new Set());
-
 
 const bounceEmpresa = ref(false);
 const bounceTaller = ref(false);
@@ -201,70 +256,24 @@ function triggerBounceTaller() {
 const isViewingEmpresa = computed(() => route.name === "historial-solped");
 const isViewingTaller = computed(() => route.name === "HistorialSolpedTaller");
 
-
 const SEEN_KEY_EMPRESA = computed(() => `seen_solpes_empresa_${auth?.user?.uid || "anon"}`);
 const SEEN_KEY_TALLER  = computed(() => `seen_solpes_taller_${auth?.user?.uid || "anon"}`);
-
 const getSeen = (k) => Number(localStorage.getItem(k) || "0");
 const setSeen = (k, ms) => localStorage.setItem(k, String(ms));
-
-
-function getStartOfTodayMs() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
 
 function isPendingStatus(estatus) {
   const e = normalize(estatus);
   return e === "pendiente" || e.includes("pendiente");
 }
 
-function tsToMs(ts) {
-  if (!ts) return 0;
-  if (typeof ts.toMillis === "function") return ts.toMillis();
-  if (typeof ts.seconds === "number") {
-    const nanos = typeof ts.nanoseconds === "number" ? ts.nanoseconds : 0;
-    return ts.seconds * 1000 + Math.floor(nanos / 1e6);
-  }
-  if (ts instanceof Date) return ts.getTime();
-  return 0;
-}
-
-function getMsFromSolpeEmpresa(d) {
-  const msTs = tsToMs(d?.createdAt) || tsToMs(d?.fecha_str);
-  if (msTs) return msTs;
-
-  const iso = String(d?.fecha || "").trim();
-  const ms = iso ? Date.parse(iso) : 0;
-  return Number.isFinite(ms) ? ms : 0;
-}
-
-function getMsFromSolpeTaller(d) {
-  const msTs = tsToMs(d?.creado_en) || tsToMs(d?.updated_at);
-  if (msTs) return msTs;
-
-  const iso = String(d?.fecha || "").trim();
-  const ms = iso ? Date.parse(iso) : 0;
-  return Number.isFinite(ms) ? ms : 0;
-}
-
 function toNameString(v) {
   if (!v) return "";
   if (typeof v === "string") return v;
   if (typeof v === "object") {
-    return (
-      v?.Nombre_completo ||
-      v?.nombre ||
-      v?.fullName ||
-      v?.name ||
-      v?.displayName ||
-      ""
-    );
+    return v?.Nombre_completo || v?.nombre || v?.fullName || v?.name || v?.displayName || "";
   }
   return "";
 }
-
 function arrayHasName(arr, myNorm) {
   const tokens = myNorm.split(" ").filter(Boolean);
   const list = Array.isArray(arr) ? arr : [];
@@ -278,23 +287,27 @@ function arrayHasName(arr, myNorm) {
   });
 }
 
-function playNotif() {
-  try {
-    const a = new Audio("/notif.mp3");
-    a.volume = 0.25;
-    a.play().catch(() => {});
-  } catch(e) {console.log(e)}
+function getMsFromSolpeEmpresa(d) {
+  const msTs = tsToMs(d?.createdAt) || tsToMs(d?.fecha_str);
+  if (msTs) return msTs;
+  const iso = String(d?.fecha || "").trim();
+  return tsToMs(iso);
+}
+function getMsFromSolpeTaller(d) {
+  const msTs = tsToMs(d?.creado_en) || tsToMs(d?.updated_at);
+  if (msTs) return msTs;
+  const iso = String(d?.fecha || "").trim();
+  return tsToMs(iso);
 }
 
-
-function recomputeUnread() {
+function recomputeSolpesUnread() {
   const since = getStartOfTodayMs();
 
   const seenEmpresa = getSeen(SEEN_KEY_EMPRESA.value);
-  const seenTaller = getSeen(SEEN_KEY_TALLER.value);
+  const seenTaller  = getSeen(SEEN_KEY_TALLER.value);
 
   const minEmpresa = Math.max(since, seenEmpresa);
-  const minTaller = Math.max(since, seenTaller);
+  const minTaller  = Math.max(since, seenTaller);
 
   unreadEmpresa.value = isViewingEmpresa.value
     ? 0
@@ -310,29 +323,203 @@ function recomputeUnread() {
 
 function markSeenEmpresa() {
   setSeen(SEEN_KEY_EMPRESA.value, Date.now());
-  recomputeUnread();
+  recomputeSolpesUnread();
 }
 function markSeenTaller() {
   setSeen(SEEN_KEY_TALLER.value, Date.now());
-  recomputeUnread();
+  recomputeSolpesUnread();
+}
+
+
+const unreadAprobEmpresa = ref(0);
+const unreadAprobTaller = ref(0);
+
+const aprobEmpresaTimes = ref([]);
+const aprobTallerTimes = ref([]);
+
+const aprobEmpresaIds = ref(new Set());
+const aprobTallerIds = ref(new Set());
+
+const bounceAprobEmpresa = ref(false);
+const bounceAprobTaller = ref(false);
+let bounceTimerAprobEmp = null;
+let bounceTimerAprobTal = null;
+
+function triggerBounceAprobEmpresa() {
+  bounceAprobEmpresa.value = false;
+  requestAnimationFrame(() => {
+    bounceAprobEmpresa.value = true;
+    if (bounceTimerAprobEmp) clearTimeout(bounceTimerAprobEmp);
+    bounceTimerAprobEmp = setTimeout(() => (bounceAprobEmpresa.value = false), 1100);
+  });
+}
+function triggerBounceAprobTaller() {
+  bounceAprobTaller.value = false;
+  requestAnimationFrame(() => {
+    bounceAprobTaller.value = true;
+    if (bounceTimerAprobTal) clearTimeout(bounceTimerAprobTal);
+    bounceTimerAprobTal = setTimeout(() => (bounceAprobTaller.value = false), 1100);
+  });
+}
+
+const canSeeAprobBadges = computed(() => {
+  return (
+    isAprobadorEditorRole.value ||
+    isGuillermo.value ||
+    isJuanCubillos.value ||
+    isAlejandroCandia.value ||
+    roleKey.value === "admin"
+  );
+});
+
+function statusVariantsFor(stage) {
+  if (stage === "guillermo") return ["Revisión Guillermo", "Revision Guillermo"];
+  if (stage === "juan") return ["Preaprobado", "Pre Aprobado", "Pre-aprobado"];
+  if (stage === "alejandro") return ["Casi Aprobado", "Casi aprobado", "Casi-aprobado"];
+  return [];
+}
+
+const aprobStatusesEmpresa = computed(() => {
+  if (roleKey.value === "admin") {
+    return [
+      ...statusVariantsFor("guillermo"),
+      ...statusVariantsFor("juan"),
+      ...statusVariantsFor("alejandro"),
+    ];
+  }
+  if (isGuillermo.value) return statusVariantsFor("guillermo");
+  if (isJuanCubillos.value) return statusVariantsFor("juan");
+  if (isAlejandroCandia.value) return statusVariantsFor("alejandro");
+  if (isAprobadorEditorRole.value) {
+    return [
+      ...statusVariantsFor("guillermo"),
+      ...statusVariantsFor("juan"),
+      ...statusVariantsFor("alejandro"),
+    ];
+  }
+  return [];
+});
+
+const aprobStatusesTaller = computed(() => {
+  return aprobStatusesEmpresa.value;
+});
+
+function getMsFromOC(oc) {
+  let ms = tsToMs(oc?.fechaSubida);
+  if (!ms && typeof oc?.fechaSubida === "string") ms = tsToMs(oc.fechaSubida);
+  if (!ms) {
+    const h0 = Array.isArray(oc?.historial) ? oc.historial[0] : null;
+    ms = tsToMs(h0?.fecha);
+  }
+  return ms;
+}
+
+const isViewingAprobEmpresa = computed(() => route.name === "AprobacionOC");
+const isViewingAprobTaller = computed(() => route.name === "AprobacionOCTaller");
+
+const SEEN_KEY_APROB_EMP = computed(() => `seen_aprob_oc_empresa_${auth?.user?.uid || "anon"}`);
+const SEEN_KEY_APROB_TAL = computed(() => `seen_aprob_oc_taller_${auth?.user?.uid || "anon"}`);
+
+function recomputeAprobUnread() {
+  const since = getStartOfTodayMs();
+
+  const seenEmp = getSeen(SEEN_KEY_APROB_EMP.value);
+  const seenTal = getSeen(SEEN_KEY_APROB_TAL.value);
+
+  const minEmp = Math.max(since, seenEmp);
+  const minTal = Math.max(since, seenTal);
+
+  unreadAprobEmpresa.value = isViewingAprobEmpresa.value
+    ? 0
+    : aprobEmpresaTimes.value.filter((t) => t > minEmp).length;
+
+  unreadAprobTaller.value = isViewingAprobTaller.value
+    ? 0
+    : aprobTallerTimes.value.filter((t) => t > minTal).length;
+
+  if (!isViewingAprobEmpresa.value && unreadAprobEmpresa.value > 0) triggerBounceAprobEmpresa();
+  if (!isViewingAprobTaller.value && unreadAprobTaller.value > 0) triggerBounceAprobTaller();
+}
+
+function markSeenAprobEmpresa() {
+  setSeen(SEEN_KEY_APROB_EMP.value, Date.now());
+  recomputeAprobUnread();
+}
+function markSeenAprobTaller() {
+  setSeen(SEEN_KEY_APROB_TAL.value, Date.now());
+  recomputeAprobUnread();
 }
 
 watch(
   () => route.name,
   (name) => {
-    if (!isEditorRole.value) return;
-    if (name === "historial-solped") markSeenEmpresa();
-    if (name === "HistorialSolpedTaller") markSeenTaller();
+    if (isEditorRole.value) {
+      if (name === "historial-solped") markSeenEmpresa();
+      if (name === "HistorialSolpedTaller") markSeenTaller();
+    }
+    if (canSeeAprobBadges.value) {
+      if (name === "AprobacionOC") markSeenAprobEmpresa();
+      if (name === "AprobacionOCTaller") markSeenAprobTaller();
+    }
   },
   { immediate: true }
 );
 
-let unsubEmpresa = null;
-let unsubTaller = null;
-let badgeTimer = null;
 
-function startBadges() {
-  if (!isEditorRole.value) return;
+let unsubSolpesEmp = null;
+let unsubSolpesTal = null;
+let unsubAprobEmp = null;
+let unsubAprobTal = null;
+
+let tickTimer = null;
+
+function stopAllBadges() {
+  if (unsubSolpesEmp) unsubSolpesEmp();
+  if (unsubSolpesTal) unsubSolpesTal();
+  if (unsubAprobEmp) unsubAprobEmp();
+  if (unsubAprobTal) unsubAprobTal();
+
+  unsubSolpesEmp = null;
+  unsubSolpesTal = null;
+  unsubAprobEmp = null;
+  unsubAprobTal = null;
+
+  if (tickTimer) window.clearInterval(tickTimer);
+  tickTimer = null;
+
+  if (bounceTimerEmp) clearTimeout(bounceTimerEmp);
+  if (bounceTimerTal) clearTimeout(bounceTimerTal);
+  if (bounceTimerAprobEmp) clearTimeout(bounceTimerAprobEmp);
+  if (bounceTimerAprobTal) clearTimeout(bounceTimerAprobTal);
+
+  bounceTimerEmp = null;
+  bounceTimerTal = null;
+  bounceTimerAprobEmp = null;
+  bounceTimerAprobTal = null;
+
+  empresaIds.value = new Set();
+  tallerIds.value = new Set();
+  aprobEmpresaIds.value = new Set();
+  aprobTallerIds.value = new Set();
+
+  empresaTimes.value = [];
+  tallerTimes.value = [];
+  aprobEmpresaTimes.value = [];
+  aprobTallerTimes.value = [];
+
+  unreadEmpresa.value = 0;
+  unreadTaller.value = 0;
+  unreadAprobEmpresa.value = 0;
+  unreadAprobTaller.value = 0;
+
+  bounceEmpresa.value = false;
+  bounceTaller.value = false;
+  bounceAprobEmpresa.value = false;
+  bounceAprobTaller.value = false;
+}
+
+function startAllBadges() {
+  stopAllBadges();
 
   const myNameRaw = String(
     auth?.profile?.Nombre_completo ||
@@ -341,123 +528,179 @@ function startBadges() {
       fullName.value ||
       ""
   ).trim();
-
   const myNorm = normalize(myNameRaw);
-  if (!myNorm) return;
 
-  unsubEmpresa = onSnapshot(
-    query(collection(db, "solpes"), where("estatus", "==", "Pendiente")),
-    (snap) => {
-      const since = getStartOfTodayMs();
+  if (isEditorRole.value && myNorm) {
+    unsubSolpesEmp = onSnapshot(
+      query(collection(db, "solpes"), where("estatus", "==", "Pendiente")),
+      (snap) => {
+        const since = getStartOfTodayMs();
 
-      const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const mine = raw.filter((d) => arrayHasName(d?.dirigidoA, myNorm));
-      const pendingAll = mine.filter((d) => isPendingStatus(d?.estatus));
+        const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const mine = raw.filter((d) => arrayHasName(d?.dirigidoA, myNorm));
+        const todayDocs = mine
+          .filter((d) => isPendingStatus(d?.estatus))
+          .filter((d) => {
+            const ms = getMsFromSolpeEmpresa(d);
+            return ms && ms >= since;
+          });
 
-      const todayDocs = pendingAll.filter((d) => {
-        const ms = getMsFromSolpeEmpresa(d);
-        return ms && ms >= since;
-      });
+        const newIds = new Set(todayDocs.map((x) => x.id));
+        const prev = empresaIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
 
-      const newIds = new Set(todayDocs.map((x) => x.id));
-      const prevIds = empresaIds.value;
-      const isFirstLoad = prevIds.size === 0;
-      const added = [...newIds].filter((id) => !prevIds.has(id));
-
-      if (isViewingEmpresa.value) {
-        if (todayDocs.length) setSeen(SEEN_KEY_EMPRESA.value, Date.now());
-      } else {
-        if (added.length && !isFirstLoad) {
-          playNotif();
-          triggerBounceEmpresa();
+        if (isViewingEmpresa.value) {
+          if (todayDocs.length) setSeen(SEEN_KEY_EMPRESA.value, Date.now());
+        } else {
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBounceEmpresa();
+          }
         }
+
+        empresaIds.value = newIds;
+        empresaTimes.value = todayDocs.map(getMsFromSolpeEmpresa).filter(Boolean);
+        recomputeSolpesUnread();
       }
+    );
 
-      empresaIds.value = newIds;
-      empresaTimes.value = todayDocs.map(getMsFromSolpeEmpresa).filter(Boolean);
+    unsubSolpesTal = onSnapshot(
+      query(collection(db, "solped_taller"), where("estatus", "==", "Pendiente")),
+      (snap) => {
+        const since = getStartOfTodayMs();
 
-      recomputeUnread();
-    }
-  );
+        const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const mine = raw.filter((d) => arrayHasName(d?.cotizadores, myNorm));
+        const todayDocs = mine
+          .filter((d) => isPendingStatus(d?.estatus))
+          .filter((d) => {
+            const ms = getMsFromSolpeTaller(d);
+            return ms && ms >= since;
+          });
 
-  unsubTaller = onSnapshot(
-    query(collection(db, "solped_taller"), where("estatus", "==", "Pendiente")),
-    (snap) => {
-      const since = getStartOfTodayMs();
+        const newIds = new Set(todayDocs.map((x) => x.id));
+        const prev = tallerIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
 
-      const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const mine = raw.filter((d) => arrayHasName(d?.cotizadores, myNorm));
-      const pendingAll = mine.filter((d) => isPendingStatus(d?.estatus));
-
-      const todayDocs = pendingAll.filter((d) => {
-        const ms = getMsFromSolpeTaller(d);
-        return ms && ms >= since;
-      });
-
-      const newIds = new Set(todayDocs.map((x) => x.id));
-      const prevIds = tallerIds.value;
-      const isFirstLoad = prevIds.size === 0;
-      const added = [...newIds].filter((id) => !prevIds.has(id));
-
-      if (isViewingTaller.value) {
-        if (todayDocs.length) setSeen(SEEN_KEY_TALLER.value, Date.now());
-      } else {
-        if (added.length && !isFirstLoad) {
-          playNotif();
-          triggerBounceTaller();
+        if (isViewingTaller.value) {
+          if (todayDocs.length) setSeen(SEEN_KEY_TALLER.value, Date.now());
+        } else {
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBounceTaller();
+          }
         }
+
+        tallerIds.value = newIds;
+        tallerTimes.value = todayDocs.map(getMsFromSolpeTaller).filter(Boolean);
+        recomputeSolpesUnread();
       }
+    );
+  }
 
-      tallerIds.value = newIds;
-      tallerTimes.value = todayDocs.map(getMsFromSolpeTaller).filter(Boolean);
-
-      recomputeUnread();
-    }
-  );
-
-
-  badgeTimer = window.setInterval(() => {
+  if (canSeeAprobBadges.value && aprobStatusesEmpresa.value.length) {
     const since = getStartOfTodayMs();
+
+    const stListEmp = aprobStatusesEmpresa.value.slice(0, 10);
+    const qEmp =
+      stListEmp.length === 1
+        ? query(collection(db, "ordenes_oc"), where("estatus", "==", stListEmp[0]))
+        : query(collection(db, "ordenes_oc"), where("estatus", "in", stListEmp));
+
+    unsubAprobEmp = onSnapshot(
+      qEmp,
+      (snap) => {
+        const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const todayDocs = raw.filter((d) => {
+          const ms = getMsFromOC(d);
+          if (!ms || ms < since) return false;
+          const st = String(d?.estatus || "").trim();
+          return stListEmp.includes(st);
+        });
+
+        const newIds = new Set(todayDocs.map((x) => x.id));
+        const prev = aprobEmpresaIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
+
+        if (isViewingAprobEmpresa.value) {
+          if (todayDocs.length) setSeen(SEEN_KEY_APROB_EMP.value, Date.now());
+        } else {
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBounceAprobEmpresa();
+          }
+        }
+
+        aprobEmpresaIds.value = newIds;
+        aprobEmpresaTimes.value = todayDocs.map(getMsFromOC).filter(Boolean);
+        recomputeAprobUnread();
+      },
+      (err) => console.error("[BADGE] ordenes_oc error:", err)
+    );
+
+    const stListTal = aprobStatusesTaller.value.slice(0, 10);
+    const qTal =
+      stListTal.length === 1
+        ? query(collection(db, "ordenes_oc_taller"), where("estatus", "==", stListTal[0]))
+        : query(collection(db, "ordenes_oc_taller"), where("estatus", "in", stListTal));
+
+    unsubAprobTal = onSnapshot(
+      qTal,
+      (snap) => {
+        const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const todayDocs = raw.filter((d) => {
+          const ms = getMsFromOC(d);
+          if (!ms || ms < since) return false;
+          const st = String(d?.estatus || "").trim();
+          return stListTal.includes(st);
+        });
+
+        const newIds = new Set(todayDocs.map((x) => x.id));
+        const prev = aprobTallerIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
+
+        if (isViewingAprobTaller.value) {
+          if (todayDocs.length) setSeen(SEEN_KEY_APROB_TAL.value, Date.now());
+        } else {
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBounceAprobTaller();
+          }
+        }
+
+        aprobTallerIds.value = newIds;
+        aprobTallerTimes.value = todayDocs.map(getMsFromOC).filter(Boolean);
+        recomputeAprobUnread();
+      },
+      (err) => console.error("[BADGE] ordenes_oc_taller error:", err)
+    );
+  }
+  tickTimer = window.setInterval(() => {
+    const since = getStartOfTodayMs();
+
     empresaTimes.value = empresaTimes.value.filter((ms) => ms >= since);
     tallerTimes.value = tallerTimes.value.filter((ms) => ms >= since);
-    recomputeUnread();
+    recomputeSolpesUnread();
+
+    aprobEmpresaTimes.value = aprobEmpresaTimes.value.filter((ms) => ms >= since);
+    aprobTallerTimes.value = aprobTallerTimes.value.filter((ms) => ms >= since);
+    recomputeAprobUnread();
   }, 60 * 1000);
 }
 
-function stopBadges() {
-  if (unsubEmpresa) unsubEmpresa();
-  if (unsubTaller) unsubTaller();
-  unsubEmpresa = null;
-  unsubTaller = null;
-
-  if (badgeTimer) window.clearInterval(badgeTimer);
-  badgeTimer = null;
-
-  if (bounceTimerEmp) clearTimeout(bounceTimerEmp);
-  if (bounceTimerTal) clearTimeout(bounceTimerTal);
-  bounceTimerEmp = null;
-  bounceTimerTal = null;
-
-  empresaIds.value = new Set();
-  tallerIds.value = new Set();
-  empresaTimes.value = [];
-  tallerTimes.value = [];
-  unreadEmpresa.value = 0;
-  unreadTaller.value = 0;
-  bounceEmpresa.value = false;
-  bounceTaller.value = false;
-}
-
-onMounted(() => startBadges());
-onBeforeUnmount(() => stopBadges());
+onMounted(() => startAllBadges());
+onBeforeUnmount(() => stopAllBadges());
 
 
 watch(
-  () => [auth?.user?.uid, fullName.value, role.value, isEditorRole.value],
-  () => {
-    stopBadges();
-    startBadges();
-  }
+  () => [auth?.user?.uid, fullName.value, role.value, roleKey.value],
+  () => startAllBadges()
 );
 </script>
 
@@ -482,30 +725,47 @@ watch(
     </div>
 
     <nav class="sidebar-nav">
+      <!-- EMPRESA -->
       <div v-if="empresaMenu.length" class="group">
         <div class="group-title">Empresa</div>
+
         <template v-for="(it, i) in empresaMenu" :key="'e-' + i">
           <hr v-if="it === null" class="divider" />
+
           <a v-else href="#" class="item" :class="{ active: isActive(it.name) }" @click.prevent="go({ name: it.name })">
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
 
+            <!-- 🔴 Badge Historial SOLPED (Empresa) -->
             <span
               v-if="isEditorRole && it.name === 'historial-solped' && unreadEmpresa > 0"
               class="ms-auto notif-badge"
               :class="{ 'badge-bounce': bounceEmpresa }"
-              :title="`Pendientes de hoy (desde 00:00): ${unreadEmpresa}`"
+              title="SOLPED pendientes de hoy (desde 00:00)"
             >
               {{ unreadEmpresa }}
+            </span>
+
+            <!-- 🔵 Badge Aprobación OC (Empresa) -->
+            <span
+              v-if="canSeeAprobBadges && it.name === 'AprobacionOC' && unreadAprobEmpresa > 0"
+              class="ms-auto notif-badge"
+              :class="{ 'badge-bounce': bounceAprobEmpresa }"
+              title="OCs para aprobar (hoy)"
+            >
+              {{ unreadAprobEmpresa }}
             </span>
           </a>
         </template>
       </div>
 
+      <!-- TALLER -->
       <div v-if="tallerMenu.length" class="group">
         <div class="group-title">Taller</div>
+
         <template v-for="(it, i) in tallerMenu" :key="'t-' + i">
           <hr v-if="it === null" class="divider" />
+
           <a v-else href="#" class="item" :class="{ active: isActive(it.name) }" @click.prevent="go({ name: it.name })">
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
@@ -515,14 +775,25 @@ watch(
               v-if="isEditorRole && it.name === 'HistorialSolpedTaller' && unreadTaller > 0"
               class="ms-auto notif-badge"
               :class="{ 'badge-bounce': bounceTaller }"
-              :title="`Pendientes de hoy (desde 00:00): ${unreadTaller}`"
+              title="SOLPED taller pendientes de hoy (desde 00:00)"
             >
               {{ unreadTaller }}
+            </span>
+
+            <!-- 🔵 Badge Aprobación OC (Taller) -->
+            <span
+              v-if="canSeeAprobBadges && it.name === 'AprobacionOCTaller' && unreadAprobTaller > 0"
+              class="ms-auto notif-badge"
+              :class="{ 'badge-bounce': bounceAprobTaller }"
+              title="OCs taller para aprobar (hoy)"
+            >
+              {{ unreadAprobTaller }}
             </span>
           </a>
         </template>
       </div>
 
+      <!-- RECEPCIÓN -->
       <div v-if="recepcionMenu.length" class="group">
         <div class="group-title">Recepción</div>
         <template v-for="(it, i) in recepcionMenu" :key="'r-' + i">
@@ -533,6 +804,7 @@ watch(
         </template>
       </div>
 
+      <!-- ADMIN -->
       <div v-if="adminMenu.length" class="group">
         <div class="group-title">Admin</div>
         <template v-for="(it, i) in adminMenu" :key="'a-' + i">
@@ -670,7 +942,6 @@ watch(
 </style>
 
 <style scoped>
-/* 👇 estilos iguales (no cambié nada de tu look) */
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
@@ -798,12 +1069,12 @@ watch(
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
-/* ✅ Animación salto (cuando llega nueva o cuando hay pendientes) */
-.badge-bounce{
+/* ✅ Animación salto */
+.badge-bounce {
   animation: badgeJump 0.9s cubic-bezier(.2,.9,.25,1) both;
   transform-origin: center;
 }
-@keyframes badgeJump{
+@keyframes badgeJump {
   0%   { transform: translateY(0) scale(1); }
   18%  { transform: translateY(-8px) scale(1.06); }
   36%  { transform: translateY(0) scale(1); }
@@ -864,7 +1135,7 @@ watch(
   background: #fafafa;
 }
 
-/* (resto de tus estilos de settings) */
+/* settings restantes */
 .settings-label {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -973,7 +1244,7 @@ watch(
 :global(html.theme-dark) .color-swatch:has(input.visually-hidden:checked) {
   border-color: rgba(255, 255, 255, 0.6);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6) inset;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255,  255, 255, 0.06);
 }
 :global(html.theme-dark) .swatch-label {
   color: #e5e7eb;
