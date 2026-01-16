@@ -44,33 +44,66 @@
         <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Close"></button>
       </div>
 
-      <!-- Buscador exacto por N° OC -->
+      <!-- ✅ BÚSQUEDA ÚNICA: N° OC + Nombre de archivo (archivoOC.nombre) -->
       <div class="card card-elevated mb-3">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">🔎 Buscar por N° de Cotización</div>
-          <div class="small text-secondary">Búsqueda exacta</div>
+          <div class="fw-semibold">🔎 Buscar cotización (N° o archivo)</div>
+          <div class="small text-secondary">Firestore + rápido</div>
         </div>
+
         <div class="card-body">
           <div class="row g-2">
             <div class="col-12 col-sm-9">
-              <input type="number" class="form-control" v-model.number="numeroOC" @keyup.enter="buscarOCExacta" placeholder="Ej: 21">
+              <input
+                type="text"
+                class="form-control"
+                v-model="searchText"
+                @keyup.enter="buscarGlobal"
+                placeholder="Ej: 452 / OC 63247 / VILLAR / OC 63247 VILLAR HNOS.pdf"
+              />
             </div>
             <div class="col-12 col-sm-3 d-grid">
-              <button class="btn btn-danger" @click="buscarOCExacta">
-                <span v-if="loadingSearch" class="spinner-border spinner-border-sm me-2"></span>
+              <button class="btn btn-danger" @click="buscarGlobal">
+                <span v-if="loadingGlobalSearch" class="spinner-border spinner-border-sm me-2"></span>
                 Buscar
               </button>
             </div>
           </div>
 
-          <div v-if="ocEncontrada" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
-            <div class="me-auto">
-              <div class="fw-semibold">Resultado: N° {{ ocEncontrada.id ?? '—' }}</div>
-              <div class="small text-secondary">
-                {{ ocEncontrada.empresa }} · {{ ocEncontrada.centroCostoTexto || '—' }} · {{ fmtFecha(ocEncontrada.fechaSubida) }}
-              </div>
+          <!-- Coincidencias SOLO para informar (no filtra el listado) -->
+          <div v-if="lastSearchTextTrim" class="mt-2 small text-secondary">
+            Coincidencias en esta página (por nombre de archivo): <strong>{{ pageMatchesCount }}</strong>
+          </div>
+
+          <!-- Resultados -->
+          <div v-if="resultadosBusqueda.length" class="mt-3">
+            <div class="small text-secondary mb-2">
+              Resultados Firestore: {{ resultadosBusqueda.length }}
+              <span v-if="busquedaIncluyoNumero" class="text-muted">· incluye búsqueda por N°</span>
+              <span v-if="busquedaIncluyoNombre" class="text-muted">· incluye búsqueda por nombre</span>
             </div>
-            <button class="btn btn-sm btn-outline-primary" @click="goOC(ocEncontrada)">Ver detalle</button>
+
+            <div
+              v-for="r in resultadosBusqueda"
+              :key="r.__docId"
+              class="alert alert-light d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2"
+            >
+              <div class="me-auto">
+                <div class="fw-semibold">🧾 N° {{ r.id ?? '—' }}</div>
+                <div class="small text-secondary">
+                  {{ r.empresa }} · {{ r.centroCostoTexto || '—' }} · {{ fmtFecha(r.fechaSubida) }}
+                </div>
+                <div class="small">
+                  <strong>Archivo:</strong> {{ getArchivoNombre(r) || '—' }}
+                </div>
+              </div>
+
+              <button class="btn btn-sm btn-outline-primary" @click="goOC(r)">Ver detalle</button>
+            </div>
+          </div>
+
+          <div v-else-if="searchedOnce" class="alert alert-warning mt-3 mb-0">
+            No se encontraron coincidencias en Firestore con ese texto.
           </div>
         </div>
       </div>
@@ -155,7 +188,7 @@
                 class="card card-elevated mb-2 oc-card"
                 :class="{
                   'oc-clickable': isClickableToDetail(oc),
-                  'oc-missing-oc': faltaSubirOC(oc)       /* 👈 resalta si falta la OC */
+                  'oc-missing-oc': faltaSubirOC(oc)
                 }"
                 @click="onCardClick(oc)"
               >
@@ -210,6 +243,11 @@
                     <div class="col-12">
                       <div class="small text-secondary">Comentario</div>
                       <div class="border rounded p-2">{{ oc.comentario || '—' }}</div>
+                    </div>
+
+                    <div class="col-12">
+                      <div class="small text-secondary">Archivo</div>
+                      <div class="fw-semibold">{{ getArchivoNombre(oc) || '—' }}</div>
                     </div>
                   </div>
 
@@ -281,7 +319,7 @@
 
               <div class="mb-3">
                 <label class="form-label">Centro (texto contiene)</label>
-                <input class="form-control" v-model="centroSearch" placeholder="Ej: THPV / CAREN">
+                <input class="form-control" v-model="centroSearch" placeholder="Ej: TORNERIA / CM">
                 <small class="text-secondary">Se aplica en la página.</small>
               </div>
 
@@ -343,7 +381,7 @@
 
             <div class="mb-3">
               <label class="form-label">Centro (texto contiene)</label>
-              <input class="form-control" v-model="centroSearch" placeholder="Ej: THPV / CAREN">
+              <input class="form-control" v-model="centroSearch" placeholder="Ej: TORNERIA / CM">
               <small class="text-secondary">Se aplica en la página.</small>
             </div>
 
@@ -385,20 +423,19 @@ import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
-  collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer
+  collection, query, where, orderBy, limit, startAfter, startAt, endAt,
+  onSnapshot, getDocs, getCountFromServer, doc, getDoc
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
-
-/* ========= Claves de persistencia ========= */
+const COL = 'ordenes_oc_taller';
 const LS_FILTERS       = 'histOCTaller:filters_v1';
 const LS_SHOW_SIDEBAR  = 'histOCTaller:showSidebar';
-const LS_SOLO_MIAS_KEY = 'histOCTaller:soloMias'; // compat backward
+const LS_SOLO_MIAS_KEY = 'histOCTaller:soloMias';
 
-/* ========= NUEVO: estado de ruta (página + scroll) ========= */
 const booting = ref(true);
 const ROUTE_STATE_KEY = computed(() => `histOCTaller:routeState:${String(route?.name || 'HistorialOCTaller')}`);
 
@@ -427,12 +464,10 @@ function loadRouteState() {
   }
 }
 
-/* ========= Estado ========= */
 const loading = ref(true);
-const loadingSearch = ref(false);
 const error = ref('');
 
-/* ========= Responsive / Offcanvas ========= */
+
 const isDesktop = ref(false);
 const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 
@@ -462,36 +497,39 @@ const handleResize = () => {
   if (isDesktop.value && wasMobileOpen) closeFiltersMobile();
 };
 
-/* ========= Datos de la página ========= */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-/* ========= Buscador exacto ========= */
-const numeroOC = ref(null);
-const ocEncontrada = ref(null);
+const searchText = ref('');
+const lastSearchText = ref('');
+const lastSearchTextTrim = computed(() => String(lastSearchText.value || '').trim());
+const resultadosBusqueda = ref([]);
+const loadingGlobalSearch = ref(false);
+const searchedOnce = ref(false);
+const busquedaIncluyoNumero = ref(false);
+const busquedaIncluyoNombre = ref(false);
 
-/* ========= Filtros base ========= */
+
+const _recentCache = ref({ ts: 0, docs: [] });
+
+
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
 const empresaSegmento = ref('todas');
 
-/* ========= Centros (chips de ejemplo) ========= */
 const centrosCosto = {
-  "THPV-31": "Taller HP Vulcanización 31",
-  "CASAMATRIZ": "Casa Matriz",
-  "PPSB": "Planta Predosificado San Bernardo",
-  "CANECHE": "Contrato Taller Caneche",
-  "CHUQUICAMATA": "Contrato Chuquicamata"
+  "TALLER TORNERIA": "TALLER TORNERIA",
+  "CASA MATRIZ": "CASA MATRIZ",
+  "CANECHE": "CONTRATO TALLER CANECHE",
 };
 const selectedCentros = ref([]);
 const centroPickerSearch = ref('');
 const centroSearch = ref('');
 
-/* ========= Identidad ========= */
 const myName = computed(() => (auth?.profile?.fullName || auth?.user?.displayName || '').trim());
 
-/* ========= Paginación y conteo ========= */
+
 const page = ref(1);
 const pageSize = ref(5);
 const totalCount = ref(0);
@@ -503,7 +541,7 @@ const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
 
-/* ========= Helpers ========= */
+
 const fmtFecha = (f) => {
   try {
     let d = null;
@@ -520,13 +558,12 @@ const fmtMoneda = (n, c='CLP') => {
   catch { return `${c} ${v.toLocaleString('es-CL')}`; }
 };
 
-/* ======== Roles: solo editor ve header coloreado ======== */
 const isEditor = computed(() => {
   const r = (auth?.profile?.role || auth?.role || '').toLowerCase().trim();
   return r === 'editor';
 });
 
-/* ======== Normalizador + mapeo de estado ======== */
+
 function estadoKey(estatusRaw) {
   const s = String(estatusRaw || '')
     .toLowerCase()
@@ -542,10 +579,8 @@ function estadoKey(estatusRaw) {
   if (s.includes('revision')) return 'revision';
   if (s.includes('recepcion') && s.includes('completa')) return 'recepcion-completa';
   if (s.includes('recepcion') && s.includes('parcial'))  return 'recepcion-parcial';
-
   return 'otro';
 }
-
 const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
@@ -555,50 +590,243 @@ const isClickableToDetail = (oc) => {
 };
 const onCardClick = (oc) => { if (isClickableToDetail(oc)) goOC(oc); };
 
-/* ---------- SOLO cuenta como OC si está en archivoOC / archivoOCUrl ---------- */
+
+function getArchivoNombre(oc) {
+  const a = oc?.archivoOC;
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
+    if (a.nombre) return String(a.nombre);
+    if (a.name) return String(a.name);
+  }
+
+  const prov = oc?.archivosOCProveedor;
+  if (Array.isArray(prov) && prov.length) {
+    const first = prov.find(x => x && typeof x === 'object' && (x.nombre || x.name));
+    if (first?.nombre) return String(first.nombre);
+    if (first?.name) return String(first.name);
+  }
+
+  const st = oc?.archivosStorage;
+  if (Array.isArray(st) && st.length) {
+    const first = st.find(x => x && typeof x === 'object' && (x.nombre || x.name));
+    if (first?.nombre) return String(first.nombre);
+    if (first?.name) return String(first.name);
+  }
+
+  if (oc?.nombre) return String(oc.nombre);
+  return '';
+}
+
 function hasArchivoOC(oc) {
   const a = oc?.archivoOC;
-
-  if (Array.isArray(a) && a.length > 0) {
-    for (const item of a) {
-      if (typeof item === 'string' && item.trim() !== '') return true;
-      if (item && typeof item === 'object') {
-        if (typeof item.url  === 'string' && item.url.trim()  !== '') return true;
-        if (typeof item.path === 'string' && item.path.trim() !== '') return true;
-        if (
-          typeof item.nombre === 'string' && item.nombre.trim() !== '' &&
-          typeof item.tipo   === 'string' && item.tipo.trim()   !== ''
-        ) return true;
-      }
-    }
-  }
-
   if (a && typeof a === 'object' && !Array.isArray(a)) {
-    if (typeof a.url  === 'string' && a.url.trim()  !== '') return true;
-    if (typeof a.path === 'string' && a.path.trim() !== '') return true;
-    if (
-      typeof a.nombre === 'string' && a.nombre.trim() !== '' &&
-      typeof a.tipo   === 'string' && a.tipo.trim()   !== ''
-    ) return true;
+    if (typeof a.url === 'string' && a.url.trim() !== '') return true;
+    if (typeof a.nombre === 'string' && a.nombre.trim() !== '') return true;
   }
-
-  if (typeof a === 'string'  && a.trim() !== '') return true;
-  if (typeof a === 'boolean' && a === true)      return true;
-
   if (typeof oc?.archivoOCUrl === 'string' && oc.archivoOCUrl.trim() !== '') return true;
-
   return false;
 }
-
-/* ---------- Regla alerta: Aprobado + sin archivo de OC ---------- */
 function faltaSubirOC(oc) {
-  const ek = estadoKey(oc?.estatus);
-  const aprobado = ek === 'aprobado';
-  const tiene = hasArchivoOC(oc);
-  return aprobado && !tiene;
+  return estadoKey(oc?.estatus) === 'aprobado' && !hasArchivoOC(oc);
 }
 
-/* ========= Flags de filtros aplicados ========= */
+
+const SEARCH_LIMIT = 20;
+
+function _stripExt(name) {
+  const s = String(name || '').trim();
+  return s.replace(/\.(pdf|png|jpg|jpeg)$/i, '').trim();
+}
+function _normTxt(v) {
+  return String(v ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function _extractBestNumber(text) {
+  const matches = String(text || '').match(/\d{2,}/g) || [];
+  if (!matches.length) return '';
+  matches.sort((a, b) => b.length - a.length);
+  return matches[0] || '';
+}
+function _extractOcNumberFromNorm(norm) {
+  const m = String(norm || '').match(/\boc\s*([0-9]{2,})\b/i);
+  return m ? m[1] : '';
+}
+function _buildNameVariants(raw) {
+  const out = new Set();
+  const r = String(raw || '').trim();
+  if (!r) return [];
+  const base = _stripExt(r);
+
+  out.add(r);
+  out.add(base);
+  if (!/\.pdf$/i.test(r)) out.add(`${r}.pdf`);
+  if (!/\.pdf$/i.test(base)) out.add(`${base}.pdf`);
+
+  const n = _normTxt(r);
+  const num = _extractOcNumberFromNorm(n) || _extractBestNumber(r);
+  if (num) {
+    out.add(`OC ${num}`);
+    out.add(`OC ${num}.pdf`);
+  }
+
+  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 12);
+}
+function _makePrefixCandidates(raw) {
+  const out = new Set();
+  const r = String(raw || '').trim();
+  if (!r) return [];
+
+  out.add(r);
+  out.add(_stripExt(r));
+  out.add(r.toUpperCase());
+  out.add(_stripExt(r).toUpperCase());
+  out.add(r.toLowerCase());
+  out.add(_stripExt(r).toLowerCase());
+
+  const n = _normTxt(r);
+  const num = _extractOcNumberFromNorm(n) || _extractBestNumber(r);
+  if (num) {
+    out.add(`OC ${num}`);
+    out.add(`OC ${num}`.toUpperCase());
+    out.add(`oc ${num}`.toLowerCase());
+  }
+
+  return Array.from(out).map(x => String(x || '').trim()).filter(x => x.length >= 2).slice(0, 8);
+}
+
+async function _safeGetDocs(q) {
+  try { return await getDocs(q); }
+  catch (e) { console.warn('getDocs error:', e); return null; }
+}
+
+
+const buscarGlobal = async () => {
+  resultadosBusqueda.value = [];
+  searchedOnce.value = false;
+  busquedaIncluyoNumero.value = false;
+  busquedaIncluyoNombre.value = false;
+
+  const raw = String(searchText.value || '').trim();
+  if (!raw) return;
+
+  lastSearchText.value = raw;
+
+  const norm = _normTxt(raw);
+  const bestNumStr = _extractBestNumber(raw);
+  const ocNumStr = _extractOcNumberFromNorm(norm) || bestNumStr;
+  const ocNum = ocNumStr ? Number(ocNumStr) : NaN;
+  const hasNum = !!ocNumStr && !Number.isNaN(ocNum);
+
+  loadingGlobalSearch.value = true;
+
+  try {
+    const merged = new Map();
+    const baseCol = collection(db, COL);
+
+    const addSnap = (snap) => {
+      if (!snap?.docs?.length) return;
+      for (const d of snap.docs) {
+        if (!merged.has(d.id)) merged.set(d.id, { __docId: d.id, ...d.data() });
+      }
+    };
+    const addDocIfExists = (ds) => {
+      if (ds?.exists?.()) merged.set(ds.id, { __docId: ds.id, ...ds.data() });
+    };
+
+    const tasks = [];
+
+
+    tasks.push((async () => {
+      if (raw.length < 8) return;
+      try {
+        const ds = await getDoc(doc(db, COL, raw));
+        addDocIfExists(ds);
+      } catch(e) {console.log(e)}
+    })());
+
+
+    if (hasNum) {
+      busquedaIncluyoNumero.value = true;
+      tasks.push(_safeGetDocs(query(baseCol, where('id', '==', ocNum), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('id', '==', String(ocNumStr)), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('numero_oc', '==', ocNum), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('numero_oc', '==', String(ocNumStr)), limit(SEARCH_LIMIT))).then(addSnap));
+    }
+
+    busquedaIncluyoNombre.value = true;
+    const variants = _buildNameVariants(raw);
+    for (const v of variants) {
+      tasks.push(_safeGetDocs(query(baseCol, where('archivoOC.nombre', '==', v), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('archivoOC.name', '==', v), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('nombre', '==', v), limit(SEARCH_LIMIT))).then(addSnap));
+    }
+
+    const prefixes = _makePrefixCandidates(raw);
+    for (const pfx of prefixes) {
+      tasks.push(
+        _safeGetDocs(
+          query(
+            baseCol,
+            orderBy('archivoOC.nombre'),
+            startAt(pfx),
+            endAt(pfx + '\uf8ff'),
+            limit(SEARCH_LIMIT)
+          )
+        ).then(addSnap)
+      );
+    }
+
+    await Promise.allSettled(tasks);
+
+
+    if (merged.size === 0) {
+      const qNeed = _normTxt(_stripExt(raw));
+      if (qNeed.length >= 3) {
+        const now = Date.now();
+        const isCacheFresh = (now - (_recentCache.value.ts || 0)) < 90_000;
+
+        let recentDocs = _recentCache.value.docs || [];
+        if (!isCacheFresh || !recentDocs.length) {
+          const SCAN_LIMIT = 250;
+          let snap = await _safeGetDocs(query(baseCol, orderBy('fechaSubida', 'desc'), limit(SCAN_LIMIT)));
+          if (!snap) snap = await _safeGetDocs(query(baseCol, limit(SCAN_LIMIT)));
+
+          recentDocs = (snap?.docs || []).map(d => ({ __docId: d.id, ...d.data() }));
+          _recentCache.value = { ts: now, docs: recentDocs };
+        }
+
+        for (const oc of recentDocs) {
+          const fname = _normTxt(_stripExt(getArchivoNombre(oc)));
+          if (fname && fname.includes(qNeed)) {
+            if (!merged.has(oc.__docId)) merged.set(oc.__docId, oc);
+            if (merged.size >= SEARCH_LIMIT) break;
+          }
+        }
+      }
+    }
+
+    resultadosBusqueda.value = Array.from(merged.values()).slice(0, SEARCH_LIMIT);
+    searchedOnce.value = true;
+  } catch (e) {
+    console.error('buscarGlobal error', e);
+    searchedOnce.value = true;
+  } finally {
+    loadingGlobalSearch.value = false;
+  }
+};
+
+
+const pageMatchesCount = computed(() => {
+  const qn = _normTxt(_stripExt(lastSearchText.value));
+  if (!qn) return 0;
+  return (pageDocs.value || []).filter(oc => _normTxt(_stripExt(getArchivoNombre(oc))).includes(qn)).length;
+});
+
+
 const centroNombreFiltroActivo = computed(() => !!centroSearch.value);
 const clientCentrosOverflow = computed(() => selectedCentros.value.length > 10);
 
@@ -611,7 +839,7 @@ const hasActiveFilters = computed(() =>
   selectedCentros.value.length > 0
 );
 
-/* ========= Persistencia de filtros ========= */
+
 function persistFilters(){
   const payload = {
     filtroFecha: filtroFecha.value || '',
@@ -656,7 +884,7 @@ function onStorageSync(e){
   }
 }
 
-/* ========= Query builder (server-side) ========= */
+
 const buildBaseWhere = () => {
   const wh = [];
 
@@ -676,7 +904,7 @@ const buildBaseWhere = () => {
       const end   = new Date(`${filtroFecha.value}T23:59:59.999`);
       wh.push(where('fechaSubida','>=', start));
       wh.push(where('fechaSubida','<=', end));
-    } catch (e){ console.error(e) }
+    } catch (e){ console.error(e); }
   }
 
   if (soloMias.value) {
@@ -696,7 +924,7 @@ const buildBaseWhere = () => {
 const makePageQuery = (pageNumber=1) => {
   const wh = buildBaseWhere();
   const base = query(
-    collection(db, 'ordenes_oc_taller'),
+    collection(db, COL),
     ...wh,
     orderBy('fechaSubida', 'desc'),
     limit(pageSize.value)
@@ -707,7 +935,6 @@ const makePageQuery = (pageNumber=1) => {
   return base;
 };
 
-/* ========= NUEVO: reconstruir cursores para volver a page>1 ========= */
 async function ensureCursorsForPage(targetPage) {
   const p = Number(targetPage || 1);
   if (p <= 1) return;
@@ -722,7 +949,7 @@ async function ensureCursorsForPage(targetPage) {
     }
 
     let q = query(
-      collection(db, 'ordenes_oc_taller'),
+      collection(db, COL),
       ...wh,
       orderBy('fechaSubida', 'desc'),
       limit(pageSize.value)
@@ -739,7 +966,7 @@ async function ensureCursorsForPage(targetPage) {
   }
 }
 
-/* ========= Suscripción / Conteo ========= */
+
 const subscribePage = () => {
   if (typeof unsubscribe === 'function') { unsubscribe(); unsubscribe = null; }
 
@@ -750,7 +977,7 @@ const subscribePage = () => {
     let docs = snap.docs.map(d => ({ __docId: d.id, ...d.data() }));
 
     if (clientCentrosOverflow.value) {
-      const set = new Set(selectedCentros.value.map(x => (x||'').toLowerCase()));
+      const set = new Set(selectedCentros.value.map(x => String(x||'').toLowerCase()));
       docs = docs.filter(oc => set.has(String(oc.centroCostoTexto||'').toLowerCase()));
     }
 
@@ -773,7 +1000,7 @@ const subscribePage = () => {
 const refreshCount = async () => {
   try {
     const wh = buildBaseWhere();
-    const countQ = query(collection(db, 'ordenes_oc_taller'), ...wh);
+    const countQ = query(collection(db, COL), ...wh);
     const res = await getCountFromServer(countQ);
     totalCount.value = res.data().count || 0;
   } catch (e) {
@@ -782,7 +1009,7 @@ const refreshCount = async () => {
   }
 };
 
-/* ========= Filtro cliente ========= */
+
 function applyClientFilters(arr) {
   let out = Array.isArray(arr) ? arr : [];
 
@@ -799,7 +1026,7 @@ function applyClientFilters(arr) {
   return out;
 }
 
-/* ========= Agrupado ========= */
+
 const agruparPorEmpresa = (arr=[]) => {
   const out = {};
   (arr||[]).forEach(o => {
@@ -811,7 +1038,7 @@ const agruparPorEmpresa = (arr=[]) => {
 };
 const agrupadasPaged = computed(() => agruparPorEmpresa(displayList.value));
 
-/* ========= Acciones ========= */
+
 const listaEstatus = [
   'Aprobado','Preaprobado','Pendiente de Aprobación','Revisión Guillermo',
   'Enviada a proveedor','Rechazado'
@@ -860,7 +1087,7 @@ const goPage = async (p) => {
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
-/* ========= Navegación ========= */
+
 const volver = () => {
   persistRouteState();
   router.back();
@@ -878,37 +1105,17 @@ const goSolped = (oc) => {
   router.push({ name: 'SolpedTallerDetalle', params: { id } });
 };
 
-/* ========= Búsqueda exacta ========= */
-const buscarOCExacta = async () => {
-  ocEncontrada.value = null;
-  const n = Number(numeroOC.value || 0);
-  if (!n) return;
-  loadingSearch.value = true;
-  try {
-    const wh = buildBaseWhere();
-    const q = query(collection(db, 'ordenes_oc_taller'), ...wh, where('id','==', n), limit(1));
-    const snap = await getDocs(q);
-    if (!snap.empty) ocEncontrada.value = { __docId: snap.docs[0].id, ...snap.docs[0].data() };
-  } catch (e) {
-    console.error(e);
-  } finally {
-    loadingSearch.value = false;
-  }
-};
-
-/* ========= NUEVO: guardar estado al salir ========= */
 onBeforeRouteLeave(() => {
   persistRouteState();
 });
 
-/* ========= Init / watchers ========= */
+
 onMounted(async () => {
   computeIsDesktop();
   window.addEventListener('resize', handleResize);
 
   loadPersistedFilters();
 
-  // ✅ RESTAURAR PAGE + SCROLL si vienes desde detalle
   const st = loadRouteState();
   if (st) {
     if ([5,10,20,30,40,50].includes(Number(st.pageSize))) pageSize.value = Number(st.pageSize);
@@ -942,7 +1149,6 @@ onUnmounted(() => {
   window.removeEventListener('storage', onStorageSync);
 });
 
-/* ✅ IMPORTANTE: evitar que el watch dispare applyFilters() durante la restauración */
 watch(
   [empresaSegmento, soloMias, filtroFecha, () => filtroEstatus.value.slice(), pageSize, selectedCentros, () => centroSearch.value],
   () => {
@@ -953,13 +1159,12 @@ watch(
 );
 </script>
 
-
 <style scoped>
 .hist-oc-page{
   min-height:100vh;
 }
 
-/* ===== Alertas “pro” ===== */
+
 .alert-pro{
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -978,7 +1183,7 @@ watch(
 }
 @keyframes fadeSlideIn{ from{opacity:0; transform: translateY(-4px);} to{opacity:1; transform: translateY(0);} }
 
-/* ===== Cards elevadas ===== */
+
 .card-elevated{
   border:1px solid #e5e7eb !important;
   box-shadow: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06) !important;
@@ -986,7 +1191,7 @@ watch(
   background:#fff;
 }
 
-/* Paginación superior pegajosa */
+
 .sticky-pager{
   position: sticky;
   top: 8px;
@@ -994,10 +1199,10 @@ watch(
   backdrop-filter: blur(3px);
 }
 
-/* Sidebar filtros pegajoso (desktop) */
+
 .sticky-sidebar{ position: sticky; top: 12px; }
 
-/* Botón flotante filtros en móvil */
+
 .floating-filters-btn{
   position: fixed;
   right: 16px;
@@ -1009,20 +1214,20 @@ watch(
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
 }
 
-/* Tarjeta clickable si está rechazado o pendiente */
+
 .oc-card.oc-clickable{
   cursor:pointer;
   border-color:#ef4444 !important;
   box-shadow:0 0 0 2px rgba(239,68,68,.15), 0 12px 24px rgba(239,68,68,.18) !important;
 }
 
-/* 🔶 Resaltar card cuando falta subir la OC */
+
 .oc-missing-oc{
-  border-color:#f59e0b !important; /* amarillo */
+  border-color:#f59e0b !important;
   box-shadow:0 0 0 2px rgba(245, 158, 11, .15), 0 12px 24px rgba(245, 158, 11, .18) !important;
 }
 
-/* Loading global */
+
 .loading-global{
   display:flex; align-items:center; justify-content:center;
   padding:2rem; border:1px dashed #e5e7eb; border-radius:.75rem;
@@ -1044,7 +1249,7 @@ watch(
 .ghost-text{ margin-top:1rem; font-weight:500; }
 @keyframes floaty{ 0%{transform:translateY(0)} 50%{transform:translateY(-8px)} 100%{transform:translateY(0)} }
 
-/* Badge close */
+
 .badge .btn-close{ width:.6rem; height:.6rem; filter: invert(1) grayscale(100%) brightness(0.4); }
 .badge-status{ font-weight:600; border:0; }
 .badge-aprobado{    background:#e7f6e9; color:#166534; }
@@ -1055,39 +1260,19 @@ watch(
 .badge-revision{    background:#efe9ff; color:#5b21b6; }
 .badge-recepcion-completa{ background:#e6fffb; color:#115e59; }
 .badge-recepcion-parcial{  background:#fef9c3; color:#854d0e; }
-
 .badge-otro{        background:#f1f5f9; color:#334155; }
-.hdr-aprobado{
-  background:#e7f6e9 !important; color:#0f5132 !important; border-bottom:1px solid #ccead2 !important;
-}
-.hdr-preaprobado{
-  background:#e6f3fb !important; color:#0b4a6f !important; border-bottom:1px solid #c7e6f7 !important;
-}
-.hdr-pendiente{
-  background:#fff1db !important; color:#7c2d12 !important; border-bottom:1px solid #ffe1b6 !important;
-}
-.hdr-rechazado{
-  background:#fee2e2 !important; color:#7f1d1d !important; border-bottom:1px solid #fecaca !important;
-}
-.hdr-enviada{
-  background:#e8edff !important; color:#1e3a8a !important; border-bottom:1px solid #cdd6ff !important;
-}
-.hdr-revision{
-  background:#efe9ff !important; color:#4c1d95 !important; border-bottom:1px solid #dfd3ff !important;
-}
-.hdr-recepcion-completa{
-  background:#e6fffb !important; color:#115e59 !important; border-bottom:1px solid #99f6e4 !important;
-}
-.hdr-recepcion-parcial{
-  background:#fef9c3 !important; color:#854d0e !important; border-bottom:1px solid #fde68a !important;
-}
 
-.hdr-otro{
-  background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important;
-}
+.hdr-aprobado{    background:#e7f6e9 !important; color:#0f5132 !important; border-bottom:1px solid #ccead2 !important; }
+.hdr-preaprobado{ background:#e6f3fb !important; color:#0b4a6f !important; border-bottom:1px solid #c7e6f7 !important; }
+.hdr-pendiente{   background:#fff1db !important; color:#7c2d12 !important; border-bottom:1px solid #ffe1b6 !important; }
+.hdr-rechazado{   background:#fee2e2 !important; color:#7f1d1d !important; border-bottom:1px solid #fecaca !important; }
+.hdr-enviada{     background:#e8edff !important; color:#1e3a8a !important; border-bottom:1px solid #cdd6ff !important; }
+.hdr-revision{    background:#efe9ff !important; color:#4c1d95 !important; border-bottom:1px solid #dfd3ff !important; }
+.hdr-recepcion-completa{ background:#e6fffb !important; color:#115e59 !important; border-bottom:1px solid #99f6e4 !important; }
+.hdr-recepcion-parcial{  background:#fef9c3 !important; color:#854d0e !important; border-bottom:1px solid #fde68a !important; }
+.hdr-otro{        background:#f1f5f9 !important; color:#334155 !important; border-bottom:1px solid #e2e8f0 !important; }
 
 
-/* ===== Offcanvas móvil ===== */
 .oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
 .oc-enter-from, .oc-leave-to { opacity: 0; }
 .oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
@@ -1104,7 +1289,6 @@ watch(
 .oc-body{ padding: .9rem; overflow: auto; }
 .oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
 
-/* Compactación tipográfica en xs */
 @media (max-width: 420px){
   .card-header .small{ font-size: .8rem; }
 }

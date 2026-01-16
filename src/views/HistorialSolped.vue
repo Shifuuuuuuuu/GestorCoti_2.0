@@ -424,7 +424,7 @@
                       <label class="form-label mb-0">📎 Documentos Adjuntos</label>
                       <button
                         class="btn btn-sm btn-outline-primary"
-                        @click="_filesCache[s.id] = _filesCache[s.id]; /* no-op */"
+                        @click="_filesCache[s.id] = _filesCache[s.id];"
                         title="Recargar (no necesario si vienen en el documento)"
                       >
                         Actualizar
@@ -823,11 +823,12 @@
               <!-- Empresa -->
               <div class="col-12 col-md-4">
                 <label class="form-label">Empresa</label>
-                <select class="form-select" v-model="editForm.empresa">
+                <select class="form-select" v-model="editForm.empresa" disabled>
                   <option value="Xtreme Servicio">Xtreme Servicio</option>
                   <option value="Xtreme Mining">Xtreme Mining</option>
                   <option value="Xtreme Hormigones">Xtreme Hormigones</option>
                 </select>
+                <div class="form-text">La empresa no se puede cambiar en edición.</div>
               </div>
 
               <!-- Tipo SOLPED -->
@@ -844,20 +845,43 @@
                 <input class="form-control" :value="editForm.numero_solpe" disabled>
               </div>
 
-              <!-- Centro de costo -->
+              <!-- Centro de costo (SOLO ASIGNADOS) -->
               <div class="col-12 col-md-4">
                 <label class="form-label">Centro de costo (código)</label>
-                <select class="form-select" v-model="editForm.numero_contrato">
-                  <option v-for="code in centrosListaOrdenada" :key="code" :value="code">
-                    {{ code }} — {{ centrosMap[code] }}
+
+                <div v-if="!centrosDisponiblesEditCount" class="alert alert-warning py-2 small">
+                  No tienes contratos asignados. Solicita a un administrador que te asigne uno o más.
+                </div>
+
+                <select
+                  class="form-select"
+                  v-model="editForm.numero_contrato"
+                  :disabled="!centrosDisponiblesEditCount"
+                >
+                  <option value="" disabled>Selecciona centro de costo</option>
+
+                  <option
+                    v-for="code in centrosListaOrdenadaEdit"
+                    :key="code"
+                    :value="code"
+                  >
+                    {{ code }} — {{ centrosMap[code] || code }}
                   </option>
                 </select>
-              </div>
-              <div class="col-12 col-md-8">
-                <label class="form-label">Nombre Centro de Costo</label>
-                <input class="form-control" v-model="editForm.nombre_centro_costo" placeholder="Se autocompleta desde el código">
+
+                <div class="form-text">Solo se muestran contratos asignados a tu usuario.</div>
               </div>
 
+              <!-- Nombre Centro de Costo (NO EDITABLE, SOLO AUTO) -->
+              <div class="col-12 col-md-8">
+                <label class="form-label">Nombre Centro de Costo</label>
+                <input
+                  class="form-control"
+                  v-model="editForm.nombre_centro_costo"
+                  readonly
+                />
+                <div class="form-text">Se autocompleta según el centro seleccionado.</div>
+              </div>
               <!-- Nombre SOLPED -->
               <div class="col-12">
                 <label class="form-label">Nombre SOLPED</label>
@@ -865,14 +889,39 @@
               </div>
 
               <!-- Dirigido a (por empresa) -->
-              <div class="col-12">
+              <div class="col-12 col-md-6">
                 <label class="form-label">Dirigido a (cotizadores)</label>
-                <select class="form-select" multiple v-model="dirigidoASelected" size="6">
-                  <option v-for="name in dirigidoOptions" :key="name" :value="name">{{ name }}</option>
-                </select>
-                <div class="form-text">Mantén Ctrl/⌘ para seleccionar varias personas.</div>
-              </div>
 
+                <select
+                  class="form-select"
+                  multiple
+                  size="6"
+                  v-model="dirigidoASelected"
+                  :disabled="loadingCotizadoresEdit || !cotizadoresEdit.length"
+                >
+                  <option v-for="u in cotizadoresEdit" :key="u.uid" :value="u.fullName">
+                    {{ u.fullName }}
+                  </option>
+                </select>
+
+                <div class="form-text">
+                  Puedes elegir más de uno.
+                  <span v-if="loadingCotizadoresEdit" class="ms-2">
+                    <span class="spinner-border spinner-border-sm"></span> Cargando cotizadores…
+                  </span>
+                </div>
+
+                <div v-if="editForm.empresa && !loadingCotizadoresEdit && !cotizadoresEdit.length" class="alert alert-warning py-2 small mt-2">
+                  No hay cotizadores configurados (activos/disponibles) para <strong>{{ editForm.empresa }}</strong>.
+                  Pídele a un Admin que los configure.
+                </div>
+
+                <div v-if="dirigidoASelected?.length" class="mt-2">
+                  <span v-for="u in dirigidoASelected" :key="u" class="badge rounded-pill text-bg-light border me-1 mb-1">
+                    <i class="bi bi-person-circle me-1"></i>{{ u }}
+                  </span>
+                </div>
+              </div>
               <!-- Ítems -->
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
@@ -905,7 +954,14 @@
                         <td class="d-none d-lg-table-cell"><input class="form-control form-control-sm" type="number" min="0" v-model.number="it.stock"></td>
                         <td class="d-none d-md-table-cell">
                           <div class="d-flex align-items-center gap-2">
-                            <input type="file" accept="image/*" class="form-control form-control-sm" @change="onPickImg($event, it)">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                class="form-control form-control-sm"
+                                :disabled="it._imgUploading"
+                                @change="onPickImg($event, it)"
+                              >
+                              <small v-if="it._imgUploading" class="text-secondary">Subiendo imagen…</small>
                             <template v-if="it.imagen_referencia_base64 || it.imagen_url">
                               <button class="btn btn-sm btn-outline-danger" @click="borrarImg(it)">Quitar</button>
                             </template>
@@ -942,29 +998,43 @@
 </template>
 
 <script setup>
-/* === mismo script con micro-mejoras + dropdowns robustos === */
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter, onBeforeRouteLeave } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
-  collection, query, where, orderBy, limit, startAfter, onSnapshot, getDocs, getCountFromServer, doc, getDoc, updateDoc, addDoc, setDoc
+  collection, query, where, orderBy, limit, startAfter, onSnapshot,startAt, endAt, getDocs, getCountFromServer, doc, getDoc, updateDoc, addDoc, setDoc
 } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { storage } from "../stores/firebase";
 import { useAuthStore } from '../stores/authService';
 import * as XLSX from 'xlsx-js-style';
-/* 👇 Import explícito de Bootstrap para instanciar Dropdowns en DOM dinámico */
 import * as bootstrap from 'bootstrap';
 
-/* ---------- Router / Auth ---------- */
+
 const router = useRouter();
 const auth = useAuthStore();
 const volver = () => router.back();
 
-/* ---------- LocalStorage helpers ---------- */
+
+const showEditModal = ref(false);
+const savingEdit = ref(false);
+const editItems = ref([]);
+const dirigidoASelected = ref([]);
+const editForm = ref({
+  id: "",
+  empresa: "",
+  numero_solpe: null,
+  numero_contrato: "",
+  nombre_centro_costo: "",
+  tipo_solped: "",
+  nombre_solped: ""
+});
+
 const LS = {
   SHOW_SIDEBAR:        'historial_show_sidebar',
-  FILTRO_FECHA:        'historial_filtro_fecha',         // compat (antes 1 sola fecha)
-  FILTRO_FECHA_DESDE:  'historial_filtro_fecha_desde',   // nuevo
-  FILTRO_FECHA_HASTA:  'historial_filtro_fecha_hasta',   // nuevo
+  FILTRO_FECHA:        'historial_filtro_fecha',
+  FILTRO_FECHA_DESDE:  'historial_filtro_fecha_desde',
+  FILTRO_FECHA_HASTA:  'historial_filtro_fecha_hasta',
   FILTRO_ESTATUS:      'historial_filtro_estatus',
   SELECTED_CENTROS:    'historial_cc_sel',
   USUARIOS_TEMP:       'historial_usuarios_temp',
@@ -976,6 +1046,290 @@ const LS = {
   CURSOR_IDS:"historial_cursor_ids",
   SCROLL_Y:  "historial_scroll_y",
 };
+
+
+
+const OC_COLLECTIONS_FOR_SOLPED_SEARCH = ['ordenes_oc', 'ordenes_oc_taller'];
+
+const OC_SEARCH_LIMIT = 20;
+const OC_SCAN_LIMIT = 250;
+const OC_CACHE_TTL_MS = 90_000;
+
+const _ocRecentCache = ref({
+  ts: 0,
+
+  byCol: {}
+});
+
+function _stripExt(name) {
+  const s = String(name || '').trim();
+  return s.replace(/\.(pdf|png|jpg|jpeg)$/i, '').trim();
+}
+
+function _normTxt(v) {
+  return String(v ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _extractBestNumber(text) {
+  const matches = String(text || '').match(/\d{2,}/g) || [];
+  if (!matches.length) return '';
+  matches.sort((a, b) => b.length - a.length);
+  return matches[0] || '';
+}
+
+function _extractOcNumberFromNorm(norm) {
+  const m = String(norm || '').match(/\boc\s*([0-9]{2,})\b/i);
+  return m ? m[1] : '';
+}
+
+function _buildNameVariants(raw) {
+  const out = new Set();
+  const r = String(raw || '').trim();
+  if (!r) return [];
+
+  const base = _stripExt(r);
+
+  out.add(r);
+  out.add(base);
+
+  if (!/\.pdf$/i.test(r)) out.add(`${r}.pdf`);
+  if (!/\.pdf$/i.test(base)) out.add(`${base}.pdf`);
+
+  const n = _normTxt(r);
+  const num = _extractOcNumberFromNorm(n) || _extractBestNumber(r);
+  if (num) {
+    out.add(`OC ${num}`);
+    out.add(`OC ${num}.pdf`);
+  }
+
+  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 12);
+}
+
+function _makePrefixCandidates(raw) {
+  const out = new Set();
+  const r = String(raw || '').trim();
+  if (!r) return [];
+
+  out.add(r);
+  out.add(_stripExt(r));
+  out.add(r.toUpperCase());
+  out.add(_stripExt(r).toUpperCase());
+  out.add(r.toLowerCase());
+  out.add(_stripExt(r).toLowerCase());
+
+  const n = _normTxt(r);
+  const num = _extractOcNumberFromNorm(n) || _extractBestNumber(r);
+  if (num) {
+    out.add(`OC ${num}`);
+    out.add(`OC ${num}`.toUpperCase());
+    out.add(`oc ${num}`.toLowerCase());
+  }
+
+  return Array.from(out)
+    .map(x => String(x || '').trim())
+    .filter(x => x.length >= 2)
+    .slice(0, 8);
+}
+
+async function _safeGetDocs(q) {
+  try { return await getDocs(q); }
+  catch (e) { console.warn('getDocs error:', e); return null; }
+}
+
+function _getOCArchivoNombre(oc) {
+
+  const a = oc?.archivoOC;
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
+    if (a.nombre) return String(a.nombre);
+    if (a.name) return String(a.name);
+  }
+
+  if (oc?.nombre) return String(oc.nombre);
+  return '';
+}
+
+function _getOCAllNamesForContains(oc) {
+  const names = [];
+
+  const main = _getOCArchivoNombre(oc);
+  if (main) names.push(main);
+
+  const st = oc?.archivosStorage;
+  if (Array.isArray(st)) {
+    for (const it of st) {
+      const n = it?.nombre || it?.name;
+      if (n) names.push(String(n));
+    }
+  }
+
+  const prov = oc?.archivosOCProveedor;
+  if (Array.isArray(prov)) {
+    for (const it of prov) {
+      const n = it?.nombre || it?.name;
+      if (n) names.push(String(n));
+    }
+  }
+
+  return names;
+}
+
+async function _fetchSolpesByOcRefs({ solpedIds, numeroSolped }) {
+  const out = new Map();
+
+  for (const id of Array.from(solpedIds)) {
+    try {
+      const ds = await getDoc(doc(db, 'solpes', id));
+      if (ds.exists()) {
+        const data = ds.data() || {};
+        const comentarios = Array.isArray(data.comentarios)
+          ? data.comentarios.map(c => ({
+              ...c,
+              fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+              vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
+            }))
+          : [];
+        out.set(ds.id, { id: ds.id, ...data, comentarios });
+      }
+    } catch (e) {
+      console.warn('getDoc solpes error:', e);
+    }
+  }
+
+  const nums = Array.from(numeroSolped).filter(n => Number.isFinite(n));
+  for (let i = 0; i < nums.length; i += 10) {
+    const chunk = nums.slice(i, i + 10);
+    try {
+      const snap = await getDocs(query(collection(db, 'solpes'), where('numero_solpe', 'in', chunk)));
+      snap.docs.forEach(d => {
+        if (!out.has(d.id)) {
+          const data = d.data() || {};
+          const comentarios = Array.isArray(data.comentarios)
+            ? data.comentarios.map(c => ({
+                ...c,
+                fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+                vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
+              }))
+            : [];
+          out.set(d.id, { id: d.id, ...data, comentarios });
+        }
+      });
+    } catch (e) {
+      console.warn('query solpes by numero_solpe error:', e);
+    }
+  }
+
+  return Array.from(out.values());
+}
+
+async function _searchOCsAndReturnSolpes(termRaw) {
+  const raw = String(termRaw || '').trim();
+  if (!raw) return [];
+
+  const norm = _normTxt(raw);
+  const bestNumStr = _extractBestNumber(raw);
+  const ocNumStr = _extractOcNumberFromNorm(norm) || bestNumStr;
+  const ocNum = ocNumStr ? Number(ocNumStr) : NaN;
+  const hasNum = !!ocNumStr && !Number.isNaN(ocNum);
+
+  const variants = _buildNameVariants(raw);
+  const prefixes = _makePrefixCandidates(raw);
+  const containsNeedle = _normTxt(_stripExt(raw));
+
+  const mergedOCs = new Map();
+
+  const addSnap = (snap) => {
+    if (!snap?.docs?.length) return;
+    snap.docs.forEach(d => {
+      if (!mergedOCs.has(d.id)) mergedOCs.set(d.id, { __docId: d.id, ...d.data() });
+    });
+  };
+
+  const tasks = [];
+
+  for (const colName of OC_COLLECTIONS_FOR_SOLPED_SEARCH) {
+    const baseCol = collection(db, colName);
+
+    if (hasNum) {
+      tasks.push(_safeGetDocs(query(baseCol, where('id', '==', ocNum), limit(OC_SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('id', '==', String(ocNumStr)), limit(OC_SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('numero_oc', '==', ocNum), limit(OC_SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('numero_oc', '==', String(ocNumStr)), limit(OC_SEARCH_LIMIT))).then(addSnap));
+    }
+
+    for (const v of variants) {
+      tasks.push(_safeGetDocs(query(baseCol, where('archivoOC.nombre', '==', v), limit(OC_SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('archivoOC.name', '==', v), limit(OC_SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where('nombre', '==', v), limit(OC_SEARCH_LIMIT))).then(addSnap));
+    }
+
+    for (const pfx of prefixes) {
+      tasks.push(
+        _safeGetDocs(
+          query(
+            baseCol,
+            orderBy('archivoOC.nombre'),
+            startAt(pfx),
+            endAt(pfx + '\uf8ff'),
+            limit(OC_SEARCH_LIMIT)
+          )
+        ).then(addSnap)
+      );
+    }
+  }
+
+  await Promise.allSettled(tasks);
+
+  if (mergedOCs.size === 0 && containsNeedle.length >= 3) {
+    const now = Date.now();
+    const fresh = (now - (_ocRecentCache.value.ts || 0)) < OC_CACHE_TTL_MS;
+
+    for (const colName of OC_COLLECTIONS_FOR_SOLPED_SEARCH) {
+      let recentDocs = fresh ? (_ocRecentCache.value.byCol?.[colName] || []) : [];
+
+      if (!recentDocs.length) {
+        const baseCol = collection(db, colName);
+
+        let snap = await _safeGetDocs(query(baseCol, orderBy('fechaSubida', 'desc'), limit(OC_SCAN_LIMIT)));
+        if (!snap) snap = await _safeGetDocs(query(baseCol, limit(OC_SCAN_LIMIT)));
+
+        recentDocs = (snap?.docs || []).map(d => ({ __docId: d.id, ...d.data() }));
+        _ocRecentCache.value.byCol = { ...(_ocRecentCache.value.byCol || {}), [colName]: recentDocs };
+        _ocRecentCache.value.ts = now;
+      }
+
+      for (const oc of recentDocs) {
+        const pool = _getOCAllNamesForContains(oc)
+          .map(n => _normTxt(_stripExt(n)))
+          .filter(Boolean);
+
+        if (pool.some(x => x.includes(containsNeedle))) {
+          if (!mergedOCs.has(oc.__docId)) mergedOCs.set(oc.__docId, oc);
+          if (mergedOCs.size >= OC_SEARCH_LIMIT) break;
+        }
+      }
+    }
+  }
+
+  const solpedIds = new Set();
+  const numeroSolped = new Set();
+
+  for (const oc of Array.from(mergedOCs.values())) {
+    if (oc?.solpedId) solpedIds.add(String(oc.solpedId));
+    if (oc?.numero_solped != null) {
+      const n = Number(oc.numero_solped);
+      if (Number.isFinite(n)) numeroSolped.add(n);
+    }
+  }
+
+  if (!solpedIds.size && !numeroSolped.size) return [];
+  return await _fetchSolpesByOcRefs({ solpedIds, numeroSolped });
+}
 
 const safeRead = (k, def=null) => {
   try {
@@ -989,24 +1343,18 @@ const safeRead = (k, def=null) => {
 const safeWrite = (k, v) => { try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch(e) { console.error(e); } };
 const safeRemove = (k) => { try { localStorage.removeItem(k); } catch(e) { console.error(e); } };
 
-/* ---------- Roles / permisos ---------- */
 const rawRole = computed(() => String(auth?.profile?.role || auth?.profile?.rol || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,''));
 const isAdmin = computed(() => rawRole.value.includes('admin'));
 const isEditor = computed(() => rawRole.value.includes('editor'));
 const isAprobador = computed(() => rawRole.value.includes('aprobador'));
 const isGenerador = computed(() => rawRole.value.includes('generador'));
 const canChangeStatus = computed(() => isAdmin.value || isEditor.value || isAprobador.value);
-
-/* ---------- Estado base ---------- */
 const error = ref('');
 const loading = ref(true);
 const loadingSearch = ref(false);
-
-/* ---------- Responsive ---------- */
 const isDesktop = ref(false);
 const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 
-/* ---------- Sidebar / Offcanvas ---------- */
 const showSidebar = ref(true);
 const showFiltersMobile = ref(false);
 const openFiltersMobile = () => { showFiltersMobile.value = true; document.documentElement.style.overflow = 'hidden'; };
@@ -1014,8 +1362,6 @@ const closeFiltersMobile = () => { showFiltersMobile.value = false; document.doc
 const toggleSidebar = () => { showSidebar.value = !showSidebar.value; safeWrite(LS.SHOW_SIDEBAR, showSidebar.value); };
 const toggleFiltersResponsive = () => { computeIsDesktop(); isDesktop.value ? toggleSidebar() : (showFiltersMobile.value ? closeFiltersMobile() : openFiltersMobile()); };
 const handleResize = () => { const wasMobileOpen = showFiltersMobile.value; computeIsDesktop(); if (isDesktop.value && wasMobileOpen) closeFiltersMobile(); };
-
-/* ---------- Buscador exacto ---------- */
 const numeroBusquedaExacta = ref('');
 const solpeEncontrada = ref(null);
 const enModoBusqueda = ref(false);
@@ -1046,61 +1392,102 @@ const buscarSolpeExacta = async () => {
   enModoBusqueda.value = false;
   resultadosBusqueda.value = [];
 
-  // Si hay suscripción en tiempo real, la pausamos mientras estamos en modo búsqueda
+
   if (typeof unsubscribe === 'function') {
     unsubscribe();
     unsubscribe = null;
   }
 
   try {
-    // 🔢 1) Sólo números -> buscar por número exacto de SOLPED
     if (/^\d+$/.test(termRaw)) {
       const n = Number(termRaw);
-      const qy = query(
-        collection(db, 'solpes'),
-        where('numero_solpe', '==', n)
-      );
-      const snap = await getDocs(qy);
 
-      if (snap.empty) {
-        error.value = 'No se encontró ninguna SOLPED con ese número.';
-        limpiarBusqueda();
+
+      const solpeSnap = await getDocs(
+        query(collection(db, 'solpes'), where('numero_solpe', '==', n))
+      );
+
+      if (!solpeSnap.empty) {
+        const docs = solpeSnap.docs.map(d => {
+          const data = d.data() || {};
+          const comentarios = Array.isArray(data.comentarios)
+            ? data.comentarios.map(c => ({
+                ...c,
+                fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
+                vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
+              }))
+            : [];
+          return { id: d.id, ...data, comentarios };
+        });
+
+        resultadosBusqueda.value = docs;
+        enModoBusqueda.value = true;
+        solpeEncontrada.value = docs[0] || null;
+
+        page.value = 1;
+        totalCount.value = docs.length;
+        pageDocs.value = docs;
+        solpeExpandidaId.value = docs[0]?.id || null;
+
+        disposeDropdowns();
+        await nextTick();
+        initDropdownsIn(document);
         return;
       }
 
-      const docs = snap.docs.map(d => {
-        const data = d.data() || {};
-        const comentarios = Array.isArray(data.comentarios)
-          ? data.comentarios.map(c => ({
-              ...c,
-              fecha: c?.fecha?.toDate ? c.fecha.toDate() : (c?.fecha ? new Date(c.fecha) : null),
-              vistoPor: Array.isArray(c?.vistoPor) ? c.vistoPor : [],
-            }))
-          : [];
-        return { id: d.id, ...data, comentarios };
-      });
+      const solpesFromOCs = await _searchOCsAndReturnSolpes(termRaw);
 
-      resultadosBusqueda.value = docs;
-      enModoBusqueda.value = true;
-      solpeEncontrada.value = docs[0] || null;
+      if (solpesFromOCs.length) {
+        resultadosBusqueda.value = solpesFromOCs;
+        enModoBusqueda.value = true;
+        solpeEncontrada.value = solpesFromOCs[0] || null;
 
-      // ✅ rellenamos la lista principal
-      page.value = 1;
-      totalCount.value = docs.length;
-      pageDocs.value = docs;
-      solpeExpandidaId.value = docs[0]?.id || null;
+        page.value = 1;
+        totalCount.value = solpesFromOCs.length;
+        pageDocs.value = solpesFromOCs;
+        solpeExpandidaId.value = solpesFromOCs[0]?.id || null;
 
-      // dropdowns
-      disposeDropdowns();
-      await nextTick();
-      initDropdownsIn(document);
+        disposeDropdowns();
+        await nextTick();
+        initDropdownsIn(document);
+        return;
+      }
+
+
+      error.value = 'No se encontró SOLPED ni OC relacionada con ese número.';
+      limpiarBusqueda();
       return;
     }
 
-    // 🔍 2) Texto -> buscar en nombre SOLPED + ítems (múltiples resultados)
+
+    const norm = _normTxt(termRaw);
+    const looksLikeOC =
+      norm.includes('oc ') ||
+      norm.includes('.pdf') ||
+      /\d{3,}/.test(norm);
+
+    if (looksLikeOC) {
+      const solpesFromOCs = await _searchOCsAndReturnSolpes(termRaw);
+      if (solpesFromOCs.length) {
+        resultadosBusqueda.value = solpesFromOCs;
+        enModoBusqueda.value = true;
+        solpeEncontrada.value = solpesFromOCs[0] || null;
+
+        page.value = 1;
+        totalCount.value = solpesFromOCs.length;
+        pageDocs.value = solpesFromOCs;
+        solpeExpandidaId.value = solpesFromOCs[0]?.id || null;
+
+        disposeDropdowns();
+        await nextTick();
+        initDropdownsIn(document);
+        return;
+      }
+    }
+
+
     const term = termRaw.toLowerCase();
 
-    // Puedes subir el limit si quieres más profundidad
     const qy = query(
       collection(db, 'solpes'),
       orderBy('numero_solpe', 'desc'),
@@ -1121,7 +1508,6 @@ const buscarSolpeExacta = async () => {
 
       const items = Array.isArray(data.items) ? data.items : [];
 
-      // “todo lo que contiene”, da igual mayúsculas/minúsculas
       const matchHeader =
         nombreSolped.includes(term) ||
         numSolpeStr.includes(term)  ||
@@ -1133,14 +1519,14 @@ const buscarSolpeExacta = async () => {
         const cod  = (it.codigo_referencial || '').toString().toLowerCase();
         const desc = (it.descripcion || '').toString().toLowerCase();
         const numi = (it.numero_interno || '').toString().toLowerCase();
-        return (
-          cod.includes(term) ||
-          desc.includes(term) ||
-          numi.includes(term)
-        );
+        return cod.includes(term) || desc.includes(term) || numi.includes(term);
       });
 
-      if (matchHeader || matchItems) {
+      const matchAutorizaciones = Array.isArray(data.autorizaciones)
+        ? data.autorizaciones.some(a => (a?.nombre || '').toString().toLowerCase().includes(term))
+        : false;
+
+      if (matchHeader || matchItems || matchAutorizaciones) {
         const comentarios = Array.isArray(data.comentarios)
           ? data.comentarios.map(c => ({
               ...c,
@@ -1162,7 +1548,6 @@ const buscarSolpeExacta = async () => {
     enModoBusqueda.value = true;
     solpeEncontrada.value = matches[0] || null;
 
-    // ✅ llenamos la lista principal con TODOS los resultados
     page.value = 1;
     totalCount.value = matches.length;
     pageDocs.value = matches;
@@ -1171,6 +1556,7 @@ const buscarSolpeExacta = async () => {
     disposeDropdowns();
     await nextTick();
     initDropdownsIn(document);
+
   } catch (e) {
     console.error(e);
     error.value = 'No se pudo realizar la búsqueda.';
@@ -1189,16 +1575,11 @@ const expandEncontrada = () => {
   solpeExpandidaId.value = solpeEncontrada.value.id;
 };
 const goSolpedDetalle = (s) => { if (s?.id) router.push({ name: 'SolpedDetalle', params: { id: s.id } }); };
-
-/* ---------- Identidad ---------- */
 const myUid = computed(() => (auth?.user?.uid || '').toString());
 const myEmail = computed(() => (auth?.user?.email || '').toLowerCase());
 const myFullName = ref('');
-
-
-/* ---------- Filtros persistentes ---------- */
-const filtroFechaDesde = ref('');  // nuevo
-const filtroFechaHasta = ref('');  // nuevo
+const filtroFechaDesde = ref('');
+const filtroFechaHasta = ref('');
 const filtroEstatus = ref([]);
 const filtroUsuario = ref([]);
 const onlyDirectedToMe = ref(false);
@@ -1226,8 +1607,6 @@ const hasActiveFilters = computed(() =>
   selectedCentros.value.length > 0
 );
 
-
-/* ---------- Centros de costo ---------- */
 const centrosMap = ref({});
 const centrosLocalFallback = {
   "30858":"CONTRATO 30858 INFRA CHUQUICAMATA",
@@ -1264,7 +1643,10 @@ const centrosLocalFallback = {
   "CS":"CONTRATO DE SUMINISTRO DE HORMIGONES CS",
   "PREDOSIFICADO":"CONTRATO HORMIGONES Y PREDOSIFICADO",
   "CANECHE":"CONTRATO TALLER CANECHE",
-  "CHUQUICAMATA":"CONTRATO CHUQUICAMATA"
+  "CHUQUICAMATA":"CONTRATO CHUQUICAMATA",
+  "30-10-11": "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM",
+  '10-10-20': 'TALLER SAN BERNARDO',
+  '31155': 'DIVISION ANDINA 4600031155'
 };
 async function loadCentrosCosto() {
   try {
@@ -1284,8 +1666,6 @@ async function loadCentrosCosto() {
     centrosMap.value = centrosLocalFallback;
   }
 }
-
-/* ---------- Selección de centros ---------- */
 const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
@@ -1302,8 +1682,6 @@ const centrosFiltrados = computed(() => {
 const toggleCentro = (code) => { const set = new Set(selectedCentros.value); set.has(code) ? set.delete(code) : set.add(code); selectedCentros.value = Array.from(set); applyFilters(); };
 const removeContrato = (code) => { selectedCentros.value = selectedCentros.value.filter(x => x!==code); applyFilters(); };
 const clientCentrosOverflow = computed(()=> selectedCentros.value.length > 10);
-
-/* ---------- Usuarios (generadores) ---------- */
 const listaUsuarios = ref([]);
 const busquedaUsuario = ref('');
 const tempUsuarioSelSet = ref(new Set());
@@ -1317,16 +1695,12 @@ const usuariosOrdenadosFiltrados = computed(() => {
     .filter(u => !q || normalizeText(u.fullName).includes(q));
 });
 const toggleTempUsuario = (fullName) => { const s = tempUsuarioSelSet.value; s.has(fullName) ? s.delete(fullName) : s.add(fullName); };
-
-/* ---------- Paginación ---------- */
 const page = ref(1);
 const pageSize = ref(10);
 const totalCount = ref(0);
 const pageFrom = computed(() => totalCount.value ? (page.value-1)*pageSize.value + 1 : 0);
 const pageTo = computed(() => Math.min(totalCount.value, page.value*pageSize.value));
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)));
-
-/* ---------- Datos de la página ---------- */
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 const agruparPorEmpresa = (arr=[]) => {
@@ -1343,7 +1717,6 @@ const agrupadasPaged = computed(() => agruparPorEmpresa(displayList.value));
 const cursors = ref({});
 let unsubscribe = null;
 const savedScrollY = ref(0);
-// ✅ Evita que el watcher dispare applyFilters mientras restauramos estado
 const isRestoring = ref(true);
 
 const persistPaginationState = () => {
@@ -1353,7 +1726,7 @@ const persistPaginationState = () => {
 
     const ids = safeRead(LS.CURSOR_IDS, {}) || {};
     Object.entries(cursors.value || {}).forEach(([p, snap]) => {
-      if (snap?.id) ids[p] = snap.id; // guardamos SOLO el id del último doc
+      if (snap?.id) ids[p] = snap.id;
     });
     safeWrite(LS.CURSOR_IDS, ids);
   } catch (e) {
@@ -1362,7 +1735,7 @@ const persistPaginationState = () => {
 };
 
 const restoreCursorsFromLS = async (targetPage) => {
-  const needMax = (Number(targetPage) || 1) - 1; // solo necesito hasta página-1
+  const needMax = (Number(targetPage) || 1) - 1;
   if (needMax <= 0) return;
 
   const ids = safeRead(LS.CURSOR_IDS, {});
@@ -1376,7 +1749,7 @@ const restoreCursorsFromLS = async (targetPage) => {
   for (const [p, id] of entries) {
     try {
       const snap = await getDoc(doc(db, "solpes", id));
-      if (snap.exists()) cursors.value[p] = snap; // startAfter acepta DocumentSnapshot
+      if (snap.exists()) cursors.value[p] = snap;
     } catch (e) {
       console.error("No se pudo restaurar cursor página", p, e);
     }
@@ -1461,8 +1834,6 @@ const estadoChipStyle = (s) => {
   return { background: getColorByStatus(s?.estatus), color: '#fff', padding: '4px 10px', fontWeight: 'bold' };
 };
 const getBadgeColor = (estatus) => getColorByStatus(estatus);
-
-/* ---------- Dirigido a mí ---------- */
 const chipsDirigidoA = (s) => {
   const out = [];
   if (Array.isArray(s.dirigidoA)) {
@@ -1503,11 +1874,9 @@ const hasUnreadForMe = (s) => {
   return arr.some(c => !Array.isArray(c?.vistoPor) || !c.vistoPor.includes(uid));
 };
 
-/* ===== Dropdown bootstrap "a prueba de Vue" ===== */
 let _dropdownMap = new Map();
 
 function initDropdownsIn(el = document) {
-  // Si Bootstrap no está cargado, aborta
   if (!bootstrap || !bootstrap.Dropdown) return;
 
   const toggles = el.querySelectorAll('[data-bs-toggle="dropdown"]');
@@ -1519,13 +1888,10 @@ function initDropdownsIn(el = document) {
       display: 'static',
     });
     _dropdownMap.set(btn, instance);
-
-    // Manejo de overflow para tablas
     const tableWrap = btn.closest('.table-responsive');
     btn.addEventListener('show.bs.dropdown', () => tableWrap?.classList.add('dropdown-open'));
     btn.addEventListener('hide.bs.dropdown', () => tableWrap?.classList.remove('dropdown-open'));
 
-    // Dropup automático si no hay espacio abajo
     const ddRoot = btn.closest('.dropdown');
     const onShow = () => {
       if (tableWrap) tableWrap.classList.add('dropdown-open');
@@ -1553,7 +1919,6 @@ function disposeDropdowns() {
     _dropdownMap = new Map();
   }
 }
-/* ---------- Query builder ---------- */
 const fromStr = filtroFechaDesde.value;
 const toStr   = filtroFechaHasta.value;
 const buildWhere = () => {
@@ -1568,19 +1933,15 @@ const buildWhere = () => {
       if (fromStr && toStr) {
         start = new Date(`${fromStr}T00:00:00`);
         end   = new Date(`${toStr}T23:59:59.999`);
-
-        // 🔁 normalizar si el usuario las puso al revés
         if (start > end) {
           const tmp = start;
           start = end;
           end = tmp;
         }
       } else if (fromStr) {
-        // Sólo desde -> se toma ese día completo
         start = new Date(`${fromStr}T00:00:00`);
         end   = new Date(`${fromStr}T23:59:59.999`);
       } else if (toStr) {
-        // Sólo hasta -> se toma ese día completo
         start = new Date(`${toStr}T00:00:00`);
         end   = new Date(`${toStr}T23:59:59.999`);
       }
@@ -1613,9 +1974,7 @@ const makePageQuery = (pageNumber=1) => {
   return base;
 };
 
-/* ---------- Suscripción + conteo ---------- */
 const subscribePage = () => {
-  // Corta cualquier suscripción previa
   if (typeof unsubscribe === 'function') {
     unsubscribe();
     unsubscribe = null;
@@ -1638,8 +1997,6 @@ const subscribePage = () => {
           : [];
         return { id: d.id, ...data, comentarios };
       });
-
-      // --- Filtros cliente (idénticos a los que ya tienes)
       if (onlyMine.value && myFullName.value) {
         docs = docs.filter((s) => String(s.usuario || '').trim() === myFullName.value);
       }
@@ -1658,32 +2015,22 @@ const subscribePage = () => {
           docs = docs.filter((s) => setU.has(s.usuario));
         }
       }
-
-      // 1) Limpia dropdowns ANTES de actualizar el DOM
       disposeDropdowns();
-
-      // 2) Reemplaza data de página
       pageDocs.value = docs;
-
-      // Cursor para paginación
       const last = snap.docs[snap.docs.length - 1] || null;
       cursors.value[page.value] = last || null;
-      // ✅ persistimos el cursor (id del último doc de ESTA página)
       if (last?.id) {
         const ids = safeRead(LS.CURSOR_IDS, {}) || {};
         ids[page.value] = last.id;
         safeWrite(LS.CURSOR_IDS, ids);
       }
 
-      // ✅ persistimos página actual
       safeWrite(LS.PAGE, page.value);
       loading.value = false;
 
-      // 3) Espera render y re-instancia dropdowns de forma segura
       await nextTick();
       initDropdownsIn(document);
 
-      // 4) Restaura el scroll si aplica
       window.scrollTo(0, savedScrollY.value);
     },
     (e) => {
@@ -1691,7 +2038,6 @@ const subscribePage = () => {
       error.value = 'No se pudieron cargar las SOLPED de la página.';
       loading.value = false;
 
-      // Limpieza por si falló a mitad de ciclo
       disposeDropdowns();
     }
   );
@@ -1707,11 +2053,8 @@ const refreshCount = async () => {
     totalCount.value = Math.max(totalCount.value || 0, pageDocs.value.length);
   }
 };
-
-/* ---------- Filtros cliente adicionales ---------- */
 function applyClientFilters(arr){ return Array.isArray(arr) ? arr : []; }
 
-/* ---------- Carga usuarios ---------- */
 const loadUsuarios = async () => {
   try {
     const snap = await getDocs(query(collection(db,'Usuarios')));
@@ -1727,14 +2070,13 @@ const loadUsuarios = async () => {
   }
 };
 
-/* ---------- Acciones ---------- */
 const applyFilters = () => {
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
 
-  // Guardar rango de fecha
+
   safeWrite(LS.FILTRO_FECHA_DESDE, filtroFechaDesde.value || '');
   safeWrite(LS.FILTRO_FECHA_HASTA, filtroFechaHasta.value || '');
-  // (dejamos de usar FILTRO_FECHA antiguo salvo para compat de lectura)
+
 
   safeWrite(LS.FILTRO_ESTATUS, filtroEstatus.value || []);
   safeWrite(LS.SELECTED_CENTROS, selectedCentros.value || []);
@@ -1799,7 +2141,6 @@ const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(
 const removeUsuario = (u) => { filtroUsuario.value = filtroUsuario.value.filter(x=>x!==u); tempUsuarioSelSet.value.delete(u); applyFilters(); };
 const setEmpresaSeg = (v) => { empresaSegmento.value = v; applyFilters(); };
 
-/* ---------- Paginación ---------- */
 const goPage = (p) => {
   if (p < 1) p = 1;
   if (p > totalPages.value) p = totalPages.value;
@@ -1816,7 +2157,6 @@ const goPage = (p) => {
 const nextPage = () => goPage(page.value + 1);
 const prevPage = () => goPage(page.value - 1);
 
-/* ---------- Toasts ---------- */
 const toasts = ref([]);
 const addToast = (type, text, timeout=3000) => {
   const id = Date.now() + Math.random();
@@ -1825,7 +2165,6 @@ const addToast = (type, text, timeout=3000) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ---------- Copiar SOLPED ---------- */
 const copiarSolped = (s) => {
   try {
     const draft = {
@@ -1856,11 +2195,8 @@ const copiarSolped = (s) => {
   }
 };
 
-/* ---------- Generar OC ---------- */
 const irAGenerarOC = (s) => { const q = { fromSolpedId: s.id }; try { router.push({ name: 'GeneradorOC', query: q }); } catch { router.push({ path: '/generar-oc', query: q }); } };
 const canGenerateOC = (s) => { const st = (s?.estatus || '').toString().trim().toLowerCase(); return st === 'pendiente' || st === 'parcial'|| st === 'cotizado parcial'; };
-
-/* ---------- Comentarios / estados ---------- */
 const agregarComentario = async (s) => {
   const texto = (s.nuevoComentario || '').trim();
   if (!texto) { addToast('danger','Debes ingresar un comentario.'); return; }
@@ -1905,8 +2241,6 @@ const setItemStatus = async (solpe, item, nuevo) => {
     addToast('success', `Ítem ${item.item} → ${nuevo}`);
   } catch (e) { console.error(e); addToast('danger','No se pudo cambiar el estado del ítem.'); }
 };
-
-/* ---------- OCs vinculadas ---------- */
 const ocBySolped = ref({});
 const ocLoadingSet = ref(new Set());
 const isLoadingOC = (id) => ocLoadingSet.value.has(id);
@@ -1943,7 +2277,6 @@ const estadoChipOC = (estatus) => {
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
-/* ---------- Imágenes ---------- */
 const showImgModal = ref(false);
 const previewImgSrc = ref('');
 const abrirImagen = (it) => {
@@ -1958,7 +2291,6 @@ const abrirImagenNuevaPestana = (it) => {
   window.open(url, '_blank', 'noopener');
 };
 
-/* ---------- Excel ---------- */
 const setStyle = (ws, addr, s) => { if (!ws[addr]) ws[addr] = { t:'s', v:'' }; ws[addr].s = { ...(ws[addr].s||{}), ...s }; };
 const styleCell = (ws, r, c, s) => { const addr = XLSX.utils.encode_cell({ r, c }); setStyle(ws, addr, s); };
 const descargarExcel = (solpe) => {
@@ -2006,19 +2338,17 @@ const descargarExcel = (solpe) => {
   }catch(e){ console.error(e); addToast('danger','No se pudo generar el Excel.'); }
 };
 
-/* ---------- Adjuntos múltiples (normalización y acciones) ---------- */
 
-/** Decide si se puede abrir en el navegador (vista externa) */
 const isViewableInBrowser = (ext='') => {
   const e = String(ext).toLowerCase();
   return ['pdf','png','jpg','jpeg','webp','gif','bmp','svg'].includes(e);
 };
 
-/** Normaliza diferentes esquemas a un arreglo común de { __k, name, href, mime, ext, canView } */
+
 const normalizeFiles = (s) => {
   const out = [];
 
-  // 1) Firebase Storage: s.archivosStorage: [{ name, url, contentType }]
+
   if (Array.isArray(s?.archivosStorage)) {
     s.archivosStorage.forEach((it, idx) => {
       const name = String(it?.name || `archivo_${idx+1}`);
@@ -2033,7 +2363,7 @@ const normalizeFiles = (s) => {
     });
   }
 
-  // 2) Legacy base64: s.archivosBase64: [{ name, base64, mime }]
+
   if (Array.isArray(s?.archivosBase64)) {
     s.archivosBase64.forEach((it, idx) => {
       const name = String(it?.name || `archivo_${idx+1}`);
@@ -2048,7 +2378,7 @@ const normalizeFiles = (s) => {
     });
   }
 
-  // 3) Genérico: s.adjuntos: [{ name, url/href, mime }]
+
   if (Array.isArray(s?.adjuntos)) {
     s.adjuntos.forEach((it, idx) => {
       const name = String(it?.name || it?.nombre || `archivo_${idx+1}`);
@@ -2063,7 +2393,7 @@ const normalizeFiles = (s) => {
     });
   }
 
-  // 4) Compatibilidad simple
+
   if (!out.length && s?.archivo_url) {
     const name = s?.archivo_nombre || 'archivo';
     const href = s?.archivo_url;
@@ -2078,19 +2408,13 @@ const normalizeFiles = (s) => {
 
   return out;
 };
-
-/** Cache simple por SOLPED para no recalcular */
 const _filesCache = ref({});
 
-
-/* ---------- Init ---------- */
 onMounted(async () => {
   computeIsDesktop();
   window.addEventListener('resize', handleResize);
-
-  // Restaurar persistencia
   const savedSidebar      = safeRead(LS.SHOW_SIDEBAR, true);
-  const savedFechaSingle  = safeRead(LS.FILTRO_FECHA, ''); // compat antigua
+  const savedFechaSingle  = safeRead(LS.FILTRO_FECHA, '');
   const savedFechaDesde   = safeRead(LS.FILTRO_FECHA_DESDE, savedFechaSingle || '');
   const savedFechaHasta   = safeRead(LS.FILTRO_FECHA_HASTA, '');
   const savedEstatus      = safeRead(LS.FILTRO_ESTATUS, []);
@@ -2120,32 +2444,30 @@ onMounted(async () => {
 
   filtroUsuario.value = Array.from(tempUsuarioSelSet.value);
 
-  // 1) primero sacamos el conteo (para clamplear página)
   await refreshCount();
 
-  // 2) restaurar page + scroll
+
   const savedPg = Number(safeRead(LS.PAGE, 1)) || 1;
   page.value = Math.min(Math.max(1, savedPg), totalPages.value);
   savedScrollY.value = Number(safeRead(LS.SCROLL_Y, 0)) || 0;
 
-  // 3) restaurar cursores necesarios (hasta page-1)
+
   cursors.value = {};
   await restoreCursorsFromLS(page.value);
 
-  // 4) ahora sí suscribir a la página correcta
+
   subscribePage();
 
-  // ✅ ya terminamos restauración: habilitar watchers
   isRestoring.value = false;
 });
 onBeforeUnmount(() => {
   if (typeof unsubscribe === 'function') unsubscribe();
   window.removeEventListener('resize', handleResize);
   document.documentElement.style.overflow = '';
-  disposeDropdowns(); // 👈 limpieza segura
+  disposeDropdowns();
 });
 
-/* ---------- Watchers ---------- */
+
 watch(
   [empresaSegmento, filtroFechaDesde, filtroFechaHasta, () => filtroEstatus.value.slice(), pageSize],
   () => {
@@ -2161,7 +2483,6 @@ watch(filtroUsuario, (v)=> safeWrite(LS.USUARIOS_TEMP, v || []), { deep:true });
 watch(filtroFechaDesde, (v) => safeWrite(LS.FILTRO_FECHA_DESDE, v || ''));
 watch(filtroFechaHasta, (v) => safeWrite(LS.FILTRO_FECHA_HASTA, v || ''));
 
-/* ---------- Expand / marcar vistos ---------- */
 const solpeExpandidaId = ref(null);
 const marcarComentariosVistos = async (s) => {
   try {
@@ -2179,27 +2500,153 @@ const onExpandCard = async (s) => {
   if (solpeExpandidaId.value === s.id) {
     await marcarComentariosVistos(s);
     if (!ocBySolped.value[s.id]) await fetchOCs(s.id);
-    // Precalentar cache de archivos al expandir
+
     if (!_filesCache.value[s.id]) _filesCache.value[s.id] = normalizeFiles(s);
     await nextTick();
-    initDropdownsIn(); // 👈 asegura dropdowns listos dentro del detalle
+    initDropdownsIn();
   }
 };
 
-/* ---------- Edición ---------- */
+const userCentrosAsignados = ref([]);
+const loadingUserPerms = ref(false);
+
+async function loadCurrentUserPerms() {
+  try {
+    loadingUserPerms.value = true;
+    const uidNow = String(auth?.user?.uid || "");
+    if (!uidNow) return;
+
+    const snap = await getDoc(doc(db, "Usuarios", uidNow));
+    const data = snap.exists() ? (snap.data() || {}) : {};
+
+    const arr = Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [];
+    userCentrosAsignados.value = arr.map((x) => String(x));
+
+    if (!myFullName.value) myFullName.value = String(data.fullName || data.fullname || "").trim();
+  } catch (e) {
+    console.warn("No se pudo leer Usuarios/<uid> para centrosAsignados:", e);
+    userCentrosAsignados.value = [];
+  } finally {
+    loadingUserPerms.value = false;
+  }
+}
+
+const centrosDisponiblesEdit = computed(() => {
+  const out = {};
+  const assigned = Array.isArray(userCentrosAsignados.value) ? userCentrosAsignados.value : [];
+
+  const set = new Set(assigned.map(String));
+  if (editForm.value?.numero_contrato) set.add(String(editForm.value.numero_contrato));
+
+  for (const code of set) {
+    if (!code) continue;
+    out[code] = (centrosMap.value?.[code] || centrosLocalFallback?.[code] || code);
+  }
+  return out;
+});
+
+watch(
+  () => editForm.value?.numero_contrato,
+  (codigo) => {
+    const c = String(codigo || "");
+    editForm.value.nombre_centro_costo =
+      (centrosMap.value?.[c] || centrosLocalFallback?.[c] || "");
+  }
+);
+
+
+
+const centrosDisponiblesEditCount = computed(() => Object.keys(centrosDisponiblesEdit.value).length);
+
+const centrosListaOrdenadaEdit = computed(() => {
+  const map = centrosDisponiblesEdit.value || {};
+  return Object.keys(map).sort((a, b) =>
+    String(map[a] || a).localeCompare(String(map[b] || b), "es", { sensitivity: "base" })
+  );
+});
+
+const loadingCotizadoresEdit = ref(false);
+const cotizadoresEdit = ref([]);
+let unsubCotizadoresEdit = null;
+
+const keyifyEmpresaEdit = (name) =>
+  String(name || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const todayISOEdit = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
+const isInVacationTodayEdit = (vacaciones = []) => {
+  const t = todayISOEdit();
+  if (!Array.isArray(vacaciones)) return false;
+  return vacaciones.some((v) => v?.from && v?.to && String(v.from) <= t && t <= String(v.to));
+};
+
+function subscribeCotizadoresEdit(empresaNombre) {
+  if (typeof unsubCotizadoresEdit === "function") unsubCotizadoresEdit();
+  unsubCotizadoresEdit = null;
+
+  cotizadoresEdit.value = [];
+  if (!empresaNombre) return;
+
+  loadingCotizadoresEdit.value = true;
+
+  const empresaKey = keyifyEmpresaEdit(empresaNombre);
+
+  const cfgRootRef = doc(db, "configuracion", "aprobacion_oc_taller");
+  const cfgEmpresasCol = collection(cfgRootRef, "empresas");
+
+  const empresaRef = doc(cfgEmpresasCol, empresaKey);
+  const cotCol = collection(empresaRef, "cotizadores");
+
+  unsubCotizadoresEdit = onSnapshot(
+    cotCol,
+    (snap) => {
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() || {}) }))
+        .filter((c) => c && c.activo !== false)
+        .filter((c) => !isInVacationTodayEdit(c.vacaciones || []))
+        .map((c) => ({
+          uid: String(c.uid || c.id || ""),
+          fullName: String(c.fullName || c.email || "—").trim(),
+          email: String(c.email || "").trim(),
+          activo: c.activo !== false,
+          vacaciones: Array.isArray(c.vacaciones) ? c.vacaciones : []
+        }))
+        .filter((c) => c.uid || c.fullName)
+        .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || "", "es", { sensitivity: "base" }));
+
+      cotizadoresEdit.value = list;
+
+      const allowed = new Set(list.map((x) => x.fullName));
+      dirigidoASelected.value = (Array.isArray(dirigidoASelected.value) ? dirigidoASelected.value : []).filter((n) => allowed.has(n));
+
+      loadingCotizadoresEdit.value = false;
+    },
+    (err) => {
+      console.warn("No se pudieron cargar cotizadores (edición):", err);
+      cotizadoresEdit.value = [];
+      loadingCotizadoresEdit.value = false;
+    }
+  );
+}
+
+
 const tiposSolped = [
   "EPP","INSUMOS DE OFICINA","SERVICIOS DE TERCEROS","REPUESTOS","MATERIALES","HERRAMIENTAS","LUBRICANTES",
-  "NEUMÁTICOS","EDP","MATERIAS PRIMA","INSUMOS DE MINERÍA"
+  "NEUMÁTICOS","EDP","MATERIAS PRIMA","INSUMOS DE MINERÍA","INSUMOS DE TALLER"
 ];
-const cotizadoresServicios = ["Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
-const cotizadoresMining    = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
-const cotizadoresHorm      = ["Ricardo Santibañez", "Felipe Gonzalez","Luis Orellana", "Guillermo Manzor", "María José Ballesteros"];
 
-const showEditModal = ref(false);
-const savingEdit = ref(false);
-const editForm = ref({});
-const editItems = ref([]);
-const dirigidoASelected = ref([]);
 
 const sameLocalDay = (a, b) => {
   const ax = new Date(a.getFullYear(), a.getMonth(), a.getDate());
@@ -2217,13 +2664,6 @@ const puedeEditarSolped = (s) => {
   const mismoDia = sameLocalDay(ahora, d);
   return mismoDia && dentro24h;
 };
-const dirigidoOptions = computed(() => {
-  const emp = (editForm.value?.empresa || '').toLowerCase();
-  if (emp.includes('servicio')) return cotizadoresServicios;
-  if (emp.includes('mining'))   return cotizadoresMining;
-  if (emp.includes('hormig'))   return cotizadoresHorm;
-  return Array.from(new Set([...cotizadoresServicios, ...cotizadoresMining, ...cotizadoresHorm]));
-});
 function cloneSolpedForEdit(s){
   const base = JSON.parse(JSON.stringify(s || {}));
   const e = (base.empresa || '').toLowerCase();
@@ -2243,7 +2683,6 @@ function cloneSolpedForEdit(s){
     usuario: base.usuario || '',
   };
 }
-/** Normaliza AUTORIZACIONES */
 const normalizarAutorizaciones = (s) => {
   const out = [];
 
@@ -2278,31 +2717,173 @@ const normalizarAutorizaciones = (s) => {
   return out;
 };
 
-const abrirEditar = (s) => {
-  if (!puedeEditarSolped(s)) { addToast('danger', 'No puedes editar: sólo el generador, mismo día y dentro de 24h desde la creación.'); return; }
-  editForm.value = cloneSolpedForEdit(s);
-  editItems.value = (s.items||[]).map(it => ({ ...it, __k: Math.random().toString(36).slice(2) }));
-  dirigidoASelected.value = (Array.isArray(s.dirigidoA) ? s.dirigidoA.filter(v => typeof v === 'string') : []);
-  if (!editForm.value.nombre_centro_costo && editForm.value.numero_contrato) {
-    editForm.value.nombre_centro_costo = centrosMap.value?.[editForm.value.numero_contrato] || '';
+const abrirEditar = async (s) => {
+  try {
+    if (!puedeEditarSolped(s)) {
+      addToast('danger', 'No puedes editar: sólo el generador, mismo día y dentro de 24h desde la creación.');
+      return;
+    }
+
+    await loadCurrentUserPerms();
+
+    editForm.value = cloneSolpedForEdit(s);
+
+    editItems.value = (s.items || []).map(it => ({
+      ...it,
+      __k: Math.random().toString(36).slice(2)
+    }));
+
+    dirigidoASelected.value = Array.isArray(s.dirigidoA)
+      ? s.dirigidoA.filter(v => typeof v === 'string')
+      : [];
+
+    if (editForm.value.numero_contrato) {
+      const c = String(editForm.value.numero_contrato);
+      editForm.value.nombre_centro_costo = (centrosMap.value?.[c] || '');
+    }
+
+    showEditModal.value = true;
+
+    subscribeCotizadoresEdit(editForm.value.empresa || '');
+  } catch (e) {
+    console.error(e);
+    addToast('danger', 'Error al abrir edición.');
   }
-  showEditModal.value = true;
 };
-const cerrarEditar = () => { showEditModal.value = false; savingEdit.value = false; editForm.value = {}; editItems.value = []; dirigidoASelected.value = []; };
-watch(() => editForm.value.numero_contrato, (codigo) => { editForm.value.nombre_centro_costo = centrosMap.value?.[codigo] || ''; });
-function onPickImg(ev, it){
-  const f = ev?.target?.files?.[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const dataUrl = reader.result;
-    const base64 = String(dataUrl).split(',')[1] || '';
-    it.imagen_referencia_base64 = base64;
-    delete it.imagen_url;
-  };
-  reader.readAsDataURL(f);
+const cerrarEditar = () => {
+  try {
+    if (typeof unsubCotizadoresEdit === 'function') unsubCotizadoresEdit();
+  } catch (e) {
+    console.warn(e);
+  } finally {
+    unsubCotizadoresEdit = null;
+    cotizadoresEdit.value = [];
+    loadingCotizadoresEdit.value = false;
+  }
+
+  showEditModal.value = false;
+  savingEdit.value = false;
+  editForm.value = {};
+  editItems.value = [];
+  dirigidoASelected.value = [];
+};
+async function fileToJpegBlob(file, { maxW = 1280, maxH = 1280, quality = 0.82 } = {}) {
+  const dataUrl = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = rej;
+    i.src = dataUrl;
+  });
+
+  let { width, height } = img;
+  const ratio = Math.min(maxW / width, maxH / height, 1);
+  width = Math.round(width * ratio);
+  height = Math.round(height * ratio);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+
+  const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+  if (!blob) throw new Error("No se pudo convertir la imagen.");
+  return blob;
 }
-function borrarImg(it){ delete it.imagen_url; delete it.imagen_referencia_base64; }
+
+async function uploadSolpedItemImage({ solpedId, numeroSolpe, itemNo, file }) {
+  const blob = await fileToJpegBlob(file);
+
+  const safeEmpresa = String(editForm.value?.empresa || "empresa")
+    .replace(/\s+/g, "_")
+    .replace(/[^\w\-]/g, "");
+
+  const path = `solped_images/${safeEmpresa}_${numeroSolpe}/${solpedId}/item_${itemNo}_${Date.now()}.jpg`;
+  const sref = storageRef(storage, path);
+
+  await uploadBytes(sref, blob, { contentType: "image/jpeg" });
+  const url = await getDownloadURL(sref);
+
+  return { url, path };
+}
+
+async function onPickImg(ev, it) {
+  const input = ev?.target;
+  const file = input?.files?.[0];
+
+
+  if (input) input.value = "";
+
+  if (!file) return;
+
+  if (!file.type?.startsWith("image/")) {
+    addToast("danger", "Selecciona un archivo de imagen válido (jpg/png).");
+    return;
+  }
+
+  if (!showEditModal.value || !editForm.value?.id) {
+    addToast("danger", "No hay SOLPED en edición.");
+    return;
+  }
+  it._imgUploading = true;
+
+  try {
+    if (it.imagen_path) {
+      try {
+        await deleteObject(storageRef(storage, it.imagen_path));
+      } catch (e) {
+        console.warn("No se pudo borrar imagen anterior:", e);
+      }
+    }
+
+    const solpedId = String(editForm.value.id);
+    const numeroSolpe = editForm.value.numero_solpe || "0";
+    const itemNo = it.item || 0;
+
+    const { url, path } = await uploadSolpedItemImage({
+      solpedId,
+      numeroSolpe,
+      itemNo,
+      file
+    });
+    it.imagen_url = url;
+    it.imagen_path = path;
+
+    it.imagen_referencia_base64 = "";
+
+    addToast("success", "Imagen reemplazada correctamente.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo subir/reemplazar la imagen.");
+  } finally {
+    it._imgUploading = false;
+  }
+}
+
+async function borrarImg(it) {
+  if (!it) return;
+  if (it._imgUploading) return;
+  if (it.imagen_path) {
+    try {
+      await deleteObject(storageRef(storage, it.imagen_path));
+    } catch (e) {
+      console.warn("No se pudo borrar en storage:", e);
+    }
+  }
+
+  it.imagen_url = "";
+  it.imagen_path = "";
+  it.imagen_referencia_base64 = "";
+}
+
 function agregarItem(){
   editItems.value.push({
     __k: Math.random().toString(36).slice(2),
@@ -2346,13 +2927,13 @@ async function guardarEdicion(){
         cantidad_cotizada: it.cantidad_cotizada || '',
         numero_interno: it.numero_interno || '',
         stock: Number(it.stock || 0),
-        imagen_referencia_base64: it.imagen_referencia_base64 || '',
+        imagen_url: it.imagen_url || '',
+        imagen_path: it.imagen_path || '',
         imagen_url: it.imagen_url || ''
       }))
     };
     await updateDoc(refd, payload);
 
-    // Catálogo ligero
     const now = new Date();
     for (const it of payload.items) {
       const descOrig = (it.descripcion || '').trim();
@@ -2386,13 +2967,11 @@ async function guardarEdicion(){
 </script>
 
 <style scoped>
-/* ===== Layout base / utilidades ===== */
 .historial-page{ min-height:100vh; }
 .pointer{ cursor:pointer; }
 .small{ font-size:.875rem; }
 .text-secondary{ color:#64748b !important; }
 
-/* ===== Alertas “pro” ===== */
 .alert-pro{
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -2410,16 +2989,12 @@ async function guardarEdicion(){
   background: linear-gradient(180deg,#ef4444,#dc2626);
 }
 @keyframes fadeSlideIn{ from{opacity:0; transform: translateY(-4px);} to{opacity:1; transform: translateY(0);} }
-
-/* ===== Cards elevadas ===== */
 .card-elevated{
   border:1px solid #e5e7eb !important;
   box-shadow: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.06) !important;
   border-radius: .9rem !important;
   background:#fff;
 }
-
-/* Paginación superior pegajosa */
 .sticky-pager{
   position: sticky;
   top: 8px;
@@ -2427,11 +3002,7 @@ async function guardarEdicion(){
   background: transparent;
   backdrop-filter: blur(3px);
 }
-
-/* Sidebar filtros pegajoso (desktop) */
 .sticky-sidebar{ position: sticky; top: 12px; }
-
-/* Botón flotante filtros en móvil */
 .floating-filters-btn{
   position: fixed;
   right: 16px; bottom: 16px;
@@ -2441,8 +3012,6 @@ async function guardarEdicion(){
   display: grid; place-items: center;
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
 }
-
-/* Resaltado por comentarios no vistos */
 .card-unread{
   border-color:#2563eb !important;
   box-shadow: 0 0 0 2px rgba(37,99,235,.15), 0 12px 24px rgba(37,99,235,.18) !important;
@@ -2454,16 +3023,13 @@ async function guardarEdicion(){
   box-shadow: 0 0 0 6px rgba(37,99,235,.15);
 }
 
-/* Comentario no visto */
 .comment-unread{ border-left: 3px solid #2563eb; background: #f0f7ff; }
 
-/* Loading */
 .loading-global{
   display:flex; align-items:center; justify-content:center;
   padding:2rem; border:1px dashed #e5e7eb; border-radius:.75rem;
 }
 
-/* Estado vacío (fantasma) */
 .ghost-wrap{ text-align:center; padding:2rem 0; color:#64748b; }
 .ghost{
   width:120px; height:140px; margin:0 auto; background:#fff; border-radius:60px 60px 20px 20px;
@@ -2480,7 +3046,6 @@ async function guardarEdicion(){
 .ghost-text{ margin-top:1rem; font-weight:500; }
 @keyframes floaty{ 0%{transform:translateY(0)} 50%{transform:translateY(-8px)} 100%{transform:translateY(0)} }
 
-/* Chips/badges */
 .bg-primary-subtle{ background-color:#e7f1ff !important; }
 .text-primary-emphasis{ color:#0a58ca !important; }
 .badge{
@@ -2489,7 +3054,6 @@ async function guardarEdicion(){
 }
 .badge .btn-close{ width:.6rem; height:.6rem; filter: invert(1) grayscale(100%) brightness(0.4); }
 
-/* Toasts */
 .toast-stack{
   position: fixed;
   right: 16px; bottom: 16px; z-index: 1080;
@@ -2502,16 +3066,12 @@ async function guardarEdicion(){
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
 .toast-danger{ background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
-
-/* Tabla / imágenes */
 .thumb{ width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #e2e8f0; }
 
-/* Compactación tipográfica en xs */
 @media (max-width: 420px){
   .card-header .small{ font-size: .8rem; }
 }
 
-/* ===== Offcanvas móvil ===== */
 .oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
 .oc-enter-from, .oc-leave-to { opacity: 0; }
 .oc-wrap{ position: fixed; inset: 0; z-index: 1080; }
@@ -2528,7 +3088,7 @@ async function guardarEdicion(){
 .oc-body{ padding: .9rem; overflow: auto; }
 .oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
 
-/* ===== Lista de adjuntos ===== */
+
 .list-group-item .bi-file-earmark-pdf-fill { color:#dc2626; }
 .list-group-item .bi-file-earmark-excel-fill { color:#16a34a; }
 .list-group-item .bi-file-earmark-image-fill { color:#2563eb; }
@@ -2537,19 +3097,18 @@ async function guardarEdicion(){
   overflow: visible !important;
 }
 
-/* Cuando forzamos dropup */
 .dropup .dropdown-menu {
   top: auto !important;
   bottom: 100% !important;
   margin-bottom: .5rem;
 }
-/* El menú se posiciona relativo al propio .dropdown */
+
 .dropdown-keep{ position: relative; }
 
-/* Si tu tabla recorta, ábrela mientras el dropdown está visible (ya lo tienes) */
+
 .table-responsive.dropdown-open{ overflow: visible !important; }
 
-/* Por si acaso hay poco espacio abajo, soporta dropup también */
+
 .dropup .dropdown-menu{ top:auto!important; bottom:100%!important; margin-bottom:.5rem; }
 
 </style>

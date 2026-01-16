@@ -51,7 +51,7 @@
         <div>{{ error }}</div>
       </div>
 
-      <!-- ✅ ÚNICA BARRA DE BÚSQUEDA: número OC + nombre archivo (variantes) -->
+      <!-- ✅ ÚNICA BARRA DE BÚSQUEDA: número OC + nombre archivo (rápida) -->
       <div class="card card-elevated mb-3">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">🔎 Buscar cotización (N° o archivo)</div>
@@ -66,7 +66,7 @@
                 class="form-control"
                 v-model="searchText"
                 @keyup.enter="buscarGlobal"
-                placeholder="Ej: OC 62587 CAREN / CAREN.pdf / 2851"
+                placeholder="Ej: 62587 / OC 62587 / CAREN / OC 62587 CAREN.pdf"
               />
             </div>
 
@@ -89,6 +89,7 @@
               Resultados Firestore: {{ resultadosBusqueda.length }}
               <span v-if="busquedaIncluyoNumero" class="text-muted">· incluye búsqueda por N°</span>
               <span v-if="busquedaIncluyoNombre" class="text-muted">· incluye búsqueda por nombre</span>
+              <span v-if="missingLowerHint" class="text-muted">· (nota: faltan campos de búsqueda normalizada en algunos docs)</span>
             </div>
 
             <div
@@ -97,7 +98,7 @@
               class="alert alert-light d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2"
             >
               <div class="me-auto">
-                <div class="fw-semibold">🧾 N° {{ r.id ?? '—' }}</div>
+                <div class="fw-semibold">🧾 N° {{ r.id ?? r.numero_oc ?? '—' }}</div>
                 <div class="small text-secondary">
                   {{ r.empresa }} · {{ fmtFecha(r.fechaSubida) }}
                 </div>
@@ -422,11 +423,13 @@ import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, limit,
   startAfter, startAt, endAt,
-  getDocs, getCountFromServer
+  getDocs, getCountFromServer,
+  doc, getDoc
 } from 'firebase/firestore';
+
 import { useAuthStore } from '../stores/authService';
 
-/* ========== Subcomponente: FiltroForm ========== */
+
 const FiltroForm = {
   name: 'FiltroForm',
   props: {
@@ -549,10 +552,27 @@ const FiltroForm = {
     ]
   }
 };
-/* ===================== BÚSQUEDA ÚNICA (N° + nombre variantes) ===================== */
+
+
+const COL_ORDENES = 'ordenes_oc';
+const SEARCH_LIMIT = 20;
+
+
+const _recentCache = ref({ ts: 0, docs: [] });
+
 function _stripExt(name) {
   const s = String(name || '').trim();
   return s.replace(/\.(pdf|png|jpg|jpeg)$/i, '').trim();
+}
+
+function _normTxt(v) {
+  return String(v ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function _extractBestNumber(text) {
@@ -563,13 +583,11 @@ function _extractBestNumber(text) {
 }
 
 function _extractOcNumberFromNorm(norm) {
-  // "oc 62587" o "oc62587" -> "62587"
   const m = String(norm || '').match(/\boc\s*([0-9]{2,})\b/i);
   return m ? m[1] : '';
 }
 
 function _buildNameVariants(raw) {
-  // Genera candidatos exactos para where('archivoOC.nombre' == X)
   const out = new Set();
   const r = String(raw || '').trim();
   if (!r) return [];
@@ -579,23 +597,42 @@ function _buildNameVariants(raw) {
   out.add(r);
   out.add(base);
 
-  // si no trae .pdf, probar con .pdf
   if (!/\.pdf$/i.test(r)) out.add(`${r}.pdf`);
   if (!/\.pdf$/i.test(base)) out.add(`${base}.pdf`);
 
-  // también: si trae "OC 62587" y existe el archivo "OC 62587 CAREN.pdf"
-  // no se puede adivinar "CAREN" exacto, PERO esto ayuda si el nombre real es exactamente "OC 62587.pdf"
-  // (no molesta, solo agrega opciones)
-  const norm = _normTxt(r);
-  const num = _extractOcNumberFromNorm(norm) || _extractBestNumber(r);
+  const n = _normTxt(r);
+  const num = _extractOcNumberFromNorm(n) || _extractBestNumber(r);
   if (num) {
     out.add(`OC ${num}`);
     out.add(`OC ${num}.pdf`);
-    out.add(`oc ${num}`);
-    out.add(`oc ${num}.pdf`);
+    out.add(`OC ${num} `);
   }
 
-  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 10);
+  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 12);
+}
+
+function _makePrefixCandidates(raw) {
+  const out = new Set();
+  const r = String(raw || '').trim();
+  if (!r) return [];
+
+  out.add(r);
+  out.add(_stripExt(r));
+  out.add(r.toUpperCase());
+  out.add(_stripExt(r).toUpperCase());
+  out.add(r.toLowerCase());
+  out.add(_stripExt(r).toLowerCase());
+  const n = _normTxt(r);
+  const num = _extractOcNumberFromNorm(n) || _extractBestNumber(r);
+  if (num) {
+    out.add(`OC ${num}`);
+    out.add(`OC ${num}`.toUpperCase());
+    out.add(`oc ${num}`.toLowerCase());
+  }
+  return Array.from(out)
+    .map(x => String(x || '').trim())
+    .filter(x => x.length >= 2)
+    .slice(0, 8);
 }
 
 async function _safeGetDocs(q) {
@@ -616,115 +653,104 @@ const buscarGlobal = async () => {
   lastSearchText.value = raw;
 
   const norm = _normTxt(raw);
-  const baseNorm = _normTxt(_stripExt(raw));
-
   const bestNumStr = _extractBestNumber(raw);
   const ocNumStr = _extractOcNumberFromNorm(norm) || bestNumStr;
   const ocNum = ocNumStr ? Number(ocNumStr) : NaN;
-  const hasNum = !!ocNumStr && !Number.isNaN(ocNum) && ocNum > 0;
+  const hasNum = !!ocNumStr && !Number.isNaN(ocNum);
 
   loadingGlobalSearch.value = true;
 
   try {
     const merged = new Map();
-
-    const addDocSnap = (docSnap) => {
-      if (!docSnap) return;
-      if (!merged.has(docSnap.id)) merged.set(docSnap.id, { __docId: docSnap.id, ...docSnap.data() });
-    };
+    const baseCol = collection(db, COL_ORDENES);
 
     const addSnap = (snap) => {
       if (!snap?.docs?.length) return;
-      snap.docs.forEach(addDocSnap);
+      for (const d of snap.docs) {
+        if (!merged.has(d.id)) merged.set(d.id, { __docId: d.id, ...d.data() });
+      }
     };
 
-    // ✅ IMPORTANTE: búsqueda global NO respeta filtros del sidebar (como lo dejaste)
-    const baseCol = collection(db, "ordenes_oc");
+    const addDocIfExists = (ds) => {
+      if (ds?.exists?.()) merged.set(ds.id, { __docId: ds.id, ...ds.data() });
+    };
 
-    /* (1) Buscar por número (id / numero_oc / archivoOC.ocNumber si existe) */
+    const tasks = [];
+
+
+    tasks.push((async () => {
+      if (raw.length < 8) return;
+      try {
+        const ds = await getDoc(doc(db, COL_ORDENES, raw));
+        addDocIfExists(ds);
+      } catch(e) {console.log(e)}
+    })());
+
     if (hasNum) {
       busquedaIncluyoNumero.value = true;
-
-      // id como número
-      addSnap(await _safeGetDocs(query(baseCol, where("id", "==", ocNum), limit(10))));
-
-      // id como string (por si lo guardaste como "62587")
-      addSnap(await _safeGetDocs(query(baseCol, where("id", "==", String(ocNumStr)), limit(10))));
-
-      // campo legacy
-      addSnap(await _safeGetDocs(query(baseCol, where("numero_oc", "==", ocNum), limit(20))));
-      addSnap(await _safeGetDocs(query(baseCol, where("numero_oc", "==", String(ocNumStr)), limit(20))));
-
-      // ✅ si guardas esto al subir (recomendado)
-      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.ocNumber", "==", ocNum), limit(20))));
-      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.ocNumber", "==", String(ocNumStr)), limit(20))));
+      tasks.push(_safeGetDocs(query(baseCol, where("id", "==", ocNum), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where("id", "==", String(ocNumStr)), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where("numero_oc", "==", ocNum), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where("numero_oc", "==", String(ocNumStr)), limit(SEARCH_LIMIT))).then(addSnap));
     }
-
     busquedaIncluyoNombre.value = true;
-
     const variants = _buildNameVariants(raw);
 
     for (const v of variants) {
-      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.nombre", "==", v), limit(20))));
-      addSnap(await _safeGetDocs(query(baseCol, where("archivoOC.name", "==", v), limit(20))));
-      addSnap(await _safeGetDocs(query(baseCol, where("archivoOCNombre", "==", v), limit(20))));
-      addSnap(await _safeGetDocs(query(baseCol, where("nombre", "==", v), limit(20))));
-
-      if (merged.size >= 20) break;
+      tasks.push(_safeGetDocs(query(baseCol, where("archivoOC.nombre", "==", v), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where("archivoOC.name", "==", v), limit(SEARCH_LIMIT))).then(addSnap));
+      tasks.push(_safeGetDocs(query(baseCol, where("nombre", "==", v), limit(SEARCH_LIMIT))).then(addSnap));
     }
 
-    const lowerCandidates = new Set();
-    if (norm) lowerCandidates.add(norm);
-    if (baseNorm) lowerCandidates.add(baseNorm);
-    if (hasNum) lowerCandidates.add(`oc ${ocNumStr}`);
 
-    for (const lc of Array.from(lowerCandidates).filter((x) => x.length >= 3).slice(0, 5)) {
-      const sEq = await _safeGetDocs(query(baseCol, where("archivoOC.nombreLower", "==", lc), limit(20)));
-      if (!sEq) missingLowerHint.value = true;
-      addSnap(sEq);
-      if (merged.size >= 20) break;
-    }
-    const prefixCandidates = new Set();
-    if (baseNorm) prefixCandidates.add(baseNorm);
-    if (norm) prefixCandidates.add(norm);
-    if (hasNum) prefixCandidates.add(`oc ${ocNumStr}`);
-
-    for (const pfx of Array.from(prefixCandidates).filter((x) => x.length >= 3).slice(0, 3)) {
-      const sPfx = await _safeGetDocs(
-        query(
-          baseCol,
-          orderBy("archivoOC.nombreLower"),
-          startAt(pfx),
-          endAt(pfx + "\uf8ff"),
-          limit(20)
-        )
+    const prefixes = _makePrefixCandidates(raw);
+    for (const pfx of prefixes) {
+      tasks.push(
+        _safeGetDocs(
+          query(
+            baseCol,
+            orderBy("archivoOC.nombre"),
+            startAt(pfx),
+            endAt(pfx + "\uf8ff"),
+            limit(SEARCH_LIMIT)
+          )
+        ).then((snap) => {
+          if (!snap) missingLowerHint.value = true;
+          addSnap(snap);
+        })
       );
-      if (!sPfx) missingLowerHint.value = true;
-      addSnap(sPfx);
-      if (merged.size >= 20) break;
     }
-    if (merged.size === 0 && (baseNorm || norm || hasNum)) {
-      const qRecent = query(baseCol, orderBy("fechaSubida", "desc"), limit(500));
-      const sRecent = await _safeGetDocs(qRecent);
 
-      const qn = baseNorm || norm;
-      if (sRecent?.docs?.length) {
-        for (const d of sRecent.docs) {
-          const data = d.data() || {};
-          const fname = _normTxt(getArchivoNombre(data));
-          const hasHit =
-            (qn && fname.includes(qn)) ||
-            (hasNum && fname.includes(String(ocNumStr))) ||
-            (hasNum && fname.includes(String(ocNum)));
+    await Promise.allSettled(tasks);
+    if (merged.size === 0) {
+      const qNeed = _normTxt(_stripExt(raw));
+      if (qNeed.length >= 3) {
+        const now = Date.now();
+        const isCacheFresh = (now - (_recentCache.value.ts || 0)) < 90_000;
 
-          if (hasHit) addDocSnap(d);
-          if (merged.size >= 20) break;
+        let recentDocs = _recentCache.value.docs || [];
+
+        if (!isCacheFresh || !recentDocs.length) {
+          const SCAN_LIMIT = 250;
+          let snap = await _safeGetDocs(query(baseCol, orderBy("fechaSubida", "desc"), limit(SCAN_LIMIT)));
+          if (!snap) snap = await _safeGetDocs(query(baseCol, limit(SCAN_LIMIT)));
+
+          recentDocs = (snap?.docs || []).map(d => ({ __docId: d.id, ...d.data() }));
+          _recentCache.value = { ts: now, docs: recentDocs };
+        }
+        for (const oc of recentDocs) {
+          const fname = _normTxt(_stripExt(getArchivoNombre(oc)));
+          if (fname && fname.includes(qNeed)) {
+            if (!merged.has(oc.__docId)) merged.set(oc.__docId, oc);
+            if (merged.size >= SEARCH_LIMIT) break;
+          }
         }
       }
     }
 
-    resultadosBusqueda.value = Array.from(merged.values());
+    resultadosBusqueda.value = Array.from(merged.values()).slice(0, SEARCH_LIMIT);
     searchedOnce.value = true;
+
   } catch (e) {
     console.error("buscarGlobal error", e);
     searchedOnce.value = true;
@@ -734,7 +760,7 @@ const buscarGlobal = async () => {
 };
 
 
-/* ===================== Helpers ===================== */
+/* ===================== Helpers (estado/archivo) ===================== */
 function _estadoKeyPlano(v) {
   return String(v ?? '')
     .toLowerCase()
@@ -742,7 +768,6 @@ function _estadoKeyPlano(v) {
     .replace(/\p{Diacritic}/gu,'')
     .trim();
 }
-
 function estadoKey(estatusRaw) {
   const s = _estadoKeyPlano(estatusRaw);
 
@@ -754,10 +779,8 @@ function estadoKey(estatusRaw) {
   if (s.includes('revision')) return 'revision';
   if (s.includes('recepcion') && s.includes('completa')) return 'recepcion-completa';
   if (s.includes('recepcion') && s.includes('parcial'))  return 'recepcion-parcial';
-
   return 'otro';
 }
-
 const estadoBadgeClass  = (estatus) => `badge-${estadoKey(estatus)}`;
 const estadoHeaderClass = (estatus) => `hdr-${estadoKey(estatus)}`;
 
@@ -791,41 +814,37 @@ function hasArchivoOC(oc) {
   if (typeof oc?.archivoOCUrl === 'string' && oc.archivoOCUrl.trim() !== '') return true;
   return false;
 }
-
-function _normTxt(v) {
-  return String(v ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function getArchivoNombre(oc) {
   const a = oc?.archivoOC;
-
   if (a && typeof a === 'object' && !Array.isArray(a)) {
     if (a.nombre) return String(a.nombre);
+    if (a.name) return String(a.name);
+  }
+  const prov = oc?.archivosOCProveedor;
+  if (Array.isArray(prov) && prov.length) {
+    const first = prov.find(x => x && typeof x === 'object' && (x.nombre || x.name));
+    if (first?.nombre) return String(first.nombre);
+    if (first?.name) return String(first.name);
   }
 
-  if (Array.isArray(a) && a.length) {
-    const firstObj = a.find(x => x && typeof x === 'object' && x.nombre);
-    if (firstObj?.nombre) return String(firstObj.nombre);
-
-    const firstStr = a.find(x => typeof x === 'string' && x.trim());
-    if (firstStr) return String(firstStr);
+  const st = oc?.archivosStorage;
+  if (Array.isArray(st) && st.length) {
+    const first = st.find(x => x && typeof x === 'object' && (x.nombre || x.name));
+    if (first?.nombre) return String(first.nombre);
+    if (first?.name) return String(first.name);
   }
-
   if (oc?.archivoOCNombre) return String(oc.archivoOCNombre);
   if (oc?.nombre) return String(oc.nombre);
+
   return '';
 }
+
 
 function faltaSubirOC(oc) {
   return estadoKey(oc?.estatus) === 'aprobado' && !hasArchivoOC(oc);
 }
 
-/* ===================== Router/Auth ===================== */
+
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
@@ -865,31 +884,31 @@ const handleResize = () => {
   if (isDesktop.value && wasMobileOpen) closeFiltersMobile();
 };
 
-/* ===================== State ===================== */
+
 const loading = ref(true);
 const error = ref('');
 
 const pageDocs = ref([]);
 const displayList = computed(() => applyClientFilters(pageDocs.value));
 
-/** ✅ Input único */
+
 const searchText = ref('');
 
-/** ✅ Texto “aplicado” al apretar Buscar (para conteo en página) */
+
 const lastSearchText = ref('');
 const lastSearchTextTrim = computed(() => String(lastSearchText.value || '').trim());
 
-/** Resultados Firestore (del botón Buscar) */
+
 const resultadosBusqueda = ref([]);
 const loadingGlobalSearch = ref(false);
 const searchedOnce = ref(false);
 
-/** Flags UI */
+
 const busquedaIncluyoNumero = ref(false);
 const busquedaIncluyoNombre = ref(false);
 const missingLowerHint = ref(false);
 
-// filtros
+
 const filtroFecha = ref('');
 const filtroEstatus = ref([]);
 const soloMias = ref(false);
@@ -937,8 +956,6 @@ const selectedCentros = ref([]);
 const selectedCentrosSet = computed(() => new Set(selectedCentros.value));
 const centroPickerSearch = ref('');
 const centroSearch = ref('');
-
-/* ===================== Paginación/estado ===================== */
 const page = ref(1);
 const pageSize = ref(5);
 const totalCount = ref(0);
@@ -991,7 +1008,7 @@ async function ensureCursorsForPage(targetPage) {
     }
 
     let q = query(
-      collection(db, 'ordenes_oc'),
+      collection(db, COL_ORDENES),
       ...wh,
       orderBy('fechaSubida', 'desc'),
       limit(pageSize.value)
@@ -1118,7 +1135,7 @@ function onStorageSync(e){
   }
 }
 
-/* ========= Query builder ========= */
+
 const buildBaseWhere = () => {
   const wh = [];
 
@@ -1158,7 +1175,7 @@ const buildBaseWhere = () => {
 const makePageQuery = (pageNumber=1) => {
   const wh = buildBaseWhere();
   const base = query(
-    collection(db, 'ordenes_oc'),
+    collection(db, COL_ORDENES),
     ...wh,
     orderBy('fechaSubida', 'desc'),
     limit(pageSize.value)
@@ -1169,7 +1186,7 @@ const makePageQuery = (pageNumber=1) => {
   return base;
 };
 
-/* ========= Carga de página (NO realtime) ========= */
+
 const fetchPage = async () => {
   loading.value = true;
   error.value = '';
@@ -1204,7 +1221,7 @@ const fetchPage = async () => {
 const refreshCount = async () => {
   try {
     const wh = buildBaseWhere();
-    const countQ = query(collection(db, 'ordenes_oc'), ...wh);
+    const countQ = query(collection(db, COL_ORDENES), ...wh);
     const res = await getCountFromServer(countQ);
     totalCount.value = res.data().count || 0;
   } catch (e) {
@@ -1224,8 +1241,6 @@ function applyClientFilters(arr) {
     });
   }
 
-  // ✅ IMPORTANTE: ya NO filtramos la lista por searchText.
-  // La búsqueda por searchText es SOLO con el botón Buscar (resultadosBusqueda abajo).
 
   return out;
 }
@@ -1358,7 +1373,6 @@ watch(
 </script>
 
 <style scoped>
-/* (tu CSS igual, no lo cambié) */
 .hist-oc-page{ min-height:100vh; }
 .card-elevated{
   border:1px solid #e5e7eb !important;
@@ -1366,13 +1380,13 @@ watch(
   border-radius:.9rem !important;
 }
 
-/* Paginación superior pegajosa */
+
 .sticky-pager{ position: sticky; top: 8px; z-index: 5; backdrop-filter: blur(3px); }
 
-/* Sidebar filtros pegajoso en desktop */
+
 .sticky-sidebar{ position: sticky; top: 12px; }
 
-/* Botón flotante filtros (móvil) */
+
 .floating-filters-btn{
   position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
   z-index: 20;
@@ -1380,7 +1394,7 @@ watch(
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
 }
 
-/* Botón flotante “volver arriba” (móvil) */
+
 .floating-top-btn{
   position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom));
   z-index: 20;
@@ -1389,20 +1403,20 @@ watch(
   box-shadow: 0 10px 20px rgba(0,0,0,.18);
 }
 
-/* Tarjeta clickable si está rechazado o pendiente */
+
 .oc-card.oc-clickable{
   cursor:pointer;
   border-color:#ef4444 !important;
   box-shadow:0 0 0 2px rgba(239,68,68,.15), 0 12px 24px rgba(239,68,68,.18) !important;
 }
 
-/* Loading global */
+
 .loading-global{
   display:flex; align-items:center; justify-content:center;
   padding:2rem; border:1px dashed #e5e7eb; border-radius:.75rem;
 }
 
-/* Ghost vacío */
+
 .ghost-wrap{ text-align:center; padding:2rem 0; color:#64748b; }
 .ghost{
   width:120px; height:140px; margin:0 auto; background:#fff; border-radius:60px 60px 20px 20px;
@@ -1419,13 +1433,13 @@ watch(
 .ghost-text{ margin-top:1rem; font-weight:500; }
 @keyframes floaty{ 0%{transform:translateY(0)} 50%{transform:translateY(-8px)} 100%{transform:translateY(0)} }
 
-/* Badge close */
+
 .badge .btn-close{ width:.6rem; height:.6rem; filter: invert(1) grayscale(100%) brightness(0.4); }
 
-/* Switch header */
+
 .form-check.form-switch .form-check-input{ cursor: pointer; }
 .oc-missing-oc{
-  border-color:#f59e0b !important; /* amarillo */
+  border-color:#f59e0b !important;
   box-shadow:0 0 0 2px rgba(245, 158, 11, .15), 0 12px 24px rgba(245, 158, 11, .18) !important;
 }
 
@@ -1466,7 +1480,7 @@ watch(
 .oc-body{ padding: .9rem; overflow: auto; }
 .oc-footer{ margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
 
-/* Ajustes compactos en xs */
+
 @media (max-width: 420px){
   .card-header .small{ font-size: .8rem; }
 }

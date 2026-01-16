@@ -17,6 +17,7 @@ export function useRoleMenus() {
   const fullName = computed(() =>
     (auth?.profile?.fullName || auth?.user?.displayName || "").trim()
   );
+
   const email = computed(() => (auth?.user?.email || "").trim().toLowerCase());
 
   const role = computed(() => (auth?.profile?.role || auth?.role || "").trim());
@@ -42,21 +43,19 @@ export function useRoleMenus() {
     return n === "alejandro candia" || email.value === "acp@xtrememining.cl";
   });
 
-  // ✅ NUEVO: usuarios que deben ver "Generador de cotización"
-  // (puedes agregar correos reales si quieres hacerlo aún más robusto)
   const isPatricioBustos = computed(() => {
     const n = normalize(fullName.value);
-    return n === "patricio bustos"; // || email.value === "pbustos@xtrememining.cl";
+    return n === "patricio bustos";
   });
 
   const isAxelBasicContreras = computed(() => {
     const n = normalize(fullName.value);
-    return n === "axel basic contreras"; // || email.value === "abasic@xtrememining.cl";
+    return n === "axel basic contreras";
   });
 
   const isGriselleMatus = computed(() => {
     const n = normalize(fullName.value);
-    return n === "griselle matus"; // || email.value === "gmatus@xtrememining.cl";
+    return n === "griselle matus";
   });
 
   const isGenerador = computed(() => roleKey.value === "generador_solped");
@@ -74,8 +73,8 @@ export function useRoleMenus() {
     );
   });
 
-  // ✅ MODIFICADO: ahora también incluye Patricio, Axel y Griselle
   const canSeeGenerarCotizacion = computed(() => {
+    if (isTallerCMUser.value) return false;
     return (
       isAdmin.value ||
       isJuanCubillos.value ||
@@ -145,6 +144,7 @@ export function useRoleMenus() {
     if (isGuillermo.value) {
       pushIfMissing(base, { name: "AprobacionOC", text: "Aprobador OC", icon: "bi-patch-check" });
     }
+
 
     if (canSeeGenerarCotizacion.value) {
       pushIfMissing(base, {
@@ -225,7 +225,8 @@ export function useRoleMenus() {
       });
     }
 
-    if (!canSeeGenerarCotizacion.value && !isJuanCubillos.value && !isAdmin.value) {
+
+    if (canSeeGenerarCotizacion.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
         text: "Generador de cotización",
