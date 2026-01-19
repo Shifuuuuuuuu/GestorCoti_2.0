@@ -27,10 +27,10 @@
 
         <div class="btn-group">
           <button class="btn btn-outline-dark" :class="{ active: tab === 'staging' }" @click="tab = 'staging'">
-            Revisión local
+            Local
           </button>
           <button class="btn btn-outline-dark" :class="{ active: tab === 'cloud' }" @click="tab = 'cloud'">
-            En Firestore
+            Nube
           </button>
         </div>
       </div>
@@ -63,7 +63,7 @@
                     : ''
                 "
               >
-                <i class="bi bi-upload me-1"></i> Cargar PDFs (paquetes)
+                <i class="bi bi-upload me-1"></i> Cargar PDFs
                 <input
                   type="file"
                   multiple
@@ -184,7 +184,7 @@
                 @click="uploadStagingToLote"
                 :disabled="!selectedLoteId || staged.length === 0 || uploadBusy || loteLocked"
               >
-                <i class="bi bi-cloud-arrow-up me-1"></i> Subir revisados al lote
+                <i class="bi bi-cloud-arrow-up me-1"></i> Subir lote
               </button>
 
               <div v-if="uploadBusy" class="mt-2">
@@ -1680,6 +1680,7 @@ function setStagePreview() {
 
 async function selectStage(s) {
   selectedStageId.value = s.id;
+
   const full = await stageGet(s.id);
   if (!full) return;
 
@@ -1691,8 +1692,13 @@ async function selectStage(s) {
     refOc: selectedStageFull.value.refOc || "",
   };
 
+  // ✅ limpia cualquier preview anterior
   setStagePreview();
+
+  // ✅ NUEVO: al seleccionar, abre automáticamente el PDF
+  openStagePreview();
 }
+
 
 function openStagePreview() {
   const blob = selectedStageFull.value?.blob || null;
@@ -1754,6 +1760,308 @@ async function useStageSuggested(val) {
   stageMainValue.value = v;
   await saveStageQuick();
 }
+// ======================
+// AUTO MATCH FACTURA/GUIA -> OC (staging)
+// ======================
+const OC_MIN_LEN = 4;
+const OC_MAX_LEN = 7;
+const AUTO_MATCH_MAX_UPDATES = 250; // para auto-fix de staging ya guardado (no infinito)
+
+
+
+function _pickBestDigits(raw) {
+  const s = String(raw || "");
+  // prioriza números tipo OC: 4..7 dígitos
+  const hits = s.match(new RegExp(`\\b\\d{${OC_MIN_LEN},${OC_MAX_LEN}}\\b`, "g")) || [];
+  if (!hits.length) return "";
+  // elige el más largo; si hay empate, el primero
+  hits.sort((a, b) => b.length - a.length);
+  return hits[0] || "";
+}
+
+function _normalizeOc(v) {
+  const best = _pickBestDigits(v);
+  return best ? String(best) : "";
+}
+
+function _extractOcFromStringSmart(str) {
+  // Busca patrones fuertes:
+  // "OC 63353", "OC:63353", "ORDEN DE COMPRA 63353", "N° OC 63353"
+  const s = String(str || "");
+  const strong = [
+    /(?:\boc\b\s*[:#-]?\s*)(\d{4,7})/i,
+    /(?:\borden\s+de\s+compra\b.*?)(\d{4,7})/i,
+    /(?:\bn[°º]?\s*oc\b\s*[:#-]?\s*)(\d{4,7})/i,
+  ];
+  for (const rx of strong) {
+    const m = s.match(rx);
+    if (m && m[1]) return String(m[1]);
+  }
+  // fallback: cualquier número 4..7
+  return _pickBestDigits(s);
+}
+
+function _groupBy(arr, keyFn) {
+  const m = new Map();
+  for (const it of arr || []) {
+    const k = keyFn(it);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(it);
+  }
+  return m;
+}
+
+function _sortByPartIndex(list) {
+  return (list || []).slice().sort((a, b) => (Number(a.partIndex || 0) - Number(b.partIndex || 0)));
+}
+
+function _buildOcIndexFromParts(parts) {
+  const ocParts = (parts || [])
+    .filter(p => String(p.tipo || "").toLowerCase() === "oc")
+    .map(p => ({
+      id: p.id,
+      partIndex: Number(p.partIndex || 0),
+      numero: _normalizeOc(p.numero) || _extractOcFromStringSmart(p.parentName) || "",
+      parentName: String(p.parentName || ""),
+    }))
+    .filter(x => !!x.numero);
+
+  const byParent = _groupBy(ocParts, x => x.parentName || "__no_parent__");
+  return { ocParts, byParent };
+}
+
+function _bestNearbyOcForPart(part, ocListSamePack) {
+  const idx = Number(part.partIndex || 0);
+  if (!ocListSamePack?.length) return null;
+
+  // ✅ ocListSamePack viene ordenada por partIndex ASC (1..N)
+  //    Queremos la OC "después" (>= idx) porque en tus packs la OC suele venir
+  //    inmediatamente DESPUÉS de la factura/guía.
+  let bestNext = null;
+  for (const oc of ocListSamePack) {
+    if (Number(oc.partIndex || 0) >= idx) {
+      bestNext = oc;
+      break;
+    }
+  }
+  if (bestNext) return { numero: bestNext.numero, score: 95, reason: "nearby_next_oc" };
+
+  // Si no hay "siguiente", usar la última anterior disponible
+  const lastPrev = ocListSamePack[ocListSamePack.length - 1];
+  return { numero: lastPrev.numero, score: 85, reason: "nearby_prev_oc" };
+}
+
+
+function _scoreCandidate({ numero, sourceScore = 0, reason = "" }, packOcSet, globalOcSet) {
+  if (!numero) return -1;
+  let s = sourceScore;
+
+  // si existe OC en el pack, boost grande
+  if (packOcSet?.has(numero)) s += 60;
+
+  // si existe en staging global, boost medio
+  if (globalOcSet?.has(numero)) s += 25;
+
+  // si el reason es fuerte
+  if (reason.includes("strong")) s += 25;
+  if (reason.includes("nearby")) s += 60;
+
+  // longitud típica de OC (5 dígitos) pequeño boost
+  if (String(numero).length === 5) s += 5;
+
+  return s;
+}
+
+function _pickBestCandidate(candidates, packOcSet, globalOcSet) {
+  let best = null;
+  let bestScore = -1;
+
+  for (const c of candidates || []) {
+    const numero = _normalizeOc(c.numero || c.value || "");
+    if (!numero) continue;
+    const score = _scoreCandidate(
+      { numero, sourceScore: Number(c.score || 0), reason: String(c.reason || c.source || "") },
+      packOcSet,
+      globalOcSet
+    );
+    if (score > bestScore) {
+      bestScore = score;
+      best = { numero, score, reason: c.reason || c.source || "candidate" };
+    }
+  }
+
+  return best;
+}
+
+function _autoAssignRefOcForParts(parts, globalOcSet) {
+  const { byParent } = _buildOcIndexFromParts(parts);
+  const packOcNumbers = new Set(
+    (parts || [])
+      .filter(p => String(p.tipo || "").toLowerCase() === "oc")
+      .map(p => _normalizeOc(p.numero) || _extractOcFromStringSmart(p.parentName))
+      .filter(Boolean)
+  );
+
+  for (const p of parts || []) {
+    const tipo = String(p.tipo || "").toLowerCase();
+    if (tipo === "oc") {
+      // si OC no tiene numero, intenta inferir desde el nombre del pack
+      if (!String(p.numero || "").trim()) {
+        const inf = _extractOcFromStringSmart(p.parentName);
+        if (inf) {
+          p.numero = inf;
+          p.numeroAuto = true;
+        }
+      }
+      continue;
+    }
+
+    // solo factura/guia necesitan refOc
+    if (tipo !== "factura" && tipo !== "guia") continue;
+
+    // si ya tiene refOc válida, normaliza y listo
+    const existing = _normalizeOc(p.refOc);
+    if (existing) {
+      p.refOc = existing;
+      continue;
+    }
+
+    const parent = String(p.parentName || "");
+    const ocListSamePack = _sortByPartIndex(byParent.get(parent) || []);
+    const packOcSet = new Set(ocListSamePack.map(x => x.numero).filter(Boolean));
+
+    const candidates = [];
+
+    // 1) candidatos que viene del splitter (si los trae)
+    if (Array.isArray(p.ocCandidates)) {
+      for (const c of p.ocCandidates) {
+        candidates.push({
+          numero: c?.value,
+          score: Number(c?.score || 0),
+          source: c?.source || "ocCandidates"
+        });
+      }
+    }
+
+    // 2) intentar extraer desde parentName / nombre
+    const fromName = _extractOcFromStringSmart(p.parentName);
+    if (fromName) candidates.push({ numero: fromName, score: 30, reason: "strong_from_parentName" });
+
+    // 3) heurística fuerte: OC más cercana en el mismo pack
+    const nearby = _bestNearbyOcForPart(p, ocListSamePack);
+    if (nearby?.numero) candidates.push({ numero: nearby.numero, score: nearby.score, reason: nearby.reason });
+
+    // 4) elegir mejor
+    const best = _pickBestCandidate(candidates, packOcSet, globalOcSet);
+
+    // umbral: si viene por “nearby”, siempre aceptar.
+    // si viene por candidato, exigir score razonable
+    if (best && (String(best.reason || "").includes("nearby") || best.score >= 70)) {
+      p.refOc = best.numero;
+      p.refOcAuto = true;
+    }
+
+    // coherence después del auto-assign
+    if (typeof buildCoherence === "function") {
+      const c = buildCoherence(p.tipo, p.numero, p.refOc);
+      p.coherence = c;
+    }
+  }
+
+  // actualiza global con OCs del pack (para los siguientes packs)
+  for (const n of packOcNumbers) globalOcSet.add(n);
+
+  return parts;
+}
+
+async function autoFixStagingMissingRefOc() {
+  try {
+    const list = await stageList();
+
+    // Set global de OCs ya conocidas (en staging)
+    const globalOcSet = new Set(
+      (list || [])
+        .filter((x) => String(x.tipo || "").toLowerCase() === "oc")
+        .map((x) => _normalizeOc(x.numero) || _extractOcFromStringSmart(x.parentName))
+        .filter(Boolean)
+    );
+
+    const byParent = _groupBy(list, (x) => String(x.parentName || ""));
+    let updates = 0;
+
+    for (const [parentName, group] of byParent.entries()) {
+      if (updates >= AUTO_MATCH_MAX_UPDATES) break;
+
+      // OCs del pack (mismo parentName)
+      const ocList = _sortByPartIndex(
+        group
+          .filter((x) => String(x.tipo || "").toLowerCase() === "oc")
+          .map((x) => ({
+            id: x.id,
+            partIndex: Number(x.partIndex || 0),
+            numero: _normalizeOc(x.numero) || _extractOcFromStringSmart(x.parentName) || "",
+            parentName,
+          }))
+          .filter((x) => !!x.numero)
+      );
+
+      if (!ocList.length) continue;
+
+      // factura/guía sin refOc
+      const needs = group.filter((x) => {
+        const t = String(x.tipo || "").toLowerCase();
+        if (t !== "factura" && t !== "guia") return false;
+        return !_normalizeOc(x.refOc);
+      });
+
+      for (const s of needs) {
+        if (updates >= AUTO_MATCH_MAX_UPDATES) break;
+
+        const full = await stageGet(s.id);
+        if (!full) continue;
+
+        // elige OC “más cercana” por partIndex dentro del pack
+        const idx = Number(s.partIndex || 0);
+        let best = null;
+        let bestDist = Number.POSITIVE_INFINITY;
+
+        for (const oc of ocList) {
+          const dist = Math.abs(Number(oc.partIndex || 0) - idx);
+          const ocIdx = Number(oc.partIndex || 0);
+          const bestIdx = Number(best?.partIndex || 0);
+
+          // ✅ si empata en distancia, preferir la OC con partIndex MAYOR (la “siguiente”)
+          if (dist < bestDist || (dist === bestDist && ocIdx > bestIdx)) {
+            bestDist = dist;
+            best = oc;
+          }
+
+        }
+
+        // si no hay best, salta
+        if (!best?.numero) continue;
+
+        const newRef = _normalizeOc(best.numero);
+        if (!newRef) continue;
+
+        // guarda el fix
+        const next = {
+          ...full,
+          refOc: newRef,
+          refOcAuto: true,
+        };
+        next.coherence = buildCoherence(next.tipo, next.numero, next.refOc);
+
+        await stagePut(next);
+        globalOcSet.add(newRef);
+        updates++;
+      }
+    }
+  } catch (e) {
+    console.warn("autoFixStagingMissingRefOc:", e);
+  }
+}
+
 
 async function onPickFilesLocal(e) {
   const files = Array.from(e.target.files || []);
@@ -1768,6 +2076,15 @@ async function onPickFilesLocal(e) {
   let processedFiles = 0;
 
   try {
+    // 🔥 global OC set desde staging actual (para match entre packs)
+    const existing = await stageList();
+    const globalOcSet = new Set(
+      (existing || [])
+        .filter(x => String(x.tipo || "").toLowerCase() === "oc")
+        .map(x => _normalizeOc(x.numero) || _extractOcFromStringSmart(x.parentName))
+        .filter(Boolean)
+    );
+
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       localStatus.value = `Procesando ${i + 1}/${files.length}: ${f.name}`;
@@ -1776,6 +2093,13 @@ async function onPickFilesLocal(e) {
       try {
         const { docs: parts } = await splitPdfPack(f);
 
+        // ✅ Auto-match refOc (factura/guia) usando:
+        // - OC cercana por partIndex en el mismo pack
+        // - ocCandidates (si existen)
+        // - parentName (nombre del PDF)
+        _autoAssignRefOcForParts(parts, globalOcSet);
+
+        // Guardar en staging (ya con refOc auto)
         for (const p of parts) {
           const id = uuidv4();
           await stagePut({
@@ -1783,14 +2107,16 @@ async function onPickFilesLocal(e) {
             createdAt: Date.now(),
             tipo: p.tipo,
             numero: p.numero,
+            numeroAuto: !!p.numeroAuto,
             refOc: p.refOc || "",
+            refOcAuto: !!p.refOcAuto,
             ocCandidates: p.ocCandidates || [],
             tipoConfidence: p.tipoConfidence ?? null,
             dteTipo: p.dteTipo ?? null,
             ruts: p.ruts,
             pagesCount: p.pagesCount,
             pageRange: p.pageRange,
-            coherence: p.coherence,
+            coherence: p.coherence || buildCoherence(p.tipo, p.numero, p.refOc),
             parentName: p.parentName,
             partIndex: p.partIndex,
             totalParts: p.totalParts,
@@ -1807,7 +2133,11 @@ async function onPickFilesLocal(e) {
       localProgress.value = Math.round(((i + 1) / files.length) * 100);
     }
 
-    localStatus.value = `Listo  Procesados ${processedFiles}/${files.length}`;
+    localStatus.value = `Listo ✅ Procesados ${processedFiles}/${files.length}`;
+    await loadStaging();
+
+    // ✅ auto-fix extra por si había staging anterior (opcional, pero ayuda)
+    await autoFixStagingMissingRefOc();
     await loadStaging();
 
     if (errors.length) {
@@ -1821,6 +2151,7 @@ async function onPickFilesLocal(e) {
     }, 350);
   }
 }
+
 
 async function removeStage(id) {
   if (selectedStageId.value === id) {

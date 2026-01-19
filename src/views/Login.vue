@@ -285,7 +285,9 @@ const routeFor = (profile) => {
   if (role.includes("recepcion") || role.includes("recepcion oc")) {
     return { name: "RecepcionOC" };
   }
-
+  if (role.includes("cargadordoc") || role.includes("cargador doc")) {
+    return { name: "AdminGestionDocs" };
+  }
 
   if (role.includes("editor") && !role.includes("aprobador")) return { name: "GeneradorOC" };
 

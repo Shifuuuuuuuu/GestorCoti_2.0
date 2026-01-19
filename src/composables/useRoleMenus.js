@@ -11,6 +11,20 @@ const normalize = (s) =>
 
 const normalizeRoleKey = (s) => normalize(s).replace(/\s+/g, "_");
 
+function compactMenu(arr = []) {
+  const out = [];
+  for (const it of arr) {
+    if (it === null) {
+      if (out.length && out[out.length - 1] !== null) out.push(null);
+    } else {
+      out.push(it);
+    }
+  }
+  while (out.length && out[0] === null) out.shift();
+  while (out.length && out[out.length - 1] === null) out.pop();
+  return out;
+}
+
 export function useRoleMenus() {
   const auth = useAuthStore();
 
@@ -43,20 +57,9 @@ export function useRoleMenus() {
     return n === "alejandro candia" || email.value === "acp@xtrememining.cl";
   });
 
-  const isPatricioBustos = computed(() => {
-    const n = normalize(fullName.value);
-    return n === "patricio bustos";
-  });
-
-  const isAxelBasicContreras = computed(() => {
-    const n = normalize(fullName.value);
-    return n === "axel basic contreras";
-  });
-
-  const isGriselleMatus = computed(() => {
-    const n = normalize(fullName.value);
-    return n === "griselle matus";
-  });
+  const isPatricioBustos = computed(() => normalize(fullName.value) === "patricio bustos");
+  const isAxelBasicContreras = computed(() => normalize(fullName.value) === "axel basic contreras");
+  const isGriselleMatus = computed(() => normalize(fullName.value) === "griselle matus");
 
   const isGenerador = computed(() => roleKey.value === "generador_solped");
   const isEditor = computed(() => roleKey.value === "editor");
@@ -73,6 +76,11 @@ export function useRoleMenus() {
     );
   });
 
+  // ✅ CargadorDoc
+  const isCargadorDoc = computed(() => {
+    return roleKey.value === "cargadordoc" || roleKey.value === "cargador_doc";
+  });
+
   const canSeeGenerarCotizacion = computed(() => {
     if (isTallerCMUser.value) return false;
     return (
@@ -82,6 +90,12 @@ export function useRoleMenus() {
       isAxelBasicContreras.value ||
       isGriselleMatus.value
     );
+  });
+
+  // ✅ NUEVO: Editor también puede ver GenerarCotizacion
+  const canSeeGenerarCotizacionEmpresa = computed(() => {
+    // solo en EMPRESA (para evitar duplicado)
+    return isEditor.value || canSeeGenerarCotizacion.value;
   });
 
   const canSeeAprobacionDocs = computed(() => isAdmin.value || isAlejandroCandia.value);
@@ -103,11 +117,22 @@ export function useRoleMenus() {
     { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
   ];
 
+  // ==========================
+  // EMPRESA
+  // ==========================
   const empresaMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
 
+    // CargadorDoc: SOLO en EMPRESA
+    if (isCargadorDoc.value) {
+      return compactMenu([
+        { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
+        { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver" },
+      ]);
+    }
+
     if (isAlejandroCandia.value && !isAdmin.value) {
-      return alejandroUnifiedMenu();
+      return compactMenu(alejandroUnifiedMenu());
     }
 
     let base = [];
@@ -145,8 +170,8 @@ export function useRoleMenus() {
       pushIfMissing(base, { name: "AprobacionOC", text: "Aprobador OC", icon: "bi-patch-check" });
     }
 
-
-    if (canSeeGenerarCotizacion.value) {
+    // ✅ GenerarCotizacion solo en EMPRESA + ahora incluye Editor
+    if (canSeeGenerarCotizacionEmpresa.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
         text: "Generador de cotización",
@@ -162,15 +187,19 @@ export function useRoleMenus() {
       });
     }
 
-    return base;
+    return compactMenu(base);
   });
 
+  // ==========================
+  // TALLER
+  // ==========================
   const tallerMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
 
-    if (isAlejandroCandia.value && !isAdmin.value) {
-      return [];
-    }
+    // CargadorDoc: NO en taller (evita duplicado)
+    if (isCargadorDoc.value) return [];
+
+    if (isAlejandroCandia.value && !isAdmin.value) return [];
 
     let base = [];
 
@@ -225,15 +254,7 @@ export function useRoleMenus() {
       });
     }
 
-
-    if (canSeeGenerarCotizacion.value) {
-      pushIfMissing(base, {
-        name: "GenerarCotizacion",
-        text: "Generador de cotización",
-        icon: "bi bi-clipboard2-minus",
-      });
-    }
-
+    // ❌ NO agregamos GenerarCotizacion aquí (evita duplicado)
     if (canSeeAprobacionDocs.value && !isAdmin.value) {
       pushIfMissing(base, {
         name: "AprobacionDocs",
@@ -242,12 +263,12 @@ export function useRoleMenus() {
       });
     }
 
-    return base;
+    return compactMenu(base);
   });
 
   const adminMenu = computed(() => {
     if (!auth?.isAuthenticated || !isAdmin.value) return [];
-    return [
+    return compactMenu([
       { name: "AdminSolpes", text: "Admin SOLPED", icon: "bi-gear" },
       { name: "AdminOrdenesOC", text: "Admin OC", icon: "bi-gear-wide-connected" },
       null,
@@ -263,15 +284,15 @@ export function useRoleMenus() {
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
       { name: "AiInspectorView", text: "Chatbot", icon: "bi bi-robot" },
       { name: "GenerarCertificados", text: "Generador de certificados", icon: "bi bi-clipboard2" },
-    ];
+    ]);
   });
 
   const recepcionMenu = computed(() => {
     if (!auth?.isAuthenticated || !isRecepcion.value) return [];
-    return [
+    return compactMenu([
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
       { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver" },
-    ];
+    ]);
   });
 
   return {

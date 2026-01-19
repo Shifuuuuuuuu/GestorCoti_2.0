@@ -2,6 +2,7 @@
 <template>
   <div class="container-fluid py-3">
 
+    <!-- Busy overlay -->
     <div v-if="busy.on" class="busy-overlay">
       <div class="busy-card shadow">
         <div class="d-flex align-items-center gap-3">
@@ -36,12 +37,17 @@
         <h4 class="mb-0">Aprobación Documental</h4>
         <small class="text-muted">
           Selecciona un lote → revisa comparativas → aprueba o rechaza (con motivo).
-          <span class="ms-1 fw-semibold">*La firma se realiza en AdminGestionDocs → En Firestore.</span>
         </small>
       </div>
 
       <div class="d-flex gap-2 align-items-center flex-wrap">
-        <select class="form-select" style="min-width: 320px" v-model="selectedLoteId" @change="onChangeLote" :disabled="!hasAnyActiveLote">
+        <select
+          class="form-select"
+          style="min-width: 320px"
+          v-model="selectedLoteId"
+          @change="onChangeLote"
+          :disabled="!hasAnyActiveLote"
+        >
           <option value="" disabled>Selecciona un lote…</option>
           <option v-for="l in lotesActivos" :key="l.id" :value="l.id">
             {{ l.nombre || ("Lote " + l.id.slice(0, 6)) }}
@@ -75,6 +81,7 @@
     </div>
 
     <div v-else class="row g-3 align-items-stretch">
+      <!-- Sidebar comparativas -->
       <div v-if="showSidebar" class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex align-items-center justify-content-between">
@@ -163,6 +170,7 @@
         </div>
       </div>
 
+      <!-- Visor comparativo -->
       <div :class="showSidebar ? 'col-12 col-lg-8' : 'col-12'">
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -206,6 +214,7 @@
               <Transition name="fade-fast" mode="out-in">
                 <div :key="currentCmp.id" class="cmp-block">
                   <div class="row g-2 mb-3">
+                    <!-- LEFT -->
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
                         <div class="viewer-top d-flex justify-content-between align-items-center">
@@ -215,12 +224,17 @@
                               OC {{ currentOc?.numero || ocNumero(currentCmp) || '—' }}
                             </span>
                           </div>
-                          <a v-if="leftUrl" class="btn btn-outline-dark btn-sm" :href="leftUrl" target="_blank">
+                          <a v-if="leftUrl" class="btn btn-outline-dark btn-sm" :href="leftUrl" target="_blank" rel="noopener">
                             <i class="bi bi-box-arrow-up-right"></i>
                           </a>
                         </div>
 
-                        <div v-if="leftUrl" class="viewer-frame">
+                        <div
+                          v-if="leftUrl"
+                          class="viewer-frame viewer-scroll"
+                          ref="leftScrollEl"
+                          @scroll.passive="onViewerScroll('left')"
+                        >
                           <img
                             v-if="leftIsImage"
                             :src="leftUrl"
@@ -229,18 +243,14 @@
                             decoding="async"
                             alt="Documento"
                           />
-                          <iframe
-                            v-else
-                            :key="leftUrl"
-                            :src="leftUrl"
-                            loading="lazy"
-                            style="border:0; width:100%; height:100%"
-                          ></iframe>
+                          <div v-else ref="leftPdfHost" class="pdf-pages"></div>
                         </div>
+
                         <div v-else class="text-muted text-center py-5">Sin documento</div>
                       </div>
                     </div>
 
+                    <!-- RIGHT -->
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
                         <div class="viewer-top d-flex justify-content-between align-items-center">
@@ -250,12 +260,17 @@
                               Ref OC {{ otherDocRefOcText }}
                             </span>
                           </div>
-                          <a v-if="rightUrl" class="btn btn-outline-dark btn-sm" :href="rightUrl" target="_blank">
+                          <a v-if="rightUrl" class="btn btn-outline-dark btn-sm" :href="rightUrl" target="_blank" rel="noopener">
                             <i class="bi bi-box-arrow-up-right"></i>
                           </a>
                         </div>
 
-                        <div v-if="rightUrl" class="viewer-frame">
+                        <div
+                          v-if="rightUrl"
+                          class="viewer-frame viewer-scroll"
+                          ref="rightScrollEl"
+                          @scroll.passive="onViewerScroll('right')"
+                        >
                           <img
                             v-if="rightIsImage"
                             :src="rightUrl"
@@ -264,14 +279,9 @@
                             decoding="async"
                             alt="Documento"
                           />
-                          <iframe
-                            v-else
-                            :key="rightUrl"
-                            :src="rightUrl"
-                            loading="lazy"
-                            style="border:0; width:100%; height:100%"
-                          ></iframe>
+                          <div v-else ref="rightPdfHost" class="pdf-pages"></div>
                         </div>
+
                         <div v-else class="text-muted text-center py-5">Sin documento</div>
                       </div>
                     </div>
@@ -354,7 +364,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import * as bootstrap from "bootstrap";
 
@@ -374,6 +384,13 @@ import {
 } from "firebase/firestore";
 
 import { useAuthStore } from "@/stores/authService";
+
+/* =======================
+   PDF.js (para sync scroll)
+   ======================= */
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
+import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker?url";
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const db = getFirestore();
 const auth = useAuthStore();
@@ -485,11 +502,9 @@ function normEstado(s) {
   return v || "";
 }
 
-
 const lotesActivos = computed(() => {
   return lotes.value.filter((l) => normEstado(l.estado) !== "revision_completada");
 });
-
 
 const hasAnyActiveLote = computed(() => lotesActivos.value.length > 0);
 
@@ -616,9 +631,7 @@ const canApprove = computed(() => {
 
   const oc = currentOc.value;
   const other = currentOther.value;
-  const hasOc = !!oc;
-  const hasOther = !!other;
-  if (!hasOc || !hasOther) return false;
+  if (!oc || !other) return false;
 
   const hasOcFile = !!(oc?.archivo?.url || oc?.archivo?.storagePath || oc?.firmado?.url);
   if (!hasOcFile) return false;
@@ -629,6 +642,141 @@ const canApprove = computed(() => {
 const canReject = computed(() => {
   if (!currentCmp.value) return false;
   return (currentCmp.value.estado || "pendiente") === "pendiente";
+});
+
+/* =======================
+   PDF.js render + scroll sync
+   ======================= */
+const leftPdfHost = ref(null);
+const rightPdfHost = ref(null);
+const leftScrollEl = ref(null);
+const rightScrollEl = ref(null);
+
+let _leftRenderToken = 0;
+let _rightRenderToken = 0;
+
+let _syncLock = false;
+let _rafSync = 0;
+
+function clearPdfHost(host) {
+  if (!host) return;
+  host.innerHTML = "";
+}
+
+async function renderPdfInto(hostEl, url, tokenGetter) {
+  if (!hostEl || !url) return;
+
+  clearPdfHost(hostEl);
+
+  const containerW =
+    hostEl.clientWidth ||
+    hostEl.parentElement?.clientWidth ||
+    820;
+
+  const loadingTask = pdfjsLib.getDocument({ url });
+  const pdf = await loadingTask.promise;
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    if (tokenGetter && tokenGetter() === 0) return;
+
+    const page = await pdf.getPage(pageNum);
+
+    const v0 = page.getViewport({ scale: 1 });
+    const scale = Math.max((containerW - 16) / v0.width, 0.6);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    hostEl.appendChild(canvas);
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+  }
+}
+
+function getScrollRatio(el) {
+  if (!el) return 0;
+  const max = Math.max(1, el.scrollHeight - el.clientHeight);
+  return el.scrollTop / max;
+}
+
+function setScrollRatio(el, ratio) {
+  if (!el) return;
+  const max = Math.max(1, el.scrollHeight - el.clientHeight);
+  el.scrollTop = Math.round(ratio * max);
+}
+
+function onViewerScroll(from) {
+  if (_syncLock) return;
+
+  const src = from === "left" ? leftScrollEl.value : rightScrollEl.value;
+  const dst = from === "left" ? rightScrollEl.value : leftScrollEl.value;
+  if (!src || !dst) return;
+
+  if (_rafSync) cancelAnimationFrame(_rafSync);
+  _rafSync = requestAnimationFrame(() => {
+    _syncLock = true;
+    try {
+      const ratio = getScrollRatio(src);
+      setScrollRatio(dst, ratio);
+    } finally {
+      setTimeout(() => (_syncLock = false), 0);
+    }
+  });
+}
+
+// Render cuando cambian URLs
+watch([leftUrl, leftIsImage], async () => {
+  clearPdfHost(leftPdfHost.value);
+  if (!leftUrl.value || leftIsImage.value) return;
+
+  const t = ++_leftRenderToken;
+  const tokenGetter = () => (_leftRenderToken === t ? 1 : 0);
+
+  await nextTick();
+
+  try {
+    await renderPdfInto(leftPdfHost.value, leftUrl.value, tokenGetter);
+  } catch (e) {
+    console.warn("PDF left render error:", e);
+    clearPdfHost(leftPdfHost.value);
+    if (leftPdfHost.value) {
+      leftPdfHost.value.innerHTML = `<div style="color:#fff;padding:12px;font-size:12px;">
+        No se pudo renderizar el PDF (CORS/URL). Abre con el botón externo arriba.
+      </div>`;
+    }
+  } finally {
+    // reset scroll ambos para que partan alineados
+    if (leftScrollEl.value) leftScrollEl.value.scrollTop = 0;
+    if (rightScrollEl.value) rightScrollEl.value.scrollTop = 0;
+  }
+});
+
+watch([rightUrl, rightIsImage], async () => {
+  clearPdfHost(rightPdfHost.value);
+  if (!rightUrl.value || rightIsImage.value) return;
+
+  const t = ++_rightRenderToken;
+  const tokenGetter = () => (_rightRenderToken === t ? 1 : 0);
+
+  await nextTick();
+
+  try {
+    await renderPdfInto(rightPdfHost.value, rightUrl.value, tokenGetter);
+  } catch (e) {
+    console.warn("PDF right render error:", e);
+    clearPdfHost(rightPdfHost.value);
+    if (rightPdfHost.value) {
+      rightPdfHost.value.innerHTML = `<div style="color:#fff;padding:12px;font-size:12px;">
+        No se pudo renderizar el PDF (CORS/URL). Abre con el botón externo arriba.
+      </div>`;
+    }
+  } finally {
+    if (leftScrollEl.value) leftScrollEl.value.scrollTop = 0;
+    if (rightScrollEl.value) rightScrollEl.value.scrollTop = 0;
+  }
 });
 
 onMounted(() => {
@@ -659,6 +807,9 @@ onBeforeUnmount(() => {
   if (unsubLotes) unsubLotes();
   if (unsubDocs) unsubDocs();
   if (unsubCmps) unsubCmps();
+  if (_rafSync) cancelAnimationFrame(_rafSync);
+  clearPdfHost(leftPdfHost.value);
+  clearPdfHost(rightPdfHost.value);
 });
 
 function onChangeLote() {
@@ -1085,11 +1236,29 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
   border-bottom: 1px solid rgba(0,0,0,.08);
   background: rgba(0,0,0,.02);
 }
+
+/* IMPORTANTE: ahora el frame es scrolleable (sync) */
 .viewer-frame {
   width: 100%;
   height: 88vh;
   max-height: 88vh;
   background: #111;
+}
+.viewer-scroll{
+  overflow: auto;
+}
+
+.pdf-pages{
+  padding: 8px 8px 18px;
+  background: #111;
+}
+.pdf-pages canvas{
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto 12px;
+  background: #fff;
+  border-radius: 8px;
 }
 
 .viewer-img{

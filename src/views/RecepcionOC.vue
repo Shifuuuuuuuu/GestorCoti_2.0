@@ -20,7 +20,7 @@
       <div>
         <h4 class="mb-0">Recepción OC Casa Matriz</h4>
         <small class="text-muted">
-          OCs desde <b>Empresa</b> (ordenes_oc) y <b>Taller</b> (ordenes_oc_taller). Filtra por estatus y revisa ítems.
+          OCs desde <b>Empresa</b>y <b>Taller</b>. Filtra por estatus y revisa ítems.
         </small>
       </div>
 
@@ -38,6 +38,7 @@
           <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
         </select>
 
+        <!-- pageSize SOLO afecta el “listado normal”. La búsqueda trae resultados aunque no estén en el pageSize -->
         <select v-model.number="pageSize" class="form-select form-select-sm" style="width: 120px" title="Cantidad">
           <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
         </select>
@@ -55,10 +56,14 @@
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <div class="fw-semibold">
-              Lista OCs <span class="text-muted">({{ filteredList.length }})</span>
+              Lista OCs
+              <span class="text-muted">({{ filteredList.length }})</span>
+              <span v-if="isSearchMode" class="badge text-bg-info text-dark ms-2">
+                Buscando (servidor)
+              </span>
             </div>
 
-            <!-- ✅ Buscador al lado de "Lista OCs" -->
+            <!-- Buscador -->
             <div class="d-flex align-items-center gap-2" style="min-width: 220px; max-width: 360px; width: 100%;">
               <div class="input-group input-group-sm">
                 <span class="input-group-text">
@@ -69,7 +74,7 @@
                   v-model="searchOc"
                   type="text"
                   class="form-control"
-                  placeholder="Buscar OC / SOLPED / responsable…"
+                  placeholder="Buscar: OC 63057 / 63057 / DIMACOT / PDF…"
                   @keyup.enter.prevent="onSearchEnter"
                 />
                 <button
@@ -96,6 +101,13 @@
             </div>
 
             <div v-else>
+              <div v-if="isSearchMode && searchingServer" class="px-2 py-2">
+                <div class="d-flex align-items-center gap-2 small text-muted">
+                  <span class="spinner-border spinner-border-sm text-danger"></span>
+                  Buscando…
+                </div>
+              </div>
+
               <div v-if="filteredList.length===0" class="text-muted text-center py-4">
                 <template v-if="!searchOc">
                   No hay OCs con estatus <b>{{ statusFiltro }}</b>.
@@ -103,7 +115,7 @@
                 <template v-else>
                   No hay resultados para <b>"{{ searchOc }}"</b>.
                   <div class="small mt-2">
-                    Tip: prueba con <b>N° OC</b>, <b>SOLPED</b>, <b>responsable</b> o <b>centro</b>.
+                    Tip: prueba con <b>OC 63353</b>, <b>63353</b>, <b>DIMACOT</b> o <b>OC 63353 DIMACOT.pdf</b>.
                   </div>
                 </template>
               </div>
@@ -113,7 +125,7 @@
                   v-for="o in filteredList"
                   :key="o.id"
                   type="button"
-                  class="list-group-item list-group-item-action"
+                  class="list-group-item list-group-item-action position-relative"
                   :class="{active: selectedId===o.id}"
                   @click="selectOc(o)"
                 >
@@ -124,12 +136,15 @@
                         <span class="badge text-bg-secondary" v-if="o.empresa">{{ o.empresa }}</span>
                         <span class="badge text-bg-dark">{{ (o.estatus||'').toString() }}</span>
                       </div>
+
                       <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px;">
                         {{ o.archivoOC?.nombre || o.archivoOC?.name || o.nombre || "Orden de compra" }}
                       </div>
+
                       <small class="text-muted d-block text-truncate" style="max-width: 320px;">
                         Centro: {{ o.centroCostoNombre || o.centroCostoTexto || o.centroCosto || "—" }}
                       </small>
+
                       <small class="text-muted d-block" v-if="o.numero_solped || o.numero_solpe">
                         SOLPED: {{ o.numero_solped || o.numero_solpe }}
                       </small>
@@ -141,10 +156,6 @@
                     </div>
                   </div>
                 </button>
-              </div>
-
-              <div class="small text-muted px-2 pt-2">
-                Nota: si Firestore solicita índice por el filtro + orden, crea el índice sugerido en el link que muestra el error.
               </div>
             </div>
           </div>
@@ -169,6 +180,7 @@
                 class="btn btn-outline-dark btn-sm"
                 :href="currentOc.archivoOC.url"
                 target="_blank"
+                rel="noopener"
               >
                 <i class="bi bi-file-earmark-pdf me-1"></i>Ver OC
               </a>
@@ -219,6 +231,7 @@
                           class="btn btn-outline-secondary btn-sm text-start"
                           :href="a.url"
                           target="_blank"
+                          rel="noopener"
                         >
                           <i class="bi bi-paperclip me-2"></i>{{ a.nombre || a.name || "Archivo" }}
                         </a>
@@ -232,7 +245,7 @@
                   <div class="border rounded p-3">
                     <div class="fw-semibold">Estado automático por “Recibido”</div>
                     <div class="small text-muted">
-                      Regla: <b>0</b> → No llegó · <b>1..(cotizado-1)</b> → Parcial · <b>cotizado</b> → Completa (se limita al cotizado).
+                      Regla: <b>0</b> → No llegó · <b>1..(cotizado-1)</b> → Parcial · <b>cotizado</b> → Completa.
                     </div>
 
                     <div v-if="itemsUI.length===0" class="mt-3">
@@ -343,7 +356,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import {
-  getFirestore,
   collection,
   query,
   where,
@@ -355,11 +367,14 @@ import {
   addDoc,
   serverTimestamp,
   getDocs,
+  getDoc,
   arrayUnion,
+  startAt,
+  endAt,
 } from "firebase/firestore";
+import { db } from "../stores/firebase";
 import { useAuthStore } from "../stores/authService";
 
-const db = getFirestore();
 const auth = useAuthStore();
 
 const actorName = computed(
@@ -380,6 +395,7 @@ const ESTADO_OK      = "Recepcion completa en casa matriz";
 const COL_EMPRESA = "ordenes_oc";
 const COL_TALLER  = "ordenes_oc_taller";
 
+// Opciones UI
 const statusOptions = [ESTADO_ENVIADA, ESTADO_PARTIAL, ESTADO_OK];
 const statusFiltro = ref(ESTADO_ENVIADA);
 
@@ -398,9 +414,22 @@ const listTaller = ref([]);
 
 const selectedId = ref("");
 
-// ✅ Buscador
+// ===== Buscador =====
 const searchOc = ref("");
 const searchInputEl = ref(null);
+
+// ===== Search server =====
+const searchingServer = ref(false);
+const serverEmpresa = ref([]);
+const serverTaller = ref([]);
+
+// Cache de búsqueda
+const SEARCH_CACHE_TTL_MS = 90_000;
+const _searchCache = ref({ key: "", ts: 0, empresa: [], taller: [] });
+
+// límites
+const SEARCH_LIMIT = 120;
+const SCAN_LIMIT = 900;
 
 function normalizeText(s) {
   return String(s || "")
@@ -410,38 +439,39 @@ function normalizeText(s) {
     .toLowerCase();
 }
 
+function extractDigits(s) {
+  const m = String(s || "").match(/\d{2,}/g);
+  if (!m || !m.length) return "";
+  m.sort((a, b) => b.length - a.length);
+  return m[0] || "";
+}
+
+function stripExt(s) {
+  return String(s || "").replace(/\.(pdf|png|jpg|jpeg)$/i, "").trim();
+}
+
+function ensurePdfName(name) {
+  const n = String(name || "").trim();
+  if (!n) return "";
+  return /\.pdf$/i.test(n) ? n : `${n}.pdf`;
+}
+
 function clearSearch() {
   searchOc.value = "";
   nextTick(() => searchInputEl.value?.focus?.());
 }
 
+const isSearchMode = computed(() => normalizeText(searchOc.value).length >= 2);
+
 function onSearchEnter() {
-  const q = normalizeText(searchOc.value);
-  if (!q) return;
-
-  const list = filteredList.value;
-
-  // 1) si hay match exacto por número OC, lo seleccionamos
-  const exact = list.find((o) => normalizeText(ocNumero(o)) === q);
-  if (exact) {
-    selectOc(exact);
-    return;
-  }
-
-  // 2) si hay solo 1 resultado, lo seleccionamos
-  if (list.length === 1) {
-    selectOc(list[0]);
-  }
+  if (filteredList.value.length === 1) selectOc(filteredList.value[0]);
 }
 
-// Colección actual
+// ===== Colección actual =====
 const currentCollection = computed(() => (source.value === "empresa" ? COL_EMPRESA : COL_TALLER));
 const currentCollectionLabel = computed(() => (source.value === "empresa" ? "Empresa" : "Taller"));
 
-let unsubEmpresa = null;
-let unsubTaller = null;
-
-// ===== Helpers =====
+// ===== Helpers UI =====
 function safeDateText(ts) {
   try {
     if (!ts) return "";
@@ -456,8 +486,6 @@ function safeDateText(ts) {
 function normalizeDocForUI(docSnap) {
   const data = docSnap.data() || {};
   const docId = docSnap.id;
-
-  // ¡OJO!: aquí NO dejamos que el campo 'id' numérico pise el docId real
   const numericId = data.id;
 
   return {
@@ -470,26 +498,23 @@ function normalizeDocForUI(docSnap) {
 }
 
 function ocNumero(o) {
-  // Prioridades: campo numero → idNumero (numérico) → docId corto
+  const idNum = o?.idNumero;
+  if (typeof idNum === "number") return String(idNum);
+  if (typeof idNum === "string" && idNum.trim()) return idNum.trim();
+
   const n = o?.numero;
   if (n != null && String(n).trim() !== "") return String(n).trim();
 
-  const idNum = o?.idNumero;
-  if (typeof idNum === "number") return String(idNum);
-
-  const fromSolped = o?.numero_oc;
-  if (fromSolped != null && String(fromSolped).trim() !== "") return String(fromSolped).trim();
+  const from = o?.numero_oc;
+  if (from != null && String(from).trim() !== "") return String(from).trim();
 
   return (o?.id || "").slice(0, 6);
 }
 
-function fmtNum(n) {
-  const v = Number(n ?? 0);
-  if (!Number.isFinite(v)) return "0";
-  return String(v);
-}
+// ===== Subscriptions (listado normal) =====
+let unsubEmpresa = null;
+let unsubTaller = null;
 
-// ===== Subscriptions =====
 function stopSubs() {
   if (unsubEmpresa) { unsubEmpresa(); unsubEmpresa = null; }
   if (unsubTaller) { unsubTaller(); unsubTaller = null; }
@@ -500,14 +525,14 @@ function subscribeAll() {
   loadingList.value = true;
 
   const qEmpresa = query(
-    collection(db, "ordenes_oc"),
+    collection(db, COL_EMPRESA),
     where("estatus", "==", statusFiltro.value),
     orderBy("fechaSubida", "desc"),
     limit(pageSize.value)
   );
 
   const qTaller = query(
-    collection(db, "ordenes_oc_taller"),
+    collection(db, COL_TALLER),
     where("estatus", "==", statusFiltro.value),
     orderBy("fechaSubida", "desc"),
     limit(pageSize.value)
@@ -542,66 +567,358 @@ function subscribeAll() {
 
 function reload() {
   subscribeAll();
+  if (isSearchMode.value) runServerSearchDebounced(true);
 }
 
 function autoPickFirstIfMissing() {
-  // Solo autopick si NO estás buscando (para no “saltarte” mientras escribes)
   if (searchOc.value) return;
 
-  if (selectedId.value && baseList.value.some(x => x.id === selectedId.value)) return;
-  const first = baseList.value[0];
+  const base = baseList.value;
+  if (selectedId.value && base.some(x => x.id === selectedId.value)) return;
+
+  const first = base[0];
   selectedId.value = first?.id || "";
 }
 
-onMounted(() => {
-  subscribeAll();
-});
+onMounted(() => subscribeAll());
+onBeforeUnmount(() => stopSubs());
 
-onBeforeUnmount(() => {
-  stopSubs();
-});
-
-// Re-suscribirse cuando cambian filtros (menos lecturas)
 watch([statusFiltro, pageSize], () => {
   selectedId.value = "";
   subscribeAll();
+  if (isSearchMode.value) runServerSearchDebounced(true);
 });
+
+// ===== Server Search =====
+let _searchTimer = null;
+let _searchToken = 0;
+
+function runServerSearchDebounced(immediate = false) {
+  if (_searchTimer) clearTimeout(_searchTimer);
+
+  if (immediate) {
+    runServerSearch().catch(console.error);
+    return;
+  }
+
+  _searchTimer = setTimeout(() => {
+    runServerSearch().catch(console.error);
+  }, 320);
+}
+
+watch(searchOc, () => {
+  const q = normalizeText(searchOc.value);
+  if (!q) {
+    serverEmpresa.value = [];
+    serverTaller.value = [];
+    return;
+  }
+  runServerSearchDebounced(false);
+});
+
+async function safeTryQuery(q) {
+  try {
+    return await getDocs(q);
+  } catch (e) {
+    console.warn("Query ignorada (probable índice faltante):", e?.message || e);
+    return null;
+  }
+}
+
+function buildArchivoNombreVariants(raw) {
+  const out = new Set();
+  const r = String(raw || "").trim();
+  if (!r) return [];
+
+  const base = stripExt(r);
+  const norm = normalizeText(base);
+  const digits = extractDigits(norm) || extractDigits(r);
+
+  out.add(r);
+  out.add(base);
+  out.add(ensurePdfName(base));
+  out.add(ensurePdfName(r));
+
+  if (digits) {
+    out.add(digits);
+    out.add(`OC ${digits}`);
+    out.add(`OC ${digits}.pdf`);
+
+    if (norm.includes(digits)) {
+      const tail = base
+        .replace(new RegExp(`\\b${digits}\\b`, "i"), "")
+        .replace(/^oc\s*/i, "")
+        .trim();
+
+      if (tail) {
+        out.add(`OC ${digits} ${tail}`);
+        out.add(`OC ${digits} ${tail}.pdf`);
+      }
+    }
+  }
+
+  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 14);
+}
+
+function buildPrefixCandidates(raw) {
+  const out = new Set();
+  const r = String(raw || "").trim();
+  if (!r) return [];
+
+  const base = stripExt(r).trim();
+  out.add(base);
+  out.add(base.toUpperCase());
+  out.add(base.toLowerCase());
+
+  const digits = extractDigits(base);
+  if (digits) {
+    out.add(`OC ${digits}`);
+    out.add(`OC ${digits}`.toUpperCase());
+    out.add(`oc ${digits}`.toLowerCase());
+  }
+
+  if (base.length >= 3) out.add(base);
+
+  return Array.from(out).map(x => String(x).trim()).filter(x => x.length >= 2).slice(0, 10);
+}
+
+function docMatchesContains(docData, qNorm) {
+  const blob = normalizeText([
+    docData?.archivoOC?.nombre,
+    docData?.archivoOC?.name,
+    docData?.nombre,
+    ocNumero(docData),
+    docData?.idNumero,
+    docData?.numero_oc,
+    docData?.numero,
+    docData?.numero_solped,
+    docData?.numero_solpe,
+    docData?.solpedId,
+    docData?.empresa,
+    docData?.estatus,
+    docData?.responsable,
+    docData?.aprobadoPor,
+    docData?.centroCostoNombre,
+    docData?.centroCostoTexto,
+    docData?.centroCosto,
+    docData?.numero_contrato,
+    docData?.numero_interno,
+  ].filter(Boolean).join(" | "));
+
+  return blob.includes(qNorm);
+}
+
+async function searchInCollection(colName, termRaw, status) {
+  const term = String(termRaw || "").trim();
+  const qNorm = normalizeText(term);
+  if (!qNorm) return [];
+
+  const digits = extractDigits(term);
+  const hasNum = !!digits;
+
+  const merged = new Map();
+
+  const addSnap = (snap) => {
+    if (!snap?.docs?.length) return;
+    snap.docs.forEach(d => {
+      if (!merged.has(d.id)) merged.set(d.id, normalizeDocForUI(d));
+    });
+  };
+
+  const nameVariants = buildArchivoNombreVariants(term);
+  for (const v of nameVariants) {
+    addSnap(await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      where("archivoOC.nombre", "==", v),
+      limit(SEARCH_LIMIT)
+    )));
+    addSnap(await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      where("archivoOC.name", "==", v),
+      limit(SEARCH_LIMIT)
+    )));
+  }
+
+  if (hasNum) {
+    const n = Number(digits);
+
+    addSnap(await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      where("id", "==", n),
+      limit(SEARCH_LIMIT)
+    )));
+    addSnap(await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      where("id", "==", digits),
+      limit(SEARCH_LIMIT)
+    )));
+
+    addSnap(await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      where("numero_oc", "==", n),
+      limit(SEARCH_LIMIT)
+    )));
+    addSnap(await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      where("numero_oc", "==", digits),
+      limit(SEARCH_LIMIT)
+    )));
+  }
+
+  const prefixes = buildPrefixCandidates(term);
+  for (const pfx of prefixes) {
+    const snap = await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      orderBy("archivoOC.nombre"),
+      startAt(pfx),
+      endAt(pfx + "\uf8ff"),
+      limit(SEARCH_LIMIT)
+    ));
+    addSnap(snap);
+  }
+
+  if (merged.size < 6) {
+    let snap = await safeTryQuery(query(
+      collection(db, colName),
+      where("estatus", "==", status),
+      orderBy("fechaSubida", "desc"),
+      limit(SCAN_LIMIT)
+    ));
+
+    if (!snap) {
+      snap = await safeTryQuery(query(
+        collection(db, colName),
+        where("estatus", "==", status),
+        limit(SCAN_LIMIT)
+      ));
+    }
+
+    if (snap?.docs?.length) {
+      for (const d of snap.docs) {
+        if (merged.has(d.id)) continue;
+        const normed = normalizeDocForUI(d);
+        if (docMatchesContains(normed, qNorm)) {
+          merged.set(d.id, normed);
+          if (merged.size >= SEARCH_LIMIT) break;
+        }
+      }
+    }
+  }
+
+  const arr = Array.from(merged.values());
+  arr.sort((a, b) => {
+    const ta = (a?.fechaSubida?.toMillis?.() ?? 0) || (a?.createdAt?.toMillis?.() ?? 0) || 0;
+    const tb = (b?.fechaSubida?.toMillis?.() ?? 0) || (b?.createdAt?.toMillis?.() ?? 0) || 0;
+    return tb - ta;
+  });
+
+  return arr;
+}
+
+async function runServerSearch() {
+  const q = normalizeText(searchOc.value);
+  if (!q || q.length < 2) {
+    serverEmpresa.value = [];
+    serverTaller.value = [];
+    return;
+  }
+
+  const token = ++_searchToken;
+
+  const cacheKey = `${statusFiltro.value}|${q}`;
+  const now = Date.now();
+  const fresh =
+    (_searchCache.value.key === cacheKey) &&
+    ((now - (_searchCache.value.ts || 0)) < SEARCH_CACHE_TTL_MS);
+
+  if (fresh) {
+    serverEmpresa.value = _searchCache.value.empresa || [];
+    serverTaller.value = _searchCache.value.taller || [];
+    // 👇 igual aplica auto-switch aunque venga cache
+    autoSwitchSourceIfNeeded(serverEmpresa.value, serverTaller.value);
+    ensureSelectionValidForCurrentBase();
+    return;
+  }
+
+  searchingServer.value = true;
+  try {
+    const [emp, tal] = await Promise.all([
+      searchInCollection(COL_EMPRESA, searchOc.value, statusFiltro.value),
+      searchInCollection(COL_TALLER, searchOc.value, statusFiltro.value),
+    ]);
+
+    if (token !== _searchToken) return;
+
+    serverEmpresa.value = emp;
+    serverTaller.value = tal;
+
+    _searchCache.value = {
+      key: cacheKey,
+      ts: now,
+      empresa: emp,
+      taller: tal,
+    };
+
+    // ✅ AUTO-CAMBIO: si en la pestaña actual no hay resultados, pero en la otra sí, se cambia solo
+    autoSwitchSourceIfNeeded(emp, tal);
+
+    // ✅ asegurar selección válida para la pestaña actual (y cargar recepción)
+    ensureSelectionValidForCurrentBase();
+  } finally {
+    if (token === _searchToken) searchingServer.value = false;
+  }
+}
+
+/** ✅ Cambia source automáticamente si solo hay resultados en el otro */
+function autoSwitchSourceIfNeeded(empArr, talArr) {
+  if (!isSearchMode.value) return;
+
+  const empCount = Array.isArray(empArr) ? empArr.length : 0;
+  const talCount = Array.isArray(talArr) ? talArr.length : 0;
+
+  if (source.value === "empresa" && empCount === 0 && talCount > 0) {
+    source.value = "taller";
+  } else if (source.value === "taller" && talCount === 0 && empCount > 0) {
+    source.value = "empresa";
+  }
+}
+
+/** ✅ Si selectedId no existe en baseList actual, toma el primero */
+function ensureSelectionValidForCurrentBase() {
+  const base = baseList.value;
+  if (!Array.isArray(base) || base.length === 0) {
+    selectedId.value = "";
+    return;
+  }
+
+  if (!selectedId.value || !base.some(x => x.id === selectedId.value)) {
+    selectedId.value = base[0].id;
+  }
+
+  // cargar recepcion (por si cambió de doc)
+  nextTick(() => loadRecepcionFromExisting());
+}
 
 // ===== Lista base según source =====
 const baseList = computed(() => {
-  return source.value === "empresa" ? listEmpresa.value : listTaller.value;
+  const normal = source.value === "empresa" ? listEmpresa.value : listTaller.value;
+  const server = source.value === "empresa" ? serverEmpresa.value : serverTaller.value;
+  return isSearchMode.value ? server : normal;
 });
 
-// ✅ Lista filtrada por buscador
 const filteredList = computed(() => {
-  const q = normalizeText(searchOc.value);
-  if (!q) return baseList.value;
-
-  return baseList.value.filter((o) => {
-    const blob = normalizeText([
-      ocNumero(o),
-      o?.numero_oc,
-      o?.idNumero,
-      o?.id,
-      o?.empresa,
-      o?.estatus,
-      o?.responsable,
-      o?.aprobadoPor,
-      o?.centroCostoNombre,
-      o?.centroCostoTexto,
-      o?.centroCosto,
-      o?.numero_solped,
-      o?.numero_solpe,
-      o?.archivoOC?.nombre,
-      o?.archivoOC?.name,
-      o?.nombre,
-    ].filter(Boolean).join(" | "));
-
-    return blob.includes(q);
-  });
+  const qn = normalizeText(searchOc.value);
+  if (!qn) return baseList.value;
+  return baseList.value.filter((o) => docMatchesContains(o, qn));
 });
 
-// ✅ Mantener el detalle aunque el filtro de búsqueda oculte la OC en la lista
 const currentOc = computed(() => baseList.value.find(x => x.id === selectedId.value) || null);
 
 function selectOc(o) {
@@ -610,12 +927,11 @@ function selectOc(o) {
 }
 
 // ===== Items / Recepción =====
-const recepcionQty = ref({}); // { [key]: number }
-const qtyRefs = ref(new Map()); // refs de inputs por key
+const recepcionQty = ref({});
+const qtyRefs = ref(new Map());
 
 function setQtyRef(key, el) {
-  if (!key) return;
-  if (!el) return;
+  if (!key || !el) return;
   qtyRefs.value.set(key, el);
 }
 
@@ -634,7 +950,6 @@ function clamp(n, min, max) {
 function itemEstado(key, base) {
   const qty = getQty(key);
   const b = Number(base ?? 0);
-
   if (qty <= 0) return "no_llego";
   if (qty >= b) return "completa";
   return "parcial";
@@ -650,6 +965,11 @@ function estadoBadge(s) {
   if (s === "completa") return "text-bg-success";
   if (s === "parcial") return "text-bg-warning text-dark";
   return "text-bg-danger";
+}
+
+function fmtNum(n) {
+  const v = Number(n ?? 0);
+  return Number.isFinite(v) ? String(v) : "0";
 }
 
 const itemsUI = computed(() => {
@@ -716,12 +1036,11 @@ function advanceQty(currentKey) {
     if (el && typeof el.focus === "function") {
       el.focus();
       el.select?.();
-      return;
     }
   }
 }
 
-// ===== Cargar recepción previa si existe =====
+// ===== Recepción previa =====
 function loadRecepcionFromExisting() {
   const oc = currentOc.value;
   if (!oc) return;
@@ -759,7 +1078,6 @@ function countEstado(st) {
 
 function calcFinalEstatusFromItems() {
   if (itemsUI.value.length === 0) return currentOc.value?.estatus || ESTADO_ENVIADA;
-
   const allComplete = itemsUI.value.every(it => itemEstado(it.key, it.qtyBase) === "completa");
   return allComplete ? ESTADO_OK : ESTADO_PARTIAL;
 }
@@ -792,7 +1110,6 @@ function buildRecepcionPayload() {
   };
 }
 
-// ===== Historial OC (array) =====
 function buildHistorialEntry(estatus, comentario = "") {
   return {
     estatus: String(estatus || ""),
@@ -802,14 +1119,13 @@ function buildHistorialEntry(estatus, comentario = "") {
   };
 }
 
-// ===== SOLPED: actualizar estatus + historialEstados =====
+// ===== SOLPED trazabilidad =====
 async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   const solpedStatus = (nuevoEstatus === ESTADO_OK)
     ? "Pedido en Casa matriz"
     : "Parcial, Pedido en Casa matriz";
 
-  const COL_TALLER_LOCAL = "ordenes_oc_taller";
-  const isTaller = (String(colName || "") === COL_TALLER_LOCAL);
+  const isTaller = (String(colName || "") === COL_TALLER);
   const solpedCollection = isTaller ? "solpes_taller" : "solpes";
 
   let solpedRef = null;
@@ -818,10 +1134,7 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   if (solpedId) {
     const candidate = doc(db, solpedCollection, String(solpedId));
     try {
-      // Nota: tu código original tenía getDocs(candidate) (eso no existe para docRef),
-      // lo dejo igual que venía para no romper tu estructura.
-      // Si quieres te lo corrijo con getDoc() en el siguiente paso.
-      const snap = await getDocs(candidate);
+      const snap = await getDoc(candidate);
       if (snap.exists()) solpedRef = candidate;
     } catch (e) {
       console.warn("No se pudo verificar solpedId:", e);
@@ -865,7 +1178,6 @@ async function finalizeRecepcion() {
 
   const colName = currentCollection.value;
   const ocDoc = currentOc.value;
-
   const nuevoEstatus = calcFinalEstatusFromItems();
 
   try {
@@ -888,7 +1200,6 @@ async function finalizeRecepcion() {
 
     await updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName);
 
-    // avanzar a la siguiente OC (según la lista filtrada actual si estás buscando, si no, base)
     const arr = filteredList.value.length ? filteredList.value : baseList.value;
     const idx = arr.findIndex(x => x.id === ocDoc.id);
     const next = idx >= 0 ? (arr[idx + 1] || arr[0]) : arr[0];
@@ -950,7 +1261,6 @@ async function updateStatusOnly() {
 
 .list-wrap { max-height: 72vh; overflow: auto; }
 
-/* Lista: selección más visible (sin el azul oscuro por defecto) */
 .list-group-item.active {
   color: #111 !important;
   background: rgba(var(--bs-info-rgb), .14) !important;
@@ -967,9 +1277,7 @@ async function updateStatusOnly() {
   width: 6px;
   background: var(--bs-primary);
 }
-.list-group-item:hover {
-  background: rgba(var(--bs-primary-rgb), .08);
-}
+.list-group-item:hover { background: rgba(var(--bs-primary-rgb), .08); }
 
 .busy-overlay {
   position: fixed;
