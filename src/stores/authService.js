@@ -13,6 +13,17 @@ import {
 import { doc, onSnapshot } from "firebase/firestore";
 import { useUIStore } from "@/stores/ui";
 
+function normalizeMenuPerms(profile) {
+  if (!profile || typeof profile !== "object") return null;
+
+  const mp = profile.menuPerms || {};
+  const allow = Array.isArray(mp.allow) ? mp.allow.map(String) : [];
+  const deny = Array.isArray(mp.deny) ? mp.deny.map(String) : [];
+
+  profile.menuPerms = { allow, deny };
+  return profile;
+}
+
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     user: null,
@@ -50,12 +61,18 @@ export const useAuthStore = defineStore("auth", {
 
           if (u?.uid) {
             const dref = doc(db, "Usuarios", u.uid);
+
             this._unsubProfile = onSnapshot(
               dref,
               (snap) => {
-                this.profile = snap.exists() ? snap.data() : null;
+                const data = snap.exists() ? snap.data() : null;
+                this.profile = normalizeMenuPerms(data);
 
-                try { ui.loadFromProfile(this.profile); } catch (e){console.error(e)}
+                try {
+                  ui.loadFromProfile(this.profile);
+                } catch (e) {
+                  console.error(e);
+                }
 
                 this.initializing = false;
                 resolve(u);

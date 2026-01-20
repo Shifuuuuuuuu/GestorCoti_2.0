@@ -31,12 +31,13 @@ export function useRoleMenus() {
   const fullName = computed(() =>
     (auth?.profile?.fullName || auth?.user?.displayName || "").trim()
   );
-
   const email = computed(() => (auth?.user?.email || "").trim().toLowerCase());
 
   const role = computed(() => (auth?.profile?.role || auth?.role || "").trim());
   const roleKey = computed(() => normalizeRoleKey(role.value));
-
+  const menuPerms = computed(() => auth?.profile?.menuPerms || { allow: [], deny: [] });
+  const allowedSet = computed(() => new Set((menuPerms.value.allow || []).map(String)));
+  const deniedSet = computed(() => new Set((menuPerms.value.deny || []).map(String)));
   const isTallerCMUser = computed(() => {
     const n = normalize(fullName.value);
     return n === "taller cm" || email.value === "tallercm@xtremeservicios.cl";
@@ -60,6 +61,34 @@ export function useRoleMenus() {
   const isPatricioBustos = computed(() => normalize(fullName.value) === "patricio bustos");
   const isAxelBasicContreras = computed(() => normalize(fullName.value) === "axel basic contreras");
   const isGriselleMatus = computed(() => normalize(fullName.value) === "griselle matus");
+  const isMariaJoseBallesteros = computed(() => {
+    const n = normalize(fullName.value);
+    return (
+      n === "maria jose ballesteros" ||
+      n === "maría jose ballesteros" ||
+      email.value === "mballesteros@xtrememining.cl" ||
+      email.value === "mjb@xtrememining.cl"
+    );
+  });
+
+  function isAllowedRouteName(name) {
+    const n = String(name || "");
+    if (!n) return false;
+    if (n === "GenerarCotizacion" && isTallerCMUser.value) return false;
+    const hasAllow = (menuPerms.value.allow || []).length > 0;
+    if (hasAllow && !allowedSet.value.has(n)) return false;
+    if (deniedSet.value.has(n)) return false;
+
+    return true;
+  }
+
+  function filterMenuByPerms(menuArr) {
+    const filtered = (menuArr || []).filter((it) => {
+      if (it === null) return true;
+      return isAllowedRouteName(it.name);
+    });
+    return compactMenu(filtered);
+  }
 
   const isGenerador = computed(() => roleKey.value === "generador_solped");
   const isEditor = computed(() => roleKey.value === "editor");
@@ -75,12 +104,9 @@ export function useRoleMenus() {
       normalizeRoleKey(role.value) === "recepcion_oc"
     );
   });
-
-  // ✅ CargadorDoc
   const isCargadorDoc = computed(() => {
     return roleKey.value === "cargadordoc" || roleKey.value === "cargador_doc";
   });
-
   const canSeeGenerarCotizacion = computed(() => {
     if (isTallerCMUser.value) return false;
     return (
@@ -92,13 +118,19 @@ export function useRoleMenus() {
     );
   });
 
-  // ✅ NUEVO: Editor también puede ver GenerarCotizacion
   const canSeeGenerarCotizacionEmpresa = computed(() => {
-    // solo en EMPRESA (para evitar duplicado)
-    return isEditor.value || canSeeGenerarCotizacion.value;
+    if (isTallerCMUser.value) return false;
+    return isEditor.value || isGenerador.value || canSeeGenerarCotizacion.value;
   });
 
   const canSeeAprobacionDocs = computed(() => isAdmin.value || isAlejandroCandia.value);
+  const canSeeAprobacionOC = computed(() => {
+    return isAdmin.value || isGuillermo.value || isAprobadorEditor.value || isMariaJoseBallesteros.value;
+  });
+
+  const canSeeAprobacionOCTaller = computed(() => {
+    return isAdmin.value || isGuillermo.value || isAprobadorEditor.value || isMariaJoseBallesteros.value;
+  });
 
   const existsByName = (arr, name) => arr.some((it) => it && it.name === name);
   const pushIfMissing = (arr, item) => {
@@ -117,22 +149,17 @@ export function useRoleMenus() {
     { name: "HistorialOCTaller", text: "Historial Cotizaciones (Taller)", icon: "bi-journal-text" },
   ];
 
-  // ==========================
-  // EMPRESA
-  // ==========================
   const empresaMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
-
-    // CargadorDoc: SOLO en EMPRESA
     if (isCargadorDoc.value) {
-      return compactMenu([
+      return filterMenuByPerms([
         { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
         { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver" },
       ]);
     }
 
     if (isAlejandroCandia.value && !isAdmin.value) {
-      return compactMenu(alejandroUnifiedMenu());
+      return filterMenuByPerms(alejandroUnifiedMenu());
     }
 
     let base = [];
@@ -165,12 +192,9 @@ export function useRoleMenus() {
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
       ];
     }
-
-    if (isGuillermo.value) {
-      pushIfMissing(base, { name: "AprobacionOC", text: "Aprobador OC", icon: "bi-patch-check" });
+    if (canSeeAprobacionOC.value) {
+      pushIfMissing(base, { name: "AprobacionOC", text: "Aprobador Cotización", icon: "bi-patch-check" });
     }
-
-    // ✅ GenerarCotizacion solo en EMPRESA + ahora incluye Editor
     if (canSeeGenerarCotizacionEmpresa.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
@@ -187,18 +211,11 @@ export function useRoleMenus() {
       });
     }
 
-    return compactMenu(base);
+    return filterMenuByPerms(base);
   });
-
-  // ==========================
-  // TALLER
-  // ==========================
   const tallerMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
-
-    // CargadorDoc: NO en taller (evita duplicado)
     if (isCargadorDoc.value) return [];
-
     if (isAlejandroCandia.value && !isAdmin.value) return [];
 
     let base = [];
@@ -237,13 +254,8 @@ export function useRoleMenus() {
         { name: "AiInspectorView", text: "Chatbot", icon: "bi bi-robot" },
       ];
     }
-
-    if (isGuillermo.value) {
-      pushIfMissing(base, {
-        name: "AprobacionOCTaller",
-        text: "Aprobador OC (Taller)",
-        icon: "bi-patch-check",
-      });
+    if (canSeeAprobacionOCTaller.value) {
+      pushIfMissing(base, { name: "AprobacionOCTaller", text: "Aprobador Cotización (Taller)", icon: "bi-patch-check" });
     }
 
     if (isJuanCubillos.value) {
@@ -254,7 +266,6 @@ export function useRoleMenus() {
       });
     }
 
-    // ❌ NO agregamos GenerarCotizacion aquí (evita duplicado)
     if (canSeeAprobacionDocs.value && !isAdmin.value) {
       pushIfMissing(base, {
         name: "AprobacionDocs",
@@ -263,12 +274,12 @@ export function useRoleMenus() {
       });
     }
 
-    return compactMenu(base);
+    return filterMenuByPerms(base);
   });
 
   const adminMenu = computed(() => {
     if (!auth?.isAuthenticated || !isAdmin.value) return [];
-    return compactMenu([
+    return filterMenuByPerms([
       { name: "AdminSolpes", text: "Admin SOLPED", icon: "bi-gear" },
       { name: "AdminOrdenesOC", text: "Admin OC", icon: "bi-gear-wide-connected" },
       null,
@@ -289,7 +300,7 @@ export function useRoleMenus() {
 
   const recepcionMenu = computed(() => {
     if (!auth?.isAuthenticated || !isRecepcion.value) return [];
-    return compactMenu([
+    return filterMenuByPerms([
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
       { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver" },
     ]);

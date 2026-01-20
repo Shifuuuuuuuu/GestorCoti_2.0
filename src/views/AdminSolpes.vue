@@ -829,7 +829,6 @@ import {
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
 
-/* ---------- Constantes ---------- */
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
   "Solicitado",
@@ -847,10 +846,9 @@ const ESTATUS_OPC = [
   "Completado",
 ];
 const DIRIGIDO_OPCIONES = [
-  "Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
+  "Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez", "Cindy Quiroga"
 ];
 
-/* Centros de Costo (rellenar con tus claves reales) */
 const centrosCosto = {
   '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
   'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
@@ -894,7 +892,6 @@ const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}
 
 const router = useRouter();
 
-/* ---------- Estado listado & paginación ---------- */
 const rows = ref([]);
 const cargando = ref(true);
 const currentPage = ref(1);
@@ -902,19 +899,17 @@ const hasNextPage = ref(false);
 const pageCursors = ref([]);
 let unsubList = null;
 
-/* Búsqueda por numero_solpe */
 const buscarNumero = ref("");
 const busquedaActiva = ref(false);
 let unsubSearch = null;
 
-/* ---------- Filtros ---------- */
-const filtroFecha = ref("");       // YYYY-MM-DD
+
+const filtroFecha = ref("");
 const filtroUsuario = ref("");
-const filtroEstatus = ref([]);     // multi
+const filtroEstatus = ref([]);
 const filtroEstatusHeader = ref("");
 let unsubFilter = null;
 
-/* Lista de usuarios para el select (dinámico) */
 const usuariosOpts = ref([]);
 let unsubUsuarios = null;
 
@@ -931,7 +926,6 @@ const totalFiltrosActivos = computed(() => {
 const usuariosLoading = ref(false);
 const usuariosLoadedOnce = ref(false);
 
-// ✅ Trae TODOS los usuarios únicos que hayan creado SOLPED (campo "usuario")
 async function cargarUsuariosCreadoras({ force = false } = {}) {
   if (usuariosLoading.value) return;
   if (usuariosLoadedOnce.value && !force) return;
@@ -957,7 +951,7 @@ async function cargarUsuariosCreadoras({ force = false } = {}) {
       });
 
       cursor = snap.docs[snap.docs.length - 1];
-      if (snap.size < PAGE) break; // ya no hay más
+      if (snap.size < PAGE) break;
     }
 
     usuariosOpts.value = Array.from(set).sort((a, b) =>
@@ -973,9 +967,6 @@ async function cargarUsuariosCreadoras({ force = false } = {}) {
   }
 }
 
-
-
-/* ---------- Toasts ---------- */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2600) => {
   const id = Date.now() + Math.random();
@@ -984,7 +975,6 @@ const addToast = (type, text, timeout = 2600) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ---------- Utils de fecha ---------- */
 const tz = "America/Santiago";
 function pad(n){ return n.toString().padStart(2,"0"); }
 function toInputLocal(date){
@@ -1024,11 +1014,7 @@ function displayTs(ts){
     return toCLString(d);
   }catch{ return ""; }
 }
-function displayDate(row){
-  return row.fecha_str || row.fecha || displayTs(row.fecha_ts) || "—";
-}
 
-/* ---------- Paginación (tiempo real) ---------- */
 const visiblePageButtons = computed(() => {
   const maxButtons = 7;
   const pages = [];
@@ -1045,7 +1031,6 @@ function cleanupSubs(){
   if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
 }
 
-/* Cargar usuarios únicos (para el filtro) */
 function cargarUsuarios(){
   try{
     const qy = query(
@@ -1116,7 +1101,6 @@ function goToPage(n){
   subscribePage(n);
 }
 
-/* ---------- Búsqueda por numero_solpe ---------- */
 function onBuscarNumero(){
   const qstr = (buscarNumero.value ?? "").trim();
   if (!qstr) { limpiarBusqueda(); return; }
@@ -1155,7 +1139,6 @@ function limpiarBusqueda(){
   subscribePage(1);
 }
 
-/* ---------- FILTROS ---------- */
 function onChangeEstatusHeader(){
   filtroEstatus.value = filtroEstatusHeader.value ? [filtroEstatusHeader.value] : [];
   aplicarFiltros();
@@ -1258,23 +1241,19 @@ function mobileApplyFilters(){
   mobileFiltersOpen.value = false;
 }
 
-/* ---------- Refs para inputs de archivos ---------- */
 const inputAutorizacionEditEl = ref(null);
 const inputAutorizacionNuevoEl = ref(null);
 
-/* ---------- Editor (offcanvas) ---------- */
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
 const guardando = ref(false);
 
-// Centro de costo: 2 selects en editor
 const selectedCentroEditKey = ref("");
 const selectedCentroEditName = ref("");
 
 const archivoAutorizacionEdit = ref(null);
 
-/* Historial subcolección (live) */
 const historialEstadosLive = ref([]);
 let unsubHistorial = null;
 const guardandoHist = ref(false);
@@ -1308,7 +1287,7 @@ function setCentroFromName(targetObj, name){
   return key;
 }
 
-/* Sync handlers editor */
+
 function onCentroEditKeyChange(){
   setCentroFromKey(edit.value, selectedCentroEditKey.value);
   selectedCentroEditName.value = edit.value.nombre_centro_costo || "";
@@ -1368,16 +1347,12 @@ function pickRowDate(row){
 function abrirEditor(row){
   seleccion.value = row;
 
-  // Fecha original (SE PRESERVA: no editable y no se sobreescribe)
   const d = pickRowDate(row);
   const originalTs = row?.fecha_ts ?? (d ? Timestamp.fromDate(d) : null);
   const originalStr = row?.fecha_str ?? row?.fecha ?? (d ? toCLString(d) : "");
 
   edit.value = {
-    // se mantienen visibles, pero NO se guardan desde el input
     fechaInput: d ? toInputLocal(d) : "",
-
-    // respaldo para guardar sin cambios
     __fecha_ts: originalTs,
     __fecha_str: originalStr,
 
@@ -1395,11 +1370,8 @@ function abrirEditor(row){
     usuario: row.usuario ?? ""
   };
 
-  // Centro de costo: setear ambos selects
   selectedCentroEditKey.value = edit.value.numero_contrato || "";
   selectedCentroEditName.value = edit.value.nombre_centro_costo || (centrosCosto[selectedCentroEditKey.value] || "");
-
-  // Si el nombre no calza con el key, re-sincroniza por key si existe
   if (selectedCentroEditKey.value && centrosCosto[selectedCentroEditKey.value]) {
     edit.value.nombre_centro_costo = centrosCosto[selectedCentroEditKey.value];
     selectedCentroEditName.value = edit.value.nombre_centro_costo;
@@ -1432,7 +1404,6 @@ function cerrarEditor(){
   if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
 }
 
-/* ---------- Guardar Edición (fecha bloqueada, NO se actualiza) ---------- */
 async function guardarEdicion(){
   if (!seleccion.value) return;
   guardando.value = true;
@@ -1455,7 +1426,6 @@ async function guardarEdicion(){
       edit.value.numero_solpe = isNaN(n) ? null : n;
     }
 
-    // Normalizar ítems
     const items = (edit.value.items || []).map(it => ({
       ...it,
       item: Number(it.item ?? 0),
@@ -1463,7 +1433,6 @@ async function guardarEdicion(){
       cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
     }));
 
-    // ✅ FECHA: se preserva original (no editable y no se recalcula)
     const fecha_str = (edit.value.__fecha_str ?? seleccion.value.fecha_str ?? seleccion.value.fecha ?? "") || "";
     const fecha_ts  = (edit.value.__fecha_ts ?? seleccion.value.fecha_ts) ?? null;
 
@@ -1481,7 +1450,6 @@ async function guardarEdicion(){
       tipo_solped: edit.value.tipo_solped ?? "",
       usuario: edit.value.usuario ?? "",
 
-      // preservadas
       fecha_str,
       fecha: fecha_str,
       ...(fecha_ts ? { fecha_ts } : {})
@@ -1498,12 +1466,10 @@ async function guardarEdicion(){
   }
 }
 
-/* ---------- Nueva SOLPED ---------- */
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
 
-// Centro de costo: 2 selects en nuevo
 const selectedCentroNuevoKey = ref("");
 const selectedCentroNuevoName = ref("");
 
@@ -1613,7 +1579,6 @@ async function crearNueva(){
   }
 }
 
-/* ---------- Historial: crear / eliminar ---------- */
 async function guardarHistorial(){
   if (!seleccion.value?.__id) return;
   try{
@@ -1646,7 +1611,6 @@ async function eliminarHistorialDoc(hid){
   }
 }
 
-/* ---------- Confirmación de eliminación ---------- */
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -1662,11 +1626,18 @@ function cerrarConfirm(){
 }
 async function confirmarEliminar(){
   if (!confirmRow.value?.__id) return;
+
+  const id = confirmRow.value.__id;
+
   try {
     eliminando.value = true;
-    await deleteDoc(doc(db, "solpes", confirmRow.value.__id));
+
+    await deleteDoc(doc(db, "solpes", id));
+
+    confirmOpen.value = false;
+    confirmRow.value = null;
+
     addToast("success", "SOLPED eliminada.");
-    cerrarConfirm();
   } catch (e) {
     console.error(e);
     addToast("danger", "No se pudo eliminar.");
@@ -1675,7 +1646,6 @@ async function confirmarEliminar(){
   }
 }
 
-/* ---------- Ítems (modal) ---------- */
 const modalItem = ref(false);
 const isEditItem = ref(false);
 const itemIndex = ref(-1);
@@ -1748,20 +1718,61 @@ async function guardarItemForm(){
   }
 }
 
-const prettyFecha = (f) => {
+function toCL(date) {
   try {
-    if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
-    if (typeof f === 'string') return new Date(f).toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
-    if (f instanceof Date) return f.toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
-  } catch(e) { console.error(e); }
-  return '—';
-};
+    return new Date(date).toLocaleString("es-CL", {
+      timeZone: tz,
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return "";
+  }
+}
+
+function asDateAny(v) {
+  if (!v) return null;
+
+  if (typeof v?.toDate === "function") {
+    const d = v.toDate();
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (typeof v === "string") {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof v?.seconds === "number") {
+    const d = new Date(v.seconds * 1000);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  return null;
+}
+
+function displayDate(row) {
+  const d =
+    asDateAny(row?.fecha_ts) ||
+    asDateAny(row?.fecha_str) ||
+    asDateAny(row?.fecha);
+
+  return d ? toCL(d) : "—";
+}
+
+function prettyFecha(v) {
+  const d = asDateAny(v);
+  return d ? toCL(d) : "—";
+}
+
 
 function eliminarItem(idx){
   edit.value.items.splice(idx, 1);
 }
 
-/* ---------- Lifecycle ---------- */
 onMounted(() => { subscribePage(1); });
 onBeforeUnmount(() => { cleanupSubs(); });
 </script>
@@ -1771,16 +1782,13 @@ onBeforeUnmount(() => { cleanupSubs(); });
   min-height:100vh;
 }
 
-/* Helpers responsivos */
 .minw-220{ min-width: 220px; }
 
-/* Toolbar: alturas alineadas */
 .toolbar-item .form-control,
 .toolbar-item .form-select,
 .toolbar-item .btn,
 .toolbar-item .input-group-text { height: 38px; }
 
-/* Offcanvas base */
 .offcanvas-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: grid; place-items: end; z-index: 1080;
@@ -1810,7 +1818,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
   to{ transform: translateX(0); opacity:1; }
 }
 
-/* Cards mobile */
 @media (max-width: 575.98px){
   .list-group-item{ border-left: 0; border-right: 0; }
 }
@@ -1820,7 +1827,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
   to{ transform: translateX(0); opacity: 1; }
 }
 
-/* Modal base */
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1080; display: grid; place-items: center; padding: 1rem;
@@ -1838,7 +1844,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-/* Toasts */
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1852,7 +1857,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono modal de eliminación */
 .confirm-icon{
   width: 38px; height: 38px;
   border-radius: 10px;
@@ -1862,13 +1866,10 @@ onBeforeUnmount(() => { cleanupSubs(); });
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-/* Tabla */
 .table td, .table th { vertical-align: middle; }
 .text-truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 576px){
   .text-truncate { max-width: 180px; }
 }
-
-/* Hover suave en botón peligro */
 .btn-danger:hover{ filter: brightness(0.95); }
 </style>

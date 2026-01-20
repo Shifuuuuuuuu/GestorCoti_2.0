@@ -225,7 +225,7 @@
               <input class="form-control" type="date" v-model="filtroFecha">
             </div>
 
-            <!-- Solicitante (UI pro) -->
+            <!-- Solicitante -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <label class="form-label mb-0 fw-semibold">
@@ -263,7 +263,6 @@
                 </button>
               </div>
 
-              <!-- SUGERENCIAS -->
               <datalist id="solicitantesList">
                 <option v-for="n in solicitantesOpts" :key="n" :value="n"></option>
               </datalist>
@@ -286,8 +285,8 @@
                   {{ filtroSolicExacto ? 'Exacto' : 'Contiene' }}
                 </span>
               </div>
-
             </div>
+
             <!-- Estatus (multi) -->
             <div class="col-12">
               <label class="form-label mb-2">Estatus</label>
@@ -317,215 +316,383 @@
       </div>
     </div>
 
-  <!-- Offcanvas Editor (RESPONSIVO) -->
-  <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
-    <div class="offcanvas-panel editor-panel">
-      <div class="offcanvas-header editor-header">
-        <div class="fw-semibold text-truncate">Editar SOLPED Taller</div>
-        <button class="btn-close" @click="cerrarEditor" aria-label="Cerrar"></button>
-      </div>
+    <!-- Offcanvas Editor -->
+    <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
+      <div class="offcanvas-panel editor-panel">
+        <div class="offcanvas-header editor-header">
+          <div class="fw-semibold text-truncate">Editar SOLPED Taller</div>
+          <button class="btn-close" @click="cerrarEditor" aria-label="Cerrar"></button>
+        </div>
 
-      <div class="offcanvas-body editor-body">
-        <div class="row g-3">
-          <!-- Encabezado -->
-          <div class="col-12 col-sm-6 col-md-3">
-            <label class="form-label">N° SOLPE</label>
-            <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
-          </div>
-          <div class="col-12 col-sm-6 col-md-3">
-            <label class="form-label">Fecha</label>
-            <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD" readonly>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Empresa</label>
-            <select class="form-select" v-model="edit.empresa">
-              <option>Xtreme Servicio</option>
-              <option>Xtreme Servicios</option>
-              <option>Xtreme Mining</option>
-            </select>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Estatus</label>
-            <select class="form-select" v-model="edit.estatus">
-              <option>Cotizado Parcial</option>
-              <option>Cotizado Completado</option>
-              <option>Rechazado</option>
-              <option>Pendiente</option>
-            </select>
-          </div>
-
-          <!-- Centro de costo -->
-          <div class="col-12">
-            <label class="form-label">Centro de Costo</label>
-            <input
-              class="form-control"
-              v-model.trim="edit.centro_costo"
-              placeholder="Escribe el centro de costo"
-            >
-            <div class="form-text">Campo manual (sin sugerencias).</div>
-          </div>
-
-          <!-- Solicitante / sesión -->
-          <div class="col-12 col-md-6">
-            <label class="form-label">Nombre solicitante</label>
-            <input class="form-control" v-model="edit.nombre_solicitante" placeholder="Ej: FRANK PINTO">
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label">Usuario sesión</label>
-            <input class="form-control" v-model="edit.usuario_sesion" placeholder="Ej: TALLER CM">
-          </div>
-
-          <!-- Cotizadores (checkboxes) -->
-          <div class="col-12">
-            <label class="form-label mb-1">Cotizadores</label>
-            <div class="d-flex flex-wrap gap-2">
-              <label class="form-check me-3" v-for="p in COTIZADORES_OPCIONES" :key="p">
-                <input class="form-check-input me-1" type="checkbox" :value="p" v-model="edit.cotizadores">
-                <span class="form-check-label">{{ p }}</span>
-              </label>
+        <div class="offcanvas-body editor-body">
+          <div class="row g-3">
+            <!-- Encabezado -->
+            <div class="col-12 col-sm-6 col-md-3">
+              <label class="form-label">N° SOLPE</label>
+              <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
             </div>
-          </div>
-
-          <!-- Ítems -->
-          <div class="col-12">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <div class="fw-semibold">Ítems</div>
-              <button class="btn btn-sm btn-outline-primary" @click="abrirModalItem('edit')">
-                <i class="bi bi-plus-lg me-1"></i> Agregar ítem
-              </button>
+            <div class="col-12 col-sm-6 col-md-3">
+              <label class="form-label">Fecha</label>
+              <input class="form-control" v-model="edit.fecha" placeholder="YYYY-MM-DD" readonly>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Empresa</label>
+              <select class="form-select" v-model="edit.empresa">
+                <option>Xtreme Servicio</option>
+                <option>Xtreme Servicios</option>
+                <option>Xtreme Mining</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label">Estatus</label>
+              <select class="form-select" v-model="edit.estatus">
+                <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
+              </select>
             </div>
 
-            <!-- Tabla en ≥ sm -->
-            <div class="table-responsive d-none d-sm-block">
-              <table class="table table-sm align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th style="width:60px;">Ítem</th>
-                    <th>Descripción</th>
-                    <th style="width:100px;">Cant.</th>
-                    <th style="width:110px;">Cotizada</th>
-                    <th style="width:160px;">Código ref.</th>
-                    <th style="width:140px;">Estado</th>
-                    <th style="width:140px;">Img</th>
-                    <th style="width:160px;">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-if="!edit.items?.length">
-                    <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
-                  </tr>
-                  <tr v-for="(it, idx) in edit.items" :key="`e-${idx}`">
-                    <td class="fw-semibold">{{ it.item }}</td>
-                    <td class="small">
-                      <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
-                      <div class="text-secondary text-truncate">
-                        {{ it.numero_interno || '—' }}
-                      </div>
-                    </td>
-                    <td>{{ it.cantidad ?? 0 }}</td>
-                    <td>{{ it.cantidad_cotizada ?? 0 }}</td>
-                    <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
-                    <td>{{ it.estado || '—' }}</td>
-                    <td>
-                      <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
-                      <span v-else class="text-secondary small">—</span>
-                    </td>
-                    <td>
-                      <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary" @click="abrirModalItem('edit', it, idx)">
-                          <i class="bi bi-pencil"></i>
+            <!-- Centro de costo -->
+            <div class="col-12">
+              <label class="form-label">Centro de Costo</label>
+              <input
+                class="form-control"
+                v-model.trim="edit.centro_costo"
+                placeholder="Escribe el centro de costo"
+              >
+              <div class="form-text">Campo manual (sin sugerencias).</div>
+            </div>
+
+            <!-- Solicitante / sesión -->
+            <div class="col-12 col-md-6">
+              <label class="form-label">Nombre solicitante</label>
+              <input class="form-control" v-model="edit.nombre_solicitante" placeholder="Ej: MATIAS MELLA">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Usuario sesión</label>
+              <input class="form-control" v-model="edit.usuario_sesion" placeholder="Ej: TALLER CM">
+            </div>
+
+            <!-- Cotizadores (checkboxes) -->
+            <div class="col-12">
+              <label class="form-label mb-1">Cotizadores</label>
+              <div class="d-flex flex-wrap gap-2">
+                <label class="form-check me-3" v-for="p in COTIZADORES_OPCIONES" :key="p">
+                  <input class="form-check-input me-1" type="checkbox" :value="p" v-model="edit.cotizadores">
+                  <span class="form-check-label">{{ p }}</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Ítems -->
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="fw-semibold">Ítems</div>
+                <button class="btn btn-sm btn-outline-primary" @click="abrirModalItem('edit')">
+                  <i class="bi bi-plus-lg me-1"></i> Agregar ítem
+                </button>
+              </div>
+
+              <!-- Tabla en ≥ sm -->
+              <div class="table-responsive d-none d-sm-block">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:60px;">Ítem</th>
+                      <th>Descripción</th>
+                      <th style="width:100px;">Cant.</th>
+                      <th style="width:110px;">Cotizada</th>
+                      <th style="width:160px;">Código ref.</th>
+                      <th style="width:140px;">Estado</th>
+                      <th style="width:190px;">cotPorOC</th>
+                      <th style="width:140px;">Img</th>
+                      <th style="width:160px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!edit.items?.length">
+                      <td colspan="9" class="text-center text-secondary">Sin ítems.</td>
+                    </tr>
+                    <tr v-for="(it, idx) in edit.items" :key="`e-${idx}`">
+                      <td class="fw-semibold">{{ it.item }}</td>
+
+                      <td class="small">
+                        <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
+                        <div class="text-secondary text-truncate">
+                          {{ it.numero_interno || '—' }}
+                        </div>
+                      </td>
+
+                      <td>{{ it.cantidad ?? 0 }}</td>
+                      <td>{{ it.cantidad_cotizada ?? 0 }}</td>
+                      <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
+                      <td>{{ it.estado || '—' }}</td>
+
+                      <!-- cotPorOC -->
+                      <td class="small">
+                        <div v-if="hasCotPorOC(it)" class="d-flex flex-wrap gap-1">
+                          <span
+                            v-for="(qty, ocNum) in (it.cotPorOC || {})"
+                            :key="`oc-${idx}-${ocNum}`"
+                            class="badge bg-secondary-subtle text-secondary-emphasis border"
+                            :title="`OC #${ocNum}: ${qty}`"
+                          >
+                            OC {{ ocNum }}: {{ qty }}
+                          </span>
+                        </div>
+                        <div v-else class="text-secondary">—</div>
+
+                        <button class="btn btn-link btn-sm px-0 mt-1" @click="abrirCotPorOC(idx)">
+                          <i class="bi bi-sliders me-1"></i> Editar cotPorOC
                         </button>
-                        <button class="btn btn-outline-danger" @click="eliminarItem('edit', idx)">
-                          <i class="bi bi-trash3"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                      </td>
 
-            <!-- Cards en xs -->
-            <div class="d-block d-sm-none">
-              <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
-              <div class="list-group list-group-flush">
-                <div v-for="(it, idx) in edit.items" :key="`m-${idx}`" class="list-group-item">
-                  <div class="d-flex justify-content-between">
-                    <div class="fw-semibold">Ítem {{ it.item }}</div>
-                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
-                  </div>
-                  <div class="small mt-1 text-truncate-3">
-                    <span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}
-                  </div>
-                  <div class="small mt-1">
-                    <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
-                    <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
-                  </div>
-                  <div class="small text-truncate mt-1">
-                    <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
-                  </div>
-                  <div class="small mt-1">
-                    <span class="text-secondary">Img:</span>
-                    <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
-                    <span v-else class="text-secondary">—</span>
-                  </div>
-                  <div class="d-flex gap-2 mt-2">
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" @click="abrirModalItem('edit', it, idx)">
-                      <i class="bi bi-pencil me-1"></i> Editar
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm" @click="eliminarItem('edit', idx)">
-                      <i class="bi bi-trash3"></i>
-                    </button>
+                      <td>
+                        <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
+                        <span v-else class="text-secondary small">—</span>
+                      </td>
+
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-secondary" @click="abrirModalItem('edit', it, idx)">
+                            <i class="bi bi-pencil"></i>
+                          </button>
+                          <button class="btn btn-outline-danger" @click="eliminarItem('edit', idx)">
+                            <i class="bi bi-trash3"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Cards en xs -->
+              <div class="d-block d-sm-none">
+                <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
+                <div class="list-group list-group-flush">
+                  <div v-for="(it, idx) in edit.items" :key="`m-${idx}`" class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                      <div class="fw-semibold">Ítem {{ it.item }}</div>
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
+                    </div>
+
+                    <div class="small mt-1 text-truncate-3">
+                      <span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}
+                    </div>
+
+                    <div class="small mt-1">
+                      <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
+                      <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
+                    </div>
+
+                    <div class="small text-truncate mt-1">
+                      <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
+                    </div>
+
+                    <div class="small mt-2">
+                      <div class="text-secondary mb-1">cotPorOC</div>
+
+                      <div v-if="hasCotPorOC(it)" class="d-flex flex-wrap gap-1">
+                        <span
+                          v-for="(qty, ocNum) in (it.cotPorOC || {})"
+                          :key="`ocm-${idx}-${ocNum}`"
+                          class="badge bg-secondary-subtle text-secondary-emphasis border"
+                        >
+                          OC {{ ocNum }}: {{ qty }}
+                        </span>
+                      </div>
+                      <div v-else class="text-secondary">—</div>
+
+                      <button class="btn btn-link btn-sm px-0 mt-1" @click="abrirCotPorOC(idx)">
+                        <i class="bi bi-sliders me-1"></i> Editar cotPorOC
+                      </button>
+                    </div>
+
+                    <div class="small mt-1">
+                      <span class="text-secondary">Img:</span>
+                      <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
+                      <span v-else class="text-secondary">—</span>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-2">
+                      <button class="btn btn-outline-secondary btn-sm flex-fill" @click="abrirModalItem('edit', it, idx)">
+                        <i class="bi bi-pencil me-1"></i> Editar
+                      </button>
+                      <button class="btn btn-outline-danger btn-sm" @click="eliminarItem('edit', idx)">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Historial Estados -->
-          <div class="col-12">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <div class="fw-semibold">Historial de Estados</div>
-              <button class="btn btn-sm btn-outline-primary" @click="agregarHistorial()">
-                <i class="bi bi-plus-lg me-1"></i> Agregar
-              </button>
-            </div>
-            <div class="list-group">
-              <div class="list-group-item" v-for="(h, ix) in edit.historialEstados" :key="'h'+ix">
-                <div class="row g-2 align-items-center">
-                  <div class="col-12 col-sm-4 col-md-3">
-                    <input class="form-control form-control-sm" v-model="h.fecha" placeholder="YYYY-MM-DD">
-                  </div>
-                  <div class="col-12 col-sm-5 col-md-4">
-                    <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
-                  </div>
-                  <div class="col-12 col-sm-3 col-md-5 d-flex">
-                    <input class="form-control form-control-sm me-2" v-model="h.usuario" placeholder="Usuario">
-                    <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorial(ix)">
-                      <i class="bi bi-trash3"></i>
+            <!-- Historial Estados (SUBCOLECCIÓN) -->
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="fw-semibold">Historial de Estados (subcolección)</div>
+
+                <button class="btn btn-sm btn-outline-primary" @click="abrirModalHistorialNuevo">
+                  <i class="bi bi-plus-lg me-1"></i> Agregar
+                </button>
+              </div>
+
+              <div class="list-group">
+                <div v-if="historialCargando" class="list-group-item text-secondary small d-flex align-items-center gap-2">
+                  <span class="spinner-border spinner-border-sm"></span>
+                  Cargando historial…
+                </div>
+
+                <div v-else-if="!historialRows.length" class="list-group-item text-secondary small">
+                  Sin historial en subcolección.
+                </div>
+
+                <div v-else class="list-group-item" v-for="h in historialRows" :key="h.__id">
+                  <div class="d-flex align-items-start justify-content-between gap-2">
+                    <div class="small text-secondary">
+                      <i class="bi bi-clock me-1"></i>
+                      {{ fmtTs(h.fecha) }}
+                      <span v-if="h.ocNumero" class="ms-2 badge bg-light text-dark border">OC {{ h.ocNumero }}</span>
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-success" @click="guardarHistorial(h)" :disabled="h.__saving">
+                      <span v-if="h.__saving" class="spinner-border spinner-border-sm me-1"></span>
+                      <i v-else class="bi bi-save me-1"></i>
+                      Guardar
                     </button>
+                  </div>
+
+                  <div class="row g-2 mt-2">
+                    <!-- Fecha NO editable -->
+                    <div class="col-12 col-md-4">
+                      <label class="form-label small text-muted mb-1">Fecha (no editable)</label>
+                      <input class="form-control form-control-sm" :value="fmtTs(h.fecha)" disabled />
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                      <label class="form-label small text-muted mb-1">Estatus</label>
+                      <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus" />
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                      <label class="form-label small text-muted mb-1">Usuario</label>
+                      <input class="form-control form-control-sm" v-model="h.usuario" placeholder="Usuario" />
+                    </div>
+
+                    <div class="col-12">
+                      <label class="form-label small text-muted mb-1">Detalle</label>
+                      <input class="form-control form-control-sm" v-model="h.detalle" placeholder="Detalle" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                      <label class="form-label small text-muted mb-1">ocId</label>
+                      <input class="form-control form-control-sm" v-model="h.ocId" placeholder="ocId" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                      <label class="form-label small text-muted mb-1">ocNumero</label>
+                      <input class="form-control form-control-sm" v-model.number="h.ocNumero" type="number" min="0" placeholder="362" />
+                    </div>
+                  </div>
+
+                  <!-- No hay botón eliminar (no removible) -->
+                  <div class="small text-muted mt-2">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    La fecha no se edita y el registro no se puede eliminar.
                   </div>
                 </div>
               </div>
-              <div v-if="!edit.historialEstados?.length" class="list-group-item text-secondary small">
-                Sin historial.
-              </div>
             </div>
+
+          </div>
+        </div>
+
+        <div class="offcanvas-footer editor-footer">
+          <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 w-100">
+            <button class="btn btn-outline-secondary w-100 w-sm-auto" @click="cerrarEditor">Cerrar</button>
+            <button class="btn btn-primary w-100 w-sm-auto" :disabled="guardando" @click="guardarEdicion">
+              <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
+              Guardar cambios
+            </button>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="offcanvas-footer editor-footer">
-        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 w-100">
-          <button class="btn btn-outline-secondary w-100 w-sm-auto" @click="cerrarEditor">Cerrar</button>
-          <button class="btn btn-primary w-100 w-sm-auto" :disabled="guardando" @click="guardarEdicion">
-            <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
-            Guardar cambios
+    <!-- Modal cotPorOC -->
+    <div v-if="modalCotPorOC" class="vmodal-backdrop" @click.self="cerrarCotPorOC">
+      <div class="vmodal" style="max-width: 780px;">
+        <div class="vmodal-header d-flex align-items-center justify-content-between">
+          <div>
+            <h5 class="mb-0">Editar cotPorOC</h5>
+            <div class="small text-secondary">
+              Ítem: <strong>{{ cotItem?.item ?? '—' }}</strong>
+              · {{ cotItem?.descripcion ?? '' }}
+            </div>
+          </div>
+          <button class="btn-close" @click="cerrarCotPorOC"></button>
+        </div>
+
+        <div class="vmodal-body">
+          <div class="alert alert-info py-2 small mb-3">
+            Aquí puedes <strong>eliminar</strong> o <strong>reemplazar</strong> entradas del map <code>cotPorOC</code>.
+          </div>
+
+          <div v-if="cotRows.length" class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:160px;">OC Número</th>
+                  <th style="width:160px;">Cantidad</th>
+                  <th>Preview</th>
+                  <th style="width:140px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(r, i) in cotRows" :key="'cot-'+i">
+                  <td>
+                    <input class="form-control form-control-sm" v-model.trim="r.ocNumero" placeholder="362">
+                  </td>
+                  <td>
+                    <input class="form-control form-control-sm" v-model.number="r.cantidad" type="number" min="0">
+                  </td>
+                  <td class="small text-secondary">
+                    OC {{ r.ocNumero || '—' }}: {{ r.cantidad ?? 0 }}
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <button class="btn btn-outline-danger" @click="eliminarCotRow(i)" title="Eliminar">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="text-secondary small">
+            Este ítem no tiene cotPorOC.
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-primary" @click="agregarCotRow">
+              <i class="bi bi-plus-lg me-1"></i> Agregar entrada
+            </button>
+
+            <button class="btn btn-sm btn-outline-danger" @click="limpiarCotRows" :disabled="!cotRows.length">
+              <i class="bi bi-eraser me-1"></i> Eliminar todo
+            </button>
+          </div>
+        </div>
+
+        <div class="vmodal-footer d-flex justify-content-end gap-2">
+          <button class="btn btn-outline-secondary" @click="cerrarCotPorOC">Cancelar</button>
+          <button class="btn btn-primary" @click="aplicarCotPorOC">
+            <i class="bi bi-check2-circle me-1"></i> Aplicar cambios
           </button>
         </div>
       </div>
     </div>
-  </div>
 
     <!-- Modal NUEVA SOLPED (Taller) -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
@@ -554,10 +721,7 @@
             <div class="col-md-3">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
-                <option>Solicitado</option>
-                <option>Cotizando Parcial</option>
-                <option>Cotizando Completado</option>
-                <option>Rechazado</option>
+                <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
 
@@ -650,6 +814,9 @@
                   </tbody>
                 </table>
               </div>
+              <div class="form-text">
+                Nota: en creación no editamos cotPorOC (eso se arma al cotizar). Luego puedes editarlo en el editor.
+              </div>
             </div>
 
           </div>
@@ -728,6 +895,55 @@
       </div>
     </div>
 
+    <!-- Modal NUEVO HISTORIAL (subcolección) -->
+    <div v-if="modalHistorialNuevo" class="vmodal-backdrop" @click.self="cerrarModalHistorialNuevo">
+      <div class="vmodal" style="max-width: 720px;">
+        <div class="vmodal-header d-flex align-items-center justify-content-between">
+          <div>
+            <h5 class="mb-0">Agregar historial</h5>
+            <div class="small text-secondary">La fecha se guarda automática (no editable)</div>
+          </div>
+          <button class="btn-close" @click="cerrarModalHistorialNuevo"></button>
+        </div>
+
+        <div class="vmodal-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Estatus</label>
+              <input class="form-control" v-model="histNuevo.estatus" placeholder="Cotizando - Revisión Guillermo">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Usuario</label>
+              <input class="form-control" v-model="histNuevo.usuario" placeholder="María José Ballesteros">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Detalle</label>
+              <input class="form-control" v-model="histNuevo.detalle" placeholder="Se subió cotización (OC Taller N° 362)">
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">ocId</label>
+              <input class="form-control" v-model="histNuevo.ocId" placeholder="ziOVNUcvEA1eAcXg1OBY">
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">ocNumero</label>
+              <input class="form-control" v-model.number="histNuevo.ocNumero" type="number" min="0" placeholder="362">
+            </div>
+          </div>
+        </div>
+
+        <div class="vmodal-footer d-flex justify-content-end gap-2">
+          <button class="btn btn-outline-secondary" @click="cerrarModalHistorialNuevo" :disabled="histNuevoSaving">Cancelar</button>
+          <button class="btn btn-primary" @click="crearHistorialNuevo" :disabled="histNuevoSaving">
+            <span v-if="histNuevoSaving" class="spinner-border spinner-border-sm me-2"></span>
+            Crear
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
@@ -781,25 +997,27 @@ import {
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
 
-/* ---------- Constantes ---------- */
+
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
   "Solicitado",
   "Cotizado Parcial",
   "Cotizado Completado",
+  "Completado",
   "Rechazado",
   "Pendiente",
-  "OC enviada a proveedor"
+  "OC enviada a proveedor",
+  "Cotizando - Revisión Guillermo"
 ];
 const COTIZADORES_OPCIONES = [
   "Guillermo Manzor",
   "María José Ballesteros",
   "Ricardo Santibañez",
   "Felipe Gonzalez",
-  "Camila Ricci"
+  "Cindy Quiroga"
 ];
 
-/* Centros de costo  */
+
 const centrosCosto = {
   '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
   'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
@@ -841,7 +1059,6 @@ const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}
 
 const router = useRouter();
 
-/* ---------- Estado listado & paginación ---------- */
 const rows = ref([]);
 const cargando = ref(true);
 const currentPage = ref(1);
@@ -849,20 +1066,18 @@ const hasNextPage = ref(false);
 const pageCursors = ref([]);
 let unsubList = null;
 
-/* Búsqueda por numero_solpe */
+
 const buscarNumero = ref("");
 const busquedaActiva = ref(false);
 let unsubSearch = null;
 
-/* ---------- Filtros ---------- */
+
 const filtroFecha = ref("");
 const filtroSolicitante = ref("");
 const filtroSolicExacto = ref(false);
-const filtroEstatus = ref([]);           // multi
-const filtrosActivos = ref(false);
+const filtroEstatus = ref([]);
 let unsubFilter = null;
 
-/* Offcanvas filtros */
 const filtrosAbiertos = ref(false);
 const abrirFiltros = () => { filtrosAbiertos.value = true; };
 const cerrarFiltros = () => { filtrosAbiertos.value = false; };
@@ -878,7 +1093,6 @@ const totalFiltrosActivos = computed(() => {
   return n;
 });
 
-/* ---------- Toasts ---------- */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2600) => {
   const id = Date.now() + Math.random();
@@ -887,7 +1101,6 @@ const addToast = (type, text, timeout = 2600) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* ---------- Utils ---------- */
 const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 const badgeClass = (estatus) => {
   const s = (estatus || "").toLowerCase();
@@ -899,7 +1112,20 @@ const badgeClass = (estatus) => {
 };
 const normalize = (v) => (v||"").toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
 
-/* ---------- Paginación (tiempo real) ---------- */
+function fmtTs(ts){
+  if (!ts) return "—";
+  if (typeof ts?.toDate === "function") {
+    const d = ts.toDate();
+    return d.toLocaleString("es-CL");
+  }
+  if (typeof ts === "string") return ts;
+  if (ts?.seconds) {
+    const d = new Date(ts.seconds * 1000);
+    return d.toLocaleString("es-CL");
+  }
+  return "—";
+}
+
 const visiblePageButtons = computed(() => {
   const maxButtons = 7;
   const pages = [];
@@ -918,7 +1144,6 @@ function subscribePage(page){
   cleanupSubs();
   cargando.value = true;
   busquedaActiva.value = false;
-  filtrosActivos.value = false;
 
   let qy;
   if (page === 1) {
@@ -965,7 +1190,6 @@ function goToPage(n){
   subscribePage(n);
 }
 
-/* ---------- Búsqueda por numero_solpe ---------- */
 function onBuscarNumero(){
   const qstr = (buscarNumero.value ?? "").trim();
   if (!qstr) { limpiarBusqueda(); return; }
@@ -979,8 +1203,7 @@ function onBuscarNumero(){
   const qy = query(
     collection(db, "solped_taller"),
     where("numero_solpe", "==", n),
-    orderBy("numero_solpe", "desc"),
-    limit(5)
+    limit(10)
   );
 
   unsubSearch = onSnapshot(qy, (snap) => {
@@ -995,6 +1218,7 @@ function onBuscarNumero(){
     cargando.value = false;
   });
 }
+
 const solicitantesOpts = ref([]);
 let unsubSolicitantes = null;
 
@@ -1031,7 +1255,7 @@ function limpiarBusqueda(){
   subscribePage(1);
 }
 
-/* ---------- FILTROS ---------- */
+
 function buildFilterQuery(){
   const wh = [];
 
@@ -1059,9 +1283,7 @@ function buildFilterQuery(){
 }
 
 function aplicarFiltros(){
-  // Si no hay filtros, volver a paginación en tiempo real
   if (!hasActiveFilters.value){
-    filtrosActivos.value = false;
     currentPage.value = 1;
     subscribePage(1);
     cerrarFiltros();
@@ -1070,7 +1292,6 @@ function aplicarFiltros(){
 
   cleanupSubs();
   cargando.value = true;
-  filtrosActivos.value = true;
   busquedaActiva.value = false;
 
   const qy = buildFilterQuery();
@@ -1112,14 +1333,13 @@ function removeEstatus(es){
   aplicarFiltros();
 }
 
-/* ---------- Navegar a detalle ---------- */
 const irADetalle = (row) => {
   const id = row?.__id;
   if (!id) { addToast("warning", "No se encontró el ID del documento."); return; }
   router.push({ name: "SolpedTallerDetalle", params: { id } });
 };
 
-/* ---------- Editor (offcanvas) ---------- */
+
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
@@ -1137,8 +1357,114 @@ const applyCentroCosto = (target, key) => {
   if ('nombre_centro_costo' in target) target.nombre_centro_costo = centrosCosto[key];
 };
 
+const historialRows = ref([]);
+const historialCargando = ref(false);
+let unsubHistorial = null;
+
+function subscribeHistorial(solpedId){
+  if (unsubHistorial) { unsubHistorial(); unsubHistorial = null; }
+  if (!solpedId) return;
+
+  historialCargando.value = true;
+  const qy = query(
+    collection(db, "solped_taller", solpedId, "historialEstados"),
+    orderBy("fecha", "desc"),
+    limit(200)
+  );
+
+  unsubHistorial = onSnapshot(qy, (snap) => {
+    const arr = [];
+    snap.forEach(d => {
+      arr.push({
+        __id: d.id,
+        ...d.data(),
+        __saving: false
+      });
+    });
+    historialRows.value = arr;
+    historialCargando.value = false;
+  }, (err) => {
+    console.error("subscribeHistorial:", err);
+    historialRows.value = [];
+    historialCargando.value = false;
+  });
+}
+
+async function guardarHistorial(h){
+  if (!seleccion.value?.__id || !h?.__id) return;
+  try {
+    h.__saving = true;
+    const href = doc(db, "solped_taller", seleccion.value.__id, "historialEstados", h.__id);
+
+    const payload = {
+      detalle: (h.detalle ?? "").toString(),
+      estatus: (h.estatus ?? "").toString(),
+      usuario: (h.usuario ?? "").toString(),
+      ocId: (h.ocId ?? "").toString(),
+      ocNumero: h.ocNumero === null || h.ocNumero === undefined || h.ocNumero === "" ? null : Number(h.ocNumero)
+    };
+
+    await updateDoc(href, payload);
+    addToast("success", "Historial actualizado.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo guardar el historial.");
+  } finally {
+    h.__saving = false;
+  }
+}
+
+const modalHistorialNuevo = ref(false);
+const histNuevoSaving = ref(false);
+const histNuevo = ref({
+  detalle: "",
+  estatus: "",
+  usuario: "",
+  ocId: "",
+  ocNumero: null
+});
+
+function abrirModalHistorialNuevo(){
+  histNuevo.value = {
+    detalle: "",
+    estatus: edit.value.estatus || "",
+    usuario: edit.value.usuario_sesion || "",
+    ocId: "",
+    ocNumero: null
+  };
+  modalHistorialNuevo.value = true;
+}
+function cerrarModalHistorialNuevo(){
+  if (histNuevoSaving.value) return;
+  modalHistorialNuevo.value = false;
+}
+
+async function crearHistorialNuevo(){
+  if (!seleccion.value?.__id) return;
+  try {
+    histNuevoSaving.value = true;
+    const colRef = collection(db, "solped_taller", seleccion.value.__id, "historialEstados");
+    await addDoc(colRef, {
+      detalle: (histNuevo.value.detalle ?? "").toString(),
+      estatus: (histNuevo.value.estatus ?? "").toString(),
+      usuario: (histNuevo.value.usuario ?? "").toString(),
+      ocId: (histNuevo.value.ocId ?? "").toString(),
+      ocNumero: histNuevo.value.ocNumero === null || histNuevo.value.ocNumero === undefined || histNuevo.value.ocNumero === "" ? null : Number(histNuevo.value.ocNumero),
+      fecha: serverTimestamp()
+    });
+    addToast("success", "Historial agregado.");
+    modalHistorialNuevo.value = false;
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo agregar el historial.");
+  } finally {
+    histNuevoSaving.value = false;
+  }
+}
+
 function abrirEditor(row){
   seleccion.value = row;
+
   edit.value = deepClone({
     centro_costo: row.centro_costo ?? "",
     cotizadores: Array.isArray(row.cotizadores) ? [...row.cotizadores] : [],
@@ -1151,14 +1477,14 @@ function abrirEditor(row){
     nombre_solicitante: row.nombre_solicitante ?? "",
     numero_solpe: row.numero_solpe ?? null,
     tipo_solped: row.tipo_solped ?? "",
-    usuario_sesion: row.usuario_sesion ?? "",
-    historialEstados: Array.isArray(row.historialEstados) ? deepClone(row.historialEstados) : []
+    usuario_sesion: row.usuario_sesion ?? ""
   });
 
   editorAbierto.value = true;
+
+  subscribeHistorial(row.__id);
 }
 
-/* ---------- Guardar Edición ---------- */
 async function guardarEdicion(){
   if (!seleccion.value) return;
   guardando.value = true;
@@ -1166,18 +1492,26 @@ async function guardarEdicion(){
     const id = seleccion.value.__id;
     const dref = doc(db, "solped_taller", id);
 
-    if (typeof edit.value.numero_solpe === "string") {
-      const n = parseInt(edit.value.numero_solpe, 10);
-      edit.value.numero_solpe = isNaN(n) ? null : n;
+    const safe = deepClone(edit.value);
+
+    if (typeof safe.numero_solpe === "string") {
+      const n = parseInt(safe.numero_solpe, 10);
+      safe.numero_solpe = isNaN(n) ? null : n;
     }
-    edit.value.items = (edit.value.items || []).map(it => ({
+
+    safe.items = (safe.items || []).map(it => ({
       ...it,
       item: Number(it.item ?? 0),
       cantidad: Number(it.cantidad ?? 0),
-      cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
+      cantidad_cotizada: Number(it.cantidad_cotizada ?? 0),
+      cantidad_para_cotizar: Number(it.cantidad_para_cotizar ?? 0),
+      cantidad_solicitada_oc: Number(it.cantidad_solicitada_oc ?? 0),
+      cotPorOC: (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {}
     }));
 
-    await updateDoc(dref, deepClone(edit.value));
+    safe.updated_at = serverTimestamp();
+
+    await updateDoc(dref, safe);
     addToast("success", "SOLPED Taller actualizada.");
     cerrarEditor();
   } catch (e) {
@@ -1192,9 +1526,12 @@ function cerrarEditor(){
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
+  historialRows.value = [];
+  historialCargando.value = false;
+  if (unsubHistorial) { unsubHistorial(); unsubHistorial = null; }
 }
 
-/* ---------- Ítems (modal compartido) ---------- */
+
 const modalItem = ref(false);
 const isEditItem = ref(false);
 const itemIndex = ref(-1);
@@ -1209,7 +1546,6 @@ const itemForm = ref({
   imagen_url: null
 });
 const imagenItemFile = ref(null);
-/** 'edit' | 'nuevo' */
 const itemTarget = ref('edit');
 
 function abrirModalItem(target = 'edit', it=null, idx=-1){
@@ -1291,7 +1627,68 @@ function eliminarItem(target, idx){
   listRef.splice(idx, 1);
 }
 
-/* ---------- Nueva SOLPED (Taller) ---------- */
+const modalCotPorOC = ref(false);
+const cotItemIndex = ref(-1);
+const cotRows = ref([]);
+
+const cotItem = computed(() => {
+  const idx = cotItemIndex.value;
+  if (idx < 0) return null;
+  return (edit.value.items || [])[idx] || null;
+});
+
+function hasCotPorOC(it){
+  return it?.cotPorOC && typeof it.cotPorOC === "object" && Object.keys(it.cotPorOC).length > 0;
+}
+
+function abrirCotPorOC(idx){
+  cotItemIndex.value = idx;
+  const it = (edit.value.items || [])[idx];
+  const map = (it?.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {};
+  cotRows.value = Object.entries(map).map(([k, v]) => ({
+    ocNumero: String(k),
+    cantidad: Number(v ?? 0)
+  }));
+
+  modalCotPorOC.value = true;
+}
+
+function cerrarCotPorOC(){
+  modalCotPorOC.value = false;
+  cotItemIndex.value = -1;
+  cotRows.value = [];
+}
+
+function agregarCotRow(){
+  cotRows.value.push({ ocNumero: "", cantidad: 0 });
+}
+function eliminarCotRow(i){
+  cotRows.value.splice(i, 1);
+}
+function limpiarCotRows(){
+  cotRows.value = [];
+}
+
+function aplicarCotPorOC(){
+  const idx = cotItemIndex.value;
+  if (idx < 0) return;
+
+  const map = {};
+  for (const r of cotRows.value) {
+    const key = (r.ocNumero ?? "").toString().trim();
+    if (!key) continue;
+    map[key] = Number(r.cantidad ?? 0);
+  }
+  if (!edit.value.items) edit.value.items = [];
+  edit.value.items[idx] = {
+    ...edit.value.items[idx],
+    cotPorOC: map
+  };
+
+  addToast("success", "cotPorOC actualizado (pendiente de guardar).");
+  cerrarCotPorOC();
+}
+
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
@@ -1310,8 +1707,7 @@ function defaultNueva(){
     nombre_solicitante: "",
     numero_solpe: null,
     tipo_solped: "",
-    usuario_sesion: "",
-    historialEstados: []
+    usuario_sesion: ""
   };
 }
 function abrirModalNueva(){
@@ -1336,11 +1732,13 @@ async function crearNueva(){
       ...it,
       item: Number(it.item ?? 0),
       cantidad: Number(it.cantidad ?? 0),
-      cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
+      cantidad_cotizada: Number(it.cantidad_cotizada ?? 0),
+      cotPorOC: (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {}
     }));
 
     const payload = deepClone(nuevo.value);
     payload.creado_en = serverTimestamp();
+    payload.updated_at = serverTimestamp();
 
     const docRef = await addDoc(collection(db, "solped_taller"), payload);
 
@@ -1354,7 +1752,6 @@ async function crearNueva(){
   }
 }
 
-/* ---------- Confirmación de eliminación ---------- */
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -1372,9 +1769,14 @@ async function confirmarEliminar(){
   if (!confirmRow.value?.__id) return;
   try {
     eliminando.value = true;
-    await deleteDoc(doc(db, "solped_taller", confirmRow.value.__id));
+
+    const id = confirmRow.value.__id;
+    await deleteDoc(doc(db, "solped_taller", id));
+
+    confirmOpen.value = false;
+    confirmRow.value = null;
+
     addToast("success", "SOLPED Taller eliminada.");
-    cerrarConfirm();
   } catch (e) {
     console.error(e);
     addToast("danger", "No se pudo eliminar.");
@@ -1383,37 +1785,27 @@ async function confirmarEliminar(){
   }
 }
 
-/* ---------- Historial Estados (helpers) ---------- */
-function agregarHistorial(){
-  if (!edit.value.historialEstados) edit.value.historialEstados = [];
-  edit.value.historialEstados.push({
-    fecha: new Date().toISOString().slice(0,10),
-    estatus: edit.value.estatus || "",
-    usuario: edit.value.usuario_sesion || ""
-  });
-}
-function eliminarHistorial(ix){
-  if (!edit.value.historialEstados) return;
-  edit.value.historialEstados.splice(ix, 1);
-}
 
-/* ---------- Lifecycle ---------- */
-onMounted(() => { subscribePage(1); subscribeSolicitantesOpts(); });
-onBeforeUnmount(() => { cleanupSubs(); });
+onMounted(() => {
+  subscribePage(1);
+  subscribeSolicitantesOpts();
+});
+onBeforeUnmount(() => {
+  cleanupSubs();
+  if (unsubSolicitantes) { unsubSolicitantes(); unsubSolicitantes = null; }
+  if (unsubHistorial) { unsubHistorial(); unsubHistorial = null; }
+});
 </script>
 
 <style scoped>
-.admin-solpes-page{
-  min-height:100vh;
-}
+.admin-solpes-page{ min-height:100vh; }
 
-/* Offcanvas base */
 .offcanvas-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: grid; place-items: end; z-index: 1080;
 }
 .offcanvas-panel{
-  width: min(860px, 100%);
+  width: min(960px, 100%);
   height: 100vh;
   box-shadow: -12px 0 32px rgba(0,0,0,.25);
   animation: slideIn .22s ease-out;
@@ -1437,22 +1829,15 @@ onBeforeUnmount(() => { cleanupSubs(); });
   to{ transform: translateX(0); opacity:1; }
 }
 
-/* Toolbar items altura consistente */
 .toolbar-item .form-control,
 .toolbar-item .form-select,
 .toolbar-item .btn,
-.toolbar-item .input-group-text {
-  height: 38px;
-}
+.toolbar-item .input-group-text { height: 38px; }
 
-/* Cards mobile */
 @media (max-width: 575.98px){
-  .list-group-item{
-    border-left: 0; border-right: 0;
-  }
+  .list-group-item{ border-left: 0; border-right: 0; }
 }
 
-/* Modal */
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1080; display: grid; place-items: center; padding: 1rem;
@@ -1469,8 +1854,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
 }
 .vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
-
-/* Toasts */
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1484,7 +1867,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono/encabezado del modal de eliminación */
 .confirm-icon{
   width: 38px; height: 38px;
   border-radius: 10px;
@@ -1494,8 +1876,14 @@ onBeforeUnmount(() => { cleanupSubs(); });
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-/* Botón peligro más “soft” al pasar */
-.btn-danger:hover{
-  filter: brightness(0.95);
+.text-truncate-2{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.text-truncate-3{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

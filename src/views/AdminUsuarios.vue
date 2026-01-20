@@ -1,9 +1,8 @@
-<!-- AdminUsuarios.vue -->
+<!-- src/views/AdminUsuarios.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="admin-users-page">
     <div class="container py-4 py-md-5">
-
       <!-- Header / acciones -->
       <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
         <h1 class="h5 h4-sm fw-semibold mb-0">Administrar usuarios</h1>
@@ -53,9 +52,7 @@
             </div>
 
             <div class="col-12 col-md-1">
-              <button class="btn btn-dark w-100" @click="limpiarFiltros">
-                Limpiar
-              </button>
+              <button class="btn btn-dark w-100" @click="limpiarFiltros">Limpiar</button>
             </div>
           </div>
         </div>
@@ -151,6 +148,16 @@
                       <span class="badge bg-secondary-subtle text-secondary-emphasis">
                         {{ u.role || '—' }}
                       </span>
+
+                      <!-- Indicador permisos -->
+                      <div class="small text-secondary mt-1" v-if="(u.menuPerms?.allow?.length || 0) > 0 || (u.menuPerms?.deny?.length || 0) > 0">
+                        <span class="me-2" v-if="(u.menuPerms?.allow?.length || 0) > 0">
+                          <i class="bi bi-shield-check me-1"></i>Permitido: {{ u.menuPerms.allow.length }}
+                        </span>
+                        <span v-if="(u.menuPerms?.deny?.length || 0) > 0">
+                          <i class="bi bi-shield-x me-1"></i>Denegado: {{ u.menuPerms.deny.length }}
+                        </span>
+                      </div>
                     </td>
 
                     <td class="d-none d-lg-table-cell">{{ u.phone || '—' }}</td>
@@ -274,7 +281,6 @@
                   <small class="text-secondary">{{ form.empresas.length }} seleccionada(s)</small>
                 </div>
 
-                <!-- Chips seleccionadas -->
                 <div v-if="form.empresas.length" class="d-flex flex-wrap gap-1 mb-2">
                   <span
                     v-for="e in form.empresas"
@@ -306,12 +312,7 @@
                     <span class="small fw-semibold">{{ e }}</span>
                   </label>
                 </div>
-
-                <div class="form-text mt-1">
-                  Puedes seleccionar más de una empresa (se guarda en Firestore como <code>empresas: []</code>).
-                </div>
               </div>
-              <!-- ======= /Empresas (multi) ======= -->
 
               <div class="col-12">
                 <label class="form-label">Rol</label>
@@ -320,6 +321,125 @@
                   <option v-for="r in rolesDisponibles" :key="'role-'+r" :value="r">{{ r }}</option>
                 </select>
               </div>
+
+              <div class="col-12">
+                <div class="d-flex align-items-center justify-content-between">
+                  <label class="form-label mb-0">Permisos de menú</label>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" @click="limpiarPermisosMenu">
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+
+                <div class="row g-2">
+                  <!-- ALLOW -->
+                  <div class="col-12 col-lg-6">
+                    <div class="perm-card">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-semibold">
+                          <i class="bi bi-shield-check me-1"></i> Permitido
+                          <span class="badge bg-success-subtle text-success-emphasis ms-2">{{ form.menuPerms.allow.length }}</span>
+                        </div>
+                      </div>
+
+                      <div v-if="form.menuPerms.allow.length" class="d-flex flex-wrap gap-1 mb-2">
+                        <span v-for="k in form.menuPerms.allow" :key="'allow-chip-'+k"
+                              class="badge rounded-pill bg-success-subtle text-success-emphasis">
+                          {{ labelFromKey(k) }}
+                          <button class="btn btn-sm btn-link text-success ms-1 p-0 align-baseline" @click="removeAllow(k)">×</button>
+                        </span>
+                      </div>
+
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input class="form-control" v-model="permSearchAllow" placeholder="Buscar..." />
+                        <button class="btn btn-outline-success" type="button" @click="selectAllAllow">
+                          <i class="bi bi-check2-square me-1"></i>Todos
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" @click="seleccionarAllowBasico">Básico</button>
+                      </div>
+
+                      <div class="perm-box">
+                        <template v-for="g in permGroups" :key="'g-allow-'+g">
+                          <div class="perm-group-title">{{ g }}</div>
+                          <label
+                            v-for="p in permsAllowFilteredByGroup(g)"
+                            :key="'allow-'+p.key"
+                            class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              :checked="form.menuPerms.allow.includes(p.key)"
+                              @change="toggleAllow(p.key, $event.target.checked)" />
+                            <span class="small">
+                              <strong>{{ p.label }}</strong>
+                              <span class="text-secondary ms-1">({{ p.key }})</span>
+                            </span>
+                          </label>
+                        </template>
+                      </div>
+
+                      <div class="form-text mt-1">
+                        Si agregas algo acá, el usuario quedará limitado a estas rutas.
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- DENY -->
+                  <div class="col-12 col-lg-6">
+                    <div class="perm-card">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-semibold">
+                          <i class="bi bi-shield-x me-1"></i> Denegado
+                          <span class="badge bg-danger-subtle text-danger-emphasis ms-2">{{ form.menuPerms.deny.length }}</span>
+                        </div>
+                      </div>
+
+                      <div v-if="form.menuPerms.deny.length" class="d-flex flex-wrap gap-1 mb-2">
+                        <span v-for="k in form.menuPerms.deny" :key="'deny-chip-'+k"
+                              class="badge rounded-pill bg-danger-subtle text-danger-emphasis">
+                          {{ labelFromKey(k) }}
+                          <button class="btn btn-sm btn-link text-danger ms-1 p-0 align-baseline" @click="removeDeny(k)">×</button>
+                        </span>
+                      </div>
+
+                      <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input class="form-control" v-model="permSearchDeny" placeholder="Buscar..." />
+                        <button class="btn btn-outline-danger" type="button" @click="selectAllDeny">
+                          <i class="bi bi-x-square me-1"></i>Todos
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" @click="limpiarDeny">Vaciar</button>
+                      </div>
+
+                      <div class="perm-box">
+                        <template v-for="g in permGroups" :key="'g-deny-'+g">
+                          <div class="perm-group-title">{{ g }}</div>
+                          <label
+                            v-for="p in permsDenyFilteredByGroup(g)"
+                            :key="'deny-'+p.key"
+                            class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              :checked="form.menuPerms.deny.includes(p.key)"
+                              @change="toggleDeny(p.key, $event.target.checked)" />
+                            <span class="small">
+                              <strong>{{ p.label }}</strong>
+                              <span class="text-secondary ms-1">({{ p.key }})</span>
+                            </span>
+                          </label>
+                        </template>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- ========================= -->
+              <!-- /Permisos de Menú -->
+              <!-- ========================= -->
 
               <!-- ======= Asignación de contratos ======= -->
               <div class="col-12">
@@ -495,16 +615,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { db } from '../stores/firebase';
+import { db, app } from '../stores/firebase';
 import {
   collection, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-/* ================== Contratos (centros de costo) ================== */
 const centrosCosto = {
   '30858': 'CONTRATO 30858 INFRA CHUQUICAMATA',
-  '27483': 'CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA',
+  '27483': 'CONTRATO 27483 SUM. HORMIGON CHUCHICAMATA',
   'PPCALAMA': 'PLANTA PREDOSIFICADO CALAMA',
   '20915': 'CONTRATO 20915 SUM. HORMIGON DAND',
   '23302-CARPETAS': 'CONTRATO 23302 CARPETAS',
@@ -544,13 +663,49 @@ const centrosCosto = {
 };
 const ccLista = Object.entries(centrosCosto).map(([key, label]) => ({ key, label }));
 const nombreContrato = (k) => centrosCosto[k] || k;
-
-/* ================== Constantes ================== */
 const FUNCTIONS_REGION = 'southamerica-west1';
 const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor',"Recepcion_OC","CargadorDoc"];
 const empresasDisponibles = ['Xtreme Servicio', 'Xtreme Mining', 'Xtreme Hormigones'];
 
-/* ================== Estado base ================== */
+const MENU_KEYS = [
+  { key: 'solped', label: 'Crear SOLPED', group: 'Empresa' },
+  { key: 'historial-solped', label: 'Historial SOLPED', group: 'Empresa' },
+  { key: 'GeneradorOC', label: 'Generador Cotización (OC)', group: 'Empresa' },
+  { key: 'historial-oc', label: 'Historial Cotizaciones', group: 'Empresa' },
+  { key: 'AprobacionOC', label: 'Aprobador Cotización', group: 'Empresa' },
+  { key: 'GenerarCotizacion', label: 'Generador de cotización', group: 'Empresa' },
+
+  { key: 'SolpedTaller', label: 'Crear SOLPED (Taller)', group: 'Taller' },
+  { key: 'HistorialSolpedTaller', label: 'Historial SOLPED (Taller)', group: 'Taller' },
+  { key: 'GeneradorOCTaller', label: 'Generador Cotización (Taller)', group: 'Taller' },
+  { key: 'HistorialOCTaller', label: 'Historial Cotizaciones (Taller)', group: 'Taller' },
+  { key: 'AprobacionOCTaller', label: 'Aprobador Cotización (Taller)', group: 'Taller' },
+
+  { key: 'AdminSolpes', label: 'Admin SOLPED', group: 'Admin' },
+  { key: 'AdminSolpedTaller', label: 'Admin SOLPED (Taller)', group: 'Admin' },
+  { key: 'AdminOrdenesOC', label: 'Admin OC', group: 'Admin' },
+  { key: 'AdminOrdenesOCTaller', label: 'Admin OC (Taller)', group: 'Admin' },
+  { key: 'AdminUsuarios', label: 'Admin Usuarios', group: 'Admin' },
+  { key: 'AdminEquipos', label: 'Admin Equipos', group: 'Admin' },
+  { key: 'DashboardEstadisticas', label: 'Dashboard', group: 'Admin' },
+  { key: 'AdminConfig', label: 'Configuración Reglas', group: 'Admin' },
+  { key: 'AdminGestionDocs', label: 'Gestor de Facturas', group: 'Admin' },
+  { key: 'RecepcionOC', label: 'Recepción de OC', group: 'Admin' },
+  { key: 'SoporteGestion', label: 'SoporteGestion', group: 'Admin' },
+  { key: 'GenerarCertificados', label: 'Generador de certificados', group: 'Admin' },
+
+  { key: 'Soporte', label: 'Soporte', group: 'General' },
+  { key: 'AprobacionDocs', label: 'Aprobador de Facturas', group: 'General' },
+  { key: 'AiInspectorView', label: 'Chatbot', group: 'General' },
+];
+
+const permGroups = computed(() => {
+  const set = new Set(MENU_KEYS.map(x => x.group));
+  return Array.from(set);
+});
+const labelFromKey = (k) => MENU_KEYS.find(x => x.key === k)?.label || k;
+
+
 const cargando = ref(true);
 const usuarios = ref([]);
 
@@ -567,14 +722,23 @@ const filtrosOpen = ref(false);
 const form = ref({
   uid:'', email:'', fullName:'', phone:'', rut:'', role:'', password:'',
   empresas: [],
-  centrosAsignados: []
+  centrosAsignados: [],
+  menuPerms: { allow: [], deny: [] }
 });
 
 const accionando = ref(false);
 const accionandoContratos = ref(false);
 const uidEnAccion = ref(null);
 
-/* ================== Empresas multi (form) ================== */
+const sanitizePhone = (s) => String(s || '').trim().replace(/[^\d+]/g, '');
+
+const normalizeMenuPerms = (mp) => {
+  const obj = mp && typeof mp === 'object' ? mp : {};
+  const allow = Array.isArray(obj.allow) ? obj.allow.map(String) : [];
+  const deny  = Array.isArray(obj.deny) ? obj.deny.map(String) : [];
+  return { allow, deny };
+};
+
 const toggleEmpresa = (empresa, checked) => {
   const arr = [...(form.value.empresas || [])];
   const i = arr.indexOf(empresa);
@@ -582,13 +746,10 @@ const toggleEmpresa = (empresa, checked) => {
   if (!checked && i >= 0) arr.splice(i, 1);
   form.value.empresas = arr;
 };
-const quitarEmpresa = (empresa) => {
-  form.value.empresas = (form.value.empresas || []).filter(e => e !== empresa);
-};
+const quitarEmpresa = (empresa) => { form.value.empresas = (form.value.empresas || []).filter(e => e !== empresa); };
 const limpiarEmpresas = () => { form.value.empresas = []; };
 const seleccionarTodasEmpresas = () => { form.value.empresas = [...empresasDisponibles]; };
 
-/* ================== UI: contratos en offcanvas ================== */
 const ccSearch = ref('');
 const normalizar = (s) => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
 const ccFiltrados = computed(() => {
@@ -603,9 +764,7 @@ const toggleContrato = (key, checked) => {
   if (!checked && i>=0) arr.splice(i,1);
   form.value.centrosAsignados = arr;
 };
-const quitarContrato = (key) => {
-  form.value.centrosAsignados = form.value.centrosAsignados.filter(k => k !== key);
-};
+const quitarContrato = (key) => { form.value.centrosAsignados = form.value.centrosAsignados.filter(k => k !== key); };
 const limpiarSeleccion = () => { form.value.centrosAsignados = []; };
 const seleccionarTodosVisibles = () => {
   const visibles = ccFiltrados.value.map(c => c.key);
@@ -613,7 +772,85 @@ const seleccionarTodosVisibles = () => {
   form.value.centrosAsignados = Array.from(set);
 };
 
-/* ================== Toasts ================== */
+
+const permSearchAllow = ref('');
+const permSearchDeny = ref('');
+
+const permsAllowFilteredByGroup = (group) => {
+  const q = normalizar(permSearchAllow.value);
+  const denySet = new Set(form.value.menuPerms.deny || []);
+  return MENU_KEYS
+    .filter(p => p.group === group)
+    .filter(p => !denySet.has(p.key))
+    .filter(p => !q || normalizar(p.label).includes(q) || normalizar(p.key).includes(q));
+};
+
+const permsDenyFilteredByGroup = (group) => {
+  const q = normalizar(permSearchDeny.value);
+  const allowSet = new Set(form.value.menuPerms.allow || []);
+  return MENU_KEYS
+    .filter(p => p.group === group)
+    .filter(p => !allowSet.has(p.key))
+    .filter(p => !q || normalizar(p.label).includes(q) || normalizar(p.key).includes(q));
+};
+
+
+const toggleAllow = (key, checked) => {
+  const k = String(key);
+  const allow = new Set(form.value.menuPerms.allow || []);
+  const deny  = new Set(form.value.menuPerms.deny  || []);
+  if (checked) { allow.add(k); deny.delete(k); }
+  else allow.delete(k);
+  form.value.menuPerms.allow = Array.from(allow);
+  form.value.menuPerms.deny  = Array.from(deny);
+};
+
+const toggleDeny = (key, checked) => {
+  const k = String(key);
+  const allow = new Set(form.value.menuPerms.allow || []);
+  const deny  = new Set(form.value.menuPerms.deny  || []);
+  if (checked) { deny.add(k); allow.delete(k); }
+  else deny.delete(k);
+  form.value.menuPerms.allow = Array.from(allow);
+  form.value.menuPerms.deny  = Array.from(deny);
+};
+
+const removeAllow = (k) => {
+  const key = String(k);
+  form.value.menuPerms.allow = (form.value.menuPerms.allow || []).filter(x => x !== key);
+};
+const removeDeny = (k) => {
+  const key = String(k);
+  form.value.menuPerms.deny = (form.value.menuPerms.deny || []).filter(x => x !== key);
+};
+
+const limpiarDeny = () => { form.value.menuPerms.deny = []; };
+const limpiarPermisosMenu = () => {
+  form.value.menuPerms = { allow: [], deny: [] };
+  permSearchAllow.value = '';
+  permSearchDeny.value = '';
+};
+
+function selectAllAllow() {
+  const deny = new Set(form.value.menuPerms.deny || []);
+  const allow = new Set(form.value.menuPerms.allow || []);
+
+  for (const p of MENU_KEYS) {
+    if (!deny.has(p.key)) allow.add(p.key);
+  }
+  form.value.menuPerms.allow = Array.from(allow);
+}
+function selectAllDeny() {
+  const allow = new Set(form.value.menuPerms.allow || []);
+  const deny = new Set(form.value.menuPerms.deny || []);
+
+  for (const p of MENU_KEYS) {
+    if (!allow.has(p.key)) deny.add(p.key);
+  }
+  form.value.menuPerms.deny = Array.from(deny);
+}
+
+
 const toasts = ref([]);
 const addToast = (type, text, timeout=2800) => {
   const id = Date.now()+Math.random();
@@ -622,7 +859,7 @@ const addToast = (type, text, timeout=2800) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
-/* ================== Helpers ================== */
+
 const fmtFecha = (f) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : (f ? new Date(f) : null));
@@ -633,22 +870,32 @@ const fmtFecha = (f) => {
 
 const mapFunctionsError = (e) => {
   const code = e?.code || '';
-  const msg  = e?.message || '';
-  if (msg === 'TOO_SHORT') return 'La contraseña debe tener al menos 6 caracteres.';
-  if (msg === 'INVALID_EMAIL') return 'Email inválido.';
-  if (msg === 'MISSING_NAME') return 'Falta el nombre.';
-  if (msg === 'EMAIL_IN_USE') return 'El email ya está en uso.';
-  if (msg === 'USER_NOT_FOUND') return 'El usuario no existe.';
-  if (msg === 'INVALID_PHONE') return 'Teléfono inválido.';
+  const msg  = String(e?.message || '').replace(/^functions\/\w+\s*/i,'').trim();
+  const det  = e?.details;
+
+  if ((code.includes('internal') || msg === 'INTERNAL_ERROR') && det?.adminCode) {
+    return `Error interno (${det.adminCode}): ${det.adminMessage || 'Sin detalle'}`;
+  }
+
+  const key = msg;
+  if (key === 'TOO_SHORT') return 'La contraseña debe tener al menos 6 caracteres.';
+  if (key === 'INVALID_EMAIL') return 'Email inválido.';
+  if (key === 'MISSING_NAME') return 'Falta el nombre.';
+  if (key === 'EMAIL_IN_USE') return 'El email ya está en uso.';
+  if (key === 'USER_NOT_FOUND') return 'El usuario no existe.';
+  if (key === 'INVALID_PHONE') return 'Teléfono inválido. Usa formato +56912345678 (sin espacios).';
+  if (key === 'MISSING_UID') return 'Falta UID.';
+
   if (code.includes('already-exists')) return 'El email ya está en uso.';
-  if (code.includes('invalid-argument')) return 'Datos inválidos. Revisa email/contraseña.';
+  if (code.includes('invalid-argument')) return 'Datos inválidos. Revisa los campos.';
   if (code.includes('not-found')) return 'No se encontró el recurso.';
   if (code.includes('unauthenticated')) return 'Debes iniciar sesión para esta acción.';
   if (code.includes('permission-denied')) return 'No tienes permisos para esta acción.';
-  return 'Error de servidor.';
+
+  return `Error de servidor: ${key || code || 'desconocido'}`;
 };
 
-/* ================== Cargar usuarios (Firestore) ================== */
+
 const cargarUsuarios = async () => {
   cargando.value = true;
   try {
@@ -657,10 +904,11 @@ const cargarUsuarios = async () => {
     snap.forEach(d => {
       const data = d.data() || {};
 
-      // compat: si existe empresa string antigua, la convertimos a array
       const empresas = Array.isArray(data.empresas)
         ? data.empresas
         : (data.empresa ? [data.empresa] : []);
+
+      const menuPerms = normalizeMenuPerms(data.menuPerms);
 
       arr.push({
         uid: data.uid || d.id,
@@ -672,7 +920,8 @@ const cargarUsuarios = async () => {
         empresas,
         createdAt: data.createdAt || null,
         token: data.token || '',
-        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
+        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
+        menuPerms
       });
     });
     arr.sort((a,b) => (a.fullName||'').localeCompare(b.fullName||''));
@@ -687,7 +936,6 @@ const cargarUsuarios = async () => {
 };
 onMounted(cargarUsuarios);
 
-/* ================== Filtros + paginado ================== */
 const filtrados = computed(() => {
   const q = (busqueda.value || '').trim().toLowerCase();
   const rol = (rolFiltro.value || '').trim().toLowerCase();
@@ -721,15 +969,18 @@ const visiblePages = computed(() => {
 const goToPage = (n) => { if (n<1 || n>totalPaginas.value) return; paginaActual.value = n; };
 const limpiarFiltros = () => { busqueda.value=''; rolFiltro.value=''; empresaFiltro.value=''; paginaActual.value=1; };
 
-/* ================== Offcanvas crear/editar ================== */
+
 const abrirCrear = () => {
   esEdicion.value = false;
   form.value = {
     email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'',
     empresas: [],
-    centrosAsignados: []
+    centrosAsignados: [],
+    menuPerms: { allow: [], deny: [] }
   };
   ccSearch.value = '';
+  permSearchAllow.value = '';
+  permSearchDeny.value = '';
   offOpen.value = true;
 };
 
@@ -744,24 +995,25 @@ const abrirEditar = (u) => {
     role: u.role || '',
     password: '',
     empresas: Array.isArray(u.empresas) ? [...u.empresas] : [],
-    centrosAsignados: Array.isArray(u.centrosAsignados) ? [...u.centrosAsignados] : []
+    centrosAsignados: Array.isArray(u.centrosAsignados) ? [...u.centrosAsignados] : [],
+    menuPerms: normalizeMenuPerms(u.menuPerms)
   };
   ccSearch.value = '';
+  permSearchAllow.value = '';
+  permSearchDeny.value = '';
   offOpen.value = true;
 };
 
 const cerrarOff = () => { offOpen.value = false; };
 
-/* ================== Offcanvas filtros (móvil) ================== */
 const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
 
-/* ================== Cloud Functions ================== */
-const functions = getFunctions(undefined, FUNCTIONS_REGION);
+
+const functions = getFunctions(app, FUNCTIONS_REGION);
 const cfCreate = httpsCallable(functions, 'adminCreateUser');
 const cfUpdate = httpsCallable(functions, 'adminUpdateUser');
 const cfDelete = httpsCallable(functions, 'adminDeleteUser');
 
-/* ================== Validación ================== */
 const validar = () => {
   const data = form.value;
   if (!data.fullName?.trim()) { addToast('warning','Ingresa el nombre completo.'); return false; }
@@ -778,7 +1030,6 @@ const validar = () => {
   return true;
 };
 
-/* ================== Guardar (Auth + Firestore) ================== */
 const guardar = async () => {
   if (!validar()) return;
   const data = form.value;
@@ -790,7 +1041,7 @@ const guardar = async () => {
         email: data.email,
         password: data.password,
         displayName: data.fullName,
-        phone: (data.phone || '').trim()
+        phone: sanitizePhone(data.phone)
       });
 
       const uid = resp?.data?.uid;
@@ -805,6 +1056,7 @@ const guardar = async () => {
         role: data.role || '',
         empresas: Array.isArray(data.empresas) ? data.empresas : [],
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
+        menuPerms: normalizeMenuPerms(data.menuPerms),
         createdAt: serverTimestamp()
       });
 
@@ -812,15 +1064,13 @@ const guardar = async () => {
     } else {
       const uid = data.uid;
 
-      // Auth (solo lo que existe en Auth)
       await cfUpdate({
         uid,
         email: data.email,
         displayName: data.fullName,
-        phone: (data.phone || '').trim()
+        phone: sanitizePhone(data.phone)
       });
 
-      // Firestore (todo lo editable)
       await updateDoc(doc(db, 'Usuarios', uid), {
         email: data.email,
         fullName: data.fullName,
@@ -828,7 +1078,8 @@ const guardar = async () => {
         rut: data.rut || '',
         role: data.role || '',
         empresas: Array.isArray(data.empresas) ? data.empresas : [],
-        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : []
+        centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
+        menuPerms: normalizeMenuPerms(data.menuPerms)
       });
 
       addToast('success','Cambios guardados.');
@@ -837,14 +1088,17 @@ const guardar = async () => {
     await cargarUsuarios();
     offOpen.value = false;
   } catch (e) {
-    console.error(e);
+    console.error('CALLABLE ERROR =>', {
+      code: e?.code,
+      message: e?.message,
+      details: e?.details
+    });
     addToast('danger', mapFunctionsError(e));
   } finally {
     accionando.value = false;
   }
 };
 
-/* ================== Guardar SOLO Firestore (rol/empresas/contratos/etc) ================== */
 const guardarSoloFirestore = async () => {
   if (!esEdicion.value) {
     addToast('warning','Primero crea el usuario.');
@@ -865,10 +1119,10 @@ const guardarSoloFirestore = async () => {
       rut: form.value.rut || '',
       role: form.value.role || '',
       empresas: Array.isArray(form.value.empresas) ? form.value.empresas : [],
-      centrosAsignados: Array.isArray(form.value.centrosAsignados) ? form.value.centrosAsignados : []
+      centrosAsignados: Array.isArray(form.value.centrosAsignados) ? form.value.centrosAsignados : [],
+      menuPerms: normalizeMenuPerms(form.value.menuPerms)
     });
 
-    // refleja en la tabla sin recargar todo
     const idx = usuarios.value.findIndex(x => x.uid === uid);
     if (idx >= 0) {
       usuarios.value[idx] = {
@@ -878,7 +1132,8 @@ const guardarSoloFirestore = async () => {
         rut: form.value.rut || '',
         role: form.value.role || '',
         empresas: [...form.value.empresas],
-        centrosAsignados: [...form.value.centrosAsignados]
+        centrosAsignados: [...form.value.centrosAsignados],
+        menuPerms: normalizeMenuPerms(form.value.menuPerms)
       };
     }
 
@@ -891,7 +1146,7 @@ const guardarSoloFirestore = async () => {
   }
 };
 
-/* ================== Eliminar (modal) ================== */
+
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -918,12 +1173,15 @@ async function confirmarEliminar(){
     usuarios.value = usuarios.value.filter(x => x.uid !== confirmRow.value.uid);
     addToast('success','Usuario eliminado.');
     cerrarConfirm();
-
   } catch (e) {
-    console.error(e);
+    console.error('CALLABLE ERROR =>', {
+      code: e?.code,
+      message: e?.message,
+      details: e?.details
+    });
+
     const msg = mapFunctionsError(e);
 
-    // si no existe en Auth, igual borra Firestore
     if (msg.toLowerCase().includes('no se encontró') || (e?.code||'').includes('not-found')) {
       try {
         await deleteDoc(doc(db, 'Usuarios', confirmRow.value.uid));
@@ -952,7 +1210,7 @@ async function confirmarEliminar(){
   .h4-sm{ font-size: 1.35rem; }
 }
 
-/* Offcanvas base */
+
 .offcanvas-backdrop{
   position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
   background: rgba(0,0,0,.45);
@@ -976,7 +1234,7 @@ async function confirmarEliminar(){
 .offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
 
-/* Empresas scrolleable */
+
 .empresa-box{
   max-height: 140px;
   overflow: auto;
@@ -986,7 +1244,6 @@ async function confirmarEliminar(){
   background: var(--bs-secondary-bg);
 }
 
-/* Contratos scrolleable */
 .contratos-box{
   max-height: 260px;
   overflow: auto;
@@ -996,7 +1253,35 @@ async function confirmarEliminar(){
   background: var(--bs-secondary-bg);
 }
 
-/* Modal */
+.perm-card{
+  border: 1px solid var(--bs-border-color);
+  border-radius: .75rem;
+  padding: .75rem;
+  background: var(--bs-body-bg);
+}
+.perm-box{
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .5rem;
+  padding: .35rem .5rem;
+  background: var(--bs-secondary-bg);
+}
+.perm-group-title{
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--bs-secondary-color);
+  margin-top: .35rem;
+  padding-top: .35rem;
+  border-top: 1px dashed var(--bs-border-color);
+}
+.perm-group-title:first-child{
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1090; display: grid; place-items: center; padding: 1rem;
@@ -1012,7 +1297,6 @@ async function confirmarEliminar(){
 .vmodal-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-/* Toasts */
 .toast-stack{
   position: fixed; right: 12px; bottom: 12px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1026,7 +1310,7 @@ async function confirmarEliminar(){
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono del modal */
+
 .confirm-icon{
   width: 38px; height: 38px; border-radius: 10px;
   display: grid; place-items: center;
@@ -1035,7 +1319,7 @@ async function confirmarEliminar(){
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-/* Tabla */
+
 .table td, .table th{ vertical-align: middle; }
 .table-responsive thead th{
   z-index: 1;

@@ -54,7 +54,7 @@
 
             <div class="d-flex align-items-center justify-content-between mb-2">
               <h2 class="h6 fw-bold mb-0">Ítems</h2>
-              <div class="small text-muted">Edita: descripción, valor unitario y cantidad</div>
+              <div class="small text-muted">Edita: descripción, valor unitario, cantidad y descuento (%)</div>
             </div>
 
             <div class="table-responsive table-center">
@@ -64,6 +64,7 @@
                     <th style="min-width: 320px;">Descripción</th>
                     <th class="text-end" style="min-width: 160px;">Valor Unitario</th>
                     <th class="text-end" style="min-width: 120px;">Cantidad</th>
+                    <th class="text-end" style="min-width: 140px;">Descuento %</th>
                     <th style="width: 1px;"></th>
                   </tr>
                 </thead>
@@ -86,6 +87,18 @@
                     </td>
 
                     <td class="text-end">
+                      <input
+                        type="number"
+                        class="form-control text-end"
+                        v-model.number="it.descuentoPct"
+                        min="0"
+                        max="100"
+                        step="1"
+                        @blur="it.descuentoPct = clampPercent(it.descuentoPct)"
+                      />
+                    </td>
+
+                    <td class="text-end">
                       <button
                         class="btn btn-sm btn-outline-danger"
                         @click="removeItem(idx)"
@@ -101,7 +114,7 @@
 
                 <tfoot>
                   <tr>
-                    <td colspan="4">
+                    <td colspan="5">
                       <button class="btn btn-outline-danger" @click="addItem" :disabled="saving" type="button">
                         <i class="bi bi-plus-circle me-1"></i> Agregar ítem
                       </button>
@@ -112,8 +125,6 @@
             </div>
 
             <hr class="my-4" />
-
-            <!-- ✅ CONDICIONES (número + opciones fijas) -->
             <h2 class="h6 fw-bold mb-3">Condiciones</h2>
 
             <div class="row g-3">
@@ -160,6 +171,51 @@
               </div>
             </div>
 
+            <hr class="my-4" />
+
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h2 class="h6 fw-bold mb-0">Datos</h2>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" @click="restoreFirmaDefaults" :disabled="saving">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i> Restaurar
+                </button>
+                <button class="btn btn-sm btn-outline-danger" type="button" @click="clearFirmaLocal" :disabled="saving">
+                  <i class="bi bi-trash3 me-1"></i> Borrar local
+                </button>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold">Nombre</label>
+                <input class="form-control" v-model.trim="form.firmaNombre" placeholder="Ej: Guillermo Manzor" />
+                <div class="form-text">Se guarda localmente los datos</div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold">Teléfono</label>
+                <input
+                  class="form-control"
+                  v-model.trim="form.firmaTelefono"
+                  placeholder="+56 9 XXXX XXXX"
+                  inputmode="tel"
+                  @blur="form.firmaTelefono = formatPhoneCL(form.firmaTelefono)"
+                />
+                <div class="form-text">Se formatea al salir del campo.</div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold">Mail</label>
+                <input
+                  class="form-control"
+                  v-model.trim="form.firmaEmail"
+                  placeholder="correo@empresa.cl"
+                  inputmode="email"
+                  @blur="form.firmaEmail = normalizeEmail(form.firmaEmail)"
+                />
+              </div>
+            </div>
+
             <div v-if="errors._form" class="alert alert-danger mt-3 mb-0">
               {{ errors._form }}
             </div>
@@ -202,8 +258,9 @@
               <div class="preview-table">
                 <div class="preview-head">
                   <div class="c-desc">I T E M S</div>
-                  <div class="c-qty text-end">C A N T I D A D</div>
+                  <div class="c-qty text-end">C A N T.</div>
                   <div class="c-unit text-end">P R E C I O</div>
+                  <div class="c-dto text-end">D T O</div>
                   <div class="c-sub text-end">S U B T O T A L</div>
                 </div>
 
@@ -212,6 +269,7 @@
                     <div class="c-desc">{{ it.descripcion || `Ítem ${idx + 1}` }}</div>
                     <div class="c-qty text-end">{{ it.cantidad || 0 }}</div>
                     <div class="c-unit text-end">{{ fmtCLP(it.valorUnitario || 0) }}</div>
+                    <div class="c-dto text-end">{{ clampPercent(it.descuentoPct || 0) }}%</div>
                     <div class="c-sub text-end">{{ fmtCLP(itemNeto(it)) }}</div>
                   </div>
                 </div>
@@ -347,7 +405,7 @@
       </div>
     </div>
 
-    <!-- EDITAR (ABRIR) -->
+    <!-- MODAL ACCIONES -->
     <div class="modal fade" tabindex="-1" ref="actModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -398,6 +456,7 @@
                       <th>Descripción</th>
                       <th class="text-end" style="width: 160px;">Valor Unit.</th>
                       <th class="text-end" style="width: 120px;">Cant.</th>
+                      <th class="text-end" style="width: 140px;">Desc. %</th>
                       <th class="text-end" style="width: 1px;"></th>
                     </tr>
                   </thead>
@@ -414,6 +473,18 @@
                       </td>
                       <td class="text-end">
                         <input type="number" class="form-control text-end" v-model.number="it.cantidad" min="0" step="1" />
+                      </td>
+                      <td class="text-end">
+                        <input
+                          type="number"
+                          class="form-control text-end"
+                          v-model.number="it.descuentoPct"
+                          min="0"
+                          max="100"
+                          step="1"
+                          @blur="it.descuentoPct = clampPercent(it.descuentoPct)"
+                        />
+                        <div class="small text-muted mt-1">Neto: <b>{{ fmtCLP(itemNeto(it)) }}</b></div>
                       </td>
                       <td class="text-end">
                         <button
@@ -436,7 +507,6 @@
 
               <hr class="my-4" />
 
-              <!-- ✅ CONDICIONES EN MODAL -->
               <h6 class="fw-bold mb-3">Condiciones</h6>
               <div class="row g-3">
                 <div class="col-12 col-md-4">
@@ -484,6 +554,29 @@
 
               <hr class="my-4" />
 
+              <h6 class="fw-bold mb-3">Firma (Cordialmente)</h6>
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold">Nombre</label>
+                  <input class="form-control" v-model.trim="actFirma.nombre" />
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold">Teléfono</label>
+                  <input
+                    class="form-control"
+                    v-model.trim="actFirma.telefono"
+                    inputmode="tel"
+                    @blur="actFirma.telefono = formatPhoneCL(actFirma.telefono)"
+                  />
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-semibold">Mail</label>
+                  <input class="form-control" v-model.trim="actFirma.email" inputmode="email" @blur="actFirma.email = normalizeEmail(actFirma.email)" />
+                </div>
+              </div>
+
+              <hr class="my-4" />
+
               <div class="d-flex justify-content-end">
                 <div style="min-width: 260px;" class="small">
                   <div class="d-flex justify-content-between">
@@ -526,7 +619,7 @@
       </div>
     </div>
 
-    <!-- ELIMINAR -->
+    <!-- MODAL ELIMINAR -->
     <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
@@ -566,7 +659,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { Modal } from "bootstrap";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import logoUrl from "@/assets/Logo XT Servicios Transparente.png";
@@ -594,7 +687,6 @@ const emisor = {
   razon: "XTREME SERVICIOS",
 };
 
-/** ✅ Pago options */
 const PAGO_OPTS = [
   { value: "CREDITO", label: "Crédito" },
   { value: "DEBITO", label: "Débito" },
@@ -615,7 +707,12 @@ function sanitizePositiveInt(val, fallback) {
   return n;
 }
 
-/** compat: parse "2 días hábiles" -> 2 */
+function clampPercent(val) {
+  const n = Math.floor(Number(val));
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, n));
+}
+
 function parseFirstInt(text, fallback) {
   const m = String(text || "").match(/(\d+)/);
   const n = m ? Number(m[1]) : NaN;
@@ -628,6 +725,33 @@ function parsePagoTipo(text) {
   if (t.includes("dé") || t.includes("debi")) return "DEBITO";
   if (t.includes("a convenir")) return "A_CONVENIR";
   return "A_CONVENIR";
+}
+
+function normalizeEmail(v) {
+  const s = String(v || "").trim();
+  return s ? s.toLowerCase() : "";
+}
+
+function formatPhoneCL(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+  let d = raw.replace(/\D/g, "");
+  if (!d) return "";
+
+  if (d.startsWith("56")) d = d.slice(2);
+  if (d.startsWith("0")) d = d.slice(1);
+
+  if (d.length > 9) d = d.slice(d.length - 9);
+
+  if (d.length === 9) {
+    const a = d.slice(0, 1);
+    const b = d.slice(1, 5);
+    const c = d.slice(5, 9);
+    return `+56 ${a} ${b} ${c}`;
+  }
+
+  if (d.length >= 8) return `+56 ${d}`;
+  return raw;
 }
 
 const todayISO = () => {
@@ -645,21 +769,82 @@ const makeItem = () => ({
   descripcion: "",
   valorUnitario: 0,
   cantidad: 0,
+  descuentoPct: 0,
 });
+
+const LS_FIRMA_KEY = "xt_cotizacion_firma_v1";
+
+const FIRMA_DEFAULTS = Object.freeze({
+  firmaNombre: "Guillermo Manzor",
+  firmaTelefono: "+56 9 5414 6017",
+  firmaEmail: "gmanzor@xtrememining.cl",
+});
+
+function loadFirmaLocal() {
+  try {
+    const raw = localStorage.getItem(LS_FIRMA_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== "object") return null;
+    return {
+      firmaNombre: String(obj.firmaNombre || "").trim(),
+      firmaTelefono: String(obj.firmaTelefono || "").trim(),
+      firmaEmail: String(obj.firmaEmail || "").trim(),
+    };
+  } catch (e) {
+    console.warn("[firma] no se pudo leer localStorage", e);
+    return null;
+  }
+}
+
+function saveFirmaLocal(payload) {
+  try {
+    localStorage.setItem(
+      LS_FIRMA_KEY,
+      JSON.stringify({
+        firmaNombre: String(payload.firmaNombre || "").trim(),
+        firmaTelefono: String(payload.firmaTelefono || "").trim(),
+        firmaEmail: String(payload.firmaEmail || "").trim(),
+        updatedAt: Date.now(),
+      })
+    );
+  } catch (e) {
+    console.warn("[firma] no se pudo guardar localStorage", e);
+  }
+}
+
+function clearFirmaLocal() {
+  try {
+    localStorage.removeItem(LS_FIRMA_KEY);
+  } catch (e) {
+    console.warn("[firma] no se pudo limpiar localStorage", e);
+  }
+  form.value.firmaNombre = FIRMA_DEFAULTS.firmaNombre;
+  form.value.firmaTelefono = FIRMA_DEFAULTS.firmaTelefono;
+  form.value.firmaEmail = FIRMA_DEFAULTS.firmaEmail;
+}
+
+function restoreFirmaDefaults() {
+  form.value.firmaNombre = FIRMA_DEFAULTS.firmaNombre;
+  form.value.firmaTelefono = FIRMA_DEFAULTS.firmaTelefono;
+  form.value.firmaEmail = FIRMA_DEFAULTS.firmaEmail;
+  saveFirmaLocal({
+    firmaNombre: form.value.firmaNombre,
+    firmaTelefono: form.value.firmaTelefono,
+    firmaEmail: form.value.firmaEmail,
+  });
+}
 
 const form = ref({
   fecha: todayISO(),
   clienteEmpresa: "Xtreme Mining",
   items: [makeItem()],
-
-  // ✅ nuevas condiciones estructuradas
   plazoEntregaDias: 2,
   validezDias: 7,
   pagoTipo: "A_CONVENIR",
-
-  firmaNombre: "Guillermo Manzor",
-  firmaTelefono: "+56954146017",
-  firmaEmail: "gmanzor@xtrememining.cl",
+  firmaNombre: FIRMA_DEFAULTS.firmaNombre,
+  firmaTelefono: FIRMA_DEFAULTS.firmaTelefono,
+  firmaEmail: FIRMA_DEFAULTS.firmaEmail,
   web: "www.xtrememining.cl",
   telEmpresa: "+56 9 3430 3873",
 });
@@ -698,7 +883,24 @@ onMounted(() => {
   if (delModalEl.value) {
     delModal = new Modal(delModalEl.value, { backdrop: "static", keyboard: true, focus: true });
   }
+  const saved = loadFirmaLocal();
+  if (saved) {
+    if (saved.firmaNombre) form.value.firmaNombre = saved.firmaNombre;
+    if (saved.firmaTelefono) form.value.firmaTelefono = saved.firmaTelefono;
+    if (saved.firmaEmail) form.value.firmaEmail = saved.firmaEmail;
+  }
 });
+
+watch(
+  () => [form.value.firmaNombre, form.value.firmaTelefono, form.value.firmaEmail],
+  () => {
+    saveFirmaLocal({
+      firmaNombre: form.value.firmaNombre,
+      firmaTelefono: form.value.firmaTelefono,
+      firmaEmail: form.value.firmaEmail,
+    });
+  }
+);
 
 onBeforeUnmount(() => {
   try { histModal?.dispose?.(); } catch(e) { console.log(e); }
@@ -772,17 +974,25 @@ function fmtFechaLarga(iso) {
   return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function itemNeto(it) {
+function itemBruto(it) {
   const unit = roundCLP(it.valorUnitario);
   const qty = roundCLP(it.cantidad);
   return roundCLP(unit * qty);
 }
+function itemDescuentoMonto(it) {
+  const bruto = itemBruto(it);
+  const pct = clampPercent(it.descuentoPct);
+  return roundCLP((bruto * pct) / 100);
+}
+function itemNeto(it) {
+  const bruto = itemBruto(it);
+  const desc = itemDescuentoMonto(it);
+  return roundCLP(bruto - desc);
+}
 function itemIva(it) {
   return roundCLP(itemNeto(it) * ivaRate);
 }
-function itemTotal(it) {
-  return roundCLP(itemNeto(it) + itemIva(it));
-}
+
 
 const totalNeto = computed(() => form.value.items.reduce((acc, it) => acc + itemNeto(it), 0));
 const totalIva = computed(() => form.value.items.reduce((acc, it) => acc + itemIva(it), 0));
@@ -801,6 +1011,7 @@ function resetForm() {
   isEditing.value = false;
   editingId.value = null;
   editingNumero.value = null;
+  const saved = loadFirmaLocal();
 
   form.value = {
     fecha: todayISO(),
@@ -809,9 +1020,11 @@ function resetForm() {
     plazoEntregaDias: 2,
     validezDias: 7,
     pagoTipo: "A_CONVENIR",
-    firmaNombre: "Guillermo Manzor",
-    firmaTelefono: "+56954146017",
-    firmaEmail: "gmanzor@xtrememining.cl",
+
+    firmaNombre: saved?.firmaNombre || FIRMA_DEFAULTS.firmaNombre,
+    firmaTelefono: saved?.firmaTelefono || FIRMA_DEFAULTS.firmaTelefono,
+    firmaEmail: saved?.firmaEmail || FIRMA_DEFAULTS.firmaEmail,
+
     web: "www.xtrememining.cl",
     telEmpresa: "+56 9 3430 3873",
   };
@@ -829,6 +1042,7 @@ function validate() {
 
   form.value.items.forEach((it, idx) => {
     if (!String(it.descripcion || "").trim()) e[`item_desc_${idx}`] = "Ingresa descripción.";
+    it.descuentoPct = clampPercent(it.descuentoPct);
   });
 
   errors.value = e;
@@ -851,12 +1065,10 @@ function buildCondicionesFromForm(src) {
   const valDias = sanitizePositiveInt(src.validezDias, 7);
   const pagoTipo = src.pagoTipo || "A_CONVENIR";
   return {
-    // ✅ strings para PDF + lectura humana
     plazoEntrega: `${plazoDias} ${pluralDia(plazoDias)} hábiles`,
     validez: `${valDias} ${pluralDia(valDias)}`,
     pago: pagoLabel(pagoTipo),
 
-    // ✅ estructurados
     plazoEntregaDias: plazoDias,
     validezDias: valDias,
     pagoTipo,
@@ -870,19 +1082,35 @@ async function guardarYGenerar() {
 
   saving.value = true;
   try {
+    form.value.firmaTelefono = formatPhoneCL(form.value.firmaTelefono);
+    form.value.firmaEmail = normalizeEmail(form.value.firmaEmail);
+
     const itemsComputed = form.value.items
       .filter((it) => String(it.descripcion || "").trim())
-      .map((it) => ({
-        descripcion: String(it.descripcion || "").trim(),
-        valorUnitario: roundCLP(it.valorUnitario),
-        cantidad: roundCLP(it.cantidad),
-        neto: itemNeto(it),
-        iva: itemIva(it),
-        total: itemTotal(it),
-      }));
+      .map((it) => {
+        const valorUnitario = roundCLP(it.valorUnitario);
+        const cantidad = roundCLP(it.cantidad);
+        const descuentoPct = clampPercent(it.descuentoPct);
+        const bruto = roundCLP(valorUnitario * cantidad);
+        const descuentoMonto = roundCLP((bruto * descuentoPct) / 100);
+        const neto = roundCLP(bruto - descuentoMonto);
+        const iva = roundCLP(neto * ivaRate);
+        const total = roundCLP(neto + iva);
+
+        return {
+          descripcion: String(it.descripcion || "").trim(),
+          valorUnitario,
+          cantidad,
+          descuentoPct,
+          bruto,
+          descuentoMonto,
+          neto,
+          iva,
+          total,
+        };
+      });
 
     const user = auth?.currentUser || null;
-
     const condiciones = buildCondicionesFromForm(form.value);
 
     if (isEditing.value && editingId.value) {
@@ -972,7 +1200,6 @@ async function guardarYGenerar() {
   }
 }
 
-/** ===== MODAL ABRIR ===== */
 const actId = ref(null);
 const actNumero = ref(0);
 const actLoading = ref(false);
@@ -980,7 +1207,7 @@ const actSaving = ref(false);
 const actErr = ref("");
 const actErrors = ref({});
 
-/** guardamos lo que viene del doc para no perder firma/contacto */
+
 const actFirma = ref({ nombre: "", telefono: "", email: "" });
 const actContacto = ref({ web: "", telEmpresa: "" });
 
@@ -1027,6 +1254,7 @@ function actValidate() {
 
   actForm.value.items.forEach((it, idx) => {
     if (!String(it.descripcion || "").trim()) e[`item_desc_${idx}`] = "Ingresa descripción.";
+    it.descuentoPct = clampPercent(it.descuentoPct);
   });
 
   actErrors.value = e;
@@ -1057,10 +1285,10 @@ async function openActions(c) {
           descripcion: it.descripcion || "",
           valorUnitario: Number(it.valorUnitario || 0),
           cantidad: Number(it.cantidad || 0),
+          descuentoPct: clampPercent(it.descuentoPct ?? it.descuento ?? 0),
         }))
       : [makeItem()];
 
-    // ✅ cargar condiciones (compatibles con viejas)
     const cond = data.condiciones || {};
     actForm.value.plazoEntregaDias =
       Number(cond.plazoEntregaDias) > 0 ? Number(cond.plazoEntregaDias) : parseFirstInt(cond.plazoEntrega, 2);
@@ -1068,7 +1296,6 @@ async function openActions(c) {
       Number(cond.validezDias) > 0 ? Number(cond.validezDias) : parseFirstInt(cond.validez, 7);
     actForm.value.pagoTipo = cond.pagoTipo || parsePagoTipo(cond.pago);
 
-    // ✅ mantener firma/contacto para PDF
     actFirma.value = {
       nombre: data?.firma?.nombre || "",
       telefono: data?.firma?.telefono || "",
@@ -1106,25 +1333,47 @@ async function actGuardarYDescargar() {
 
   actSaving.value = true;
   try {
+    actFirma.value.telefono = formatPhoneCL(actFirma.value.telefono);
+    actFirma.value.email = normalizeEmail(actFirma.value.email);
+
     const itemsComputed = actForm.value.items
       .filter((it) => String(it.descripcion || "").trim())
-      .map((it) => ({
-        descripcion: String(it.descripcion || "").trim(),
-        valorUnitario: roundCLP(it.valorUnitario),
-        cantidad: roundCLP(it.cantidad),
-        neto: itemNeto(it),
-        iva: itemIva(it),
-        total: itemTotal(it),
-      }));
+      .map((it) => {
+        const valorUnitario = roundCLP(it.valorUnitario);
+        const cantidad = roundCLP(it.cantidad);
+        const descuentoPct = clampPercent(it.descuentoPct);
+        const bruto = roundCLP(valorUnitario * cantidad);
+        const descuentoMonto = roundCLP((bruto * descuentoPct) / 100);
+        const neto = roundCLP(bruto - descuentoMonto);
+        const iva = roundCLP(neto * ivaRate);
+        const total = roundCLP(neto + iva);
+
+        return {
+          descripcion: String(it.descripcion || "").trim(),
+          valorUnitario,
+          cantidad,
+          descuentoPct,
+          bruto,
+          descuentoMonto,
+          neto,
+          iva,
+          total,
+        };
+      });
 
     const user = auth?.currentUser || null;
-
     const condiciones = buildCondicionesFromForm(actForm.value);
 
     const payloadUpdate = {
       fecha: actForm.value.fecha,
       cliente: { empresa: actForm.value.clienteEmpresa.trim() },
       condiciones,
+      firma: {
+        nombre: String(actFirma.value.nombre || "").trim(),
+        telefono: String(actFirma.value.telefono || "").trim(),
+        email: String(actFirma.value.email || "").trim(),
+      },
+      contacto: { ...actContacto.value },
       ivaRate,
       items: itemsComputed,
       totales: {
@@ -1146,7 +1395,7 @@ async function actGuardarYDescargar() {
       cliente: { empresa: actForm.value.clienteEmpresa.trim() },
       condiciones,
       contacto: { ...actContacto.value },
-      firma: { ...actFirma.value },
+      firma: { ...payloadUpdate.firma },
       ivaRate,
       items: itemsComputed,
       totales: { neto: actTotalNeto.value, iva: actTotalIva.value, total: actTotalGeneral.value },
@@ -1166,7 +1415,6 @@ async function actGuardarYDescargar() {
   }
 }
 
-/** ===== ELIMINAR ===== */
 const delId = ref(null);
 const delNumero = ref(0);
 const delBusy = ref(false);
@@ -1245,7 +1493,6 @@ async function reDescargarCotizacion(c) {
   }
 }
 
-/** ===== PDF ===== */
 function wrapTextByWidth(text, font, fontSize, maxWidth, maxLines = 2) {
   const words = String(text || "").split(/\s+/).filter(Boolean);
   const lines = [];
@@ -1273,7 +1520,6 @@ function wrapTextByWidth(text, font, fontSize, maxWidth, maxLines = 2) {
 }
 
 function ensureCondStrings(cond = {}) {
-  // si vienen nuevos campos, armamos strings para el PDF
   const plazo = cond.plazoEntrega || (cond.plazoEntregaDias ? `${cond.plazoEntregaDias} ${pluralDia(cond.plazoEntregaDias)} hábiles` : "");
   const validez = cond.validez || (cond.validezDias ? `${cond.validezDias} ${pluralDia(cond.validezDias)}` : "");
   const pago = cond.pago || (cond.pagoTipo ? pagoLabel(cond.pagoTipo) : "");
@@ -1373,16 +1619,18 @@ async function buildPdf(data) {
   const tableX = M;
   const tableW = innerW;
 
-  const colDesc = Math.floor(tableW * 0.55);
-  const colQty = Math.floor(tableW * 0.10);
-  const colUnit = Math.floor(tableW * 0.17);
+  // ✅ columnas con DTO%
+  const colDesc = Math.floor(tableW * 0.50);
+  const colQty  = Math.floor(tableW * 0.10);
+  const colUnit = Math.floor(tableW * 0.16);
+  const colDto  = Math.floor(tableW * 0.08);
 
   const spaced = (s) => s.split("").join(" ");
   const headSize = 9.2;
   const rowSize = 9.5;
 
   page.drawText(spaced("ITEMS"), { x: tableX, y, size: headSize, font: fontBold, color: gray });
-  page.drawText(spaced("CANTIDAD"), {
+  page.drawText(spaced("CANT."), {
     x: tableX + colDesc + colQty - fontBold.widthOfTextAtSize(spaced("CANT."), headSize),
     y,
     size: headSize,
@@ -1391,6 +1639,13 @@ async function buildPdf(data) {
   });
   page.drawText(spaced("PRECIO"), {
     x: tableX + colDesc + colQty + colUnit - fontBold.widthOfTextAtSize(spaced("PRECIO"), headSize),
+    y,
+    size: headSize,
+    font: fontBold,
+    color: gray,
+  });
+  page.drawText(spaced("DTO%"), {
+    x: tableX + colDesc + colQty + colUnit + colDto - fontBold.widthOfTextAtSize(spaced("DTO%"), headSize),
     y,
     size: headSize,
     font: fontBold,
@@ -1420,11 +1675,40 @@ async function buildPdf(data) {
 
     const qtyStr = String(it.cantidad || 0);
     const unitStr = fmtCLP(it.valorUnitario || 0);
+    const dtoStr = `${clampPercent(it.descuentoPct ?? 0)}%`;
     const subStr = fmtCLP(it.neto || 0);
 
-    page.drawText(qtyStr, { x: tableX + colDesc + colQty - font.widthOfTextAtSize(qtyStr, rowSize), y: midY, size: rowSize, font, color: black });
-    page.drawText(unitStr, { x: tableX + colDesc + colQty + colUnit - font.widthOfTextAtSize(unitStr, rowSize), y: midY, size: rowSize, font, color: black });
-    page.drawText(subStr, { x: tableX + tableW - font.widthOfTextAtSize(subStr, rowSize), y: midY, size: rowSize, font, color: black });
+    page.drawText(qtyStr, {
+      x: tableX + colDesc + colQty - font.widthOfTextAtSize(qtyStr, rowSize),
+      y: midY,
+      size: rowSize,
+      font,
+      color: black
+    });
+
+    page.drawText(unitStr, {
+      x: tableX + colDesc + colQty + colUnit - font.widthOfTextAtSize(unitStr, rowSize),
+      y: midY,
+      size: rowSize,
+      font,
+      color: black
+    });
+
+    page.drawText(dtoStr, {
+      x: tableX + colDesc + colQty + colUnit + colDto - font.widthOfTextAtSize(dtoStr, rowSize),
+      y: midY,
+      size: rowSize,
+      font,
+      color: black
+    });
+
+    page.drawText(subStr, {
+      x: tableX + tableW - font.widthOfTextAtSize(subStr, rowSize),
+      y: midY,
+      size: rowSize,
+      font,
+      color: black
+    });
 
     y -= rowH;
   }
@@ -1576,9 +1860,10 @@ function downloadPdf(pdfBytes, filename) {
   display:flex;
   gap: 10px;
 }
-.c-desc{ width: 52%; }
-.c-qty{ width: 12%; }
+.c-desc{ width: 44%; }
+.c-qty{ width: 10%; }
 .c-unit{ width: 18%; }
+.c-dto{ width: 10%; }
 .c-sub{ width: 18%; }
 
 .preview-head{

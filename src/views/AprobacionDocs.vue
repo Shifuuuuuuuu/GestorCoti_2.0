@@ -1,6 +1,6 @@
 <!-- src/views/AprobacionDocs.vue -->
 <template>
-  <div class="container-fluid py-3">
+  <div class="container-fluid py-2 aprobacion-docs">
 
     <!-- Busy overlay -->
     <div v-if="busy.on" class="busy-overlay">
@@ -25,17 +25,18 @@
       </div>
     </div>
 
-    <div v-if="noLotesNotice" class="alert alert-info d-flex align-items-center justify-content-between gap-2">
+    <div v-if="noLotesNotice" class="alert alert-info d-flex align-items-center justify-content-between gap-2 mb-2">
       <div>
         <i class="bi bi-info-circle me-2"></i>{{ noLotesNotice }}
       </div>
       <button class="btn btn-sm btn-outline-dark" @click="dismissNoLotesNotice">OK</button>
     </div>
 
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-      <div>
+    <!-- Header compacto (para ganar pantalla) -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 topbar">
+      <div class="min-w-0">
         <h4 class="mb-0">Aprobación Documental</h4>
-        <small class="text-muted">
+        <small class="text-muted d-none d-md-inline">
           Selecciona un lote → revisa comparativas → aprueba o rechaza (con motivo).
         </small>
       </div>
@@ -54,7 +55,7 @@
           </option>
         </select>
 
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap d-none d-md-flex">
           <span class="badge text-bg-dark">Pendientes: {{ pendientesFiltradas.length }}</span>
           <span class="badge text-bg-success">Aprobadas: {{ aprobadasFiltradas.length }}</span>
           <span class="badge text-bg-danger">Rechazadas: {{ rechazadasFiltradas.length }}</span>
@@ -72,44 +73,44 @@
       </div>
     </div>
 
-    <div v-if="!hasAnyActiveLote" class="alert alert-warning">
+    <div v-if="!hasAnyActiveLote" class="alert alert-warning mb-2">
       No hay lotes de docs pendientes para revisar.
     </div>
 
-    <div v-else-if="!selectedLoteId" class="alert alert-warning">
+    <div v-else-if="!selectedLoteId" class="alert alert-warning mb-2">
       Selecciona un lote para ver sus comparativas pendientes.
     </div>
 
-    <div v-else class="row g-3 align-items-stretch">
-      <!-- Sidebar comparativas -->
-      <div v-if="showSidebar" class="col-12 col-lg-4">
-        <div class="card shadow-sm h-100">
-          <div class="card-header d-flex align-items-center justify-content-between">
+    <div v-else class="row g-2 align-items-stretch layout-row">
+      <!-- Sidebar comparativas (más angosto) -->
+      <div v-if="showSidebar" class="col-12 col-lg-2">
+        <div class="card shadow-sm h-100 sidebar-card">
+          <div class="card-header d-flex align-items-center justify-content-between py-2">
             <div class="fw-semibold d-flex align-items-center gap-2">
-              Comparativas del lote
+              Comparativas
               <span v-if="loadingData" class="badge text-bg-secondary">cargando…</span>
             </div>
 
             <div class="btn-group btn-group-sm">
               <button class="btn btn-outline-dark" :class="{active: listTab==='pendiente'}" @click="listTab='pendiente'">
-                Pendientes
+                P
               </button>
               <button class="btn btn-outline-dark" :class="{active: listTab==='aprobado'}" @click="listTab='aprobado'">
-                Aprobadas
+                A
               </button>
               <button class="btn btn-outline-dark" :class="{active: listTab==='rechazado'}" @click="listTab='rechazado'">
-                Rechazadas
+                R
               </button>
             </div>
           </div>
 
-          <div class="card-body p-2 d-flex flex-column" style="height: 100%;">
-            <div v-if="loadingData" class="p-3">
+          <div class="card-body p-2 d-flex flex-column">
+            <div v-if="loadingData" class="p-2">
               <div class="d-flex align-items-center gap-2">
                 <div class="spinner-border spinner-border-sm text-danger"></div>
-                <div class="text-muted small">Cargando documentos y comparaciones…</div>
+                <div class="text-muted small">Cargando…</div>
               </div>
-              <div class="progress mt-3" style="height: 10px">
+              <div class="progress mt-2" style="height: 10px">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" style="width: 100%"></div>
               </div>
             </div>
@@ -120,60 +121,49 @@
                   v-for="c in currentList"
                   :key="c.id"
                   type="button"
-                  class="list-group-item list-group-item-action"
+                  class="list-group-item list-group-item-action py-2 px-2"
                   :class="{ active: selectedCmpId === c.id }"
                   @click="selectCmp(c.id)"
                 >
                   <div class="d-flex justify-content-between align-items-start">
-                    <div class="me-2">
-                      <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <div class="me-1 min-w-0">
+                      <div class="d-flex gap-1 flex-wrap align-items-center">
                         <span class="badge text-bg-primary">OC {{ ocNumero(c) || '—' }}</span>
                         <span class="badge" :class="estadoCmpBadge(c.estado)">
                           {{ (c.estado || 'pendiente').toUpperCase() }}
                         </span>
-                        <span class="badge text-bg-warning" v-if="otherTipo(c)==='factura'">FACTURA</span>
-                        <span class="badge text-bg-info" v-else>GUÍA</span>
+                        <span class="badge text-bg-warning" v-if="otherTipo(c)==='factura'">F</span>
+                        <span class="badge text-bg-info" v-else>G</span>
                       </div>
 
-                      <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px;">
+                      <div class="fw-semibold mt-1 text-truncate" style="max-width: 100%;">
                         {{ ocNombreArchivo(c) || 'OC' }}
                       </div>
 
-                      <small class="text-muted d-block text-truncate" style="max-width: 320px;">
+                      <small class="text-muted d-block text-truncate" style="max-width: 100%;">
                         ↔ {{ otherNombreArchivo(c) || 'Documento' }}
-                      </small>
-
-                      <small class="text-muted" v-if="c.comentario">
-                        <i class="bi bi-chat-left-text me-1"></i>{{ c.comentario }}
                       </small>
                     </div>
 
-                    <div class="text-end small">
-                      <div class="text-muted" v-if="c.updatedAtText">{{ c.updatedAtText }}</div>
-                      <div class="text-muted" v-else>&nbsp;</div>
-                      <span class="badge text-bg-secondary" v-if="needsAttention(c)">revisar</span>
+                    <div class="text-end small d-none d-lg-block">
+                      <span class="badge text-bg-secondary" v-if="needsAttention(c)">!</span>
                     </div>
                   </div>
                 </button>
               </TransitionGroup>
 
-              <div v-if="currentList.length===0" class="text-muted text-center p-4">
-                No hay comparativas en este estado.
-              </div>
-
-              <div class="alert alert-light border mt-3 mb-0 small">
-                <div class="fw-semibold mb-1">Importante</div>
-                La firma de la OC se realiza en <b>Gestor de documentos → En Firestore</b>.
+              <div v-if="currentList.length===0" class="text-muted text-center p-3">
+                Sin items.
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Visor comparativo -->
-      <div :class="showSidebar ? 'col-12 col-lg-8' : 'col-12'">
-        <div class="card shadow-sm h-100">
-          <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
+      <!-- Visor comparativo (casi pantalla completa) -->
+      <div :class="showSidebar ? 'col-12 col-lg-10' : 'col-12'">
+        <div class="card shadow-sm h-100 viewer-root">
+          <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between py-2">
             <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
               Visor comparativo
               <span v-if="currentCmp" class="badge text-bg-primary">
@@ -186,11 +176,23 @@
                 v-if="currentCmp && (currentCmp.estado||'pendiente')==='pendiente'"
                 class="badge text-bg-dark subtle-pulse"
               >
-                listo para aprobar/rechazar
+                listo
               </span>
             </div>
 
-            <div class="d-flex gap-2 align-items-center">
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+                <button class="btn btn-outline-dark" @click="zoomOut" :disabled="zoom <= 0.6">
+                  <i class="bi bi-dash-lg"></i>
+                </button>
+                <button class="btn btn-outline-dark" @click="resetZoom" title="Ajustar">
+                  {{ Math.round(zoom * 100) }}%
+                </button>
+                <button class="btn btn-outline-dark" @click="zoomIn" :disabled="zoom >= 2.2">
+                  <i class="bi bi-plus-lg"></i>
+                </button>
+              </div>
+
               <button class="btn btn-outline-secondary btn-sm" :disabled="!currentCmp" @click="swapSides">
                 <i class="bi bi-arrow-left-right me-1"></i>Intercambiar
               </button>
@@ -205,15 +207,16 @@
             </div>
           </div>
 
-          <div class="card-body">
+          <!-- padding mínimo + altura máxima -->
+          <div class="card-body p-1">
             <div v-if="!currentCmp" class="text-muted text-center py-5">
               Selecciona una comparativa para visualizar y aprobar/rechazar.
             </div>
 
             <template v-else>
-              <Transition name="fade-fast" mode="out-in">
+              <Transition name="fade-fast">
                 <div :key="currentCmp.id" class="cmp-block">
-                  <div class="row g-2 mb-3">
+                  <div class="row g-1 mb-1">
                     <!-- LEFT -->
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
@@ -231,18 +234,35 @@
 
                         <div
                           v-if="leftUrl"
-                          class="viewer-frame viewer-scroll"
+                          class="viewer-frame viewer-scroll position-relative"
                           ref="leftScrollEl"
                           @scroll.passive="onViewerScroll('left')"
                         >
+                          <div v-if="leftLoading" class="viewer-loading">
+                            <div class="text-center">
+                              <div class="spinner-border text-danger" role="status"></div>
+                              <div class="fw-semibold mt-2">Cargando {{ leftTitle }}…</div>
+                              <div class="small text-muted" v-if="leftProgress !== null">{{ leftProgress }}%</div>
+                            </div>
+                          </div>
+
+                          <div v-if="leftError" class="viewer-error">
+                            <i class="bi bi-exclamation-triangle me-2"></i>{{ leftError }}
+                          </div>
+
                           <img
                             v-if="leftIsImage"
+                            :key="leftUrl"
                             :src="leftUrl"
                             class="viewer-img"
-                            loading="lazy"
+                            :style="{ width: Math.round(zoom * 100) + '%', height: 'auto' }"
+                            loading="eager"
                             decoding="async"
                             alt="Documento"
+                            @load="leftLoading=false; leftProgress=null; leftError=''"
+                            @error="leftLoading=false; leftProgress=null; leftError='No se pudo cargar la imagen.'"
                           />
+
                           <div v-else ref="leftPdfHost" class="pdf-pages"></div>
                         </div>
 
@@ -267,18 +287,35 @@
 
                         <div
                           v-if="rightUrl"
-                          class="viewer-frame viewer-scroll"
+                          class="viewer-frame viewer-scroll position-relative"
                           ref="rightScrollEl"
                           @scroll.passive="onViewerScroll('right')"
                         >
+                          <div v-if="rightLoading" class="viewer-loading">
+                            <div class="text-center">
+                              <div class="spinner-border text-danger" role="status"></div>
+                              <div class="fw-semibold mt-2">Cargando {{ rightTitle }}…</div>
+                              <div class="small text-muted" v-if="rightProgress !== null">{{ rightProgress }}%</div>
+                            </div>
+                          </div>
+
+                          <div v-if="rightError" class="viewer-error">
+                            <i class="bi bi-exclamation-triangle me-2"></i>{{ rightError }}
+                          </div>
+
                           <img
                             v-if="rightIsImage"
+                            :key="rightUrl"
                             :src="rightUrl"
                             class="viewer-img"
-                            loading="lazy"
+                            :style="{ width: Math.round(zoom * 100) + '%', height: 'auto' }"
+                            loading="eager"
                             decoding="async"
                             alt="Documento"
+                            @load="rightLoading=false; rightProgress=null; rightError=''"
+                            @error="rightLoading=false; rightProgress=null; rightError='No se pudo cargar la imagen.'"
                           />
+
                           <div v-else ref="rightPdfHost" class="pdf-pages"></div>
                         </div>
 
@@ -287,7 +324,7 @@
                     </div>
                   </div>
 
-                  <div v-if="needsAttention(currentCmp)" class="alert alert-warning mb-0">
+                  <div v-if="needsAttention(currentCmp)" class="alert alert-warning mb-0 py-2">
                     <i class="bi bi-exclamation-triangle me-2"></i>
                     Hay documentos sin URL/Storage. Revisa el lote (AdminGestionDocs) antes de firmar.
                   </div>
@@ -385,9 +422,6 @@ import {
 
 import { useAuthStore } from "@/stores/authService";
 
-/* =======================
-   PDF.js (para sync scroll)
-   ======================= */
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
 import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -582,6 +616,7 @@ function swapSides() {
   sideSwap.value = !sideSwap.value;
 }
 
+
 function docViewUrl(d) {
   if (!d) return "";
   if (d.tipo === "oc") return d?.firmado?.url || d?.archivo?.url || "";
@@ -644,13 +679,22 @@ const canReject = computed(() => {
   return (currentCmp.value.estado || "pendiente") === "pendiente";
 });
 
-/* =======================
-   PDF.js render + scroll sync
-   ======================= */
+const zoom = ref(1.3);
+const zoomIn = () => (zoom.value = Math.min(2.2, +(zoom.value + 0.15).toFixed(2)));
+const zoomOut = () => (zoom.value = Math.max(0.6, +(zoom.value - 0.15).toFixed(2)));
+const resetZoom = () => (zoom.value = 1);
+
 const leftPdfHost = ref(null);
 const rightPdfHost = ref(null);
 const leftScrollEl = ref(null);
 const rightScrollEl = ref(null);
+
+const leftLoading = ref(false);
+const rightLoading = ref(false);
+const leftProgress = ref(null);
+const rightProgress = ref(null);
+const leftError = ref("");
+const rightError = ref("");
 
 let _leftRenderToken = 0;
 let _rightRenderToken = 0;
@@ -658,54 +702,39 @@ let _rightRenderToken = 0;
 let _syncLock = false;
 let _rafSync = 0;
 
+
+const pdfCache = new Map();
+
 function clearPdfHost(host) {
   if (!host) return;
   host.innerHTML = "";
 }
-
-async function renderPdfInto(hostEl, url, tokenGetter) {
-  if (!hostEl || !url) return;
-
-  clearPdfHost(hostEl);
-
-  const containerW =
-    hostEl.clientWidth ||
-    hostEl.parentElement?.clientWidth ||
-    820;
-
-  const loadingTask = pdfjsLib.getDocument({ url });
-  const pdf = await loadingTask.promise;
-
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    if (tokenGetter && tokenGetter() === 0) return;
-
-    const page = await pdf.getPage(pageNum);
-
-    const v0 = page.getViewport({ scale: 1 });
-    const scale = Math.max((containerW - 16) / v0.width, 0.6);
-    const viewport = page.getViewport({ scale });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-
-    const ctx = canvas.getContext("2d", { alpha: false });
-    hostEl.appendChild(canvas);
-
-    await page.render({ canvasContext: ctx, viewport }).promise;
+async function waitForHost(refEl, tokenOk, tries = 30) {
+  for (let i = 0; i < tries; i++) {
+    if (!tokenOk()) return null;
+    await nextTick();
+    await new Promise((r) => requestAnimationFrame(r));
+    const el = refEl.value;
+    if (el && el.clientWidth > 10) return el;
   }
+  return null;
 }
 
-function getScrollRatio(el) {
-  if (!el) return 0;
-  const max = Math.max(1, el.scrollHeight - el.clientHeight);
-  return el.scrollTop / max;
+function getScrollRatios(el) {
+  if (!el) return { rx: 0, ry: 0 };
+  const maxY = Math.max(1, el.scrollHeight - el.clientHeight);
+  const maxX = Math.max(1, el.scrollWidth - el.clientWidth);
+  return {
+    ry: el.scrollTop / maxY,
+    rx: el.scrollLeft / maxX,
+  };
 }
-
-function setScrollRatio(el, ratio) {
+function setScrollRatios(el, { rx, ry }) {
   if (!el) return;
-  const max = Math.max(1, el.scrollHeight - el.clientHeight);
-  el.scrollTop = Math.round(ratio * max);
+  const maxY = Math.max(1, el.scrollHeight - el.clientHeight);
+  const maxX = Math.max(1, el.scrollWidth - el.clientWidth);
+  el.scrollTop = Math.round(ry * maxY);
+  el.scrollLeft = Math.round(rx * maxX);
 }
 
 function onViewerScroll(from) {
@@ -719,65 +748,207 @@ function onViewerScroll(from) {
   _rafSync = requestAnimationFrame(() => {
     _syncLock = true;
     try {
-      const ratio = getScrollRatio(src);
-      setScrollRatio(dst, ratio);
+      const ratios = getScrollRatios(src);
+      setScrollRatios(dst, ratios);
     } finally {
       setTimeout(() => (_syncLock = false), 0);
     }
   });
 }
 
-// Render cuando cambian URLs
-watch([leftUrl, leftIsImage], async () => {
-  clearPdfHost(leftPdfHost.value);
-  if (!leftUrl.value || leftIsImage.value) return;
+function getDpr() {
+  return Math.min(window.devicePixelRatio || 1, 2);
+}
 
-  const t = ++_leftRenderToken;
-  const tokenGetter = () => (_leftRenderToken === t ? 1 : 0);
+async function getPdfDoc(url) {
+  if (!pdfCache.has(url)) {
+    const loadingTask = pdfjsLib.getDocument({
+      url,
+      disableAutoFetch: false,
+      disableStream: false,
+    });
+    pdfCache.set(url, loadingTask.promise);
+  }
+  return pdfCache.get(url);
+}
+
+async function renderPdfInto({ hostEl, url, tokenOk, onProgress, fitZoom = 1 }) {
+  if (!hostEl || !url) return;
+
+  clearPdfHost(hostEl);
+
+  const containerW =
+    hostEl.clientWidth ||
+    hostEl.parentElement?.clientWidth ||
+    820;
+
+  const dpr = getDpr();
+  const pdf = await getPdfDoc(url);
+  const total = pdf.numPages || 1;
+
+  for (let pageNum = 1; pageNum <= total; pageNum++) {
+    if (!tokenOk()) return;
+
+    const page = await pdf.getPage(pageNum);
+
+    const v0 = page.getViewport({ scale: 1 });
+    const fit = Math.max((containerW - 16) / v0.width, 0.5);
+    const scale = fit * fitZoom;
+
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.style.width = `${Math.floor(viewport.width)}px`;
+    canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+    canvas.width = Math.floor(viewport.width * dpr);
+    canvas.height = Math.floor(viewport.height * dpr);
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    hostEl.appendChild(canvas);
+
+    const renderCtx = {
+      canvasContext: ctx,
+      viewport,
+      transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+    };
+
+    await page.render(renderCtx).promise;
+
+    if (onProgress) {
+      const pct = Math.round((pageNum / total) * 100);
+      onProgress(pct);
+    }
+
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+}
+
+watch([leftUrl, leftIsImage, zoom, () => currentCmp.value?.id], async () => {
+  leftError.value = "";
+  leftProgress.value = null;
+  _leftRenderToken++;
+
+  const url = leftUrl.value;
+
+  leftLoading.value = !!url;
+  clearPdfHost(leftPdfHost.value);
+
+  if (!url) {
+    leftLoading.value = false;
+    return;
+  }
 
   await nextTick();
+  if (leftScrollEl.value) {
+    leftScrollEl.value.scrollTop = 0;
+    leftScrollEl.value.scrollLeft = 0;
+  }
+
+  if (leftIsImage.value) return;
+
+  const token = _leftRenderToken;
+  const tokenOk = () => _leftRenderToken === token;
 
   try {
-    await renderPdfInto(leftPdfHost.value, leftUrl.value, tokenGetter);
+    const host = await waitForHost(leftPdfHost, tokenOk);
+    if (!host) {
+      if (tokenOk()) {
+        leftLoading.value = false;
+        leftError.value = "No se pudo montar el visor a tiempo (DOM).";
+      }
+      return;
+    }
+
+    await renderPdfInto({
+      hostEl: host,
+      url,
+      tokenOk,
+      fitZoom: zoom.value,
+      onProgress: (p) => (leftProgress.value = p),
+    });
+
+    if (tokenOk()) {
+      leftLoading.value = false;
+      leftProgress.value = null;
+    }
   } catch (e) {
     console.warn("PDF left render error:", e);
-    clearPdfHost(leftPdfHost.value);
-    if (leftPdfHost.value) {
-      leftPdfHost.value.innerHTML = `<div style="color:#fff;padding:12px;font-size:12px;">
-        No se pudo renderizar el PDF (CORS/URL). Abre con el botón externo arriba.
-      </div>`;
+
+    pdfCache.delete(url);
+
+    if (tokenOk()) {
+      leftLoading.value = false;
+      leftProgress.value = null;
+      leftError.value = "No se pudo renderizar el PDF. Usa (↗) para abrirlo.";
+      clearPdfHost(leftPdfHost.value);
     }
-  } finally {
-    // reset scroll ambos para que partan alineados
-    if (leftScrollEl.value) leftScrollEl.value.scrollTop = 0;
-    if (rightScrollEl.value) rightScrollEl.value.scrollTop = 0;
   }
 });
 
-watch([rightUrl, rightIsImage], async () => {
-  clearPdfHost(rightPdfHost.value);
-  if (!rightUrl.value || rightIsImage.value) return;
 
-  const t = ++_rightRenderToken;
-  const tokenGetter = () => (_rightRenderToken === t ? 1 : 0);
+watch([rightUrl, rightIsImage, zoom, () => currentCmp.value?.id], async () => {
+  rightError.value = "";
+  rightProgress.value = null;
+  _rightRenderToken++;
+
+  const url = rightUrl.value;
+
+  rightLoading.value = !!url;
+  clearPdfHost(rightPdfHost.value);
+
+  if (!url) {
+    rightLoading.value = false;
+    return;
+  }
 
   await nextTick();
+  if (rightScrollEl.value) {
+    rightScrollEl.value.scrollTop = 0;
+    rightScrollEl.value.scrollLeft = 0;
+  }
+
+  if (rightIsImage.value) return;
+
+  const token = _rightRenderToken;
+  const tokenOk = () => _rightRenderToken === token;
 
   try {
-    await renderPdfInto(rightPdfHost.value, rightUrl.value, tokenGetter);
+    const host = await waitForHost(rightPdfHost, tokenOk);
+    if (!host) {
+      if (tokenOk()) {
+        rightLoading.value = false;
+        rightError.value = "No se pudo montar el visor a tiempo (DOM).";
+      }
+      return;
+    }
+
+    await renderPdfInto({
+      hostEl: host,
+      url,
+      tokenOk,
+      fitZoom: zoom.value,
+      onProgress: (p) => (rightProgress.value = p),
+    });
+
+    if (tokenOk()) {
+      rightLoading.value = false;
+      rightProgress.value = null;
+    }
   } catch (e) {
     console.warn("PDF right render error:", e);
-    clearPdfHost(rightPdfHost.value);
-    if (rightPdfHost.value) {
-      rightPdfHost.value.innerHTML = `<div style="color:#fff;padding:12px;font-size:12px;">
-        No se pudo renderizar el PDF (CORS/URL). Abre con el botón externo arriba.
-      </div>`;
+    pdfCache.delete(url);
+
+    if (tokenOk()) {
+      rightLoading.value = false;
+      rightProgress.value = null;
+      rightError.value = "No se pudo renderizar el PDF. Usa (↗) para abrirlo.";
+      clearPdfHost(rightPdfHost.value);
     }
-  } finally {
-    if (leftScrollEl.value) leftScrollEl.value.scrollTop = 0;
-    if (rightScrollEl.value) rightScrollEl.value.scrollTop = 0;
   }
 });
+
 
 onMounted(() => {
   rejectModal = new bootstrap.Modal(rejectModalEl.value);
@@ -1025,7 +1196,6 @@ function openRejectModal() {
   rejectModal.show();
 }
 
-/** ✅ ahora SOLO aprueba, NO firma */
 async function approveOnly() {
   if (!canApprove.value) return;
 
@@ -1226,31 +1396,66 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
 </script>
 
 <style scoped>
-.bg-light-subtle { background: rgba(0,0,0,.03); }
+.aprobacion-docs{
+  min-height: 100vh;
+}
 
-.list-wrap { max-height: 55vh; overflow: auto; padding: 2px; }
+.topbar h4 { font-size: 1.15rem; }
+
+.sidebar-card .list-wrap{
+  max-height: calc(100vh - 160px);
+  overflow: auto;
+}
+
+.viewer-root{
+  height: calc(100vh - 110px);
+}
 
 .viewer-card { background: #fff; overflow: hidden; }
 .viewer-top {
-  padding: .5rem .65rem;
+  padding: .45rem .6rem;
   border-bottom: 1px solid rgba(0,0,0,.08);
   background: rgba(0,0,0,.02);
 }
 
-/* IMPORTANTE: ahora el frame es scrolleable (sync) */
 .viewer-frame {
   width: 100%;
-  height: 88vh;
-  max-height: 88vh;
+  height: calc(100vh - 185px);
+  max-height: calc(100vh - 185px);
   background: #111;
 }
 .viewer-scroll{
   overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.viewer-loading{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.92);
+  z-index: 5;
+}
+
+.viewer-error{
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  z-index: 6;
+  background: rgba(220,53,69,.12);
+  border: 1px solid rgba(220,53,69,.25);
+  color: #7a0b16;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
 }
 
 .pdf-pages{
   padding: 8px 8px 18px;
   background: #111;
+  min-width: 100%;
 }
 .pdf-pages canvas{
   width: 100%;
@@ -1258,14 +1463,13 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
   display: block;
   margin: 0 auto 12px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.15);
 }
 
 .viewer-img{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
   display: block;
+  margin: 0 auto;
   background: #111;
 }
 
@@ -1304,7 +1508,11 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
 }
 
 @media (max-width: 768px) {
-  .viewer-frame { height: 60vh; max-height: 60vh; }
+  .viewer-root{ height: auto; }
+  .viewer-frame {
+    height: 62vh;
+    max-height: 62vh;
+  }
 }
 
 .reject-grid{
