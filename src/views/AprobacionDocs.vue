@@ -237,6 +237,7 @@
                           class="viewer-frame viewer-scroll position-relative"
                           ref="leftScrollEl"
                           @scroll.passive="onViewerScroll('left')"
+                          @pointerdown="onPanStart($event, 'left')"
                         >
                           <div v-if="leftLoading" class="viewer-loading">
                             <div class="text-center">
@@ -290,6 +291,7 @@
                           class="viewer-frame viewer-scroll position-relative"
                           ref="rightScrollEl"
                           @scroll.passive="onViewerScroll('right')"
+                          @pointerdown="onPanStart($event, 'right')"
                         >
                           <div v-if="rightLoading" class="viewer-loading">
                             <div class="text-center">
@@ -416,8 +418,6 @@ import {
   serverTimestamp,
   addDoc,
   getDocs,
-  where,
-  limit,
 } from "firebase/firestore";
 
 import { useAuthStore } from "@/stores/authService";
@@ -536,6 +536,15 @@ function normEstado(s) {
   return v || "";
 }
 
+function normCmpEstado(s) {
+  const v = normalizeText(String(s || ""));
+  if (!v) return "pendiente";
+  if (v === "pendiente") return "pendiente";
+  if (v === "aprobado") return "aprobado";
+  if (v === "rechazado") return "rechazado";
+  return v; // por si inventas otro estado
+}
+
 const lotesActivos = computed(() => {
   return lotes.value.filter((l) => normEstado(l.estado) !== "revision_completada");
 });
@@ -567,14 +576,24 @@ function needsAttention(c) {
 }
 
 const pendientesFiltradas = computed(() =>
-  cmps.value.filter((c) => (c.estado || "pendiente") === "pendiente")
+  cmps.value.filter((c) => normCmpEstado(c.estado) === "pendiente")
 );
 const aprobadasFiltradas = computed(() =>
-  cmps.value.filter((c) => c.estado === "aprobado")
+  cmps.value.filter((c) => normCmpEstado(c.estado) === "aprobado")
 );
 const rechazadasFiltradas = computed(() =>
-  cmps.value.filter((c) => c.estado === "rechazado")
+  cmps.value.filter((c) => normCmpEstado(c.estado) === "rechazado")
 );
+
+let _finalizeTimer = 0;
+
+function scheduleFinalizeCheck() {
+  if (_finalizeTimer) clearTimeout(_finalizeTimer);
+  _finalizeTimer = setTimeout(() => {
+    completeCurrentLoteAndAdvance().catch((e) => console.error("finalize check error:", e));
+  }, 250);
+}
+
 
 const currentList = computed(() => {
   if (listTab.value === "aprobado") return aprobadasFiltradas.value;
@@ -701,6 +720,106 @@ let _rightRenderToken = 0;
 
 let _syncLock = false;
 let _rafSync = 0;
+const pan = ref({
+  active: false,
+  from: "left",
+  startX: 0,
+  startY: 0,
+  startScrollLeft: 0,
+  startScrollTop: 0,
+  pointerId: null,
+  moved: false,
+});
+
+function getPanEls(from) {
+  const src = from === "left" ? leftScrollEl.value : rightScrollEl.value;
+  const dst = from === "left" ? rightScrollEl.value : leftScrollEl.value;
+  return { src, dst };
+}
+
+function onPanStart(ev, from) {
+  const { src } = getPanEls(from);
+  if (!src) return;
+
+  // Solo mouse principal o touch/pen
+  if (ev.pointerType === "mouse" && ev.button !== 0) return;
+
+  // Evita iniciar drag cuando clickean botones/enlaces
+  const tag = String(ev.target?.tagName || "").toLowerCase();
+  if (tag === "a" || tag === "button" || tag === "input" || tag === "textarea") return;
+
+  pan.value.active = true;
+  pan.value.from = from;
+  pan.value.startX = ev.clientX;
+  pan.value.startY = ev.clientY;
+  pan.value.startScrollLeft = src.scrollLeft;
+  pan.value.startScrollTop = src.scrollTop;
+  pan.value.pointerId = ev.pointerId;
+  pan.value.moved = false;
+
+  try {
+    src.setPointerCapture(ev.pointerId);
+  } catch (e) {console.log(e)}
+
+  src.classList.add("is-panning");
+  document.body.classList.add("no-select");
+
+  window.addEventListener("pointermove", onPanMove, { passive: false });
+  window.addEventListener("pointerup", onPanEnd, { passive: true });
+  window.addEventListener("pointercancel", onPanEnd, { passive: true });
+}
+
+function onPanMove(ev) {
+  if (!pan.value.active) return;
+
+  const { src, dst } = getPanEls(pan.value.from);
+  if (!src || !dst) return;
+
+  ev.preventDefault?.();
+
+  const dx = ev.clientX - pan.value.startX;
+  const dy = ev.clientY - pan.value.startY;
+
+  if (!pan.value.moved && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+    pan.value.moved = true;
+  }
+
+  const nextLeft = pan.value.startScrollLeft - dx;
+  const nextTop = pan.value.startScrollTop - dy;
+
+  _syncLock = true;
+  try {
+    src.scrollLeft = nextLeft;
+    src.scrollTop = nextTop;
+
+    dst.scrollLeft = nextLeft;
+    dst.scrollTop = nextTop;
+  } finally {
+    requestAnimationFrame(() => {
+      _syncLock = false;
+    });
+  }
+}
+
+function onPanEnd() {
+  if (!pan.value.active) return;
+
+  const { src } = getPanEls(pan.value.from);
+  if (src) src.classList.remove("is-panning");
+
+  document.body.classList.remove("no-select");
+
+  try {
+    if (src && pan.value.pointerId != null) src.releasePointerCapture(pan.value.pointerId);
+  } catch (e) {console.log(e)}
+
+  pan.value.active = false;
+  pan.value.pointerId = null;
+
+  window.removeEventListener("pointermove", onPanMove);
+  window.removeEventListener("pointerup", onPanEnd);
+  window.removeEventListener("pointercancel", onPanEnd);
+}
 
 
 const pdfCache = new Map();
@@ -981,6 +1100,11 @@ onBeforeUnmount(() => {
   if (_rafSync) cancelAnimationFrame(_rafSync);
   clearPdfHost(leftPdfHost.value);
   clearPdfHost(rightPdfHost.value);
+  window.removeEventListener("pointermove", onPanMove);
+  window.removeEventListener("pointerup", onPanEnd);
+  window.removeEventListener("pointercancel", onPanEnd);
+  document.body.classList.remove("no-select");
+
 });
 
 function onChangeLote() {
@@ -1234,6 +1358,7 @@ async function approveOnly() {
 
     setBusy(true, "Listo ✅", "Avanzando a la siguiente pendiente…", 100);
     animateAdvance(cmp.id);
+    scheduleFinalizeCheck();
   } catch (err) {
     console.error(err);
     alert("Error aprobando: " + (err?.message || String(err)));
@@ -1290,6 +1415,7 @@ async function rejectComparison() {
 
     setBusy(true, "Listo ✅", "Avanzando a la siguiente pendiente…", 100);
     animateAdvance(cmp.id);
+    scheduleFinalizeCheck();
   } catch (err) {
     console.error(err);
     alert("Error rechazando: " + (err?.message || String(err)));
@@ -1324,33 +1450,38 @@ function animateAdvance(currentId) {
 
 watch(
   () => [selectedLoteId.value, loadingData.value, autoMatchRunning, pendientesFiltradas.value.length],
-  async ([loteId, isLoading, isAutoMatching, pendingCount]) => {
+  ([loteId, isLoading, isAutoMatching, pendingCount]) => {
     if (!loteId) return;
     if (isLoading) return;
     if (isAutoMatching) return;
     if (finishingLote.value) return;
+
     if (pendingCount === 0) {
-      await completeCurrentLoteAndAdvance();
+      scheduleFinalizeCheck();
     }
   }
 );
+
 
 async function completeCurrentLoteAndAdvance() {
   const loteId = selectedLoteId.value;
   if (!loteId) return;
 
+  if (finishingLote.value) return;
   finishingLote.value = true;
 
   try {
     setBusy(true, "Finalizando lote…", "Verificando que no queden pendientes", 10);
 
-    const qPend = query(
-      collection(db, "lotes_docs", loteId, "comparaciones"),
-      where("estado", "==", "pendiente"),
-      limit(1)
-    );
-    const snapPend = await getDocs(qPend);
-    if (!snapPend.empty) return;
+    // ✅ Trae todas las comparaciones del lote y verifica en JS
+    const snap = await getDocs(collection(db, "lotes_docs", loteId, "comparaciones"));
+
+    const stillPending = snap.docs.some((d) => {
+      const data = d.data() || {};
+      return normCmpEstado(data.estado) === "pendiente";
+    });
+
+    if (stillPending) return;
 
     setBusy(true, "Finalizando lote…", "Marcando estado del lote", 55);
 
@@ -1363,7 +1494,6 @@ async function completeCurrentLoteAndAdvance() {
     });
 
     setBusy(true, "Finalizando lote…", "Buscando siguiente lote", 85);
-
     await switchToNextActiveLoteOrNotice("✅ Lote finalizado: Revisión completa.");
   } catch (e) {
     console.error("Error completando lote:", e);
@@ -1398,6 +1528,17 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
 <style scoped>
 .aprobacion-docs{
   min-height: 100vh;
+}
+.viewer-scroll {
+  cursor: grab;
+}
+.viewer-scroll.is-panning {
+  cursor: grabbing;
+}
+
+/* Evita selección de texto durante drag (global) */
+:global(body.no-select) {
+  user-select: none !important;
 }
 
 .topbar h4 { font-size: 1.15rem; }
