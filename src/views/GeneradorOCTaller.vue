@@ -3,7 +3,6 @@
 <template>
   <div class="generador-oc-page">
     <div class="container py-4 py-md-5">
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
           <i class="bi bi-arrow-left"></i>
@@ -14,17 +13,12 @@
           Generador Cotización (Taller)
         </h1>
 
-        <button
-          class="btn btn-secondary btn-sm"
-          @click="toggleEquiposPanel"
-          :aria-pressed="mostrarEquipos.toString()"
-        >
+        <button class="btn btn-secondary btn-sm" @click="toggleEquiposPanel" :aria-pressed="mostrarEquipos.toString()">
           <i class="bi bi-search me-1"></i>
           {{ mostrarEquipos ? "Ocultar" : "Buscar" }} equipos
         </button>
       </div>
 
-      <!-- Alert: requiere sesión -->
       <div
         v-if="!isAuthReady || !usuarioActual"
         class="alert alert-warning d-flex align-items-start gap-2 mb-3"
@@ -37,7 +31,6 @@
         </div>
       </div>
 
-      <!-- Botonera superior -->
       <div class="d-flex justify-content-end flex-wrap gap-2 mb-2">
         <button
           class="btn btn-outline-dark btn-sm"
@@ -60,7 +53,6 @@
         </button>
       </div>
 
-      <!-- ===== Bloqueo por OCs Aprobadas (rol Editor) ===== -->
       <div
         v-if="bloqueoPorAprobadasTaller"
         class="alert alert-danger d-flex align-items-start gap-2 mb-3"
@@ -79,7 +71,6 @@
         </div>
       </div>
 
-      <!-- Card: Mis OC Taller del mes actual -->
       <div v-if="mostrarOCTallerMes" class="card mb-3 card-elevated">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">🧾 Mis cotizaciones</div>
@@ -97,7 +88,11 @@
           </div>
 
           <div v-else class="list-group list-group-flush">
-            <div class="list-group-item d-flex align-items-start flex-wrap gap-2" v-for="oc in ocTallerMesPaged" :key="oc.__docId">
+            <div
+              class="list-group-item d-flex align-items-start flex-wrap gap-2"
+              v-for="oc in ocTallerMesPaged"
+              :key="oc.__docId"
+            >
               <div class="me-auto">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                   <span class="fw-semibold">N° {{ oc.id ?? "—" }}</span>
@@ -127,7 +122,6 @@
           </div>
         </div>
 
-        <!-- Paginación -->
         <div v-if="!cargandoOCTallerMes && ocTallerMesTotalPages > 1" class="card-footer bg-white">
           <nav aria-label="Paginación OC Taller">
             <ul class="pagination justify-content-center mb-0">
@@ -154,7 +148,6 @@
         </div>
       </div>
 
-      <!-- Card: Mi resumen (2 meses) -->
       <div v-if="mostrarResumenUsuarios" class="card mb-3 card-elevated">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">📊 Resumen de mis Cotizaciones</div>
@@ -217,12 +210,9 @@
         </div>
       </div>
 
-      <!-- Layout principal -->
       <div class="row g-3">
-        <!-- Columna izquierda -->
         <div class="col-12" :class="mostrarEquipos ? 'col-lg-8' : 'col-lg-12'">
           <div class="card card-elevated position-relative overflow-hidden">
-            <!-- Overlay bloqueo -->
             <div v-if="bloqueoPorAprobadasTaller" class="lock-overlay">
               <div class="lock-box text-center">
                 <i class="bi bi-lock-fill display-6 d-block mb-2"></i>
@@ -244,19 +234,9 @@
                 <i v-if="bloqueoPorAprobadasTaller" class="bi bi-lock-fill text-danger"></i>
                 <span>Subir Cotización (Taller)</span>
               </div>
-
-              <div class="d-flex gap-2 d-lg-none">
-                <button class="btn btn-outline-dark btn-sm" @click="toggleOCTallerMes" :aria-pressed="mostrarOCTallerMes.toString()" :disabled="!usuarioActual">
-                  <i class="bi bi-receipt-cutoff"></i>
-                </button>
-                <button class="btn btn-secondary btn-sm" @click="toggleEquiposPanel" :aria-pressed="mostrarEquipos.toString()">
-                  <i class="bi bi-search"></i>
-                </button>
-              </div>
             </div>
 
             <div class="card-body">
-              <!-- Nº de Cotización -->
               <div class="mb-3">
                 <label class="form-label">N° de Cotización</label>
 
@@ -280,13 +260,11 @@
                 <div v-if="errorNumero" class="form-text text-danger">{{ errorNumero }}</div>
               </div>
 
-              <!-- Asociar SOLPED -->
               <div class="form-check form-switch mb-3">
                 <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped" />
                 <label class="form-check-label" for="swSolped">¿Asociar a una SOLPED?</label>
               </div>
 
-              <!-- Selector SOLPED -->
               <div v-if="usarSolped" class="row g-2 align-items-end">
                 <div class="col-12">
                   <label class="form-label">SOLPED asociada</label>
@@ -300,7 +278,6 @@
                 </div>
               </div>
 
-              <!-- Ficha SOLPED -->
               <div v-if="usarSolped && solpedSeleccionada" class="row g-3 mt-1">
                 <div class="col-12 col-md-4">
                   <div class="small text-secondary">N° SOLPED</div>
@@ -327,7 +304,6 @@
                 </div>
               </div>
 
-              <!-- Ítems de SOLPED -->
               <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
                 <div class="card-header bg-white d-flex align-items-center justify-content-between">
                   <span class="fw-semibold">📦 Ítems de la SOLPED</span>
@@ -369,7 +345,6 @@
                     </table>
                   </div>
 
-                  <!-- Autorización -->
                   <div v-if="autorizacionUrlRaw" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
                     <i class="bi bi-paperclip"></i>
                     <div class="me-auto ms-2">
@@ -393,22 +368,20 @@
 
               <hr class="my-4">
 
-              <!-- Centro de costo -->
               <div class="mb-3">
                 <label class="form-label">Centro de Costo</label>
                 <input class="form-control" v-model="centroCostoTexto" placeholder="Ej: THPV-31" />
                 <div class="form-text" v-if="centroCostoTextoAyuda">Sugerencia: {{ centroCostoTextoAyuda }}</div>
               </div>
 
-              <!-- Empresa -->
               <div class="mb-3">
                 <label class="form-label">Empresa</label>
                 <select class="form-select" v-model="empresaSeleccionada">
+                  <option value="Xtreme Servicios">Xtreme Servicios</option>
                   <option value="Xtreme Servicio">Xtreme Servicio</option>
                 </select>
               </div>
 
-              <!-- Moneda + Precio -->
               <div class="row g-3 mt-1">
                 <div class="col-12 col-md-4">
                   <label class="form-label">Moneda</label>
@@ -434,19 +407,16 @@
                 </div>
               </div>
 
-              <!-- Aprobador sugerido -->
               <div v-if="aprobadorSugerido" class="alert alert-info d-flex align-items-center mt-3">
                 <i class="bi bi-person-check me-2"></i>
                 <div><strong>Aprobador sugerido:</strong> {{ aprobadorSugerido }}</div>
               </div>
 
-              <!-- Comentario -->
               <div class="mb-3">
                 <label class="form-label">Comentario</label>
                 <textarea class="form-control" rows="3" v-model="comentario" placeholder="Agrega un comentario opcional…"></textarea>
               </div>
 
-              <!-- Archivos -->
               <div class="mb-3">
                 <label class="form-label">Archivos PDF o Imagen (cotizaciones)</label>
                 <div class="d-flex flex-wrap align-items-center gap-2">
@@ -458,7 +428,6 @@
                 </div>
               </div>
 
-              <!-- Previews -->
               <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
                 <div class="card-header d-flex align-items-center">
                   <div class="fw-semibold me-auto text-truncate">{{ archivo.name }}</div>
@@ -476,7 +445,6 @@
                 </div>
               </div>
 
-              <!-- Enviar -->
               <div class="d-grid mt-3">
                 <button
                   class="btn btn-danger btn-lg"
@@ -492,7 +460,6 @@
           </div>
         </div>
 
-        <!-- Columna derecha: Panel de Equipos -->
         <aside class="col-12 col-lg-4 d-none d-lg-block" v-if="mostrarEquipos">
           <div class="card h-100 card-elevated sticky-panel">
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -505,10 +472,15 @@
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input
                   class="form-control"
-                  placeholder="Escribe al menos 2 caracteres"
+                  placeholder="Busca por código, chasis, marca, modelo, localización, tipo… (ej: 2864 / silo)"
                   v-model="busquedaEquipo"
                   @input="aplicarFiltrosEquiposDebounced"
                 />
+              </div>
+
+              <div v-if="equiposLoadingAll" class="text-center text-secondary py-2 small">
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Cargando base de equipos ({{ equiposAll.length }} / 650 aprox.)…
               </div>
 
               <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3 small">
@@ -574,7 +546,6 @@
       </div>
     </div>
 
-    <!-- Toasts -->
     <div class="toast-stack" aria-live="polite" aria-atomic="true">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
         <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -591,24 +562,21 @@ import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  startAt, endAt, serverTimestamp, onSnapshot, Timestamp, getCountFromServer
+  serverTimestamp, onSnapshot, Timestamp, getCountFromServer
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
 
-/* ===== Router ===== */
 const router = useRouter();
 const route = useRoute();
 const volver = () => router.back();
 
-/* ===== Auth ===== */
 const auth = useAuthStore();
 const isAuthReady = ref(false);
 const myUid = computed(() => auth?.user?.uid || null);
 const usuarioActual = ref("");
 const userRole = ref("");
 
-/* ===== Config bloqueo por Aprobadas (Taller) ===== */
 const APPLY_TO_ROLES = ["editor"];
 const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 20);
 
@@ -625,13 +593,9 @@ const rangeUltimosDosMeses = () => {
   const m = now.getMonth();
   const inicio = new Date(y, m - 1, 1, 0, 0, 0, 0);
   const fin = new Date(y, m + 1, 1, 0, 0, 0, 0);
-  return {
-    from: Timestamp.fromDate(inicio),
-    to: Timestamp.fromDate(fin),
-  };
+  return { from: Timestamp.fromDate(inicio), to: Timestamp.fromDate(fin) };
 };
 
-/* ===== UI: toasts ===== */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2800) => {
   const id = Date.now() + Math.random();
@@ -642,7 +606,6 @@ const closeToast = (id) => {
   toasts.value = toasts.value.filter((t) => t.id !== id);
 };
 
-/* ===== Form ===== */
 const enviando = ref(false);
 const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
@@ -660,11 +623,8 @@ const aprobadorSugerido = ref("");
 const tipoCambioUSD = 950;
 const tipoCambioEUR = 1050;
 
-/* ===== Equipos panel ===== */
 const mostrarEquipos = ref(false);
-const toggleEquiposPanel = () => { mostrarEquipos.value = !mostrarEquipos.value; };
 
-/* ===== Archivos ===== */
 const archivos = ref([]);
 const abrirSelectorArchivos = () => {
   const input = document.getElementById("inputArchivo");
@@ -689,17 +649,15 @@ const onMultipleFilesSelected = (e) => {
 };
 const eliminarArchivo = (idx) => {
   const a = archivos.value[idx];
-  try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) { console.log(e); }
+  try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) {console.log(e)}
   archivos.value.splice(idx, 1);
   addToast("success", "Archivo eliminado.");
 };
 
-/* ===== Helpers: cálculo modelo SOLPED ===== */
 function sumMapNumbers(obj) {
   if (!obj || typeof obj !== "object") return 0;
   return Object.values(obj).reduce((acc, v) => acc + Number(v || 0), 0);
 }
-
 function computeItemCounters(base) {
   const total = Number(base.cantidad || 0);
   const aprobado = Math.min(total, sumMapNumbers(base.cotPorOC));
@@ -708,30 +666,22 @@ function computeItemCounters(base) {
   const comprometido = Math.min(total, aprobado + reservado);
   return { total, aprobado, reservado, restan, comprometido };
 }
-
 function recomputeSolpedItemState(item) {
   const it = { ...(item || {}) };
   const total = Number(it.cantidad || 0);
-
   it.cotPorOC = (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {};
   it.pendienteRevisionPorOC = (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {};
-
   const aprobado = Math.min(total, sumMapNumbers(it.cotPorOC));
   const reservado = Math.min(total, sumMapNumbers(it.pendienteRevisionPorOC));
   const comprometido = Math.min(total, aprobado + reservado);
-
-  // ✅ comprometido (aprobado+reservado)
   it.cantidad_cotizada = comprometido;
-
   if (total > 0 && aprobado >= total) it.estado_cotizacion = "completado";
   else if (comprometido > 0) it.estado_cotizacion = "parcial";
   else it.estado_cotizacion = "pendiente";
-
   it.estado = it.estado_cotizacion;
   return it;
 }
 
-/* ===== SOLPED selección ===== */
 const solpedDisponibles = ref([]);
 const solpedSeleccionadaId = ref("");
 const solpedSeleccionada = ref(null);
@@ -789,7 +739,6 @@ const onChangeSolped = async () => {
     if (!snap.exists()) return;
 
     const data = snap.data() || {};
-
     const st = String(data.estatus || "").trim().toLowerCase();
     const allowed = [
       "pendiente",
@@ -798,7 +747,7 @@ const onChangeSolped = async () => {
       "cotizando - revision guillermo",
       "cotizando - revisión guillermo",
       "cotizado parcial",
-      "cotizado completado" // por si quieres ver, pero luego filtramos por restan
+      "cotizado completado"
     ];
     if (!allowed.includes(st)) {
       addToast("warning", "Esta SOLPED no está en estado Pendiente / Parcial / Cotizando.");
@@ -810,7 +759,6 @@ const onChangeSolped = async () => {
     }
 
     solpedSeleccionada.value = data;
-
     centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
 
     autorizacionNombre.value = data.autorizacion_nombre || null;
@@ -820,7 +768,6 @@ const onChangeSolped = async () => {
     autorizacionEsImagen.value = /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(guess);
 
     const todos = Array.isArray(data.items) ? data.items : [];
-
     const normalizados = todos.map((it) => {
       const base = {
         ...it,
@@ -829,12 +776,7 @@ const onChangeSolped = async () => {
         pendienteRevisionPorOC: (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {},
       };
       const { aprobado, reservado, restan } = computeItemCounters(base);
-      const withCounters = {
-        ...base,
-        __aprobado: aprobado,
-        __reservado: reservado,
-        __restan: restan,
-      };
+      const withCounters = { ...base, __aprobado: aprobado, __reservado: reservado, __restan: restan };
       return recomputeSolpedItemState(withCounters);
     });
 
@@ -852,16 +794,13 @@ const onChangeSolped = async () => {
   }
 };
 
-/* ===== Moneda / precio / aprobador ===== */
 const onCambioMoneda = () => { formatearPrecConValor(precioTotalConIVA.value); };
-
 const formatearPrecio = (ev) => {
   const input = String(ev?.target?.value ?? "");
   const soloNumeros = input.replace(/\D/g, "");
   const valor = soloNumeros ? parseInt(soloNumeros, 10) : 0;
   formatearPrecConValor(valor);
 };
-
 const formatearPrecConValor = (valor) => {
   precioTotalConIVA.value = valor;
   const m = monedaSeleccionada.value || "CLP";
@@ -889,41 +828,34 @@ const calcularAprobador = () => {
     if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
     else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
     else aprobadorSugerido.value = "Alejandro Candia";
+  } else {
+    aprobadorSugerido.value = "";
   }
 };
 
-/* ===== OC Helpers ===== */
 function makeOcItemFromSolpedItem(it, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel) {
   const cantTotal = Number(it.cantidad || 0);
   const qty = Math.max(0, Math.min(Number(it.cantidad_para_cotizar || 0), Number(it.__restan || 0), cantTotal));
 
   return {
-    // ✅ NUEVO: llave estable para matcheo posterior
     solped_item_no: Number(it.item ?? 0),
-
     item: Number(it.item ?? 0),
     descripcion: it.descripcion || "",
     codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
     imagen_url: it.imagen_url ?? null,
-
     cantidad: cantTotal,
-
     cantidad_solicitada_oc: qty,
     cantidad_para_cotizar: qty,
     cantidad_cotizada: qty,
-
     estado: qty > 0 ? "revision" : "pendiente",
     estado_cotizacion: qty > 0 ? "revision" : "pendiente",
-
     numero_interno: numeroInternoTexto || it.numero_interno || "",
     solpedId,
     numero_solped: solpedSel?.numero_solpe || 0,
     tipo_solped: solpedSel?.tipo_solped || "No definido",
-
     moneda,
     precioTotalConIVA: totalConIVA,
     responsable,
-
     __tempId: it.__tempId || `${it.item}-${it.descripcion}-${it.codigo_referencial || ""}`,
   };
 }
@@ -937,10 +869,6 @@ function mapearItemsParaOC(itemsOrigen, numeroInternoTexto, moneda, totalConIVA,
   return salida;
 }
 
-/* =========================
-   ✅ SOLPED post-OC: reservar (pendienteRevisionPorOC)
-   ✅ match robusto: por item/solped_item_no, y fallback __tempId
-   ========================= */
 async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, ocNumero, ocDocId) {
   if (!solpedId) return;
 
@@ -952,7 +880,6 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, o
   const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
   const ocKey = String(ocNumero);
 
-  // ✅ índices robustos
   const idxByItemNo = new Map();
   const idxByTempId = new Map();
 
@@ -982,10 +909,7 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, o
 
   for (const ocIt of (itemsOC || [])) {
     const idx = findIndexForOcItem(ocIt);
-    if (idx < 0) {
-      console.warn("[SOLPED] No pude matchear ítem para reservar:", ocIt);
-      continue;
-    }
+    if (idx < 0) continue;
 
     const base = { ...actualizados[idx] };
     base.cantidad = Number(base.cantidad || 0);
@@ -1010,7 +934,6 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, o
     actualizados[idx] = recomputeSolpedItemState(base);
   }
 
-  // ✅ recalcular todos
   const finalItems = actualizados.map((it) => recomputeSolpedItemState(it));
 
   const tot = finalItems.length;
@@ -1044,7 +967,6 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, o
   });
 }
 
-/* ===== Enviar OC ===== */
 const enviarOC = async () => {
   if (enviando.value) return;
 
@@ -1070,11 +992,9 @@ const enviarOC = async () => {
 
   const nombreUsuario = (usuarioActual.value || "").trim();
   const comentarioFinal = (comentario.value || "").trim();
-
   enviando.value = true;
 
   try {
-    // correlativo simple
     const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
@@ -1084,7 +1004,6 @@ const enviarOC = async () => {
     const aprobador = aprobadorSugerido.value || "";
     const estatusInicial = "Revisión Guillermo";
 
-    // subir archivos
     const storage = getStorage();
     const subidos = [];
     for (const a of archivos.value) {
@@ -1096,7 +1015,6 @@ const enviarOC = async () => {
       subidos.push({ nombre: a.name, tipo: a.tipo, url });
     }
 
-    // items
     let itemsFinal = [];
     if (usarSolped.value && solpedSeleccionadaId.value && solpedSeleccionada.value) {
       itemsFinal = mapearItemsParaOC(
@@ -1181,7 +1099,7 @@ function resetFormulario() {
   centroCostoTexto.value = "";
   empresaSeleccionada.value = "Xtreme Servicios";
   for (const a of archivos.value) {
-    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) { console.log(e); }
+    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) {console.log(e)}
   }
   archivos.value = [];
   comentario.value = "";
@@ -1195,7 +1113,6 @@ function resetFormulario() {
   monedaSeleccionada.value = "CLP";
 }
 
-/* ===== Utils formato/estado ===== */
 const fmtFecha = (f) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : null);
@@ -1214,7 +1131,6 @@ const estadoBadgeClass = (estatus) => {
   return "bg-secondary-subtle text-secondary-emphasis";
 };
 
-/* ====== OC Taller del mes (solo del usuario) ====== */
 const mostrarOCTallerMes = ref(false);
 const cargandoOCTallerMes = ref(false);
 const ocTallerMes = ref([]);
@@ -1250,7 +1166,6 @@ function suscribirOCTallerMes(nombre) {
   if (!nombre) { cargandoOCTallerMes.value = false; return; }
 
   const { from, to } = rangeUltimosDosMeses();
-
   try {
     const qy = query(
       collection(db, "ordenes_oc_taller"),
@@ -1263,7 +1178,6 @@ function suscribirOCTallerMes(nombre) {
     _unsubOCTallerMes = onSnapshot(qy, (snap) => {
       let arr = [];
       snap.forEach((docu) => arr.push({ __docId: docu.id, ...docu.data() }));
-      // opcional: solo enviadas a proveedor
       arr = arr.filter(x => String(x.estatus || "").toLowerCase().includes("proveedor"));
       arr.sort((a, b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
       ocTallerMes.value = arr;
@@ -1290,7 +1204,6 @@ const toggleOCTallerMes = () => {
   else desuscribirOCTallerMes();
 };
 
-/* ====== MI Resumen (2 meses, una fila del usuario) ====== */
 const mostrarResumenUsuarios = ref(false);
 const cargandoResumenUsuarios = ref(false);
 const resumenUsuarios = ref([]);
@@ -1395,7 +1308,6 @@ const toggleResumenUsuarios = () => {
   else desuscribirResumenUsuarios();
 };
 
-/* ===== Bloqueo: count de aprobadas ===== */
 let _unsubAprobadasLiveTaller = null;
 
 async function refrescarAprobadasConCountTaller() {
@@ -1443,7 +1355,6 @@ function suscribirAprobadasLiveMinimaTaller() {
   }
 }
 
-/* ===== Usuario ===== */
 const obtenerNombreUsuario = async () => {
   try {
     const uid = myUid.value;
@@ -1464,7 +1375,6 @@ const obtenerNombreUsuario = async () => {
   }
 };
 
-/* ===== SOLPED disponibles ===== */
 const cargarSolpedSolicitadas = async () => {
   try {
     let arr = [];
@@ -1487,7 +1397,6 @@ const cargarSolpedSolicitadas = async () => {
   }
 };
 
-/* ===== Número siguiente OC ===== */
 const cargarSiguienteNumero = async () => {
   if (cargandoNumero.value) return;
   cargandoNumero.value = true;
@@ -1507,14 +1416,22 @@ const cargarSiguienteNumero = async () => {
   }
 };
 
-/* ===== Equipos (búsqueda) ===== */
+/* ====== Equipos: carga 1 vez + búsqueda local multi-campo ====== */
 const busquedaEquipo = ref("");
 const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);
-const pageSize = 5;
 const currentPage = ref(1);
+const equiposPageSize = 5;
+let debounce = null;
+let lastSearchToken = 0;
+const cacheResultados = new Map();
 
-const totalPages = computed(() => Math.max(1, Math.ceil(resultadosEquipos.value.length / pageSize)));
+const equiposAll = ref([]);
+const equiposIndex = ref([]);
+const equiposLoaded = ref(false);
+const equiposLoadingAll = ref(false);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(resultadosEquipos.value.length / equiposPageSize)));
 const visiblePageButtons = computed(() => {
   const maxButtons = 7;
   const pages = [];
@@ -1525,32 +1442,117 @@ const visiblePageButtons = computed(() => {
   return pages;
 });
 const pagedEquipos = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return resultadosEquipos.value.slice(start, start + pageSize);
+  const start = (currentPage.value - 1) * equiposPageSize;
+  return resultadosEquipos.value.slice(start, start + equiposPageSize);
 });
 const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
 
-const normTxt = (s) => String(s||"").normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
+const SEARCH_FIELDS = [
+  "clasificacion1",
+  "codigo",
+  "equipo",
+  "localizacion",
+  "marca",
+  "modelo",
+  "numero_chasis",
+  "tipo_equipo",
+];
 
-let debounce = null;
-let lastSearchToken = 0;
-const cacheResultados = new Map();
+const normEq = (s) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+
+const compactEq = (s) => normEq(s).replace(/[^a-z0-9]+/g, "");
+
+const splitTokens = (q) =>
+  normEq(q).split(/[^a-z0-9]+/g).filter(Boolean).filter(t => t.length >= 2);
+
+const haystackEquipo = (e) => {
+  const s = SEARCH_FIELDS.map((k) => normEq(e?.[k])).join(" ");
+  return s.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+};
+
+const buildEquipIndexRow = (e) => {
+  const h = haystackEquipo(e);
+  return {
+    ...e,
+    __hay: h,
+    __tokens: new Set(h.split(" ").filter(Boolean)),
+    __codeCompact: compactEq(e?.codigo),
+  };
+};
+
+const scoreEquipo = (e, qRaw, qTokens, qCompact) => {
+  let score = 0;
+  const h = e.__hay || "";
+  const qFull = normEq(qRaw).replace(/[^a-z0-9]+/g, " ").trim();
+
+  if (e.__codeCompact && qCompact && e.__codeCompact === qCompact) score += 3000;
+  if (e.__codeCompact && qCompact && e.__codeCompact.includes(qCompact)) score += 900;
+
+  if (qFull && h.includes(qFull)) score += 400;
+
+  for (const t of qTokens) {
+    if (e.__tokens?.has(t)) score += 220;
+    else if (h.includes(t)) score += 80;
+  }
+
+  const startsBoost = ["codigo", "numero_chasis", "modelo", "equipo", "marca"];
+  for (const k of startsBoost) {
+    const v = normEq(e?.[k]);
+    if (v && qFull && v.startsWith(qFull)) score += 700;
+  }
+
+  return score;
+};
+
+async function ensureEquiposLoaded() {
+  if (equiposLoaded.value || equiposLoadingAll.value) return;
+  equiposLoadingAll.value = true;
+  try {
+    const snap = await getDocs(collection(db, "equipos"));
+    const arr = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    equiposAll.value = arr;
+    equiposIndex.value = arr.map(buildEquipIndexRow);
+    equiposLoaded.value = true;
+  } catch (e) {
+    console.error("[equipos] load all error:", e);
+    equiposAll.value = [];
+    equiposIndex.value = [];
+    equiposLoaded.value = false;
+    addToast("danger", "No se pudieron cargar los equipos.");
+  } finally {
+    equiposLoadingAll.value = false;
+  }
+}
 
 const aplicarFiltrosEquiposDebounced = () => {
   if (debounce) clearTimeout(debounce);
-  debounce = setTimeout(() => {
+  debounce = setTimeout(async () => {
     const q = (busquedaEquipo.value || "").trim();
-    if (q.length >= 2) buscarEquipos(q);
+    if (q.length >= 2) await buscarEquipos(q);
     else { resultadosEquipos.value = []; currentPage.value = 1; }
-  }, 450);
+  }, 250);
 };
 
 const buscarEquipos = async (q) => {
-  const qNorm = normTxt(q);
+  const qTrim = String(q || "").trim();
+  const qKey = normEq(qTrim);
   currentPage.value = 1;
 
-  if (cacheResultados.has(qNorm)) {
-    resultadosEquipos.value = cacheResultados.get(qNorm);
+  if (qKey.length < 2) {
+    resultadosEquipos.value = [];
+    return;
+  }
+
+  if (!equiposLoaded.value) await ensureEquiposLoaded();
+  if (!equiposLoaded.value) { resultadosEquipos.value = []; return; }
+
+  if (cacheResultados.has(qKey)) {
+    resultadosEquipos.value = cacheResultados.get(qKey);
     return;
   }
 
@@ -1558,43 +1560,36 @@ const buscarEquipos = async (q) => {
   cargandoEquipos.value = true;
 
   try {
-    const variantes = [q.trim(), qNorm, q.trim().toUpperCase()].filter(Boolean);
-    const vistos = new Set();
-    const acumulado = [];
+    const qTokens = splitTokens(qKey);
+    const qCompact = compactEq(qTrim);
 
-    const campos = ["codigo","patente","modelo","numero_chasis","equipo"];
+    let base = equiposIndex.value;
+    if (qTokens.length) {
+      base = base.filter((e) => qTokens.every((t) => (e.__hay || "").includes(t)));
+    } else {
+      base = base.filter((e) => (e.__hay || "").includes(qKey));
+    }
 
-    const perCampo = async (campo) => {
-      await Promise.all(variantes.map(async (v) => {
-        try {
-          const qref = query(
-            collection(db, "equipos"),
-            orderBy(campo),
-            startAt(v),
-            endAt(v + "\uf8ff"),
-            limit(25)
-          );
-          const snap = await getDocs(qref);
-          for (const d of snap.docs) {
-            const item = { id: d.id, ...d.data() };
-            if (!vistos.has(item.id)) { vistos.add(item.id); acumulado.push(item); }
-          }
-        } catch (e) {
-          // puede faltar índice/field
-          console.warn("buscarEquipos campo error:", campo, e?.message || e);
-        }
-      }));
-    };
-
-    await Promise.all(campos.map(perCampo));
     if (token !== lastSearchToken) return;
 
-    resultadosEquipos.value = acumulado.slice(0, 200);
-    cacheResultados.set(qNorm, resultadosEquipos.value);
+    const ranked = base
+      .map((e) => ({ e, s: scoreEquipo(e, qTrim, qTokens, qCompact) }))
+      .sort((a, b) => b.s - a.s)
+      .map((x) => {
+        const out = { ...x.e };
+        delete out.__hay;
+        delete out.__tokens;
+        delete out.__codeCompact;
+        return out;
+      })
+      .slice(0, 200);
+
+    resultadosEquipos.value = ranked;
+    cacheResultados.set(qKey, ranked);
   } catch (e) {
-    console.error("Error en búsqueda de equipos:", e);
-    addToast("danger", "Error al buscar equipos.");
+    console.error("[equipos] buscarEquipos error:", e);
     resultadosEquipos.value = [];
+    addToast("danger", "Error al buscar equipos.");
   } finally {
     if (token === lastSearchToken) cargandoEquipos.value = false;
   }
@@ -1618,26 +1613,28 @@ Clasificación: ${e.clasificacion1 || '—'}`;
   }
 };
 
-/* ===== Watch usuario ===== */
+const toggleEquiposPanel = async () => {
+  mostrarEquipos.value = !mostrarEquipos.value;
+  if (mostrarEquipos.value) {
+    await ensureEquiposLoaded();
+  }
+};
+
 watch(usuarioActual, async (nv, ov) => {
   if (nv && nv !== ov) {
     await refrescarAprobadasConCountTaller();
     suscribirAprobadasLiveMinimaTaller();
-
     if (mostrarOCTallerMes.value) suscribirOCTallerMes(nv);
     if (mostrarResumenUsuarios.value) suscribirResumenUsuarios(nv);
   }
 });
 
-/* ===== Mount / Unmount ===== */
 onMounted(async () => {
   await obtenerNombreUsuario();
-
   if (usuarioActual.value) {
     await refrescarAprobadasConCountTaller();
     suscribirAprobadasLiveMinimaTaller();
   }
-
   await cargarSolpedSolicitadas();
   await cargarSiguienteNumero();
 
@@ -1655,15 +1652,13 @@ onBeforeUnmount(() => {
   if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
   if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
   for (const a of archivos.value) {
-    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) { console.log(e); }
+    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) {console.log(e)}
   }
 });
 </script>
 
 <style scoped>
-.generador-oc-page{
-  min-height:100vh;
-}
+.generador-oc-page{ min-height:100vh; }
 
 .card-elevated{
   border:1px solid #e5e7eb !important;
@@ -1674,29 +1669,15 @@ onBeforeUnmount(() => {
 .sticky-panel{ position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: hidden; }
 .sticky-panel .card-body{ overflow: auto; }
 
-.equipos-list{
-  max-height: 55vh;
-  overflow: auto;
-}
+.equipos-list{ max-height: 55vh; overflow: auto; }
 
 .toast-stack{
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 1200;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
+  display: flex; flex-direction: column; gap: 10px;
 }
 .toast-box{
-  display: flex;
-  align-items: center;
-  padding: .6rem .8rem;
-  border-radius: .5rem;
-  color: #fff;
-  min-width: 260px;
-  max-width: 360px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
+  min-width: 260px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
@@ -1704,22 +1685,12 @@ onBeforeUnmount(() => {
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
 .lock-overlay{
-  position: absolute;
-  inset: 0;
-  background: rgba(255,255,255,.7);
-  backdrop-filter: blur(2px);
-  z-index: 5;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
+  position: absolute; inset: 0; background: rgba(255,255,255,.7);
+  backdrop-filter: blur(2px); z-index: 5; display: grid; place-items: center; padding: 1rem;
 }
 .lock-box{
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: .85rem;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 10px 24px rgba(0,0,0,.12);
-  max-width: 420px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: .85rem; padding: 1rem 1.25rem;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12); max-width: 420px;
 }
 
 .table td, .table th { vertical-align: middle; }
