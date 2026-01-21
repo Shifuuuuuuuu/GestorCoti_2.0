@@ -204,7 +204,7 @@
 
                     <div class="dropdown" v-if="canChangeStatus">
                       <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                        Cambiar estado
+                        Cambiar Estado
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end">
                         <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
@@ -221,6 +221,7 @@
                       @click.stop="prepararCopiaParaCrear(s)"
                       title="Copiar en Crear SOLPED"
                     >
+                    Copiar Solped
                       <i class="bi bi-files"></i>
                     </button>
 
@@ -235,6 +236,7 @@
                     </button>
 
                     <button class="btn btn-sm btn-success" @click.stop="descargarExcel(s)" title="Descargar Excel">
+                      Descargar Excel
                       <i class="bi bi-file-earmark-excel"></i>
                     </button>
 
@@ -248,6 +250,7 @@
                     </button>
 
                     <button class="btn btn-sm btn-outline-info" @click.stop="verDetalleSolped(s)" title="Ver detalle">
+                      Ver Detalle
                       <i class="bi bi-eye"></i>
                     </button>
                   </div>
@@ -2029,7 +2032,7 @@ export default {
     });
 
     // Constantes
-    const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial","Cotizado Parcial","Cotizado Completado"];
+    const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial","Cotizado Parcial","Cotizado Completado","Parcial, Pedido en Casa matriz","Pedido en Casa matriz"];
 
     // Autorización
     const abrirAutorizacion = (s) => { if (!s?.autorizacion_url) return; window.open(s.autorizacion_url, "_blank"); };

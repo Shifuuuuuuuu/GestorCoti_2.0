@@ -184,10 +184,10 @@
                           <td>{{ it.item }}</td>
                           <td class="break-any">{{ it.descripcion }}</td>
                           <td class="text-center">{{ it.cantidad ?? 0 }}</td>
-                          <td class="text-center">{{ it.cantidad_cotizada ?? 0 }}</td>
+                          <td class="text-center">{{ it.cantidad_cotizada ?? (it.cantidad_solicitada_oc ?? 0) }}</td>
                           <td class="text-center">
                             <span class="badge" :class="badgeItem(it.estado)">
-                              {{ it.estado === 'revision' ? 'en revisión' : (it.estado || 'pendiente') }}
+                              {{ String(it.estado||'pendiente').toLowerCase().includes('revi') ? 'en revisión' : (it.estado || 'pendiente') }}
                             </span>
                           </td>
                           <td class="d-none d-sm-table-cell break-any">{{ it.numero_interno || oc.centroCostoTexto || '—' }}</td>
@@ -288,7 +288,6 @@
           </div>
 
           <div class="viewer-body">
-            <!-- Imagen con zoom -->
             <div v-if="isImage(viewerItem)" class="viewer-img-wrap">
               <img
                 :src="viewerItem.url"
@@ -299,7 +298,6 @@
               />
             </div>
 
-            <!-- PDF -->
             <div v-else class="viewer-pdf-wrap">
               <iframe :src="viewerItem?.url" class="viewer-pdf" title="PDF"></iframe>
             </div>
@@ -317,7 +315,7 @@ import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, onSnapshot, doc,
-  updateDoc, getDoc, addDoc, serverTimestamp
+  updateDoc, getDoc, addDoc, serverTimestamp, getDocs
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
@@ -367,7 +365,7 @@ const guessMime = (url?: string) => isPdf(url) ? 'application/pdf' : '';
 const isImage = (file:any) => {
   const t = String(file?.tipo || '');
   const u = String(file?.url || '').toLowerCase();
-  return t.includes('image') || u.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/);
+  return t.includes('image') || !!u.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/);
 };
 const openViewer = (file:{url:string,tipo?:string,nombre?:string}) => {
   viewerItem.value = file || null;
@@ -410,11 +408,363 @@ const fmtFecha = (f:any) => {
 };
 
 /* =========================
-   Flujo dinámico (Taller)
-   SOLO Xtreme Servicio
-   Lee: configuracion/aprobacion_oc_taller/empresas/xtreme_servicio
+   ✅ Helpers de modelo simple
+   - aprobado = sum(cotPorOC)
+   - reservado = sum(pendienteRevisionPorOC)
+   - cantidad_cotizada = aprobado
    ========================= */
+const sumMapNumbers = (obj: Record<string, unknown> | null | undefined): number => {
+  if (!obj || typeof obj !== "object") return 0;
 
+  return Object.values(obj).reduce<number>((acc, v) => {
+    const n = typeof v === "number" ? v : Number(v || 0);
+    return acc + (Number.isFinite(n) ? n : 0);
+  }, 0);
+};
+
+
+const recomputeSolpedItem = (it:any) => {
+  const out = { ...(it || {}) };
+  const total = Number(out.cantidad || 0);
+
+  out.cotPorOC = (out.cotPorOC && typeof out.cotPorOC === 'object') ? out.cotPorOC : {};
+  out.pendienteRevisionPorOC = (out.pendienteRevisionPorOC && typeof out.pendienteRevisionPorOC === 'object') ? out.pendienteRevisionPorOC : {};
+
+  const aprobado = Math.min(total, sumMapNumbers(out.cotPorOC));
+  const reservado = Math.min(total, sumMapNumbers(out.pendienteRevisionPorOC));
+  const comprometido = Math.min(total, aprobado + reservado);
+
+  // ✅ AHORA cantidad_cotizada refleja lo comprometido
+  out.cantidad_cotizada = comprometido;
+
+  // ✅ completado solo si APROBADO cubre total
+  if (total > 0 && aprobado >= total) out.estado_cotizacion = 'completado';
+  else if (comprometido > 0) out.estado_cotizacion = 'parcial';
+  else out.estado_cotizacion = 'pendiente';
+
+  out.estado = out.estado_cotizacion;
+  return out;
+};
+
+
+const computeSolpedEstatus = (items:any[]) => {
+  const arr = Array.isArray(items) ? items : [];
+  if (!arr.length) return 'Pendiente';
+
+  const completos = arr.filter(it => {
+    const total = Number(it.cantidad || 0);
+    const aprob = sumMapNumbers(it.cotPorOC);
+    return total > 0 && aprob >= total;
+  }).length;
+
+  const anyApproved = arr.some(it => sumMapNumbers(it.cotPorOC) > 0);
+  const anyPending = arr.some(it => sumMapNumbers(it.pendienteRevisionPorOC) > 0);
+
+  if (completos === arr.length) return 'Cotizado Completado';
+  if (anyApproved) return 'Cotizado Parcial';
+  if (anyPending) return 'Cotizando - Revisión Guillermo';
+  return 'Pendiente';
+};
+
+const norm2 = (x:any) => String(x||'').trim().toLowerCase();
+const buildMatchers = (itemsSol:any[]) => {
+  const idxItemNo = new Map<number, number>();
+  const idxNI  = new Map<string, number>();
+  const idxCR  = new Map<string, number>();
+  const descCount = new Map<string, number>();
+
+  itemsSol.forEach((it, i) => {
+    const n = Number(it?.item);
+    if (Number.isFinite(n) && n > 0) idxItemNo.set(n, i);
+
+    const ni = norm2(it.numero_interno);
+    const cr = norm2(it.codigo_referencial);
+    const ds = norm2(it.descripcion);
+
+    if (ni) idxNI.set(ni, i);
+    if (cr) idxCR.set(cr, i);
+    if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
+  });
+
+  const findIndex = (ocIt:any) => {
+    // ✅ primero por item
+    const n = Number(ocIt?.solped_item_no ?? ocIt?.item);
+    if (Number.isFinite(n) && idxItemNo.has(n)) return idxItemNo.get(n)!;
+
+    const kNI = norm2(ocIt.numero_interno);
+    const kCR = norm2(ocIt.codigo_referencial);
+    const kDS = norm2(ocIt.descripcion);
+
+    if (kNI && idxNI.has(kNI)) return idxNI.get(kNI)!;
+    if (kCR && idxCR.has(kCR)) return idxCR.get(kCR)!;
+    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(sIt => norm2(sIt.descripcion) === kDS);
+
+    return -1;
+  };
+
+  return { findIndex };
+};
+
+
+const extractOcQty = (ocIt:any) => {
+  const raw = Math.max(
+    Number(ocIt?.cantidad_solicitada_oc ?? 0),
+    Number(ocIt?.cantidad_para_cotizar ?? 0),
+    Number(ocIt?.cantidad_cotizada ?? 0),
+  );
+  return Math.max(0, raw);
+};
+
+/* =========================
+   ✅ Sync suave: asegurar reserva en SOLPED para OCs en revisión
+   (idempotente, NO toca cotPorOC)
+   ========================= */
+const ensureReservationForRevisionOC = async (oc:any) => {
+  try {
+    if (!isServiciosOnly(oc)) return;
+    if (!oc?.solpedId) return;
+
+    const est = String(oc?.estatus||'').toLowerCase();
+    const isRevLike =
+      est.includes('revisión') ||
+      est.includes('revision') ||
+      est.includes('preaprob') ||
+      est.includes('casi') ||
+      est.includes('pendiente de aprobacion') ||
+      est.includes('pendiente de aprobación');
+
+    if (!isRevLike) return;
+
+    const ocKey = String(oc?.id ?? oc?.__docId ?? '');
+    if (!ocKey) return;
+
+    const sref = doc(db, 'solped_taller', String(oc.solpedId));
+    const ss = await getDoc(sref);
+    if (!ss.exists()) return;
+
+    const sdata:any = ss.data() || {};
+    const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
+    if (!itemsSol.length) return;
+
+    const { findIndex } = buildMatchers(itemsSol);
+
+    let changed = false;
+
+    const ocItems = Array.isArray(oc.items) ? oc.items : [];
+    for (const ocIt of ocItems) {
+      const idx = findIndex(ocIt);
+      if (idx < 0) continue;
+
+      const sIt = { ...itemsSol[idx] };
+      const total = Number(sIt.cantidad || 0);
+      const qty = Math.min(total, extractOcQty(ocIt));
+
+      if (!sIt.pendienteRevisionPorOC || typeof sIt.pendienteRevisionPorOC !== 'object') sIt.pendienteRevisionPorOC = {};
+      if (!sIt.cotPorOC || typeof sIt.cotPorOC !== 'object') sIt.cotPorOC = {};
+
+      // no reservas más de lo disponible
+      const aprobado = Math.min(total, sumMapNumbers(sIt.cotPorOC));
+      const reservadoActual = Math.min(total, sumMapNumbers(sIt.pendienteRevisionPorOC));
+      const disponible = Math.max(0, total - aprobado - reservadoActual);
+
+      const prev = Number(sIt.pendienteRevisionPorOC[ocKey] || 0);
+      const target = Math.max(prev, Math.min(qty, prev + disponible)); // idempotente + clamp
+
+      if (target !== prev) {
+        sIt.pendienteRevisionPorOC[ocKey] = target;
+        itemsSol[idx] = recomputeSolpedItem(sIt);
+        changed = true;
+      } else {
+        const rec = recomputeSolpedItem(sIt);
+        if (JSON.stringify(rec) !== JSON.stringify(itemsSol[idx])) {
+          itemsSol[idx] = rec;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      const estatusSol = computeSolpedEstatus(itemsSol);
+      await updateDoc(sref, {
+        items: itemsSol,
+        estatus: estatusSol,
+        updated_at: serverTimestamp()
+      });
+    }
+  } catch (e) {
+    console.warn('ensureReservationForRevisionOC:', e);
+  }
+};
+
+/* =========================
+   ✅ Aplicar APROBACIÓN FINAL: mover pendienteRevisionPorOC[ocKey] -> cotPorOC[ocKey]
+   - NO borrar el map completo, solo la key
+   - cantidad_cotizada queda como sum(cotPorOC)
+   ========================= */
+const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:string, estatusOC?:string) => {
+  if (!isServiciosOnly(oc)) return;
+  if (!oc?.solpedId) return;
+
+  const ocKey = String(oc?.id ?? oc?.__docId ?? '');
+  if (!ocKey) return;
+
+  const sref = doc(db, 'solped_taller', String(oc.solpedId));
+  const ss = await getDoc(sref);
+  if (!ss.exists()) return;
+
+  const sdata:any = ss.data() || {};
+  const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
+  const ocItems:any[] = Array.isArray(oc.items) ? oc.items : [];
+  if (!itemsSol.length || !ocItems.length) return;
+
+  const { findIndex } = buildMatchers(itemsSol);
+
+  let changed = false;
+
+  for (const ocIt of ocItems) {
+    const idx = findIndex(ocIt);
+    if (idx < 0) continue;
+
+    const sIt = { ...itemsSol[idx] };
+    const total = Number(sIt.cantidad || 0);
+
+    sIt.cotPorOC = (sIt.cotPorOC && typeof sIt.cotPorOC === 'object') ? sIt.cotPorOC : {};
+    sIt.pendienteRevisionPorOC = (sIt.pendienteRevisionPorOC && typeof sIt.pendienteRevisionPorOC === 'object') ? sIt.pendienteRevisionPorOC : {};
+
+    const pendQty = Number(sIt.pendienteRevisionPorOC?.[ocKey] || 0);
+    const qtyFromOc = extractOcQty(ocIt);
+
+    // toma lo pendiente si existe, si no, usa lo de la OC
+    const qty = Math.max(pendQty, qtyFromOc);
+    if (qty <= 0) {
+      // igual recomputar por si había basura
+      const rec = recomputeSolpedItem(sIt);
+      if (JSON.stringify(rec) !== JSON.stringify(itemsSol[idx])) {
+        itemsSol[idx] = rec;
+        changed = true;
+      }
+      continue;
+    }
+
+    // idempotente: fija el cotPorOC[ocKey] al máximo (evita sumar doble si se ejecuta 2 veces)
+    const prevAprob = Number(sIt.cotPorOC[ocKey] || 0);
+    const nextAprob = Math.max(prevAprob, Math.min(qty, total));
+    if (nextAprob !== prevAprob) {
+      sIt.cotPorOC[ocKey] = nextAprob;
+      changed = true;
+    }
+
+    // borrar SOLO esta reserva
+    if (sIt.pendienteRevisionPorOC && sIt.pendienteRevisionPorOC[ocKey] != null) {
+      delete sIt.pendienteRevisionPorOC[ocKey];
+      changed = true;
+    }
+
+    const rec = recomputeSolpedItem(sIt);
+    if (JSON.stringify(rec) !== JSON.stringify(itemsSol[idx])) {
+      itemsSol[idx] = rec;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    const estatusSol = computeSolpedEstatus(itemsSol);
+    await updateDoc(sref, {
+      items: itemsSol,
+      estatus: estatusSol,
+      updated_at: serverTimestamp()
+    });
+
+    // historial
+    try {
+      await addDoc(collection(sref, 'historialEstados'), {
+        origen: 'Aprobación OC (Taller)',
+        usuario: aprobador || '—',
+        estatus: estatusSol,
+        detalle: comentario || '',
+        comentario: comentario || '',
+        ocNumero: oc?.id ?? null,
+        fecha: serverTimestamp()
+      });
+    } catch {}
+  }
+
+  if (estatusOC) {
+    await registrarHistorialSolpedAccionOC_Taller({
+      solpedId: String(oc.solpedId),
+      ocNumero: oc?.id ?? null,
+      usuario: aprobador || '—',
+      estatusOC,
+      comentario: comentario || ''
+    });
+  }
+};
+
+/* =========================
+   ✅ Rechazo: liberar SOLO pendienteRevisionPorOC[ocKey]
+   ========================= */
+const releaseReservationInSolped = async (oc:any, usuario:string, comentario:string) => {
+  if (!isServiciosOnly(oc)) return;
+  if (!oc?.solpedId) return;
+
+  const ocKey = String(oc?.id ?? oc?.__docId ?? '');
+  if (!ocKey) return;
+
+  const sref = doc(db, 'solped_taller', String(oc.solpedId));
+  const ss = await getDoc(sref);
+  if (!ss.exists()) return;
+
+  const sdata:any = ss.data() || {};
+  const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
+  const ocItems:any[] = Array.isArray(oc.items) ? oc.items : [];
+  if (!itemsSol.length || !ocItems.length) return;
+
+  const { findIndex } = buildMatchers(itemsSol);
+
+  let changed = false;
+
+  for (const ocIt of ocItems) {
+    const idx = findIndex(ocIt);
+    if (idx < 0) continue;
+
+    const sIt = { ...itemsSol[idx] };
+    sIt.pendienteRevisionPorOC = (sIt.pendienteRevisionPorOC && typeof sIt.pendienteRevisionPorOC === 'object')
+      ? sIt.pendienteRevisionPorOC
+      : {};
+
+    if (sIt.pendienteRevisionPorOC && sIt.pendienteRevisionPorOC[ocKey] != null) {
+      delete sIt.pendienteRevisionPorOC[ocKey];
+      changed = true;
+    }
+
+    const rec = recomputeSolpedItem(sIt);
+    if (JSON.stringify(rec) !== JSON.stringify(itemsSol[idx])) {
+      itemsSol[idx] = rec;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    const estatusSol = computeSolpedEstatus(itemsSol);
+    await updateDoc(sref, {
+      items: itemsSol,
+      estatus: estatusSol,
+      updated_at: serverTimestamp()
+    });
+  }
+
+  await registrarHistorialSolpedAccionOC_Taller({
+    solpedId: String(oc.solpedId),
+    ocNumero: oc?.id ?? null,
+    usuario: usuario || '—',
+    estatusOC: 'Rechazado',
+    comentario: comentario || ''
+  });
+};
+
+/* =========================
+   Flujo dinámico (Taller) - existente
+   ========================= */
 type StepCfg = {
   id: string;
   nombre: string;
@@ -478,7 +828,6 @@ const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } 
   ]
 };
 
-/** Fecha local YYYY-MM-DD (evita líos timezone) */
 const localDateKey = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -528,13 +877,8 @@ const stepsCfg = computed<StepCfg[]>(() => {
   }));
 });
 
-/** Etapa “operativa” = activa + con aprobador disponible */
 const stepOperational = (st: StepCfg) => stepEnabled(st) && availableApprovers(st).length > 0;
 
-/** Para cada índice i, buscar delegación:
-    - Preferir hacia atrás (anterior)
-    - Si no hay, hacia adelante (siguiente)
-*/
 const handlerIndexFor = (i: number) => {
   const steps = stepsCfg.value;
   if (!steps.length) return -1;
@@ -548,7 +892,6 @@ const handlerIndexFor = (i: number) => {
   return -1;
 };
 
-/** Mapa estatus(inStatus) -> índice de etapa */
 const statusToStepIndex = computed(() => {
   const m = new Map<string, number>();
   stepsCfg.value.forEach((st, idx) => {
@@ -560,7 +903,6 @@ const statusToStepIndex = computed(() => {
 
 const myUid = computed(() => auth?.user?.uid || '');
 
-/** ¿yo pertenezco como aprobador disponible del HANDLER (delegación) de esa etapa? */
 const iHandleStep = (stepIndex: number) => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
@@ -572,7 +914,6 @@ const iHandleStep = (stepIndex: number) => {
   return availableApprovers(steps[h]).some(a => a.uid === uid);
 };
 
-/** Estatus que “llegan” a este usuario (incluye delegaciones) */
 const estadosObjetivo = computed<string[]>(() => {
   const out: string[] = [];
   stepsCfg.value.forEach((st, idx) => {
@@ -584,7 +925,6 @@ const estadosObjetivo = computed<string[]>(() => {
 const estatusFiltrado = computed(() => estadosObjetivo.value.join(' / '));
 const tengoBandeja = computed(() => estadosObjetivo.value.length > 0);
 
-/** Badges de delegación */
 const delegacionesBadge = computed(() => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
@@ -609,7 +949,6 @@ const delegacionesBadge = computed(() => {
   return msgs.slice(0, 3);
 });
 
-/** Label del estatus (si llega por delegación, marcarlo) */
 const prettyEstatus = (oc:any) => {
   const est = norm(oc?.estatus);
   const idx = statusToStepIndex.value.get(est);
@@ -622,7 +961,6 @@ const prettyEstatus = (oc:any) => {
   return oc?.estatus || '—';
 };
 
-/** Aprobar: decide next status usando min/max + overTo, y auto-salta etapas que terminarían en el mismo aprobador (delegación) */
 const computeNextStatusAutoSkip = (oc:any) => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
@@ -647,165 +985,22 @@ const computeNextStatusAutoSkip = (oc:any) => {
     const next = (overTo && monto > max) ? overTo : approveTo;
 
     const nextIdx = statusToStepIndex.value.get(norm(next));
-    if (nextIdx == null) return next; // estatus final
+    if (nextIdx == null) return next;
 
-    // si la siguiente etapa la manejaría el mismo usuario (por delegación), saltar
     if (uid && iHandleStep(nextIdx)) {
       idx = nextIdx;
       continue;
     }
-
     return next;
   }
-
   return 'Aprobado';
 };
 
-/* ===== Permiso de acción (por flujo + delegación) ===== */
 const canActOnOC = (oc:any) => {
   if (!isServiciosOnly(oc)) return false;
   const idx = statusToStepIndex.value.get(norm(oc?.estatus));
   if (idx == null) return false;
   return iHandleStep(idx);
-};
-
-/* ===== Sincronización (tu lógica original, intacta) ===== */
-const sincronizarRevisionOCySolped = async (oc:any) => {
-  try {
-    if (!isServiciosOnly(oc)) return;
-
-    const estatus = String(oc?.estatus||'').toLowerCase();
-    const esRevision =
-      estatus.includes('revisión') ||
-      estatus.includes('revision') ||
-      estatus.includes('preaprob') ||
-      estatus.includes('casi');
-    if (!esRevision) return;
-    if (!oc?.solpedId) return;
-    if (oc?.sincronizadaRevision) return;
-
-    const itemsOC = Array.isArray(oc.items) ? oc.items.map((it:any) => {
-      const cantTotal = Number(it.cantidad || 0);
-      const entrada = Math.max(
-        Number(it.cantidad_solicitada_oc ?? 0),
-        Number(it.cantidad_para_cotizar ?? 0),
-        Number(it.cantidad_cotizada ?? 0)
-      );
-      const delta = Math.max(0, Math.min(entrada, cantTotal));
-      const estado = delta > 0 ? 'revision' : 'pendiente';
-
-      return {
-        ...it,
-        cantidad_cotizada: delta,
-        cantidad_para_cotizar: delta,
-        cantidad_solicitada_oc: delta,
-        estado
-      };
-    }) : [];
-
-    const huboCambioOC =
-      JSON.stringify(oc.items||[]) !== JSON.stringify(itemsOC) || !oc.sincronizadaRevision;
-
-    if (huboCambioOC) {
-      await updateDoc(doc(db, 'ordenes_oc_taller', oc.__docId), {
-        items: itemsOC,
-        sincronizadaRevision: true
-      });
-    }
-
-    const sref = doc(db, 'solped_taller', String(oc.solpedId));
-    const ss = await getDoc(sref);
-    if (!ss.exists()) return;
-
-    const sdata:any = ss.data() || {};
-    const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
-
-    const norm2 = (x:any) => String(x||'').trim().toLowerCase();
-    const idxNI  = new Map<string, number>();
-    const idxCR  = new Map<string, number>();
-    const idxItem= new Map<string, number>();
-    const descCount = new Map<string, number>();
-    itemsSol.forEach((it, i) => {
-      const ni = norm2(it.numero_interno);
-      const cr = norm2(it.codigo_referencial);
-      const itn= (it.item != null) ? String(it.item) : '';
-      const ds = norm2(it.descripcion);
-      if (ni) idxNI.set(ni, i);
-      if (cr) idxCR.set(cr, i);
-      if (itn) idxItem.set(itn, i);
-      if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
-    });
-
-    const findIndex = (ocIt:any) => {
-      const kNI = norm2(ocIt.numero_interno);
-      const kCR = norm2(ocIt.codigo_referencial);
-      const kIT = (ocIt.item != null) ? String(ocIt.item) : '';
-      const kDS = norm2(ocIt.descripcion);
-      if (kNI && idxNI.has(kNI)) return idxNI.get(kNI)!;
-      if (kCR && idxCR.has(kCR)) return idxCR.get(kCR)!;
-      if (kIT && idxItem.has(kIT)) return idxItem.get(kIT)!;
-      if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(sIt => norm2(sIt.descripcion) === kDS);
-      return -1;
-    };
-
-    let huboAvance = false;
-
-    itemsOC.forEach((ocIt:any) => {
-      const idx = findIndex(ocIt);
-      if (idx < 0) return;
-
-      const sIt = { ...itemsSol[idx] };
-      const cant = Number(sIt.cantidad || 0);
-      const delta = Math.max(0, Math.min(Number(ocIt.cantidad_cotizada ?? 0), cant));
-
-      sIt.cantidad_cotizada       = delta;
-      sIt.cantidad_para_cotizar   = delta;
-      sIt.cantidad_solicitada_oc  = delta;
-
-      sIt.estado = (delta >= cant && cant > 0) ? 'completo'
-                 : (delta > 0) ? 'parcial'
-                 : 'pendiente';
-      sIt.estado_cotizacion = delta > 0 ? 'revision' : 'pendiente';
-
-      if (delta === 0 && sIt.pendienteRevisionPorOC) {
-        delete sIt.pendienteRevisionPorOC;
-      }
-
-      if (JSON.stringify(itemsSol[idx]) !== JSON.stringify(sIt)) {
-        itemsSol[idx] = sIt;
-        huboAvance = true;
-      }
-    });
-
-    if (huboAvance) {
-      const tot = itemsSol.length;
-      const completos = itemsSol.filter(x => Number(x.cantidad||0) > 0 && Number(x.cantidad_cotizada||0) >= Number(x.cantidad||0)).length;
-      const algunDelta = itemsSol.some(x => Number(x.cantidad_cotizada||0) > 0);
-      const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Cotizado Completado' : (algunDelta ? 'Cotizado Parcial' : 'Pendiente');
-
-      await updateDoc(sref, {
-        items: itemsSol,
-        estatus: nuevoEstatusSol,
-        updated_at: new Date()
-      });
-    }
-  } catch (e) {
-    console.error('sincronizarRevisionOCySolped:', e);
-  }
-};
-
-/* ===== Acciones base ===== */
-const accionando = ref(false);
-
-/* ===== Navegación a SOLPED_TALLER ===== */
-const irASolped = (oc:any) => {
-  const id = oc?.solpedId;
-  if (!id) {
-    addToast('warning','Esta OC no tiene SOLPED asociada.');
-    return;
-  }
-  try { router.push({ name: 'SolpedTallerDetalle', params: { id } }); }
-  catch { router.push(`/solped-taller/${id}`); }
 };
 
 /* ===== Historial en solped_taller (por cambio de estatus OC) ===== */
@@ -831,142 +1026,18 @@ const registrarHistorialSolpedAccionOC_Taller = async ({
   }
 };
 
-/* ===== Cerrar SOLPED_TALLER si todos completos ===== */
-const cerrarSolpedTallerSiCompleta = async (solpedId: string) => {
-  if (!solpedId) return;
-  try {
-    const sref = doc(db, 'solped_taller', solpedId);
-    const ss = await getDoc(sref);
-    if (!ss.exists()) return;
+/* ===== Acciones base ===== */
+const accionando = ref(false);
 
-    const data:any = ss.data() || {};
-    const items:any[] = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) return;
-
-    const todosCompletos = items.every(it => Number(it.cantidad_cotizada || 0) >= Number(it.cantidad || 0));
-    if (todosCompletos && String(data.estatus||'').toLowerCase() !== 'completado') {
-      await updateDoc(sref, { estatus: 'Cotizado Completado' });
-      addToast('success', 'SOLPED (taller) completada ✔');
-    }
-  } catch (e) {
-    console.error('cerrarSolpedTallerSiCompleta:', e);
+/* ===== Navegación a SOLPED_TALLER ===== */
+const irASolped = (oc:any) => {
+  const id = oc?.solpedId;
+  if (!id) {
+    addToast('warning','Esta OC no tiene SOLPED asociada.');
+    return;
   }
-};
-
-/* ===== Actualizar SOLPED_TALLER con avances al APROBAR ===== */
-const actualizarSolpedTallerConOC = async (oc:any, aprobador:string, comentario:string, estatusOC?: string) => {
-  if (!isServiciosOnly(oc)) return;
-
-  const solpedId = oc?.solpedId; if (!solpedId) return;
-
-  const sref = doc(db, 'solped_taller', String(solpedId));
-  const ss = await getDoc(sref); if (!ss.exists()) return;
-
-  const sdata:any = ss.data() || {};
-  const itemsSol:any[] = Array.isArray(sdata.items) ? [...sdata.items] : [];
-  const ocItems:any[] = Array.isArray(oc.items) ? oc.items : [];
-  const ocKey = String(oc.id ?? oc.__docId ?? '');
-
-  let huboCambio = false;
-
-  const norm2 = (x:any) => String(x||'').trim().toLowerCase();
-  const idxNI  = new Map<string, number>();
-  const idxCR  = new Map<string, number>();
-  const idxItem= new Map<string, number>();
-  const descCount = new Map<string, number>();
-
-  itemsSol.forEach((it, i) => {
-    const ni = norm2(it.numero_interno);
-    const cr = norm2(it.codigo_referencial);
-    const itn= (it.item != null) ? String(it.item) : '';
-    const ds = norm2(it.descripcion);
-    if (ni) idxNI.set(ni, i);
-    if (cr) idxCR.set(cr, i);
-    if (itn) idxItem.set(itn, i);
-    if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
-  });
-
-  const findIndex = (ocIt:any) => {
-    const kNI = norm2(ocIt.numero_interno);
-    const kCR = norm2(ocIt.codigo_referencial);
-    const kIT = (ocIt.item != null) ? String(ocIt.item) : '';
-    const kDS = norm2(ocIt.descripcion);
-    if (kNI && idxNI.has(kNI)) return idxNI.get(kNI)!;
-    if (kCR && idxCR.has(kCR)) return idxCR.get(kCR)!;
-    if (kIT && idxItem.has(kIT)) return idxItem.get(kIT)!;
-    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(sIt => norm2(sIt.descripcion) === kDS);
-    return -1;
-  };
-
-  ocItems.forEach((ocIt:any) => {
-    const idx = findIndex(ocIt);
-    if (idx < 0) return;
-
-    const sIt = { ...itemsSol[idx] };
-    const cantSolic = Number(sIt.cantidad || 0);
-
-    const deltaOC = Math.max(0, Number(ocIt.cantidad_cotizada ?? ocIt.cantidad_solicitada_oc ?? ocIt.cantidad_para_cotizar ?? 0));
-
-    if (!sIt.cotPorOC || typeof sIt.cotPorOC !== 'object') sIt.cotPorOC = {};
-    sIt.cotPorOC[ocKey] = deltaOC;
-
-    const sumaOCs = Object.values(sIt.cotPorOC).reduce((a:number,b:any)=> a + Number(b||0), 0) as number;
-    const nuevo = Math.min(cantSolic, sumaOCs);
-
-    sIt.cantidad_cotizada      = nuevo;
-    sIt.cantidad_para_cotizar  = 0;
-    sIt.cantidad_solicitada_oc = 0;
-
-    sIt.estado = (cantSolic > 0 && nuevo >= cantSolic) ? 'completado'
-               : (nuevo > 0) ? 'parcial'
-               : 'pendiente';
-    sIt.estado_cotizacion = (nuevo > 0)
-      ? ((nuevo >= cantSolic) ? 'aprobado' : 'aprobado-parcial')
-      : 'pendiente';
-
-    if (sIt.pendienteRevisionPorOC) delete sIt.pendienteRevisionPorOC;
-
-    if (JSON.stringify(itemsSol[idx]) !== JSON.stringify(sIt)) {
-      itemsSol[idx] = sIt;
-      huboCambio = true;
-    }
-  });
-
-  if (huboCambio) {
-    const tot = itemsSol.length;
-    const completos = itemsSol.filter(x => Number(x.cantidad||0) > 0 && Number(x.cantidad_cotizada||0) >= Number(x.cantidad||0)).length;
-    const nuevoEstatusSol = (completos === tot && tot > 0) ? 'Cotizado Completado' : 'Cotizado Parcial';
-
-    await updateDoc(sref, {
-      items: itemsSol,
-      estatus: nuevoEstatusSol,
-      updated_at: new Date()
-    });
-
-    try {
-      await addDoc(collection(sref, 'historialEstados'), {
-        origen: 'Aprobación OC (Taller)',
-        usuario: aprobador || '—',
-        estatus: nuevoEstatusSol,
-        detalle: comentario || '',
-        comentario: comentario || '',
-        ocNumero: oc?.id ?? null,
-        fecha: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn('No se pudo registrar historialEstados (operativo, taller):', e);
-    }
-  }
-
-  if (estatusOC) {
-    await registrarHistorialSolpedAccionOC_Taller({
-      solpedId: solpedId,
-      ocNumero: oc?.id,
-      usuario: aprobador || '—',
-      estatusOC,
-      comentario: comentario || ''
-    });
-  }
+  try { router.push({ name: 'SolpedTallerDetalle', params: { id } }); }
+  catch { router.push(`/solped-taller/${id}`); }
 };
 
 /* ===== Acciones ===== */
@@ -1025,9 +1096,9 @@ const aprobar = async (oc:any) => {
 
   accionando.value = true;
   try {
-    // ✅ Nueva lógica: next status por flujo + delegación + auto-salto si corresponde
     const nuevoEstatus = computeNextStatusAutoSkip(oc);
 
+    // items OC: marcar aprobados solo si eran revision
     const nuevosItems = (oc.items || []).map((it:any) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
     );
@@ -1044,15 +1115,22 @@ const aprobar = async (oc:any) => {
       aprobadoPor: usuarioNombre.value || ''
     });
 
-    // Mantengo tu regla: solo si llega a "Aprobado" se impacta SOLPED con aprobaciones/cierres.
+    // ✅ SOLO cuando llega a Aprobado final: mover reserva -> aprobado en SOLPED
     if (String(nuevoEstatus).trim().toLowerCase() === 'aprobado') {
-      await actualizarSolpedTallerConOC({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario, nuevoEstatus);
-      await cerrarSolpedTallerSiCompleta(oc.solpedId);
+      await applyFinalApprovalToSolped(
+        { ...oc, items: nuevosItems },
+        usuarioNombre.value || '—',
+        comentario,
+        nuevoEstatus
+      );
     } else {
+      // si no es final, solo registrar historial
       await registrarHistorialSolpedAccionOC_Taller({
         solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
         estatusOC: nuevoEstatus, comentario
       });
+      // asegurar reserva si está en revisión
+      await ensureReservationForRevisionOC({ ...oc, estatus: nuevoEstatus, items: nuevosItems });
     }
 
     addToast('success', `OC (taller) aprobada → ${nuevoEstatus}`);
@@ -1095,10 +1173,8 @@ const rechazar = async (oc:any) => {
       items: nuevosItems
     });
 
-    await registrarHistorialSolpedAccionOC_Taller({
-      solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
-      estatusOC: 'Rechazado', comentario
-    });
+    // ✅ liberar SOLO la reserva de esta OC en la SOLPED
+    await releaseReservationInSolped({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario);
 
     addToast('danger', 'OC (taller) rechazada.');
     ocs.value = ocs.value.filter(x => x.__docId !== oc.__docId);
@@ -1118,7 +1194,7 @@ const subscribeOCs = (targets: string[]) => {
 
   if (!targets.length) { cargando.value = false; return; }
 
-  const safeTargets = Array.from(new Set(targets)).slice(0, 10); // Firestore 'in' limit
+  const safeTargets = Array.from(new Set(targets)).slice(0, 10);
 
   const qy = safeTargets.length === 1
     ? query(
@@ -1139,7 +1215,6 @@ const subscribeOCs = (targets: string[]) => {
     snap.forEach(d => {
       const data:any = d.data();
 
-      // ✅ Taller = SOLO Xtreme Servicio (filtrado duro)
       if (normalizeCompany(data?.empresa) !== 'SERVICIOS') return;
 
       const archivos = Array.isArray(data.archivosStorage)
@@ -1155,9 +1230,17 @@ const subscribeOCs = (targets: string[]) => {
       };
       arr.push(ocRow);
 
+      // ✅ mantener reservas consistentes en estados de revisión
       const est = String(ocRow.estatus||'').toLowerCase();
-      if (est.includes('revisión') || est.includes('revision') || est.includes('preaprob') || est.includes('casi')) {
-        ops.push(sincronizarRevisionOCySolped(ocRow));
+      const isRevLike =
+        est.includes('revisión') ||
+        est.includes('revision') ||
+        est.includes('preaprob') ||
+        est.includes('casi') ||
+        est.includes('pendiente de aprobacion') ||
+        est.includes('pendiente de aprobación');
+      if (isRevLike && ocRow.solpedId) {
+        ops.push(ensureReservationForRevisionOC(ocRow));
       }
     });
 
@@ -1176,7 +1259,6 @@ const subscribeOCs = (targets: string[]) => {
 
 onMounted(async () => {
   try {
-    // nombre usuario
     const uid = auth?.user?.uid;
     let fullName = auth?.user?.displayName || auth?.user?.email || '';
     if (uid) {
@@ -1190,7 +1272,6 @@ onMounted(async () => {
     }
     usuarioNombre.value = fullName || '';
 
-    // flow por empresa (solo servicio)
     _unsubFlow = onSnapshot(
       doc(db, 'configuracion', 'aprobacion_oc_taller', 'empresas', empresaKey),
       (snap) => {
@@ -1202,7 +1283,6 @@ onMounted(async () => {
       }
     );
 
-    // suscripción reactiva por estados que me tocan (incluye delegación)
     watch(estadosObjetivo, (targets) => {
       subscribeOCs(targets);
     }, { immediate: true });

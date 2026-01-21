@@ -51,7 +51,7 @@
               </div>
 
               <div class="col-12 col-md-6">
-                <div class="small ">Solicitante</div>
+                <div class="small ">Responsable</div>
                 <div class="fw-semibold">{{ docData.nombre_solicitante || docData.usuario || '—' }}</div>
               </div>
               <div class="col-12 col-md-6">

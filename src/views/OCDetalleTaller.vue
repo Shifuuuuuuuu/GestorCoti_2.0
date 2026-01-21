@@ -55,11 +55,6 @@
               <div class="fw-semibold">{{ docData.centroCostoTexto || '—' }}</div>
             </div>
 
-            <div class="col-12 col-md-6">
-              <div class="small">Aprobador sugerido</div>
-              <div class="fw-semibold">{{ docData.aprobadorSugerido || '—' }}</div>
-            </div>
-
             <div class="col-12 col-md-6" v-if="docData.aprobadoPor">
               <div class="small">Aprobado por</div>
               <div class="fw-semibold">{{ docData.aprobadoPor }}</div>

@@ -48,11 +48,11 @@
               </div>
 
               <div class="col-12 col-md-6">
-                <div class="small text-secondary">Usuario</div>
+                <div class="small text-secondary">Responsable</div>
                 <div class="fw-semibold">{{ docData.usuario || '—' }}</div>
               </div>
               <div class="col-12 col-md-6">
-                <div class="small text-secondary">Dirigido a</div>
+                <div class="small text-secondary">Cotizador</div>
                 <div class="fw-semibold">
                   <template v-if="Array.isArray(docData.dirigidoA) && docData.dirigidoA.length">
                     {{ docData.dirigidoA.join(' · ') }}

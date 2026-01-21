@@ -73,10 +73,6 @@
               <div class="small">Total con IVA</div>
               <div class="fw-semibold">{{ fmtMoneda(docData.precioTotalConIVA, docData.moneda) }}</div>
             </div>
-            <div class="col-12 col-md-4">
-              <div class="small">Aprobador sugerido</div>
-              <div class="fw-semibold">{{ docData.aprobadorSugerido || '—' }}</div>
-            </div>
 
             <div class="col-12" v-if="docData.aprobadoPor">
               <div class="small">Aprobado por</div>

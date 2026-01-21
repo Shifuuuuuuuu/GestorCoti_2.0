@@ -17,14 +17,19 @@
         <button
           class="btn btn-secondary btn-sm"
           @click="toggleEquiposPanel"
-          :aria-pressed="mostrarEquipos.toString()">
+          :aria-pressed="mostrarEquipos.toString()"
+        >
           <i class="bi bi-search me-1"></i>
-          {{ mostrarEquipos ? 'Ocultar' : 'Buscar' }} equipos
+          {{ mostrarEquipos ? "Ocultar" : "Buscar" }} equipos
         </button>
       </div>
 
       <!-- Alert: requiere sesión -->
-      <div v-if="!isAuthReady || !usuarioActual" class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+      <div
+        v-if="!isAuthReady || !usuarioActual"
+        class="alert alert-warning d-flex align-items-start gap-2 mb-3"
+        role="alert"
+      >
         <i class="bi bi-info-circle fs-5"></i>
         <div>
           <div class="fw-semibold">Debes iniciar sesión para ver tu información.</div>
@@ -38,21 +43,21 @@
           class="btn btn-outline-dark btn-sm"
           @click="toggleOCTallerMes"
           :disabled="!usuarioActual"
-          :aria-pressed="mostrarOCTallerMes.toString()">
+          :aria-pressed="mostrarOCTallerMes.toString()"
+        >
           <i class="bi bi-receipt-cutoff me-1"></i>
-          {{ mostrarOCTallerMes ? 'Ocultar mis cotizaciones' : 'Mis Cotizaciones' }}
+          {{ mostrarOCTallerMes ? "Ocultar mis cotizaciones" : "Mis Cotizaciones" }}
         </button>
 
-        <!-- Mi resumen (solo el usuario logeado) -->
         <button
           class="btn btn-outline-primary btn-sm"
           @click="toggleResumenUsuarios"
           :disabled="!usuarioActual"
-          :aria-pressed="mostrarResumenUsuarios.toString()">
+          :aria-pressed="mostrarResumenUsuarios.toString()"
+        >
           <i class="bi bi-person-lines-fill me-1"></i>
-          {{ mostrarResumenUsuarios ? 'Ocultar mi resumen' : 'Mi resumen (mes actual)' }}
+          {{ mostrarResumenUsuarios ? "Ocultar mi resumen" : "Mi resumen (mes actual)" }}
         </button>
-
       </div>
 
       <!-- ===== Bloqueo por OCs Aprobadas (rol Editor) ===== -->
@@ -77,7 +82,7 @@
       <!-- Card: Mis OC Taller del mes actual -->
       <div v-if="mostrarOCTallerMes" class="card mb-3 card-elevated">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">🧾 Mis cotizaciones </div>
+          <div class="fw-semibold">🧾 Mis cotizaciones</div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ ocTallerMes.length }} en total</span>
         </div>
 
@@ -92,21 +97,17 @@
           </div>
 
           <div v-else class="list-group list-group-flush">
-            <div
-              class="list-group-item d-flex align-items-start flex-wrap gap-2"
-              v-for="oc in ocTallerMesPaged"
-              :key="oc.__docId"
-            >
+            <div class="list-group-item d-flex align-items-start flex-wrap gap-2" v-for="oc in ocTallerMesPaged" :key="oc.__docId">
               <div class="me-auto">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <span class="fw-semibold">N° {{ oc.id ?? '—' }}</span>
-                  <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus || '—' }}</span>
+                  <span class="fw-semibold">N° {{ oc.id ?? "—" }}</span>
+                  <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ oc.estatus || "—" }}</span>
                 </div>
 
                 <div class="small text-secondary mt-1">
-                  <strong>Centro:</strong> {{ oc.centroCostoTexto || '—' }} ·
-                  <strong>Moneda:</strong> {{ oc.moneda || '—' }} ·
-                  <strong>Total:</strong> {{ (oc.precioTotalConIVA ?? 0).toLocaleString('es-CL') }}
+                  <strong>Centro:</strong> {{ oc.centroCostoTexto || "—" }} ·
+                  <strong>Moneda:</strong> {{ oc.moneda || "—" }} ·
+                  <strong>Total:</strong> {{ (oc.precioTotalConIVA ?? 0).toLocaleString("es-CL") }}
                 </div>
                 <div class="small text-secondary">
                   <strong>Fecha:</strong> {{ fmtFecha(oc.fechaSubida) }}
@@ -131,24 +132,29 @@
           <nav aria-label="Paginación OC Taller">
             <ul class="pagination justify-content-center mb-0">
               <li class="page-item" :class="{ disabled: ocTallerMesCurrentPage === 1 }">
-                <button class="page-link" @click="ocTallerMesGoTo(ocTallerMesCurrentPage - 1)" :disabled="ocTallerMesCurrentPage === 1">«</button>
+                <button class="page-link" @click="ocTallerMesGoTo(ocTallerMesCurrentPage - 1)" :disabled="ocTallerMesCurrentPage === 1">
+                  «
+                </button>
               </li>
               <li
                 class="page-item"
                 v-for="n in ocTallerMesVisiblePages"
-                :key="'pg-ocmes-'+n"
-                :class="{ active: ocTallerMesCurrentPage === n }">
+                :key="'pg-ocmes-' + n"
+                :class="{ active: ocTallerMesCurrentPage === n }"
+              >
                 <button class="page-link" @click="ocTallerMesGoTo(n)">{{ n }}</button>
               </li>
               <li class="page-item" :class="{ disabled: ocTallerMesCurrentPage === ocTallerMesTotalPages }">
-                <button class="page-link" @click="ocTallerMesGoTo(ocTallerMesCurrentPage + 1)" :disabled="ocTallerMesCurrentPage === ocTallerMesTotalPages">»</button>
+                <button class="page-link" @click="ocTallerMesGoTo(ocTallerMesCurrentPage + 1)" :disabled="ocTallerMesCurrentPage === ocTallerMesTotalPages">
+                  »
+                </button>
               </li>
             </ul>
           </nav>
         </div>
       </div>
 
-      <!-- NUEVA Card: Mi resumen (mes actual) -->
+      <!-- Card: Mi resumen (2 meses) -->
       <div v-if="mostrarResumenUsuarios" class="card mb-3 card-elevated">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">📊 Resumen de mis Cotizaciones</div>
@@ -181,24 +187,12 @@
               <tbody>
                 <tr v-for="row in resumenUsuariosPaged" :key="row.responsable">
                   <td class="fw-semibold">{{ row.responsable }}</td>
-                  <td class="text-center">
-                    <span class="badge bg-success-subtle text-success-emphasis">{{ row.aprobado }}</span>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge bg-danger-subtle text-danger-emphasis">{{ row.rechazado }}</span>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge bg-info-subtle text-info-emphasis">{{ row.preaprobado }}</span>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge bg-warning-subtle text-warning-emphasis">{{ row.pendiente }}</span>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge bg-primary-subtle text-primary-emphasis">{{ row.revision }}</span>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge bg-info-subtle text-info-emphasis">{{ row.proveedor }}</span>
-                  </td>
+                  <td class="text-center"><span class="badge bg-success-subtle text-success-emphasis">{{ row.aprobado }}</span></td>
+                  <td class="text-center"><span class="badge bg-danger-subtle text-danger-emphasis">{{ row.rechazado }}</span></td>
+                  <td class="text-center"><span class="badge bg-info-subtle text-info-emphasis">{{ row.preaprobado }}</span></td>
+                  <td class="text-center"><span class="badge bg-warning-subtle text-warning-emphasis">{{ row.pendiente }}</span></td>
+                  <td class="text-center"><span class="badge bg-primary-subtle text-primary-emphasis">{{ row.revision }}</span></td>
+                  <td class="text-center"><span class="badge bg-info-subtle text-info-emphasis">{{ row.proveedor }}</span></td>
                   <td class="text-center fw-semibold">{{ row.total }}</td>
                 </tr>
               </tbody>
@@ -206,18 +200,13 @@
           </div>
         </div>
 
-        <!-- Paginación Resumen (normalmente 1 página) -->
         <div v-if="!cargandoResumenUsuarios && resumenTotalPages > 1" class="card-footer bg-white">
           <nav aria-label="Paginación resumen usuarios">
             <ul class="pagination justify-content-center mb-0">
               <li class="page-item" :class="{ disabled: resumenCurrentPage === 1 }">
                 <button class="page-link" @click="resumenGoTo(resumenCurrentPage - 1)" :disabled="resumenCurrentPage === 1">«</button>
               </li>
-              <li
-                class="page-item"
-                v-for="n in resumenVisiblePages"
-                :key="'pg-resumen-'+n"
-                :class="{ active: resumenCurrentPage === n }">
+              <li class="page-item" v-for="n in resumenVisiblePages" :key="'pg-resumen-' + n" :class="{ active: resumenCurrentPage === n }">
                 <button class="page-link" @click="resumenGoTo(n)">{{ n }}</button>
               </li>
               <li class="page-item" :class="{ disabled: resumenCurrentPage === resumenTotalPages }">
@@ -232,9 +221,8 @@
       <div class="row g-3">
         <!-- Columna izquierda -->
         <div class="col-12" :class="mostrarEquipos ? 'col-lg-8' : 'col-lg-12'">
-          <!-- Card principal -->
           <div class="card card-elevated position-relative overflow-hidden">
-            <!-- 🔒 Overlay con candado cuando hay bloqueo -->
+            <!-- Overlay bloqueo -->
             <div v-if="bloqueoPorAprobadasTaller" class="lock-overlay">
               <div class="lock-box text-center">
                 <i class="bi bi-lock-fill display-6 d-block mb-2"></i>
@@ -244,9 +232,7 @@
                 </div>
 
                 <div class="mt-3">
-                  <button
-                    class="btn btn-dark btn-sm"
-                    @click="router.push({ name: 'HistorialOCTaller' })">
+                  <button class="btn btn-dark btn-sm" @click="router.push({ name: 'HistorialOCTaller' })">
                     Ver mis cotizaciones (Taller)
                   </button>
                 </div>
@@ -259,19 +245,11 @@
                 <span>Subir Cotización (Taller)</span>
               </div>
 
-              <!-- Accesos rápidos (xs-sm) -->
               <div class="d-flex gap-2 d-lg-none">
-                <button
-                  class="btn btn-outline-dark btn-sm"
-                  @click="toggleOCTallerMes"
-                  :aria-pressed="mostrarOCTallerMes.toString()"
-                  :disabled="!usuarioActual">
+                <button class="btn btn-outline-dark btn-sm" @click="toggleOCTallerMes" :aria-pressed="mostrarOCTallerMes.toString()" :disabled="!usuarioActual">
                   <i class="bi bi-receipt-cutoff"></i>
                 </button>
-                <button
-                  class="btn btn-secondary btn-sm"
-                  @click="toggleEquiposPanel"
-                  :aria-pressed="mostrarEquipos.toString()">
+                <button class="btn btn-secondary btn-sm" @click="toggleEquiposPanel" :aria-pressed="mostrarEquipos.toString()">
                   <i class="bi bi-search"></i>
                 </button>
               </div>
@@ -287,37 +265,24 @@
 
                   <input
                     class="form-control fw-semibold"
-                    :class="{'border-primary': !!nuevoIdVisual}"
+                    :class="{ 'border-primary': !!nuevoIdVisual }"
                     type="text"
                     :value="cargandoNumero ? 'Cargando…' : (nuevoIdVisual ?? '—').toString()"
                     readonly
-                  >
+                  />
 
-                  <!-- Spinner + Recarga -->
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    @click="cargarSiguienteNumero"
-                    :disabled="cargandoNumero"
-                    title="Recargar número"
-                  >
-                    <span
-                      v-if="cargandoNumero"
-                      class="spinner-border spinner-border-sm"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
+                  <button class="btn btn-outline-secondary" type="button" @click="cargarSiguienteNumero" :disabled="cargandoNumero" title="Recargar número">
+                    <span v-if="cargandoNumero" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     <i v-else class="bi bi-arrow-clockwise"></i>
                   </button>
                 </div>
 
-                <div v-if="errorNumero" class="form-text text-danger">
-                  {{ errorNumero }}
-                </div>
+                <div v-if="errorNumero" class="form-text text-danger">{{ errorNumero }}</div>
               </div>
+
               <!-- Asociar SOLPED -->
               <div class="form-check form-switch mb-3">
-                <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped">
+                <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped" />
                 <label class="form-check-label" for="swSolped">¿Asociar a una SOLPED?</label>
               </div>
 
@@ -327,10 +292,7 @@
                   <label class="form-label">SOLPED asociada</label>
                   <select class="form-select" v-model="solpedSeleccionadaId" @change="onChangeSolped">
                     <option value="">— Selecciona —</option>
-                    <option
-                      v-for="solpe in solpedDisponibles"
-                      :key="solpe.id"
-                      :value="solpe.id">
+                    <option v-for="solpe in solpedDisponibles" :key="solpe.id" :value="solpe.id">
                       #{{ solpe.numero_solpe }} - {{ solpe.nombre_solped || solpe.tipo_solped }} ·
                       {{ solpe.nombre_centro_costo || solpe.centro_costo }} · {{ solpe.usuario || '—' }} · {{ solpe.empresa || '—' }}
                     </option>
@@ -351,7 +313,7 @@
                       {{ solpedSeleccionada.centro_costo }} — {{ solpedSeleccionada.nombre_centro_costo }}
                     </template>
                     <template v-else>
-                      {{ solpedSeleccionada.nombre_centro_costo || solpedSeleccionada.centro_costo || '—' }}
+                      {{ solpedSeleccionada.nombre_centro_costo || solpedSeleccionada.centro_costo || "—" }}
                     </template>
                   </div>
                 </div>
@@ -371,6 +333,7 @@
                   <span class="fw-semibold">📦 Ítems de la SOLPED</span>
                   <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
                 </div>
+
                 <div class="card-body">
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
@@ -379,7 +342,7 @@
                           <th style="width: 48px;">Ítem</th>
                           <th>Descripción</th>
                           <th class="text-center">Cant. total</th>
-                          <th class="text-center">Cotizado antes</th>
+                          <th class="text-center">Cant. Pendiente</th>
                           <th style="width: 180px;">Cant. a cotizar</th>
                         </tr>
                       </thead>
@@ -388,18 +351,18 @@
                           <td>{{ it.item }}</td>
                           <td class="w-50">{{ it.descripcion }}</td>
                           <td class="text-center">{{ it.cantidad }}</td>
-                          <td class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
+                          <td class="text-center fw-semibold">{{ it.__restan }}</td>
                           <td>
                             <input
                               type="number"
                               class="form-control form-control-sm"
                               min="0"
-                              :max="restante(it)"
+                              :max="it.__restan"
                               v-model.number="it.cantidad_para_cotizar"
                               @input="clampCantidad(it)"
                               @blur="clampCantidad(it)"
                             />
-                            <div class="form-text">Restan: {{ restante(it) }}</div>
+                            <div class="form-text">Disponible: {{ it.__restan }}</div>
                           </td>
                         </tr>
                       </tbody>
@@ -411,7 +374,7 @@
                     <i class="bi bi-paperclip"></i>
                     <div class="me-auto ms-2">
                       <div class="fw-semibold mb-0">Autorización adjunta</div>
-                      <div class="small">{{ autorizacionNombre || 'Archivo' }}</div>
+                      <div class="small">{{ autorizacionNombre || "Archivo" }}</div>
                     </div>
                     <div class="d-flex gap-2">
                       <a :href="autorizacionUrlRaw" target="_blank" rel="noopener" class="btn btn-sm btn-primary">Ver</a>
@@ -434,16 +397,14 @@
               <div class="mb-3">
                 <label class="form-label">Centro de Costo</label>
                 <input class="form-control" v-model="centroCostoTexto" placeholder="Ej: THPV-31" />
-                <div class="form-text" v-if="centroCostoTextoAyuda">
-                  Sugerencia: {{ centroCostoTextoAyuda }}
-                </div>
+                <div class="form-text" v-if="centroCostoTextoAyuda">Sugerencia: {{ centroCostoTextoAyuda }}</div>
               </div>
 
               <!-- Empresa -->
               <div class="mb-3">
                 <label class="form-label">Empresa</label>
                 <select class="form-select" v-model="empresaSeleccionada">
-                  <option value="Xtreme Servicios">Xtreme Servicios</option>
+                  <option value="Xtreme Servicio">Xtreme Servicio</option>
                 </select>
               </div>
 
@@ -460,7 +421,15 @@
                 </div>
                 <div class="col-12 col-md-8">
                   <label class="form-label">Precio Total con IVA</label>
-                  <input class="form-control" type="text" :value="precioFormateado" @input="formatearPrecio($event)" placeholder="$ 0" inputmode="numeric" aria-describedby="precioHelp">
+                  <input
+                    class="form-control"
+                    type="text"
+                    :value="precioFormateado"
+                    @input="formatearPrecio($event)"
+                    placeholder="$ 0"
+                    inputmode="numeric"
+                    aria-describedby="precioHelp"
+                  >
                   <div id="precioHelp" class="form-text">Se formatea automáticamente según moneda seleccionada.</div>
                 </div>
               </div>
@@ -477,7 +446,7 @@
                 <textarea class="form-control" rows="3" v-model="comentario" placeholder="Agrega un comentario opcional…"></textarea>
               </div>
 
-              <!-- Archivos (PDF/Imágenes) -> archivosStorage[] -->
+              <!-- Archivos -->
               <div class="mb-3">
                 <label class="form-label">Archivos PDF o Imagen (cotizaciones)</label>
                 <div class="d-flex flex-wrap align-items-center gap-2">
@@ -528,10 +497,9 @@
           <div class="card h-100 card-elevated sticky-panel">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">🔎 Buscar equipos</div>
-              <button class="btn btn-sm btn-outline-secondary d-lg-none" @click="mostrarEquipos=false">
-                Cerrar
-              </button>
+              <button class="btn btn-sm btn-outline-secondary d-lg-none" @click="mostrarEquipos=false">Cerrar</button>
             </div>
+
             <div class="card-body d-flex flex-column">
               <div class="input-group mb-3">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -539,7 +507,8 @@
                   class="form-control"
                   placeholder="Escribe al menos 2 caracteres"
                   v-model="busquedaEquipo"
-                  @input="aplicarFiltrosEquiposDebounced" />
+                  @input="aplicarFiltrosEquiposDebounced"
+                />
               </div>
 
               <div v-if="(busquedaEquipo||'').trim().length < 2" class="text-center text-secondary py-3 small">
@@ -586,7 +555,6 @@
                 </div>
               </div>
 
-              <!-- Paginación -->
               <nav v-if="totalPages > 1" class="mt-3">
                 <ul class="pagination justify-content-center mb-0">
                   <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -628,31 +596,623 @@ import {
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
 
-/* ===== Config bloqueo por Aprobadas (Taller) ===== */
-const APPLY_TO_ROLES = ['editor']; // agrega roles si aplica
-const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 10);
+/* ===== Router ===== */
+const router = useRouter();
+const route = useRoute();
+const volver = () => router.back();
 
-const userRole = ref('');
+/* ===== Auth ===== */
+const auth = useAuthStore();
+const isAuthReady = ref(false);
+const myUid = computed(() => auth?.user?.uid || null);
+const usuarioActual = ref("");
+const userRole = ref("");
+
+/* ===== Config bloqueo por Aprobadas (Taller) ===== */
+const APPLY_TO_ROLES = ["editor"];
+const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 20);
+
 const totalAprobadasDelUsuarioTaller = ref(0);
 const bloqueoPorAprobadasTaller = computed(() => {
-  const roleLower = (userRole.value || '').toString().toLowerCase();
+  const roleLower = (userRole.value || "").toString().toLowerCase();
   if (!APPLY_TO_ROLES.includes(roleLower)) return false;
   return totalAprobadasDelUsuarioTaller.value >= MAX_OC_APROBADAS_TALLER;
 });
 
-/** Rango "últimos 2 meses" por fechaSubida */
 const rangeUltimosDosMeses = () => {
   const now = new Date();
   const y = now.getFullYear();
-  const m = now.getMonth(); // 0..11
+  const m = now.getMonth();
   const inicio = new Date(y, m - 1, 1, 0, 0, 0, 0);
-  const fin    = new Date(y, m + 1, 1, 0, 0, 0, 0);
+  const fin = new Date(y, m + 1, 1, 0, 0, 0, 0);
   return {
     from: Timestamp.fromDate(inicio),
-    to:   Timestamp.fromDate(fin),
+    to: Timestamp.fromDate(fin),
   };
 };
 
+/* ===== UI: toasts ===== */
+const toasts = ref([]);
+const addToast = (type, text, timeout = 2800) => {
+  const id = Date.now() + Math.random();
+  toasts.value.push({ id, type, text });
+  setTimeout(() => closeToast(id), timeout);
+};
+const closeToast = (id) => {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
+};
+
+/* ===== Form ===== */
+const enviando = ref(false);
+const usarSolped = ref(true);
+const nuevoIdVisual = ref(null);
+const cargandoNumero = ref(false);
+const errorNumero = ref("");
+const comentario = ref("");
+
+const centroCostoTexto = ref("");
+const empresaSeleccionada = ref("Xtreme Servicios");
+const monedaSeleccionada = ref("CLP");
+const precioTotalConIVA = ref(0);
+const precioFormateado = ref("");
+const aprobadorSugerido = ref("");
+
+const tipoCambioUSD = 950;
+const tipoCambioEUR = 1050;
+
+/* ===== Equipos panel ===== */
+const mostrarEquipos = ref(false);
+const toggleEquiposPanel = () => { mostrarEquipos.value = !mostrarEquipos.value; };
+
+/* ===== Archivos ===== */
+const archivos = ref([]);
+const abrirSelectorArchivos = () => {
+  const input = document.getElementById("inputArchivo");
+  if (input) input.click();
+};
+const onMultipleFilesSelected = (e) => {
+  const list = Array.from(e.target.files || []);
+  for (const file of list) {
+    if (!file || file.size === 0 || !file.type) {
+      addToast("warning", `Archivo inválido: ${file?.name || "desconocido"}`);
+      continue;
+    }
+    archivos.value.push({
+      file,
+      name: file.name,
+      tipo: file.type,
+      previewUrl: URL.createObjectURL(file),
+      __k: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
+    });
+  }
+  if (!archivos.value.length) addToast("warning", "Ningún archivo válido fue seleccionado.");
+};
+const eliminarArchivo = (idx) => {
+  const a = archivos.value[idx];
+  try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) { console.log(e); }
+  archivos.value.splice(idx, 1);
+  addToast("success", "Archivo eliminado.");
+};
+
+/* ===== Helpers: cálculo modelo SOLPED ===== */
+function sumMapNumbers(obj) {
+  if (!obj || typeof obj !== "object") return 0;
+  return Object.values(obj).reduce((acc, v) => acc + Number(v || 0), 0);
+}
+
+function computeItemCounters(base) {
+  const total = Number(base.cantidad || 0);
+  const aprobado = Math.min(total, sumMapNumbers(base.cotPorOC));
+  const reservado = Math.min(total, sumMapNumbers(base.pendienteRevisionPorOC));
+  const restan = Math.max(0, total - aprobado - reservado);
+  const comprometido = Math.min(total, aprobado + reservado);
+  return { total, aprobado, reservado, restan, comprometido };
+}
+
+function recomputeSolpedItemState(item) {
+  const it = { ...(item || {}) };
+  const total = Number(it.cantidad || 0);
+
+  it.cotPorOC = (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {};
+  it.pendienteRevisionPorOC = (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {};
+
+  const aprobado = Math.min(total, sumMapNumbers(it.cotPorOC));
+  const reservado = Math.min(total, sumMapNumbers(it.pendienteRevisionPorOC));
+  const comprometido = Math.min(total, aprobado + reservado);
+
+  // ✅ comprometido (aprobado+reservado)
+  it.cantidad_cotizada = comprometido;
+
+  if (total > 0 && aprobado >= total) it.estado_cotizacion = "completado";
+  else if (comprometido > 0) it.estado_cotizacion = "parcial";
+  else it.estado_cotizacion = "pendiente";
+
+  it.estado = it.estado_cotizacion;
+  return it;
+}
+
+/* ===== SOLPED selección ===== */
+const solpedDisponibles = ref([]);
+const solpedSeleccionadaId = ref("");
+const solpedSeleccionada = ref(null);
+const itemsSolped = ref([]);
+
+const autorizacionNombre = ref(null);
+const autorizacionUrlRaw = ref(null);
+const autorizacionEsPDF = ref(false);
+const autorizacionEsImagen = ref(false);
+const theAutorizacionReset = () => {
+  autorizacionNombre.value = null;
+  autorizacionUrlRaw.value = null;
+  autorizacionEsPDF.value = false;
+  autorizacionEsImagen.value = false;
+};
+
+const centrosCostoDict = {
+  "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
+  "23302-CARPETAS":"CONTRATO 23302 CARPETAS",
+};
+const centroCostoTextoAyuda = computed(() => {
+  const v = (centroCostoTexto.value || "").trim();
+  return centrosCostoDict[v] || "";
+});
+
+const onToggleUsarSolped = () => {
+  if (!usarSolped.value) {
+    solpedSeleccionada.value = null;
+    solpedSeleccionadaId.value = "";
+    itemsSolped.value = [];
+    theAutorizacionReset();
+  }
+  calcularAprobador();
+};
+
+const clampCantidad = (it) => {
+  let v = Number(it.cantidad_para_cotizar || 0);
+  const max = Number(it.__restan || 0);
+  if (v < 0) v = 0;
+  if (v > max) v = max;
+  it.cantidad_para_cotizar = v;
+};
+
+const onChangeSolped = async () => {
+  if (!solpedSeleccionadaId.value) {
+    solpedSeleccionada.value = null;
+    itemsSolped.value = [];
+    theAutorizacionReset();
+    return;
+  }
+
+  try {
+    const dref = doc(db, "solped_taller", solpedSeleccionadaId.value);
+    const snap = await getDoc(dref);
+    if (!snap.exists()) return;
+
+    const data = snap.data() || {};
+
+    const st = String(data.estatus || "").trim().toLowerCase();
+    const allowed = [
+      "pendiente",
+      "parcial",
+      "cotizado parcial",
+      "cotizando - revision guillermo",
+      "cotizando - revisión guillermo",
+      "cotizado parcial",
+      "cotizado completado" // por si quieres ver, pero luego filtramos por restan
+    ];
+    if (!allowed.includes(st)) {
+      addToast("warning", "Esta SOLPED no está en estado Pendiente / Parcial / Cotizando.");
+      solpedSeleccionada.value = null;
+      solpedSeleccionadaId.value = "";
+      itemsSolped.value = [];
+      theAutorizacionReset();
+      return;
+    }
+
+    solpedSeleccionada.value = data;
+
+    centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
+
+    autorizacionNombre.value = data.autorizacion_nombre || null;
+    autorizacionUrlRaw.value = data.autorizacion_url || null;
+    const guess = String((autorizacionNombre.value || autorizacionUrlRaw.value || "")).toLowerCase();
+    autorizacionEsPDF.value = guess.endsWith(".pdf");
+    autorizacionEsImagen.value = /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(guess);
+
+    const todos = Array.isArray(data.items) ? data.items : [];
+
+    const normalizados = todos.map((it) => {
+      const base = {
+        ...it,
+        cantidad: Number(it.cantidad || 0),
+        cotPorOC: (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {},
+        pendienteRevisionPorOC: (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {},
+      };
+      const { aprobado, reservado, restan } = computeItemCounters(base);
+      const withCounters = {
+        ...base,
+        __aprobado: aprobado,
+        __reservado: reservado,
+        __restan: restan,
+      };
+      return recomputeSolpedItemState(withCounters);
+    });
+
+    itemsSolped.value = normalizados
+      .filter((it) => Number(it.__restan || 0) > 0)
+      .map((it) => ({
+        ...it,
+        cantidad_para_cotizar: 0,
+        __tempId: it.__tempId || `${it.item}-${it.descripcion}-${it.codigo_referencial || ""}`,
+      }));
+
+    if (data.empresa) empresaSeleccionada.value = data.empresa;
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+/* ===== Moneda / precio / aprobador ===== */
+const onCambioMoneda = () => { formatearPrecConValor(precioTotalConIVA.value); };
+
+const formatearPrecio = (ev) => {
+  const input = String(ev?.target?.value ?? "");
+  const soloNumeros = input.replace(/\D/g, "");
+  const valor = soloNumeros ? parseInt(soloNumeros, 10) : 0;
+  formatearPrecConValor(valor);
+};
+
+const formatearPrecConValor = (valor) => {
+  precioTotalConIVA.value = valor;
+  const m = monedaSeleccionada.value || "CLP";
+  try {
+    precioFormateado.value = valor.toLocaleString("es-CL", {
+      style: "currency",
+      currency: m,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  } catch {
+    precioFormateado.value = `${m} ${valor.toLocaleString("es-CL")}`;
+  }
+  calcularAprobador();
+};
+
+const calcularAprobador = () => {
+  let totalCLP = Number(precioTotalConIVA.value || 0);
+  const mon = String(monedaSeleccionada.value || "CLP").toUpperCase();
+  if (mon === "USD") totalCLP *= tipoCambioUSD;
+  else if (mon === "EUR") totalCLP *= tipoCambioEUR;
+
+  const empresa = String(empresaSeleccionada.value || "").toLowerCase();
+  if (empresa.includes("xtreme")) {
+    if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
+    else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
+    else aprobadorSugerido.value = "Alejandro Candia";
+  }
+};
+
+/* ===== OC Helpers ===== */
+function makeOcItemFromSolpedItem(it, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel) {
+  const cantTotal = Number(it.cantidad || 0);
+  const qty = Math.max(0, Math.min(Number(it.cantidad_para_cotizar || 0), Number(it.__restan || 0), cantTotal));
+
+  return {
+    // ✅ NUEVO: llave estable para matcheo posterior
+    solped_item_no: Number(it.item ?? 0),
+
+    item: Number(it.item ?? 0),
+    descripcion: it.descripcion || "",
+    codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
+    imagen_url: it.imagen_url ?? null,
+
+    cantidad: cantTotal,
+
+    cantidad_solicitada_oc: qty,
+    cantidad_para_cotizar: qty,
+    cantidad_cotizada: qty,
+
+    estado: qty > 0 ? "revision" : "pendiente",
+    estado_cotizacion: qty > 0 ? "revision" : "pendiente",
+
+    numero_interno: numeroInternoTexto || it.numero_interno || "",
+    solpedId,
+    numero_solped: solpedSel?.numero_solpe || 0,
+    tipo_solped: solpedSel?.tipo_solped || "No definido",
+
+    moneda,
+    precioTotalConIVA: totalConIVA,
+    responsable,
+
+    __tempId: it.__tempId || `${it.item}-${it.descripcion}-${it.codigo_referencial || ""}`,
+  };
+}
+
+function mapearItemsParaOC(itemsOrigen, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel) {
+  const salida = [];
+  for (const it of (itemsOrigen || [])) {
+    const ocIt = makeOcItemFromSolpedItem(it, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel);
+    if (Number(ocIt.cantidad_solicitada_oc || 0) > 0) salida.push(ocIt);
+  }
+  return salida;
+}
+
+/* =========================
+   ✅ SOLPED post-OC: reservar (pendienteRevisionPorOC)
+   ✅ match robusto: por item/solped_item_no, y fallback __tempId
+   ========================= */
+async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, ocNumero, ocDocId) {
+  if (!solpedId) return;
+
+  const dref = doc(db, "solped_taller", solpedId);
+  const ss = await getDoc(dref);
+  if (!ss.exists()) return;
+
+  const dataSol = ss.data() || {};
+  const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
+  const ocKey = String(ocNumero);
+
+  // ✅ índices robustos
+  const idxByItemNo = new Map();
+  const idxByTempId = new Map();
+
+  originales.forEach((it, i) => {
+    const n = Number(it?.item);
+    if (Number.isFinite(n) && n > 0) idxByItemNo.set(n, i);
+
+    const t = String(it?.__tempId || "").trim();
+    if (t) idxByTempId.set(t, i);
+  });
+
+  const actualizados = originales.map((x) => ({
+    ...x,
+    cotPorOC: (x?.cotPorOC && typeof x.cotPorOC === "object") ? x.cotPorOC : {},
+    pendienteRevisionPorOC: (x?.pendienteRevisionPorOC && typeof x.pendienteRevisionPorOC === "object") ? x.pendienteRevisionPorOC : {},
+  }));
+
+  const findIndexForOcItem = (ocIt) => {
+    const n = Number(ocIt?.solped_item_no ?? ocIt?.item);
+    if (Number.isFinite(n) && idxByItemNo.has(n)) return idxByItemNo.get(n);
+
+    const t = String(ocIt?.__tempId || "").trim();
+    if (t && idxByTempId.has(t)) return idxByTempId.get(t);
+
+    return -1;
+  };
+
+  for (const ocIt of (itemsOC || [])) {
+    const idx = findIndexForOcItem(ocIt);
+    if (idx < 0) {
+      console.warn("[SOLPED] No pude matchear ítem para reservar:", ocIt);
+      continue;
+    }
+
+    const base = { ...actualizados[idx] };
+    base.cantidad = Number(base.cantidad || 0);
+
+    const total = Number(base.cantidad || 0);
+    const aprobado = Math.min(total, sumMapNumbers(base.cotPorOC));
+    const reservado = Math.min(total, sumMapNumbers(base.pendienteRevisionPorOC));
+    const restan = Math.max(0, total - aprobado - reservado);
+
+    const qtyReq = Math.max(0, Number(ocIt?.cantidad_solicitada_oc || 0));
+    const qty = Math.min(qtyReq, restan, total);
+
+    if (qty <= 0) {
+      actualizados[idx] = recomputeSolpedItemState(base);
+      continue;
+    }
+
+    base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
+    base.pendienteRevisionPorOC[ocKey] = Number(base.pendienteRevisionPorOC[ocKey] || 0) + qty;
+
+    base.cotPorOC = (base.cotPorOC && typeof base.cotPorOC === "object") ? base.cotPorOC : {};
+    actualizados[idx] = recomputeSolpedItemState(base);
+  }
+
+  // ✅ recalcular todos
+  const finalItems = actualizados.map((it) => recomputeSolpedItemState(it));
+
+  const tot = finalItems.length;
+  const completos = finalItems.filter((it) => {
+    const total = Number(it.cantidad || 0);
+    const aprob = sumMapNumbers(it.cotPorOC);
+    return total > 0 && aprob >= total;
+  }).length;
+
+  const anyApproved = finalItems.some((it) => sumMapNumbers(it.cotPorOC) > 0);
+  const anyReserved = finalItems.some((it) => sumMapNumbers(it.pendienteRevisionPorOC) > 0);
+
+  let nuevoEstatusSol = "Pendiente";
+  if (tot > 0 && completos === tot) nuevoEstatusSol = "Cotizado Completado";
+  else if (anyApproved) nuevoEstatusSol = "Cotizado Parcial";
+  else if (anyReserved) nuevoEstatusSol = "Cotizando - Revisión Guillermo";
+
+  await updateDoc(dref, {
+    items: finalItems,
+    estatus: nuevoEstatusSol,
+    updated_at: serverTimestamp(),
+  });
+
+  await addDoc(collection(db, "solped_taller", solpedId, "historialEstados"), {
+    usuario: nombreUsuario,
+    fecha: serverTimestamp(),
+    estatus: "Cotizando - Revisión Guillermo",
+    detalle: `Se subió cotización (OC Taller N° ${ocNumero})`,
+    ocId: ocDocId,
+    ocNumero,
+  });
+}
+
+/* ===== Enviar OC ===== */
+const enviarOC = async () => {
+  if (enviando.value) return;
+
+  if (bloqueoPorAprobadasTaller.value) {
+    addToast("warning", `Tienes ${totalAprobadasDelUsuarioTaller.value} cotizaciones del Taller en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`);
+    return;
+  }
+
+  if (!usuarioActual.value) { addToast("warning", "Debes iniciar sesión."); return; }
+  if (!centroCostoTexto.value.trim()) { addToast("warning", "Ingresa Centro de Costo (texto)"); return; }
+  if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning", "Precio inválido"); return; }
+  if (!monedaSeleccionada.value) { addToast("warning", "Selecciona moneda"); return; }
+  if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
+  if (archivos.value.length === 0) { addToast("warning", "Debes subir al menos un archivo de cotización"); return; }
+
+  if (usarSolped.value && solpedSeleccionadaId.value) {
+    const hayAlgoPorCotizar = (itemsSolped.value || []).some(it => Number(it.cantidad_para_cotizar || 0) > 0);
+    if (!hayAlgoPorCotizar) {
+      addToast("warning", "Debes ingresar cantidad a cotizar en al menos un ítem.");
+      return;
+    }
+  }
+
+  const nombreUsuario = (usuarioActual.value || "").trim();
+  const comentarioFinal = (comentario.value || "").trim();
+
+  enviando.value = true;
+
+  try {
+    // correlativo simple
+    const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
+    const snap = await getDocs(qy);
+    const lastId = snap.docs[0]?.data()?.id || 0;
+    const newId = Number(lastId) + 1;
+
+    calcularAprobador();
+    const aprobador = aprobadorSugerido.value || "";
+    const estatusInicial = "Revisión Guillermo";
+
+    // subir archivos
+    const storage = getStorage();
+    const subidos = [];
+    for (const a of archivos.value) {
+      if (!a.file || a.file.size < 100) continue;
+      const path = `ordenes_oc_taller/${newId}/${a.name}`;
+      const sRef = sref(storage, path);
+      const up = await uploadBytes(sRef, a.file);
+      const url = await getDownloadURL(up.ref);
+      subidos.push({ nombre: a.name, tipo: a.tipo, url });
+    }
+
+    // items
+    let itemsFinal = [];
+    if (usarSolped.value && solpedSeleccionadaId.value && solpedSeleccionada.value) {
+      itemsFinal = mapearItemsParaOC(
+        itemsSolped.value,
+        centroCostoTexto.value,
+        monedaSeleccionada.value,
+        precioTotalConIVA.value,
+        nombreUsuario,
+        solpedSeleccionadaId.value,
+        solpedSeleccionada.value
+      );
+    }
+
+    const historialEntry = {
+      usuario: nombreUsuario,
+      estatus: estatusInicial,
+      fecha: new Date().toISOString(),
+      comentario: comentarioFinal
+    };
+
+    const dataToSave = {
+      id: newId,
+      empresa: empresaSeleccionada.value,
+      centroCostoTexto: centroCostoTexto.value,
+      comentario: comentarioFinal,
+      aprobadorSugerido: aprobador,
+      aprobadoPor: "",
+      estatus: estatusInicial,
+      fechaAprobacion: null,
+      fechaSubida: serverTimestamp(),
+      archivosStorage: subidos,
+      historial: [historialEntry],
+      moneda: monedaSeleccionada.value,
+      precioTotalConIVA: precioTotalConIVA.value,
+      responsable: nombreUsuario,
+      ...(usarSolped.value && solpedSeleccionadaId.value ? {
+        solpedId: solpedSeleccionadaId.value,
+        numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
+        tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
+        items: itemsFinal
+      } : {
+        tipo_solped: "Sin SOLPED",
+        items: []
+      })
+    };
+
+    const newRef = await addDoc(collection(db, "ordenes_oc_taller"), dataToSave);
+
+    if (usarSolped.value && solpedSeleccionadaId.value) {
+      await actualizarSolpedTaller_postOC(
+        solpedSeleccionadaId.value,
+        itemsFinal,
+        nombreUsuario,
+        newId,
+        newRef.id
+      );
+    }
+
+    addToast("success", "Cotización (Taller) enviada exitosamente.");
+    router.push({ name: "OrdenOCTallerDetalle", params: { id: newRef.id } });
+
+    resetFormulario();
+    await cargarSiguienteNumero();
+
+    const inputEl = document.getElementById("inputArchivo");
+    if (inputEl) inputEl.value = "";
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "Error al enviar la cotización de Taller.");
+  } finally {
+    enviando.value = false;
+  }
+};
+
+const irADetalleOCTaller = (ocOrId) => {
+  const id = typeof ocOrId === "string" ? ocOrId : (ocOrId?.__docId || ocOrId?.id || "");
+  if (!id) { addToast("warning", "No se pudo obtener el ID de la OC."); return; }
+  router.push({ name: "OrdenOCTallerDetalle", params: { id } });
+};
+
+function resetFormulario() {
+  centroCostoTexto.value = "";
+  empresaSeleccionada.value = "Xtreme Servicios";
+  for (const a of archivos.value) {
+    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) { console.log(e); }
+  }
+  archivos.value = [];
+  comentario.value = "";
+  usarSolped.value = true;
+  solpedSeleccionadaId.value = "";
+  solpedSeleccionada.value = null;
+  itemsSolped.value = [];
+  precioTotalConIVA.value = 0;
+  precioFormateado.value = "";
+  aprobadorSugerido.value = "";
+  monedaSeleccionada.value = "CLP";
+}
+
+/* ===== Utils formato/estado ===== */
+const fmtFecha = (f) => {
+  try {
+    const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : null);
+    if (!d) return "—";
+    return d.toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
+  } catch { return "—"; }
+};
+
+const estadoBadgeClass = (estatus) => {
+  const s = String(estatus || "").toLowerCase();
+  if (s.includes("proveedor")) return "bg-primary-subtle text-primary-emphasis";
+  if (s.includes("aprob")) return "bg-success-subtle text-success-emphasis";
+  if (s.includes("preaprob")) return "bg-info-subtle text-info-emphasis";
+  if (s.includes("rechaz") || s.includes("escala")) return "bg-danger-subtle text-danger-emphasis";
+  if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
+  return "bg-secondary-subtle text-secondary-emphasis";
+};
 
 /* ====== OC Taller del mes (solo del usuario) ====== */
 const mostrarOCTallerMes = ref(false);
@@ -662,9 +1222,7 @@ const ocTallerMesPageSize = 2;
 const ocTallerMesCurrentPage = ref(1);
 let _unsubOCTallerMes = null;
 
-const ocTallerMesTotalPages = computed(() =>
-  Math.max(1, Math.ceil(ocTallerMes.value.length / ocTallerMesPageSize))
-);
+const ocTallerMesTotalPages = computed(() => Math.max(1, Math.ceil(ocTallerMes.value.length / ocTallerMesPageSize)));
 const ocTallerMesVisiblePages = computed(() => {
   const maxButtons = 8;
   const pages = [];
@@ -683,7 +1241,7 @@ const ocTallerMesGoTo = (n) => {
   ocTallerMesCurrentPage.value = n;
 };
 
-function suscribirOCTallerMes(nombre){
+function suscribirOCTallerMes(nombre) {
   if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
   ocTallerMes.value = [];
   ocTallerMesCurrentPage.value = 1;
@@ -691,7 +1249,6 @@ function suscribirOCTallerMes(nombre){
 
   if (!nombre) { cargandoOCTallerMes.value = false; return; }
 
-  // ✅ Rango: últimos 2 meses (mes actual + anterior)
   const { from, to } = rangeUltimosDosMeses();
 
   try {
@@ -699,29 +1256,26 @@ function suscribirOCTallerMes(nombre){
       collection(db, "ordenes_oc_taller"),
       where("responsable", "==", nombre),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<",  to),
+      where("fechaSubida", "<", to),
       orderBy("fechaSubida", "desc")
     );
 
     _unsubOCTallerMes = onSnapshot(qy, (snap) => {
       let arr = [];
-      snap.forEach(docu => arr.push({ __docId: docu.id, ...docu.data() }));
-      // Mantener sólo “Enviada a proveedor”
-      arr = arr.filter(x => (x.estatus || '').toLowerCase().includes('proveedor'));
-      arr.sort((a,b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
+      snap.forEach((docu) => arr.push({ __docId: docu.id, ...docu.data() }));
+      // opcional: solo enviadas a proveedor
+      arr = arr.filter(x => String(x.estatus || "").toLowerCase().includes("proveedor"));
+      arr.sort((a, b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
       ocTallerMes.value = arr;
       ocTallerMesCurrentPage.value = 1;
       cargandoOCTallerMes.value = false;
-    }, (err) => {
-      console.warn("onSnapshot mis OC (2 meses) error:", err);
+    }, () => {
       cargandoOCTallerMes.value = false;
     });
-  } catch (e) {
-    console.warn("Fallo suscripción mis OC (2 meses):", e?.message || e);
+  } catch {
     cargandoOCTallerMes.value = false;
   }
 }
-
 
 const desuscribirOCTallerMes = () => {
   if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
@@ -736,17 +1290,15 @@ const toggleOCTallerMes = () => {
   else desuscribirOCTallerMes();
 };
 
-/* ====== MI Resumen (mes actual, una sola fila del usuario) ====== */
+/* ====== MI Resumen (2 meses, una fila del usuario) ====== */
 const mostrarResumenUsuarios = ref(false);
 const cargandoResumenUsuarios = ref(false);
-const resumenUsuarios = ref([]); // [{ responsable, ...totales del usuario }]
+const resumenUsuarios = ref([]);
 const resumenPageSize = 10;
 const resumenCurrentPage = ref(1);
 let _unsubResumenUsuarios = null;
 
-const resumenTotalPages = computed(() =>
-  Math.max(1, Math.ceil(resumenUsuarios.value.length / resumenPageSize))
-);
+const resumenTotalPages = computed(() => Math.max(1, Math.ceil(resumenUsuarios.value.length / resumenPageSize)));
 const resumenVisiblePages = computed(() => {
   const maxButtons = 8;
   const pages = [];
@@ -776,20 +1328,19 @@ function mapEstatusCategoria(estatusRaw) {
   return "Otros";
 }
 
-function desuscribirResumenUsuarios(){
+function desuscribirResumenUsuarios() {
   if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
   resumenUsuarios.value = [];
   resumenCurrentPage.value = 1;
   cargandoResumenUsuarios.value = false;
 }
 
-function suscribirResumenUsuarios(nombre){
+function suscribirResumenUsuarios(nombre) {
   desuscribirResumenUsuarios();
   cargandoResumenUsuarios.value = true;
 
   if (!nombre) { cargandoResumenUsuarios.value = false; return; }
 
-  // ✅ Rango: últimos 2 meses (mes actual + anterior)
   const { from, to } = rangeUltimosDosMeses();
 
   try {
@@ -797,7 +1348,7 @@ function suscribirResumenUsuarios(nombre){
       collection(db, "ordenes_oc_taller"),
       where("responsable", "==", nombre),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<",  to),
+      where("fechaSubida", "<", to),
       orderBy("fechaSubida", "desc")
     );
 
@@ -817,25 +1368,23 @@ function suscribirResumenUsuarios(nombre){
       snap.forEach((d) => {
         const x = d.data() || {};
         const cat = mapEstatusCategoria(x.estatus);
-        if      (cat === "Aprobado")                row.aprobado++;
-        else if (cat === "Rechazado")               row.rechazado++;
-        else if (cat === "Preaprobado")             row.preaprobado++;
+        if (cat === "Aprobado") row.aprobado++;
+        else if (cat === "Rechazado") row.rechazado++;
+        else if (cat === "Preaprobado") row.preaprobado++;
         else if (cat === "Pendiente de Aprobación") row.pendiente++;
-        else if (cat === "Revisión Guillermo")      row.revision++;
-        else if (cat === "Enviada a proveedor")     row.proveedor++;
-        else                                        row.otros++;
+        else if (cat === "Revisión Guillermo") row.revision++;
+        else if (cat === "Enviada a proveedor") row.proveedor++;
+        else row.otros++;
         row.total++;
       });
 
       resumenUsuarios.value = row.total > 0 ? [row] : [];
       resumenCurrentPage.value = 1;
       cargandoResumenUsuarios.value = false;
-    }, (err) => {
-      console.error("onSnapshot mi resumen (2 meses):", err);
+    }, () => {
       cargandoResumenUsuarios.value = false;
     });
-  } catch (e) {
-    console.error("suscribirResumenUsuarios (2 meses) error:", e);
+  } catch {
     cargandoResumenUsuarios.value = false;
   }
 }
@@ -846,132 +1395,12 @@ const toggleResumenUsuarios = () => {
   else desuscribirResumenUsuarios();
 };
 
-/* ====== Utils formato/estado ====== */
-const fmtFecha = (f) => {
-  try {
-    const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : null);
-    if (!d) return "—";
-    return d.toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
-  } catch { return "—"; }
-};
-
-const estadoBadgeClass = (estatus) => {
-  const s = (estatus || "").toLowerCase();
-  if (s.includes("proveedor")) return "bg-primary-subtle text-primary-emphasis";
-  if (s.includes("aprob")) return "bg-success-subtle text-success-emphasis";
-  if (s.includes("preaprob")) return "bg-info-subtle text-info-emphasis";
-  if (s.includes("rechaz") || s.includes("escala")) return "bg-danger-subtle text-danger-emphasis";
-  if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
-  return "bg-secondary-subtle text-secondary-emphasis";
-};
-
-const router = useRouter();
-const route = useRoute();
-const volver = () => router.back();
-const auth = useAuthStore();
-
-/* ======= Estado base ======= */
-const enviando = ref(false);
-const usarSolped = ref(true);
-const nuevoIdVisual = ref(null);
-const cargandoNumero = ref(false);
-const errorNumero = ref("");
-const comentario = ref("");
-
-/* Equipos: oculto por defecto */
-const mostrarEquipos = ref(false);
-const toggleEquiposPanel = () => { mostrarEquipos.value = !mostrarEquipos.value; };
-
-/* Campos principales del doc (taller) */
-const centroCostoTexto = ref("");
-const empresaSeleccionada = ref("Xtreme Servicios");
-const monedaSeleccionada = ref("CLP");
-const precioTotalConIVA = ref(0);
-const precioFormateado = ref("");
-const aprobadorSugerido = ref("");
-
-/* Reglas simples de aprobadores */
-const tipoCambioUSD = 950;
-const tipoCambioEUR = 1050;
-
-/* Usuario actual */
-const isAuthReady = ref(false);
-const myUid = computed(() => auth?.user?.uid || null);
-const usuarioActual = ref("");
-
-/* ====== Asociación SOLPED (opcional) ====== */
-const solpedDisponibles = ref([]);
-const solpedSeleccionadaId = ref("");
-const solpedSeleccionada = ref(null);
-const itemsSolped = ref([]);
-
-/* Autorización (derivada de la SOLPED) */
-const autorizacionNombre = ref(null);
-const autorizacionUrlRaw = ref(null);
-const autorizacionEsPDF = ref(false);
-const autorizacionEsImagen = ref(false);
-const theAutorizacionReset = () => {
-  autorizacionNombre.value = null;
-  autorizacionUrlRaw.value = null;
-  autorizacionEsPDF.value = false;
-  autorizacionEsImagen.value = false;
-};
-
-/* ====== Archivos ====== */
-const archivos = ref([]);
-
-/* ===== Diccionario opcional código -> nombre legible ===== */
-const centrosCostoDict = {
-  "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
-  "23302-CARPETAS":"CONTRATO 23302 CARPETAS",
-};
-const centroCostoTextoAyuda = computed(() => {
-  const v = (centroCostoTexto.value || '').trim();
-  return centrosCostoDict[v] || '';
-});
-
-/* ==== Files ==== */
-const abrirSelectorArchivos = () => {
-  const input = document.getElementById("inputArchivo");
-  if (input) input.click();
-};
-const onMultipleFilesSelected = (e) => {
-  const list = Array.from(e.target.files || []);
-  for (const file of list) {
-    if (!file || file.size === 0 || !file.type) {
-      addToast("warning", `Archivo inválido: ${file?.name || 'desconocido'}`);
-      continue;
-    }
-    archivos.value.push({
-      file,
-      name: file.name,
-      tipo: file.type,
-      previewUrl: URL.createObjectURL(file),
-      __k: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
-    });
-  }
-  if (!archivos.value.length) addToast("warning", "Ningún archivo válido fue seleccionado.");
-};
-const eliminarArchivo = (idx) => {
-  archivos.value.splice(idx, 1);
-  addToast("success", "Archivo eliminado.");
-};
-
-/* ====== Toasts ====== */
-const toasts = ref([]);
-const addToast = (type, text, timeout = 2800) => {
-  const id = Date.now() + Math.random();
-  toasts.value.push({ id, type, text });
-  setTimeout(() => closeToast(id), timeout);
-};
-const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
-
-/* =================== Bloqueo Taller (COUNT + Live) - 2 meses =================== */
+/* ===== Bloqueo: count de aprobadas ===== */
 let _unsubAprobadasLiveTaller = null;
 
-async function refrescarAprobadasConCountTaller(){
-  try{
-    const nombre = (usuarioActual.value || '').trim();
+async function refrescarAprobadasConCountTaller() {
+  try {
+    const nombre = (usuarioActual.value || "").trim();
     if (!nombre) { totalAprobadasDelUsuarioTaller.value = 0; return; }
 
     const { from, to } = rangeUltimosDosMeses();
@@ -980,41 +1409,41 @@ async function refrescarAprobadasConCountTaller(){
       where("responsable", "==", nombre),
       where("estatus", "==", "Aprobado"),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<",  to)
+      where("fechaSubida", "<", to)
     );
     const snap = await getCountFromServer(qy);
     totalAprobadasDelUsuarioTaller.value = snap.data().count || 0;
-  }catch(e){
+  } catch (e) {
     console.error("getCountFromServer (taller) error:", e);
     totalAprobadasDelUsuarioTaller.value = 0;
   }
 }
 
-function suscribirAprobadasLiveMinimaTaller(){
+function suscribirAprobadasLiveMinimaTaller() {
   if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
-  const nombre = (usuarioActual.value || '').trim();
+  const nombre = (usuarioActual.value || "").trim();
   if (!nombre) return;
 
-  try{
+  try {
     const { from, to } = rangeUltimosDosMeses();
     const qy = query(
       collection(db, "ordenes_oc_taller"),
       where("responsable", "==", nombre),
       where("estatus", "==", "Aprobado"),
       where("fechaSubida", ">=", from),
-      where("fechaSubida", "<",  to),
+      where("fechaSubida", "<", to),
       orderBy("fechaSubida", "desc"),
       limit(1)
     );
     _unsubAprobadasLiveTaller = onSnapshot(qy, async () => {
       await refrescarAprobadasConCountTaller();
     });
-  }catch(e){
+  } catch (e) {
     console.error("suscribirAprobadasLiveMinimaTaller:", e);
   }
 }
 
-/* ===== Helpers usuario ===== */
+/* ===== Usuario ===== */
 const obtenerNombreUsuario = async () => {
   try {
     const uid = myUid.value;
@@ -1027,9 +1456,7 @@ const obtenerNombreUsuario = async () => {
         userRole.value = data.role || "";
       }
     }
-    if (!usuarioActual.value) {
-      usuarioActual.value = auth?.user?.displayName || auth?.user?.email || "";
-    }
+    if (!usuarioActual.value) usuarioActual.value = auth?.user?.displayName || auth?.user?.email || "";
   } catch (e) {
     console.error(e);
   } finally {
@@ -1037,408 +1464,50 @@ const obtenerNombreUsuario = async () => {
   }
 };
 
-/* ====== SOLPED ====== */
-const onToggleUsarSolped = () => {
-  if (!usarSolped.value) {
-    solpedSeleccionada.value = null;
-    solpedSeleccionadaId.value = "";
-    itemsSolped.value = [];
-    theAutorizacionReset();
-  }
-  calcularAprobador();
-};
-
-const restante = (it) => {
-  const total = Number(it.cantidad || 0);
-  const cot   = Number(it.cantidad_cotizada || 0);
-  return Math.max(0, total - cot);
-};
-
-const clampCantidad = (it) => {
-  let v = Number(it.cantidad_para_cotizar || 0);
-  const max = restante(it);
-  if (v < 0) v = 0;
-  if (v > max) v = max;
-  it.cantidad_para_cotizar = v;
-};
-
-const onChangeSolped = async () => {
-  if (!solpedSeleccionadaId.value) {
-    solpedSeleccionada.value = null;
-    itemsSolped.value = [];
-    theAutorizacionReset();
-    return;
-  }
+/* ===== SOLPED disponibles ===== */
+const cargarSolpedSolicitadas = async () => {
   try {
-    const dref = doc(db, "solped_taller", solpedSeleccionadaId.value);
-    const snap = await getDoc(dref);
-    if (snap.exists()) {
-      const data = snap.data() || {};
-
-      const st = (data.estatus || '').toString().trim().toLowerCase();
-      if (!(st === 'pendiente' || st === 'parcial'|| st === 'cotizado parcial')) {
-        addToast('warning', 'Esta SOLPED no está en estado Pendiente o Parcial.');
-        solpedSeleccionada.value = null;
-        solpedSeleccionadaId.value = '';
-        itemsSolped.value = [];
-        theAutorizacionReset();
-        return;
-      }
-
-      solpedSeleccionada.value = data;
-
-      centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
-
-      autorizacionNombre.value = data.autorizacion_nombre || null;
-      autorizacionUrlRaw.value = data.autorizacion_url || null;
-      const guess = ((autorizacionNombre.value || autorizacionUrlRaw.value || "") + "").toLowerCase();
-      autorizacionEsPDF.value = guess.endsWith(".pdf");
-      autorizacionEsImagen.value = /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(guess);
-
-      const todos = Array.isArray(data.items) ? data.items : [];
-
-      const normalizados = todos.map(it => {
-        const total = Number(it.cantidad || 0);
-        const sumPend = sumMapNumbers(it.pendienteRevisionPorOC);
-        const sumAprob = sumMapNumbers(it.cotPorOC);
-        const plano = Number(it.cantidad_cotizada || 0);
-        const derivado = Math.min(total, sumPend + sumAprob);
-        const cotizadoFinal = Math.max(plano, derivado);
-        return { ...it, cantidad: total, cantidad_cotizada: cotizadoFinal };
-      });
-
-      itemsSolped.value = normalizados
-        .filter(it => {
-          const stIt = String(it.estado || '').toLowerCase();
-          const esMostrar = (stIt === 'pendiente' || stIt === 'parcial' || stIt === '' || stIt === 'revision');
-          const rest = Math.max(0, Number(it.cantidad || 0) - Number(it.cantidad_cotizada || 0));
-          return esMostrar && rest > 0;
-        })
-        .map(it => ({
-          ...it,
-          cantidad_cotizada: Number(it.cantidad_cotizada || 0),
-          cantidad_para_cotizar: 0,
-          __tempId: `${it.item}-${it.descripcion}`
-        }));
-
-      if (data.empresa) {
-        empresaSeleccionada.value = data.empresa;
-      }
+    let arr = [];
+    try {
+      const qy = query(
+        collection(db, "solped_taller"),
+        where("estatus", "in", ["Pendiente","Parcial","Cotizado Parcial","Cotizando - Revisión Guillermo","Cotizando - Revision Guillermo"])
+      );
+      const snap = await getDocs(qy);
+      arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch {
+      const snap = await getDocs(collection(db, "solped_taller"));
+      arr = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(x => ["pendiente","parcial","cotizado parcial","cotizando - revision guillermo","cotizando - revisión guillermo"].includes(String(x.estatus||"").trim().toLowerCase()));
     }
-  } catch(e){ console.error(e); }
-};
-
-/* ====== Moneda / precio / aprobador ====== */
-const onCambioMoneda = () => { formatearPrecConValor(precioTotalConIVA.value); };
-const formatearPrecio = (ev) => {
-  const input = (ev?.target?.value ?? "").toString();
-  const soloNumeros = input.replace(/\D/g, "");
-  const valor = soloNumeros ? parseInt(soloNumeros, 10) : 0;
-  formatearPrecConValor(valor);
-};
-const formatearPrecConValor = (valor) => {
-  precioTotalConIVA.value = valor;
-  const m = monedaSeleccionada.value || "CLP";
-  try {
-    precioFormateado.value = valor.toLocaleString("es-CL", {
-      style: "currency",
-      currency: m,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    });
-  } catch {
-    precioFormateado.value = `${m} ${valor.toLocaleString("es-CL")}`;
-  }
-  calcularAprobador();
-};
-
-const calcularAprobador = () => {
-  let totalCLP = precioTotalConIVA.value;
-  const mon = (monedaSeleccionada.value || "CLP").toUpperCase();
-  if (mon === "USD") totalCLP *= tipoCambioUSD;
-  else if (mon === "EUR") totalCLP *= tipoCambioEUR;
-
-  const empresa = (empresaSeleccionada.value || "").toLowerCase();
-
-  if (empresa === "xtreme servicios") {
-    if (totalCLP <=500000) aprobadorSugerido.value = "Guillermo Manzor";
-    else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
-    else aprobadorSugerido.value = "Alejandro Candia";
+    solpedDisponibles.value = arr.sort((a,b) => (a.numero_solpe||0) - (b.numero_solpe||0));
+  } catch (e) {
+    console.error(e);
   }
 };
 
-/* ===== Helpers ===== */
-function mapearItemsReglaRevision(
-  itemsOrigen, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel
-) {
-  const salida = [];
-  for (const it of itemsOrigen) {
-    const cantTotal = Number(it.cantidad || 0);
-    const cantNuevaSolicitada = Number(it.cantidad_para_cotizar || 0);
-    const delta = Math.max(0, Math.min(cantNuevaSolicitada, cantTotal));
-    const estadoOC = delta > 0 ? 'revision' : 'pendiente';
-
-    salida.push({
-      ...it,
-      cantidad: cantTotal,
-      cantidad_cotizada: delta,
-      cantidad_para_cotizar: delta,
-      cantidad_solicitada_oc: delta,
-      estado: estadoOC,
-      estado_cotizacion: estadoOC,
-      codigo_referencial: it.codigo_referencial || 'SIN CÓDIGO',
-      imagen_url: it.imagen_url ?? null,
-      numero_interno: numeroInternoTexto || it.numero_interno || '',
-      numero_solped: solpedSel?.numero_solpe || it.numero_solped || 0,
-      moneda,
-      precioTotalConIVA: totalConIVA,
-      responsable,
-      solpedId,
-      tipo_solped: solpedSel?.tipo_solped || it.tipo_solped || 'No definido',
-      __tempId: it.__tempId
-    });
-  }
-  return salida;
-}
-
-function sumMapNumbers(obj) {
-  if (!obj || typeof obj !== 'object') return 0;
-  return Object.values(obj)
-    .map(v => Number(v || 0))
-    .reduce((a, b) => a + b, 0);
-}
-
-// --- actualiza ítems (no cambia estatus global de la SOLPED) ---
-async function actualizarSolpedTaller_postOC(solpedId, itemsIngresados, nombreUsuario, ocNumero, ocDocId) {
-  if (!solpedId) return;
-
-  const dref = doc(db, 'solped_taller', solpedId);
-  const ss = await getDoc(dref);
-  if (!ss.exists()) return;
-
-  const dataSol = ss.data() || {};
-  const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
-
-  const keyOf = (x) => x.__tempId || `${x.item}-${x.descripcion}`;
-  const idxByKey = new Map(originales.map((it, i) => [keyOf(it), i]));
-  const actualizados = [...originales];
-
-  for (const ocIt of (itemsIngresados || [])) {
-    const i = idxByKey.get(keyOf(ocIt));
-    if (i == null) continue;
-
-    const base = { ...actualizados[i] };
-    const cantTotal = Number(base.cantidad || 0);
-
-    const delta = Math.max(0, Math.min(Number(ocIt.cantidad_cotizada ?? 0), cantTotal));
-
-    const prevCot = Number(base.cantidad_cotizada || 0);
-    const prevPara = Number(base.cantidad_para_cotizar || 0);
-    const prevSolic = Number(base.cantidad_solicitada_oc || 0);
-
-    const nuevoCot     = Math.min(cantTotal, prevCot + delta);
-    const nuevoPara    = Math.min(cantTotal, prevPara + delta);
-    const nuevoSolicOC = Math.min(cantTotal, prevSolic + delta);
-
-    base.cantidad_cotizada      = nuevoCot;
-    base.cantidad_para_cotizar  = nuevoPara;
-    base.cantidad_solicitada_oc = nuevoSolicOC;
-
-    base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
-    if (delta > 0) {
-      base.pendienteRevisionPorOC[String(ocNumero)] =
-        Number(base.pendienteRevisionPorOC[String(ocNumero)] || 0) + delta;
-    }
-
-    base.cotPorOC = base.cotPorOC || {};
-    if (base.cotPorOC[String(ocNumero)] == null) {
-      base.cotPorOC[String(ocNumero)] = 0;
-    }
-
-    if (cantTotal > 0 && nuevoCot >= cantTotal) {
-      base.estado = 'completado';
-      base.estado_cotizacion = 'completado';
-    } else if (nuevoCot > 0) {
-      base.estado = 'revision';
-      base.estado_cotizacion = 'revision';
-    } else {
-      base.estado = 'pendiente';
-      base.estado_cotizacion = 'pendiente';
-    }
-
-    actualizados[i] = base;
-  }
-
-  await updateDoc(dref, {
-    items: actualizados,
-    updated_at: new Date()
-  });
-
-  await addDoc(collection(db, 'solped_taller', solpedId, 'historialEstados'), {
-    usuario: nombreUsuario,
-    fecha: serverTimestamp(),
-    estatus: 'Cotizando - Revisión Guillermo',
-    detalle: `Se subió cotización (OC Taller N° ${ocNumero})`,
-    ocId: ocDocId,
-    ocNumero
-  });
-}
-
-/* ====== Guardar OC (Taller) ====== */
-const enviarOC = async () => {
-  if (enviando.value) return;
-
-  if (bloqueoPorAprobadasTaller.value) {
-    addToast(
-      "warning",
-      `Tienes ${totalAprobadasDelUsuarioTaller.value} cotizaciones del Taller en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`
-    );
-    return;
-  }
-  if (!usuarioActual.value) { addToast("warning","Debes iniciar sesión."); return; }
-
-  if (!centroCostoTexto.value.trim()) { addToast("warning","Ingresa Centro de Costo (texto)"); return; }
-  if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning","Precio inválido"); return; }
-  if (!monedaSeleccionada.value) { addToast("warning","Selecciona moneda"); return; }
-  if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning","Selecciona una SOLPED o desactiva la opción"); return; }
-  if (archivos.value.length === 0) { addToast("warning","Debes subir al menos un archivo de cotización"); return; }
-
-  if (usarSolped.value && solpedSeleccionadaId.value) {
-    const hayAlgoPorCotizar = (itemsSolped.value || []).some(it => Number(it.cantidad_para_cotizar || 0) > 0);
-    if (!hayAlgoPorCotizar) {
-      addToast("warning", "Debes ingresar cantidad a cotizar en al menos un ítem.");
-      return;
-    }
-  }
-
-  const nombreUsuario = (usuarioActual.value || "").trim();
-  const comentarioFinal = (comentario.value || "").trim();
-
-  enviando.value = true;
+/* ===== Número siguiente OC ===== */
+const cargarSiguienteNumero = async () => {
+  if (cargandoNumero.value) return;
+  cargandoNumero.value = true;
+  errorNumero.value = "";
 
   try {
     const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
-    const lastId = snap.docs[0]?.data()?.id || 0;
-    const newId = Number(lastId) + 1;
-
-    calcularAprobador();
-    const aprobador = aprobadorSugerido.value || "";
-    const estatusInicial = "Revisión Guillermo";
-
-    const storage = getStorage();
-    const subidos = [];
-    for (const a of archivos.value) {
-      if (!a.file || a.file.size < 100) {
-        console.warn("Archivo inválido o muy pequeño:", a?.name);
-        continue;
-      }
-      const path = `ordenes_oc_taller/${newId}/${a.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, a.file);
-      const url = await getDownloadURL(up.ref);
-      subidos.push({ nombre: a.name, tipo: a.tipo, url });
-    }
-
-    let itemsFinal = [];
-    if (usarSolped.value && solpedSeleccionadaId.value && solpedSeleccionada.value) {
-      itemsFinal = mapearItemsReglaRevision(
-        itemsSolped.value,
-        centroCostoTexto.value,
-        monedaSeleccionada.value,
-        precioTotalConIVA.value,
-        nombreUsuario,
-        solpedSeleccionadaId.value,
-        solpedSeleccionada.value
-      );
-    }
-
-    const historialEntry = {
-      usuario: nombreUsuario,
-      estatus: estatusInicial,
-      fecha: new Date().toISOString(),
-      comentario: comentarioFinal
-    };
-
-    const dataToSave = {
-      id: newId,
-      empresa: empresaSeleccionada.value,
-      centroCostoTexto: centroCostoTexto.value,
-      comentario: comentarioFinal,
-      aprobadorSugerido: aprobador,
-      aprobadoPor: "",
-      estatus: estatusInicial,
-      fechaAprobacion: null,
-      fechaSubida: serverTimestamp(),
-      archivosStorage: subidos,
-      historial: [ historialEntry ],
-      moneda: monedaSeleccionada.value,
-      precioTotalConIVA: precioTotalConIVA.value,
-      responsable: nombreUsuario,
-      ...(usarSolped.value && solpedSeleccionadaId.value ? {
-        solpedId: solpedSeleccionadaId.value,
-        numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
-        tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
-        items: itemsFinal
-      } : {
-        tipo_solped: "Sin SOLPED",
-        items: []
-      })
-    };
-
-    const newRef = await addDoc(collection(db, "ordenes_oc_taller"), dataToSave);
-
-    if (usarSolped.value && solpedSeleccionadaId.value) {
-      await actualizarSolpedTaller_postOC(
-        solpedSeleccionadaId.value,
-        itemsFinal,
-        nombreUsuario,
-        newId,
-        newRef.id
-      );
-    }
-
-    addToast("success","Cotización (Taller) enviada exitosamente.");
-    router.push({ name: 'OrdenOCTallerDetalle', params: { id: newRef.id } });
-
-    resetFormulario();
-    await cargarSiguienteNumero();
-
-    const inputEl = document.getElementById("inputArchivo");
-    if (inputEl) inputEl.value = "";
+    const last = snap.docs[0]?.data()?.id || 0;
+    nuevoIdVisual.value = Number(last) + 1;
   } catch (e) {
-    console.error(e);
-    addToast("danger","Error al enviar la cotización de Taller.");
+    console.error("cargarSiguienteNumero (taller):", e);
+    nuevoIdVisual.value = 1;
+    errorNumero.value = "No se pudo obtener el número. Se asignó 1 por defecto.";
   } finally {
-    enviando.value = false;
+    cargandoNumero.value = false;
   }
 };
 
-const irADetalleOCTaller = (ocOrId) => {
-  const id = typeof ocOrId === 'string' ? ocOrId : (ocOrId?.__docId || ocOrId?.id || '');
-  if (!id) {
-    addToast('warning', 'No se pudo obtener el ID de la OC.');
-    return;
-  }
-  router.push({ name: 'OrdenOCTallerDetalle', params: { id } });
-};
-
-function resetFormulario() {
-  centroCostoTexto.value = "";
-  empresaSeleccionada.value = "Xtreme Servicios";
-  archivos.value = [];
-  comentario.value = "";
-  usarSolped.value = true;
-  solpedSeleccionadaId.value = "";
-  solpedSeleccionada.value = null;
-  itemsSolped.value = [];
-  precioTotalConIVA.value = 0;
-  precioFormateado.value = "";
-  aprobadorSugerido.value = "";
-  monedaSeleccionada.value = "CLP";
-}
-
-/* ===== Panel Equipos (optimizado) ===== */
+/* ===== Equipos (búsqueda) ===== */
 const busquedaEquipo = ref("");
 const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);
@@ -1461,35 +1530,8 @@ const pagedEquipos = computed(() => {
 });
 const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
 
-const camposBusqueda = [
-  "codigo","equipo","clasificacion1","tipo_equipo","marca","modelo","descripcion","patente","numero_chasis","localizacion"
-];
-const norm = (s) => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
-function lev(a, b){
-  a = (a||'').slice(0,64); b = (b||'').slice(0,64);
-  const m = Array.from({length: a.length+1}, (_,i)=>[i]);
-  for(let j=0;j<=b.length;j++){ m[0][j]=j; }
-  for(let i=1;i<=a.length;i++){
-    for(let j=1;j<=b.length;j++){
-      const cost = a[i-1]===b[j-1]?0:1;
-      m[i][j] = Math.min(m[i-1][j]+1, m[i][j-1]+1, m[i-1][j-1]+cost);
-    }
-  }
-  return m[a.length][b.length];
-}
-function scoreEquipo(e, qNorm){
-  const vals = [
-    e.codigo, e.patente, e.descripcion, e.equipo,
-    e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
-  ].filter(Boolean).map(v => norm(v));
-  if (vals.includes(qNorm)) return 1000;
-  const crit = ['codigo','patente','modelo','numero_chasis','equipo'].map(k => norm(e[k]||''));
-  if (crit.some(v => v.startsWith(qNorm))) return 700;
-  if (vals.some(v => v.includes(qNorm))) return 400;
-  const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
-  if (near <= 2) return 300 - (near * 50);
-  return 0;
-}
+const normTxt = (s) => String(s||"").normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim();
+
 let debounce = null;
 let lastSearchToken = 0;
 const cacheResultados = new Map();
@@ -1498,17 +1540,13 @@ const aplicarFiltrosEquiposDebounced = () => {
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
     const q = (busquedaEquipo.value || "").trim();
-    if (q.length >= 2) {
-      buscarEquipos(q);
-    } else {
-      resultadosEquipos.value = [];
-      currentPage.value = 1;
-    }
+    if (q.length >= 2) buscarEquipos(q);
+    else { resultadosEquipos.value = []; currentPage.value = 1; }
   }, 450);
 };
 
 const buscarEquipos = async (q) => {
-  const qNorm = norm(q);
+  const qNorm = normTxt(q);
   currentPage.value = 1;
 
   if (cacheResultados.has(qNorm)) {
@@ -1516,36 +1554,18 @@ const buscarEquipos = async (q) => {
     return;
   }
 
-  const pref = [...cacheResultados.keys()].find(k => qNorm.startsWith(k) && k.length >= 2);
-  if (pref) {
-    const base = cacheResultados.get(pref) || [];
-    const filtradosLocal = base.filter(e => {
-      const vals = [
-        e.codigo, e.patente, e.descripcion, e.equipo,
-        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
-      ].filter(Boolean).map(v => norm(v));
-      return vals.some(v => v.includes(qNorm));
-    });
-    if (filtradosLocal.length >= 10) {
-      resultadosEquipos.value = filtradosLocal
-        .map(r => ({ r, s: scoreEquipo(r, qNorm)}))
-        .sort((a,b)=>b.s-a.s)
-        .map(x=>x.r);
-      cacheResultados.set(qNorm, resultadosEquipos.value);
-      return;
-    }
-  }
-
   const token = ++lastSearchToken;
   cargandoEquipos.value = true;
 
   try {
-    const variantes = [ (q || "").trim(), qNorm, (q || "").trim().toUpperCase(), qNorm.charAt(0).toUpperCase()+qNorm.slice(1) ].filter(Boolean);
+    const variantes = [q.trim(), qNorm, q.trim().toUpperCase()].filter(Boolean);
     const vistos = new Set();
     const acumulado = [];
 
+    const campos = ["codigo","patente","modelo","numero_chasis","equipo"];
+
     const perCampo = async (campo) => {
-      const promesas = variantes.map(async (v) => {
+      await Promise.all(variantes.map(async (v) => {
         try {
           const qref = query(
             collection(db, "equipos"),
@@ -1557,43 +1577,19 @@ const buscarEquipos = async (q) => {
           const snap = await getDocs(qref);
           for (const d of snap.docs) {
             const item = { id: d.id, ...d.data() };
-            if (!vistos.has(item.id)) {
-              vistos.add(item.id);
-              acumulado.push(item);
-            }
+            if (!vistos.has(item.id)) { vistos.add(item.id); acumulado.push(item); }
           }
         } catch (e) {
-          console.error(`Error buscando equipos por campo ${campo} y variante ${v}:`, e);
+          // puede faltar índice/field
+          console.warn("buscarEquipos campo error:", campo, e?.message || e);
         }
-      });
-      await Promise.all(promesas);
+      }));
     };
 
-    const criticos = ["codigo","patente","modelo","numero_chasis","equipo"];
-    const secundarios = camposBusqueda.filter(c => !criticos.includes(c));
-    await Promise.all(criticos.map(perCampo));
-
-    if (acumulado.length < 60) {
-      await Promise.all(secundarios.map(perCampo));
-    }
-
+    await Promise.all(campos.map(perCampo));
     if (token !== lastSearchToken) return;
 
-    const rankeados = acumulado
-      .map(r => ({ r, s: scoreEquipo(r, qNorm) }))
-      .filter(x => x.s > 0)
-      .sort((a,b)=>b.s - a.s)
-      .map(x => x.r);
-
-    const finales = rankeados.length ? rankeados : acumulado.filter(e => {
-      const vals = [
-        e.codigo, e.patente, e.descripcion, e.equipo,
-        e.marca, e.modelo, e.numero_chasis, e.localizacion, e.clasificacion1, e.tipo_equipo
-      ].filter(Boolean).map(v => norm(v));
-      return vals.some(v => v.includes(qNorm));
-    });
-
-    resultadosEquipos.value = finales.slice(0, 200);
+    resultadosEquipos.value = acumulado.slice(0, 200);
     cacheResultados.set(qNorm, resultadosEquipos.value);
   } catch (e) {
     console.error("Error en búsqueda de equipos:", e);
@@ -1603,53 +1599,6 @@ const buscarEquipos = async (q) => {
     if (token === lastSearchToken) cargandoEquipos.value = false;
   }
 };
-
-const cargarSolpedSolicitadas = async () => {
-  try {
-    let arr = [];
-    try {
-      const qy = query(
-        collection(db, "solped_taller"),
-        where("estatus", "in", ["Pendiente", "Parcial", "Cotizado parcial","Cotizado Parcial"])
-      );
-      const snap = await getDocs(qy);
-      arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    } catch {
-      const snap = await getDocs(collection(db, "solped_taller"));
-      arr = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(x => ['pendiente','parcial'].includes(String(x.estatus||'').trim().toLowerCase()));
-    }
-    solpedDisponibles.value = arr.sort((a,b) => (a.numero_solpe||0) - (b.numero_solpe||0));
-  } catch(e){ console.error(e); }
-};
-
-const cargarSiguienteNumero = async () => {
-  if (cargandoNumero.value) return;
-
-  cargandoNumero.value = true;
-  errorNumero.value = "";
-
-  try {
-    const qy = query(
-      collection(db, "ordenes_oc_taller"),
-      orderBy("id", "desc"),
-      limit(1)
-    );
-
-    const snap = await getDocs(qy);
-    const last = snap.docs[0]?.data()?.id || 0;
-
-    nuevoIdVisual.value = Number(last) + 1;
-  } catch (e) {
-    console.error("cargarSiguienteNumero (taller):", e);
-    nuevoIdVisual.value = 1;
-    errorNumero.value = "No se pudo obtener el número. Se asignó 1 por defecto.";
-  } finally {
-    cargandoNumero.value = false;
-  }
-};
-
 
 const copiarEquipo = async (e) => {
   const texto =
@@ -1669,11 +1618,21 @@ Clasificación: ${e.clasificacion1 || '—'}`;
   }
 };
 
-/* ===== Carga inicial y reacciones ===== */
+/* ===== Watch usuario ===== */
+watch(usuarioActual, async (nv, ov) => {
+  if (nv && nv !== ov) {
+    await refrescarAprobadasConCountTaller();
+    suscribirAprobadasLiveMinimaTaller();
+
+    if (mostrarOCTallerMes.value) suscribirOCTallerMes(nv);
+    if (mostrarResumenUsuarios.value) suscribirResumenUsuarios(nv);
+  }
+});
+
+/* ===== Mount / Unmount ===== */
 onMounted(async () => {
   await obtenerNombreUsuario();
 
-  // Bloqueo por aprobadas (2 meses)
   if (usuarioActual.value) {
     await refrescarAprobadasConCountTaller();
     suscribirAprobadasLiveMinimaTaller();
@@ -1682,7 +1641,7 @@ onMounted(async () => {
   await cargarSolpedSolicitadas();
   await cargarSiguienteNumero();
 
-  const preId = (route?.query?.fromSolpedId || '').toString();
+  const preId = String(route?.query?.fromSolpedId || "").trim();
   if (preId) {
     usarSolped.value = true;
     solpedSeleccionadaId.value = preId;
@@ -1695,16 +1654,8 @@ onBeforeUnmount(() => {
   if (_unsubOCTallerMes) _unsubOCTallerMes();
   if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
   if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
-});
-
-watch(usuarioActual, async (nv, ov) => {
-  // Re-suscribir vistas dependientes del usuario
-  if (nv && nv !== ov) {
-    await refrescarAprobadasConCountTaller();
-    suscribirAprobadasLiveMinimaTaller();
-
-    if (mostrarOCTallerMes.value) suscribirOCTallerMes(nv);
-    if (mostrarResumenUsuarios.value) suscribirResumenUsuarios(nv);
+  for (const a of archivos.value) {
+    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) { console.log(e); }
   }
 });
 </script>
@@ -1720,17 +1671,14 @@ watch(usuarioActual, async (nv, ov) => {
   border-radius: .9rem !important;
 }
 
-/* Sidebar/Panel sticky en desktop */
 .sticky-panel{ position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: hidden; }
 .sticky-panel .card-body{ overflow: auto; }
 
-/* Lista de equipos scrollable */
 .equipos-list{
   max-height: 55vh;
   overflow: auto;
 }
 
-/* Toasts abajo-derecha */
 .toast-stack{
   position: fixed;
   right: 16px;
@@ -1755,7 +1703,6 @@ watch(usuarioActual, async (nv, ov) => {
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* 🔒 Overlay de bloqueo */
 .lock-overlay{
   position: absolute;
   inset: 0;
@@ -1775,10 +1722,8 @@ watch(usuarioActual, async (nv, ov) => {
   max-width: 420px;
 }
 
-/* Tabla: que respire y no salte */
 .table td, .table th { vertical-align: middle; }
 
-/* Pequeños ajustes en xs */
 @media (max-width: 420px){
   .card-header .small{ font-size: .8rem; }
 }

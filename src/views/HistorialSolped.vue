@@ -258,7 +258,7 @@
                         aria-expanded="false"
                         @click.stop
                       >
-                        Cambiar estado
+                        Cambiar Estado
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end" @click.stop>
                         <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
@@ -276,6 +276,7 @@
                       @click.stop="copiarSolped(s)"
                       aria-label="Copiar y editar SOLPED"
                     >
+                    Copiar Solped
                       <i class="bi bi-files" aria-hidden="true"></i>
                     </button>
 
@@ -291,6 +292,7 @@
                     </button>
 
                     <button class="btn btn-success btn-sm" @click.stop="descargarExcel(s)" title="Descargar Excel" aria-label="Descargar Excel de la SOLPED">
+                      Descargar Excel
                       <i class="bi bi-file-earmark-excel" aria-hidden="true"></i>
                     </button>
 
@@ -306,6 +308,7 @@
                     </button>
 
                     <button class="btn btn-outline-info btn-sm" @click.stop="goSolpedDetalle(s)" title="Ver detalle" aria-label="Ver detalle de la SOLPED">
+                      Ver Detalle
                       <i class="bi bi-eye" aria-hidden="true"></i>
                     </button>
                   </div>
@@ -1762,7 +1765,7 @@ onBeforeRouteLeave(() => {
 
 const listaEstatus = [
   'Completado','Rechazado','Solicitado','Pendiente','Preaprobado',
-  'OC enviada a proveedor','Parcial','Cotizado parcial','Cotizado Completado'
+  'OC enviada a proveedor','Parcial','Cotizado parcial','Cotizado Completado','Parcial, Pedido en Casa matriz','Pedido en Casa matriz'
 ];
 
 const prettyFecha = (f) => {
