@@ -33,6 +33,7 @@
               <option>Solped</option>
               <option>Cotización</option>
               <option>Equipo</option>
+              <option>Mejoras</option>
               <option>Otro</option>
             </select>
           </div>

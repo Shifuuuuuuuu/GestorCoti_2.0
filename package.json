@@ -1,6 +1,6 @@
 {
   "name": "gestor-coti",
-  "version": "3.4.2",
+  "version": "3.4.4",
   "private": true,
   "type": "module",
   "engines": {
@@ -20,6 +20,8 @@
     "browser-image-compression": "^2.0.2",
     "dayjs": "^1.11.18",
     "firebase": "^12.7.0",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.449",
     "pinia": "^3.0.3",

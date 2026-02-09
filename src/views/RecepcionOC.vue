@@ -20,7 +20,8 @@
       <div>
         <h4 class="mb-0">Recepción OC Casa Matriz</h4>
         <small class="text-muted">
-          OCs desde <b>Empresa</b>y <b>Taller</b>. Filtra por estatus y revisa ítems.
+          OCs desde <b>Empresa</b> y <b>Taller</b>. Solo se puede recepcionar si la SOLPED está
+          en <b>Cotizado Completo / Cotizado Completado / Completado</b>.
         </small>
       </div>
 
@@ -38,10 +39,15 @@
           <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
         </select>
 
-        <!-- pageSize SOLO afecta el “listado normal”. La búsqueda trae resultados aunque no estén en el pageSize -->
         <select v-model.number="pageSize" class="form-select form-select-sm" style="width: 120px" title="Cantidad">
           <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
         </select>
+
+        <!-- ✅ filtro recepcionables -->
+        <div class="form-check form-switch ms-1" title="Mostrar solo OCs recepcionables (SOLPED cotizada completa)">
+          <input class="form-check-input" type="checkbox" id="onlyRecep" v-model="onlyRecepcionables">
+          <label class="form-check-label small text-muted" for="onlyRecep">Solo recepcionables</label>
+        </div>
 
         <button class="btn btn-outline-secondary btn-sm" @click="reload">
           <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
@@ -114,9 +120,6 @@
                 </template>
                 <template v-else>
                   No hay resultados para <b>"{{ searchOc }}"</b>.
-                  <div class="small mt-2">
-                    Tip: prueba con <b>OC 63353</b>, <b>63353</b>, <b>DIMACOT</b> o <b>OC 63353 DIMACOT.pdf</b>.
-                  </div>
                 </template>
               </div>
 
@@ -130,11 +133,26 @@
                   @click="selectOc(o)"
                 >
                   <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="me-2">
+                    <div class="me-2 minw-0">
                       <div class="d-flex gap-2 flex-wrap align-items-center">
                         <span class="badge text-bg-primary">OC {{ ocNumero(o) }}</span>
                         <span class="badge text-bg-secondary" v-if="o.empresa">{{ o.empresa }}</span>
                         <span class="badge text-bg-dark">{{ (o.estatus||'').toString() }}</span>
+
+                        <!-- ✅ badges SOLPED -->
+                        <span v-if="o._solpedInfo?.exists" class="badge"
+                              :class="o._solpedInfo?.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'">
+                          {{ o._solpedInfo?.estatus || 'SOLPED' }}
+                        </span>
+
+                        <span v-else-if="o.solpedId || o.numero_solped || o.numero_solpe"
+                              class="badge text-bg-light text-dark border">
+                          SOLPED…
+                        </span>
+
+                        <span v-else class="badge text-bg-warning text-dark">
+                          Sin SOLPED
+                        </span>
                       </div>
 
                       <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px;">
@@ -147,6 +165,11 @@
 
                       <small class="text-muted d-block" v-if="o.numero_solped || o.numero_solpe">
                         SOLPED: {{ o.numero_solped || o.numero_solpe }}
+                      </small>
+
+                      <!-- ✅ faltante -->
+                      <small v-if="o._solpedInfo?.exists && !o._solpedInfo?.isOk" class="text-danger d-block">
+                        Falta por cotizar: <b>{{ o._solpedInfo?.faltantesTotal || 0 }}</b> unidad(es)
                       </small>
                     </div>
 
@@ -170,8 +193,16 @@
               Detalle recepción
               <span v-if="currentOc" class="badge text-bg-primary">OC {{ ocNumero(currentOc) }}</span>
               <span v-if="currentOc" class="badge text-bg-dark">{{ currentOc.estatus }}</span>
-              <span v-if="currentOc && currentOc.solpedId" class="badge text-bg-secondary">Con SOLPED</span>
+
+              <span v-if="currentOc?.solpedId" class="badge text-bg-secondary">Con SOLPED</span>
               <span v-else-if="currentOc" class="badge text-bg-warning text-dark">Sin SOLPED</span>
+
+              <!-- ✅ badge ok -->
+              <span v-if="currentOc?._solpedInfo?.exists"
+                    class="badge"
+                    :class="currentOc._solpedInfo.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'">
+                {{ currentOc._solpedInfo.estatus }}
+              </span>
             </div>
 
             <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -190,6 +221,7 @@
                 class="btn btn-success btn-sm"
                 :disabled="!canFinalize"
                 @click="finalizeRecepcion"
+                :title="canFinalize ? 'Finalizar recepción' : finalizeDisabledReason"
               >
                 <i class="bi bi-check2-circle me-1"></i>Finalizar recepción
               </button>
@@ -202,6 +234,19 @@
             </div>
 
             <template v-else>
+              <!-- ✅ ALERTA si falta cotizar -->
+              <div v-if="currentOc?._solpedInfo?.exists && !currentOc._solpedInfo.isOk" class="alert alert-warning">
+                <div class="fw-semibold">Esta SOLPED aún no está cotizada completa.</div>
+                <div class="small">
+                  Estatus SOLPED: <b>{{ currentOc._solpedInfo.estatus }}</b> ·
+                  Falta por cotizar: <b>{{ currentOc._solpedInfo.faltantesTotal || 0 }}</b>.
+                </div>
+                <div class="small text-muted mt-1">
+                  Cuando la SOLPED cambie a <b>Cotizado Completo / Cotizado Completado / Completado</b>,
+                  recién se habilitará la recepción.
+                </div>
+              </div>
+
               <!-- Bloque info -->
               <div class="row g-2">
                 <div class="col-12 col-xl-6">
@@ -321,6 +366,7 @@
                             @input="onQtyInput(it, $event)"
                             @change="onQtyCommit(it)"
                             @keyup.enter.prevent="advanceQty(it.key)"
+                            :disabled="!canEditRecepcion"
                           />
                           <div class="small text-muted mt-1">
                             <span class="badge" :class="qtyBadge(it)">
@@ -386,18 +432,32 @@ const actorName = computed(
     "usuario"
 );
 
-// ===== Estados =====
+// ===== Estados OC =====
 const ESTADO_ENVIADA = "Enviada a proveedor";
 const ESTADO_PARTIAL = "Recepcion parcial en casa matriz";
 const ESTADO_OK      = "Recepcion completa en casa matriz";
 
-// Colecciones
+// ✅ Estados SOLPED válidos para recepcionar
+const SOLPED_OK_ESTATUS = new Set([
+  "Cotizado Completo",
+  "Cotizado Completado",
+  "Completado",
+]);
+
+// Colecciones OC
 const COL_EMPRESA = "ordenes_oc";
 const COL_TALLER  = "ordenes_oc_taller";
+
+// Colecciones SOLPED
+const SOLPED_EMPRESA = "solpes";
+const SOLPED_TALLER  = "solped_taller";
 
 // Opciones UI
 const statusOptions = [ESTADO_ENVIADA, ESTADO_PARTIAL, ESTADO_OK];
 const statusFiltro = ref(ESTADO_ENVIADA);
+
+// ✅ mostrar solo recepcionables
+const onlyRecepcionables = ref(true);
 
 // ===== UI State =====
 const busy = ref({ on: false, label: "", hint: "" });
@@ -430,6 +490,10 @@ const _searchCache = ref({ key: "", ts: 0, empresa: [], taller: [] });
 // límites
 const SEARCH_LIMIT = 120;
 const SCAN_LIMIT = 900;
+
+// ✅ Cache SOLPED meta (por id o por numero)
+const solpedMetaCache = ref(new Map());
+// key -> { exists, estatus, isOk, faltantesTotal, numero_solpe, solpedId }
 
 function normalizeText(s) {
   return String(s || "")
@@ -471,7 +535,6 @@ function onSearchEnter() {
 const currentCollection = computed(() => (source.value === "empresa" ? COL_EMPRESA : COL_TALLER));
 const currentCollectionLabel = computed(() => (source.value === "empresa" ? "Empresa" : "Taller"));
 
-// ===== Helpers UI =====
 function safeDateText(ts) {
   try {
     if (!ts) return "";
@@ -481,20 +544,6 @@ function safeDateText(ts) {
   } catch {
     return "";
   }
-}
-
-function normalizeDocForUI(docSnap) {
-  const data = docSnap.data() || {};
-  const docId = docSnap.id;
-  const numericId = data.id;
-
-  return {
-    ...data,
-    id: docId,
-    __docId: docId,
-    idNumero: numericId,
-    _fechaText: safeDateText(data.fechaSubida || data.createdAt || data.updatedAt || null),
-  };
 }
 
 function ocNumero(o) {
@@ -511,7 +560,144 @@ function ocNumero(o) {
   return (o?.id || "").slice(0, 6);
 }
 
-// ===== Subscriptions (listado normal) =====
+// ===== SOLPED meta helpers =====
+function solpedKeyFromOc(oc) {
+  const solpedId = oc?.solpedId ? String(oc.solpedId) : "";
+  const num = oc?.numero_solped ?? oc?.numero_solpe;
+  const numKey = (num != null && String(num).trim() !== "") ? String(num).trim() : "";
+  // prioriza id si existe
+  if (solpedId) return `id:${solpedId}`;
+  if (numKey) return `num:${numKey}`;
+  return "";
+}
+
+function computeFaltantesFromSolpedItems(items = []) {
+  let faltantes = 0;
+  for (const it of items) {
+    const cant = Number(it?.cantidad ?? 0);
+    const cot = Number(it?.cantidad_cotizada ?? 0);
+    const delta = cant - cot;
+    if (Number.isFinite(delta) && delta > 0) faltantes += delta;
+  }
+  return faltantes;
+}
+
+async function fetchSolpedMetaForOc(oc, isTaller) {
+  const key = solpedKeyFromOc(oc);
+  if (!key) return null;
+
+  if (solpedMetaCache.value.has(key)) return solpedMetaCache.value.get(key);
+
+  const solpedCol = isTaller ? SOLPED_TALLER : SOLPED_EMPRESA;
+
+  let meta = { exists: false, estatus: "", isOk: false, faltantesTotal: 0, numero_solpe: null, solpedId: null };
+
+  try {
+    // 1) por solpedId directo
+    if (oc?.solpedId) {
+      const solRef = doc(db, solpedCol, String(oc.solpedId));
+      const snap = await getDoc(solRef);
+      if (snap.exists()) {
+        const data = snap.data() || {};
+        const est = String(data.estatus || "");
+        const falt = computeFaltantesFromSolpedItems(Array.isArray(data.items) ? data.items : []);
+        meta = {
+          exists: true,
+          estatus: est,
+          isOk: SOLPED_OK_ESTATUS.has(est),
+          faltantesTotal: falt,
+          numero_solpe: data.numero_solpe ?? data.numero_solped ?? null,
+          solpedId: snap.id,
+        };
+      }
+    }
+
+    // 2) fallback por numero_solpe / numero_solped si no existe por id
+    if (!meta.exists) {
+      const num = oc?.numero_solped ?? oc?.numero_solpe;
+      if (num != null && String(num).trim() !== "") {
+        const q1 = query(collection(db, solpedCol), where("numero_solpe", "==", num), limit(1));
+        const s1 = await getDocs(q1);
+        const doc1 = s1.empty ? null : s1.docs[0];
+
+        let docFound = doc1;
+        if (!docFound) {
+          const q2 = query(collection(db, solpedCol), where("numero_solped", "==", num), limit(1));
+          const s2 = await getDocs(q2);
+          docFound = s2.empty ? null : s2.docs[0];
+        }
+
+        if (docFound) {
+          const data = docFound.data() || {};
+          const est = String(data.estatus || "");
+          const falt = computeFaltantesFromSolpedItems(Array.isArray(data.items) ? data.items : []);
+          meta = {
+            exists: true,
+            estatus: est,
+            isOk: SOLPED_OK_ESTATUS.has(est),
+            faltantesTotal: falt,
+            numero_solpe: data.numero_solpe ?? data.numero_solped ?? num,
+            solpedId: docFound.id,
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("fetchSolpedMetaForOc error:", e?.message || e);
+  }
+
+  solpedMetaCache.value.set(key, meta);
+  return meta;
+}
+
+async function hydrateSolpedMetaForList(ocs, isTaller) {
+  if (!Array.isArray(ocs) || !ocs.length) return;
+
+  // solo los que tengan algo para consultar
+  const targets = ocs.filter(o => !!solpedKeyFromOc(o));
+  if (!targets.length) return;
+
+  // consulta en paralelo (simple)
+  const metas = await Promise.all(targets.map(o => fetchSolpedMetaForOc(o, isTaller)));
+
+  // inyectar meta en cada OC (reactivo: clonar array)
+  const mapById = new Map();
+  targets.forEach((o, i) => {
+    mapById.set(o.id, metas[i]);
+  });
+
+  const out = ocs.map(o => ({
+    ...o,
+    _solpedInfo: mapById.get(o.id) || o._solpedInfo || null,
+  }));
+
+  if (isTaller) listTaller.value = out;
+  else listEmpresa.value = out;
+
+  // también server arrays si corresponde
+  if (isSearchMode.value) {
+    if (isTaller) serverTaller.value = serverTaller.value.map(o => ({ ...o, _solpedInfo: mapById.get(o.id) || o._solpedInfo || null }));
+    else serverEmpresa.value = serverEmpresa.value.map(o => ({ ...o, _solpedInfo: mapById.get(o.id) || o._solpedInfo || null }));
+  }
+}
+
+// ===== Normalizador doc =====
+function normalizeDocForUI(docSnap) {
+  const data = docSnap.data() || {};
+  const docId = docSnap.id;
+  const numericId = data.id;
+
+  return {
+    ...data,
+    id: docId,
+    __docId: docId,
+    idNumero: numericId,
+    _fechaText: safeDateText(data.fechaSubida || data.createdAt || data.updatedAt || null),
+    _solpedInfo: null, // se hidrata luego
+  };
+}
+
+// ===== Subscriptions =====
 let unsubEmpresa = null;
 let unsubTaller = null;
 
@@ -540,10 +726,12 @@ function subscribeAll() {
 
   unsubEmpresa = onSnapshot(
     qEmpresa,
-    (snap) => {
+    async (snap) => {
       listEmpresa.value = snap.docs.map(normalizeDocForUI);
       loadingList.value = false;
       autoPickFirstIfMissing();
+      // ✅ hidratar solped meta
+      await hydrateSolpedMetaForList(listEmpresa.value, false);
     },
     (e) => {
       console.error("Error snapshot empresa:", e);
@@ -553,10 +741,12 @@ function subscribeAll() {
 
   unsubTaller = onSnapshot(
     qTaller,
-    (snap) => {
+    async (snap) => {
       listTaller.value = snap.docs.map(normalizeDocForUI);
       loadingList.value = false;
       autoPickFirstIfMissing();
+      // ✅ hidratar solped meta
+      await hydrateSolpedMetaForList(listTaller.value, true);
     },
     (e) => {
       console.error("Error snapshot taller:", e);
@@ -813,12 +1003,6 @@ async function searchInCollection(colName, termRaw, status) {
   }
 
   const arr = Array.from(merged.values());
-  arr.sort((a, b) => {
-    const ta = (a?.fechaSubida?.toMillis?.() ?? 0) || (a?.createdAt?.toMillis?.() ?? 0) || 0;
-    const tb = (b?.fechaSubida?.toMillis?.() ?? 0) || (b?.createdAt?.toMillis?.() ?? 0) || 0;
-    return tb - ta;
-  });
-
   return arr;
 }
 
@@ -841,7 +1025,6 @@ async function runServerSearch() {
   if (fresh) {
     serverEmpresa.value = _searchCache.value.empresa || [];
     serverTaller.value = _searchCache.value.taller || [];
-    // 👇 igual aplica auto-switch aunque venga cache
     autoSwitchSourceIfNeeded(serverEmpresa.value, serverTaller.value);
     ensureSelectionValidForCurrentBase();
     return;
@@ -866,17 +1049,17 @@ async function runServerSearch() {
       taller: tal,
     };
 
-    // ✅ AUTO-CAMBIO: si en la pestaña actual no hay resultados, pero en la otra sí, se cambia solo
-    autoSwitchSourceIfNeeded(emp, tal);
+    // ✅ hidratar SOLPED meta también en resultados server
+    await hydrateSolpedMetaForList(serverEmpresa.value, false);
+    await hydrateSolpedMetaForList(serverTaller.value, true);
 
-    // ✅ asegurar selección válida para la pestaña actual (y cargar recepción)
+    autoSwitchSourceIfNeeded(serverEmpresa.value, serverTaller.value);
     ensureSelectionValidForCurrentBase();
   } finally {
     if (token === _searchToken) searchingServer.value = false;
   }
 }
 
-/** ✅ Cambia source automáticamente si solo hay resultados en el otro */
 function autoSwitchSourceIfNeeded(empArr, talArr) {
   if (!isSearchMode.value) return;
 
@@ -890,7 +1073,6 @@ function autoSwitchSourceIfNeeded(empArr, talArr) {
   }
 }
 
-/** ✅ Si selectedId no existe en baseList actual, toma el primero */
 function ensureSelectionValidForCurrentBase() {
   const base = baseList.value;
   if (!Array.isArray(base) || base.length === 0) {
@@ -902,7 +1084,6 @@ function ensureSelectionValidForCurrentBase() {
     selectedId.value = base[0].id;
   }
 
-  // cargar recepcion (por si cambió de doc)
   nextTick(() => loadRecepcionFromExisting());
 }
 
@@ -913,10 +1094,23 @@ const baseList = computed(() => {
   return isSearchMode.value ? server : normal;
 });
 
+// ✅ aplica filtro solo recepcionables
 const filteredList = computed(() => {
   const qn = normalizeText(searchOc.value);
-  if (!qn) return baseList.value;
-  return baseList.value.filter((o) => docMatchesContains(o, qn));
+  let arr = baseList.value;
+
+  if (qn) arr = arr.filter((o) => docMatchesContains(o, qn));
+
+  if (onlyRecepcionables.value) {
+    arr = arr.filter(o => {
+      const inf = o?._solpedInfo;
+      // si no hay solped -> no recepcionable
+      if (!inf || !inf.exists) return false;
+      return !!inf.isOk;
+    });
+  }
+
+  return arr;
 });
 
 const currentOc = computed(() => baseList.value.find(x => x.id === selectedId.value) || null);
@@ -1082,9 +1276,29 @@ function calcFinalEstatusFromItems() {
   return allComplete ? ESTADO_OK : ESTADO_PARTIAL;
 }
 
+// ✅ SOLO editable/recepcionable si SOLPED ok
+const canEditRecepcion = computed(() => {
+  const oc = currentOc.value;
+  if (!oc) return false;
+  const inf = oc?._solpedInfo;
+  if (!inf || !inf.exists) return false;
+  return !!inf.isOk;
+});
+
+const finalizeDisabledReason = computed(() => {
+  const oc = currentOc.value;
+  if (!oc) return "Selecciona una OC";
+  const inf = oc?._solpedInfo;
+  if (!inf || !inf.exists) return "OC sin SOLPED asociada";
+  if (!inf.isOk) return "SOLPED aún no está cotizada completa";
+  return "";
+});
+
 const canFinalize = computed(() => {
   if (!currentOc.value) return false;
   if (itemsUI.value.length === 0) return false;
+  // ✅ bloqueo por SOLPED
+  if (!canEditRecepcion.value) return false;
   return true;
 });
 
@@ -1126,7 +1340,7 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
     : "Parcial, Pedido en Casa matriz";
 
   const isTaller = (String(colName || "") === COL_TALLER);
-  const solpedCollection = isTaller ? "solpes_taller" : "solpes";
+  const solpedCollection = isTaller ? SOLPED_TALLER : SOLPED_EMPRESA;
 
   let solpedRef = null;
 
@@ -1175,6 +1389,10 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
 // ===== Finalizar recepción =====
 async function finalizeRecepcion() {
   if (!currentOc.value) return;
+  if (!canFinalize.value) {
+    alert(finalizeDisabledReason.value || "No se puede finalizar");
+    return;
+  }
 
   const colName = currentCollection.value;
   const ocDoc = currentOc.value;

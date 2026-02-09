@@ -45,7 +45,6 @@ const appVersion = computed(
   () => (typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__) || "3.3.4"
 );
 
-
 const go = (loc) => {
   router.push(loc);
   ui.closeSidebar?.();
@@ -64,7 +63,6 @@ const goInicioFromCarousel = () => {
 
 const isActive = (nameOrPath) =>
   !!nameOrPath && (route.name === nameOrPath || route.path === nameOrPath);
-
 
 const winW = ref(typeof window !== "undefined" ? window.innerWidth : 1200);
 const onResize = () => {
@@ -87,7 +85,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("resize", onResize);
 });
-
 
 const showSettings = ref(false);
 
@@ -162,7 +159,6 @@ const PRIMARY_OPTIONS = [
   { k: "cobre", n: "Cobre", c: "#b87333" },
 ];
 
-
 const normalize = (s) =>
   String(s || "")
     .trim()
@@ -218,9 +214,10 @@ function playNotif() {
     const a = new Audio("/notif.mp3");
     a.volume = 0.25;
     a.play().catch(() => {});
-  } catch(e) {console.log(e)}
+  } catch (e) {
+    console.log(e);
+  }
 }
-
 
 const unreadEmpresa = ref(0);
 const unreadTaller = ref(0);
@@ -257,7 +254,7 @@ const isViewingEmpresa = computed(() => route.name === "historial-solped");
 const isViewingTaller = computed(() => route.name === "HistorialSolpedTaller");
 
 const SEEN_KEY_EMPRESA = computed(() => `seen_solpes_empresa_${auth?.user?.uid || "anon"}`);
-const SEEN_KEY_TALLER  = computed(() => `seen_solpes_taller_${auth?.user?.uid || "anon"}`);
+const SEEN_KEY_TALLER = computed(() => `seen_solpes_taller_${auth?.user?.uid || "anon"}`);
 const getSeen = (k) => Number(localStorage.getItem(k) || "0");
 const setSeen = (k, ms) => localStorage.setItem(k, String(ms));
 
@@ -304,10 +301,10 @@ function recomputeSolpesUnread() {
   const since = getStartOfTodayMs();
 
   const seenEmpresa = getSeen(SEEN_KEY_EMPRESA.value);
-  const seenTaller  = getSeen(SEEN_KEY_TALLER.value);
+  const seenTaller = getSeen(SEEN_KEY_TALLER.value);
 
   const minEmpresa = Math.max(since, seenEmpresa);
-  const minTaller  = Math.max(since, seenTaller);
+  const minTaller = Math.max(since, seenTaller);
 
   unreadEmpresa.value = isViewingEmpresa.value
     ? 0
@@ -330,7 +327,9 @@ function markSeenTaller() {
   recomputeSolpesUnread();
 }
 
-
+/* =========================
+   BADGE: Aprobación OC
+========================= */
 const unreadAprobEmpresa = ref(0);
 const unreadAprobTaller = ref(0);
 
@@ -450,6 +449,61 @@ function markSeenAprobTaller() {
   recomputeAprobUnread();
 }
 
+/* =========================
+   ✅ NUEVO: BADGE SOPORTES (WhatsApp)
+   - Admin only
+   - Colección: soportes
+   - Solo estatus == "Pendiente"
+   - Cuenta "no vistos" desde la última vez que entraste a SoporteGestion
+========================= */
+const unreadSoportes = ref(0);
+const soportesTimes = ref([]);
+const soportesIds = ref(new Set());
+
+const bounceSoportes = ref(false);
+let bounceTimerSup = null;
+
+let unsubSoportes = null;
+
+const isAdminRole = computed(() => roleKey.value === "admin");
+const isViewingSoporteGestion = computed(() => route.name === "SoporteGestion");
+
+const SEEN_KEY_SOPORTES = computed(() => `seen_soportes_admin_${auth?.user?.uid || "anon"}`);
+
+function triggerBounceSoportes() {
+  bounceSoportes.value = false;
+  requestAnimationFrame(() => {
+    bounceSoportes.value = true;
+    if (bounceTimerSup) clearTimeout(bounceTimerSup);
+    bounceTimerSup = setTimeout(() => (bounceSoportes.value = false), 1100);
+  });
+}
+
+function getMsFromSoporte(d) {
+  // tu doc trae created_at y updated_at
+  const ms = tsToMs(d?.created_at) || tsToMs(d?.updated_at);
+  return ms || 0;
+}
+
+function recomputeSoportesUnread() {
+  const seen = getSeen(SEEN_KEY_SOPORTES.value);
+  const min = Math.max(0, seen);
+
+  unreadSoportes.value = isViewingSoporteGestion.value
+    ? 0
+    : soportesTimes.value.filter((t) => t > min).length;
+
+  if (!isViewingSoporteGestion.value && unreadSoportes.value > 0) triggerBounceSoportes();
+}
+
+function markSeenSoportes() {
+  setSeen(SEEN_KEY_SOPORTES.value, Date.now());
+  recomputeSoportesUnread();
+}
+
+/* =========================
+   WATCH: marcar visto al entrar
+========================= */
 watch(
   () => route.name,
   (name) => {
@@ -461,11 +515,17 @@ watch(
       if (name === "AprobacionOC") markSeenAprobEmpresa();
       if (name === "AprobacionOCTaller") markSeenAprobTaller();
     }
+    // ✅ Soportes: cuando entras a SoporteGestion, se marca visto y desaparece el badge
+    if (isAdminRole.value) {
+      if (name === "SoporteGestion") markSeenSoportes();
+    }
   },
   { immediate: true }
 );
 
-
+/* =========================
+   SUBSCRIPTIONS
+========================= */
 let unsubSolpesEmp = null;
 let unsubSolpesTal = null;
 let unsubAprobEmp = null;
@@ -478,11 +538,13 @@ function stopAllBadges() {
   if (unsubSolpesTal) unsubSolpesTal();
   if (unsubAprobEmp) unsubAprobEmp();
   if (unsubAprobTal) unsubAprobTal();
+  if (unsubSoportes) unsubSoportes();
 
   unsubSolpesEmp = null;
   unsubSolpesTal = null;
   unsubAprobEmp = null;
   unsubAprobTal = null;
+  unsubSoportes = null;
 
   if (tickTimer) window.clearInterval(tickTimer);
   tickTimer = null;
@@ -491,31 +553,37 @@ function stopAllBadges() {
   if (bounceTimerTal) clearTimeout(bounceTimerTal);
   if (bounceTimerAprobEmp) clearTimeout(bounceTimerAprobEmp);
   if (bounceTimerAprobTal) clearTimeout(bounceTimerAprobTal);
+  if (bounceTimerSup) clearTimeout(bounceTimerSup);
 
   bounceTimerEmp = null;
   bounceTimerTal = null;
   bounceTimerAprobEmp = null;
   bounceTimerAprobTal = null;
+  bounceTimerSup = null;
 
   empresaIds.value = new Set();
   tallerIds.value = new Set();
   aprobEmpresaIds.value = new Set();
   aprobTallerIds.value = new Set();
+  soportesIds.value = new Set();
 
   empresaTimes.value = [];
   tallerTimes.value = [];
   aprobEmpresaTimes.value = [];
   aprobTallerTimes.value = [];
+  soportesTimes.value = [];
 
   unreadEmpresa.value = 0;
   unreadTaller.value = 0;
   unreadAprobEmpresa.value = 0;
   unreadAprobTaller.value = 0;
+  unreadSoportes.value = 0;
 
   bounceEmpresa.value = false;
   bounceTaller.value = false;
   bounceAprobEmpresa.value = false;
   bounceAprobTaller.value = false;
+  bounceSoportes.value = false;
 }
 
 function startAllBadges() {
@@ -530,6 +598,7 @@ function startAllBadges() {
   ).trim();
   const myNorm = normalize(myNameRaw);
 
+  /* ===== SOLPED badges (Editor) ===== */
   if (isEditorRole.value && myNorm) {
     unsubSolpesEmp = onSnapshot(
       query(collection(db, "solpes"), where("estatus", "==", "Pendiente")),
@@ -600,6 +669,7 @@ function startAllBadges() {
     );
   }
 
+  /* ===== Aprobación OC badges ===== */
   if (canSeeAprobBadges.value && aprobStatusesEmpresa.value.length) {
     const since = getStartOfTodayMs();
 
@@ -681,6 +751,40 @@ function startAllBadges() {
       (err) => console.error("[BADGE] ordenes_oc_taller error:", err)
     );
   }
+
+  /* ===== ✅ Soportes badge (Admin WhatsApp) ===== */
+  if (isAdminRole.value) {
+    unsubSoportes = onSnapshot(
+      query(collection(db, "soportes"), where("estatus", "==", "Pendiente")),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const newIds = new Set(docs.map((x) => x.id));
+        const prev = soportesIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
+
+        soportesIds.value = newIds;
+        soportesTimes.value = docs.map(getMsFromSoporte).filter(Boolean);
+
+        // si estás viendo SoporteGestion -> se marca visto y badge queda 0
+        if (isViewingSoporteGestion.value) {
+          if (docs.length) markSeenSoportes();
+          unreadSoportes.value = 0;
+        } else {
+          // notificación si llegan nuevos (no en el primer load)
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBounceSoportes();
+          }
+          recomputeSoportesUnread();
+        }
+      },
+      (err) => console.error("[BADGE] soportes error:", err)
+    );
+  }
+
+  // tick: mantiene “hoy” para solpes/aprob; y reevalúa soportes por si cambia el seen
   tickTimer = window.setInterval(() => {
     const since = getStartOfTodayMs();
 
@@ -691,12 +795,14 @@ function startAllBadges() {
     aprobEmpresaTimes.value = aprobEmpresaTimes.value.filter((ms) => ms >= since);
     aprobTallerTimes.value = aprobTallerTimes.value.filter((ms) => ms >= since);
     recomputeAprobUnread();
+
+    // soportes: no filtramos por día, solo por "seen"
+    recomputeSoportesUnread();
   }, 60 * 1000);
 }
 
 onMounted(() => startAllBadges());
 onBeforeUnmount(() => stopAllBadges());
-
 
 watch(
   () => [auth?.user?.uid, fullName.value, role.value, roleKey.value],
@@ -710,7 +816,13 @@ watch(
   <aside class="app-sidebar" :class="{ 'is-open': ui.isSidebarOpen || !isNarrow }" aria-label="Menú lateral">
     <div class="sidebar-header">
       <div class="sidebar-header__center">
-        <button type="button" class="brand-hit" @click="goInicioFromCarousel" aria-label="Ir a Inicio" title="Ir a Inicio">
+        <button
+          type="button"
+          class="brand-hit"
+          @click="goInicioFromCarousel"
+          aria-label="Ir a Inicio"
+          title="Ir a Inicio"
+        >
           <BrandCarousel id="sideBrandCarousel" :height="44" :width="240" />
         </button>
       </div>
@@ -732,7 +844,13 @@ watch(
         <template v-for="(it, i) in empresaMenu" :key="'e-' + i">
           <hr v-if="it === null" class="divider" />
 
-          <a v-else href="#" class="item" :class="{ active: isActive(it.name) }" @click.prevent="go({ name: it.name })">
+          <a
+            v-else
+            href="#"
+            class="item"
+            :class="{ active: isActive(it.name) }"
+            @click.prevent="go({ name: it.name })"
+          >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
 
@@ -766,7 +884,13 @@ watch(
         <template v-for="(it, i) in tallerMenu" :key="'t-' + i">
           <hr v-if="it === null" class="divider" />
 
-          <a v-else href="#" class="item" :class="{ active: isActive(it.name) }" @click.prevent="go({ name: it.name })">
+          <a
+            v-else
+            href="#"
+            class="item"
+            :class="{ active: isActive(it.name) }"
+            @click.prevent="go({ name: it.name })"
+          >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
 
@@ -798,7 +922,13 @@ watch(
         <div class="group-title">Recepción</div>
         <template v-for="(it, i) in recepcionMenu" :key="'r-' + i">
           <hr v-if="it === null" class="divider" />
-          <a v-else href="#" class="item" :class="{ active: isActive(it.name) }" @click.prevent="go({ name: it.name })">
+          <a
+            v-else
+            href="#"
+            class="item"
+            :class="{ active: isActive(it.name) }"
+            @click.prevent="go({ name: it.name })"
+          >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>{{ it.text }}
           </a>
         </template>
@@ -809,8 +939,25 @@ watch(
         <div class="group-title">Admin</div>
         <template v-for="(it, i) in adminMenu" :key="'a-' + i">
           <hr v-if="it === null" class="divider" />
-          <a v-else href="#" class="item" :class="{ active: isActive(it.name) }" @click.prevent="go({ name: it.name })">
-            <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>{{ it.text }}
+          <a
+            v-else
+            href="#"
+            class="item"
+            :class="{ active: isActive(it.name) }"
+            @click.prevent="go({ name: it.name })"
+          >
+            <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
+            <span class="item-text">{{ it.text }}</span>
+
+            <!-- ✅ Badge SoporteGestion (Admin WhatsApp) -->
+            <span
+              v-if="isAdminRole && it.name === 'SoporteGestion' && unreadSoportes > 0"
+              class="ms-auto notif-badge"
+              :class="{ 'badge-bounce': bounceSoportes }"
+              title="Soportes pendientes no vistos"
+            >
+              {{ unreadSoportes }}
+            </span>
           </a>
         </template>
       </div>
@@ -841,7 +988,14 @@ watch(
     </div>
   </aside>
 
-  <div v-if="showSettings" class="settings-overlay" role="dialog" aria-modal="true" aria-label="Ajustes de interfaz" @click.self="closeSettings">
+  <div
+    v-if="showSettings"
+    class="settings-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Ajustes de interfaz"
+    @click.self="closeSettings"
+  >
     <div class="settings-card settings-card--center">
       <div class="settings-card__header">
         <div class="d-flex align-items-center gap-2">
@@ -890,7 +1044,14 @@ watch(
           <div class="settings-label">Color primario</div>
           <div class="color-grid">
             <label v-for="opt in PRIMARY_OPTIONS" :key="opt.k" class="color-swatch" :title="opt.n">
-              <input type="radio" class="visually-hidden" name="primary" :id="'p-' + opt.k" :value="opt.k" v-model="localPrimary" />
+              <input
+                type="radio"
+                class="visually-hidden"
+                name="primary"
+                :id="'p-' + opt.k"
+                :value="opt.k"
+                v-model="localPrimary"
+              />
               <span class="swatch" :style="{ background: opt.c }"></span>
               <span class="swatch-label">{{ opt.n }}</span>
             </label>
@@ -1244,7 +1405,7 @@ watch(
 :global(html.theme-dark) .color-swatch:has(input.visually-hidden:checked) {
   border-color: rgba(255, 255, 255, 0.6);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6) inset;
-  background: rgba(255,  255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 :global(html.theme-dark) .swatch-label {
   color: #e5e7eb;

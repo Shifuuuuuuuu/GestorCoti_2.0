@@ -27,7 +27,7 @@ initializeAppCheck(app, {
 });
 
 initializeFirestore(app, { ignoreUndefinedProperties: true });
-export const db = getFirestore(app, "(default)");
+export const db = getFirestore(app, "rollback-2025-10-25");
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);

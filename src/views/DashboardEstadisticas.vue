@@ -141,6 +141,7 @@
             </div>
           </div>
         </div>
+
         <div class="row g-3 mb-4">
           <div class="col-6 col-xl-3" v-for="k in kpiCards" :key="k.t">
             <div class="card shadow-sm border-0 h-100">
@@ -195,6 +196,7 @@
               </div>
             </div>
           </div>
+
           <div class="col-12">
             <div class="card shadow-sm border-0">
               <div class="card-header d-flex align-items-center justify-content-between">
@@ -305,6 +307,86 @@
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">OC por Contrato / CC</div></div>
               <div class="card-body chart-fixed-h"><canvas ref="cConteoContratoH"></canvas></div>
+            </div>
+          </div>
+
+          <!-- ✅ NUEVO: Top contratos por SOLPED dirigidas a editores (dirigidoA) -->
+          <div class="col-12" v-if="segmento==='empresa' || segmento==='general'">
+            <div class="card shadow-sm border-0">
+              <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <div class="fw-medium">Top contratos por SOLPED dirigidas a editores (mes)</div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span
+                    class="badge bg-dark-subtle text-dark-emphasis"
+                    v-if="editorContratosAggPayload?.editors?.length"
+                  >
+                    {{ editorContratosTotals.totalSolpes }} SOLPED · {{ editorContratosTotals.uniqueContratos }} contratos
+                  </span>
+
+                  <select
+                    class="form-select form-select-sm"
+                    style="min-width: 260px; max-width: 360px;"
+                    v-model="editorDirigidoASelect"
+                    :disabled="isLoading || !(editorContratosAggPayload?.editors?.length)"
+                    title="Filtrar por editor (según dirigidoA)"
+                  >
+                    <option value="">Todos los editores (dirigidoA)</option>
+                    <option
+                      v-for="u in editorContratosAggPayload.editors"
+                      :key="'ed-dir-'+u"
+                      :value="u"
+                    >
+                      {{ u }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0 table-sticky">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:44px">#</th>
+                        <th style="min-width:120px;">N° Contrato</th>
+                        <th style="min-width:320px;">Nombre / Centro de costo</th>
+                        <th class="text-end" style="width:110px;">SOLPED</th>
+                        <th style="width:170px;">Peso</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      <tr v-for="(r, i) in editorContratosRows" :key="r.key">
+                        <td>{{ i + 1 }}</td>
+                        <td class="fw-semibold">{{ r.num || '—' }}</td>
+                        <td class="text-truncate" style="max-width: 720px;" :title="r.nombre || ''">
+                          {{ r.nombre || '—' }}
+                        </td>
+                        <td class="text-end fw-semibold">{{ r.count }}</td>
+                        <td>
+                          <div class="progress" style="height: 9px;">
+                            <div
+                              class="progress-bar"
+                              role="progressbar"
+                              :style="{ width: (r.pct || 0) + '%' }"
+                              :aria-valuenow="r.pct || 0"
+                              aria-valuemin="0"
+                              aria-valuemax="100"
+                            ></div>
+                          </div>
+                        </td>
+                      </tr>
+
+                      <tr v-if="!editorContratosRows.length">
+                        <td colspan="99" class="text-center text-muted py-3">
+                          Sin datos de SOLPED dirigidas a editores para el mes/filtros actuales.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -436,7 +518,6 @@ import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/stores/firebase";
 
-
 const OC_ESTATUS_CANON = [
   "Aprobado",
   "Preaprobado",
@@ -462,7 +543,6 @@ function setSegmento(v) {
       filtroContratoSel.value = '';
       filtroCentroCostoSel.value = '';
     }
-
     scheduleReload();
   }
 }
@@ -527,7 +607,12 @@ const kpiCards = computed(() => ([
   { t: `Gasto total (mes)`, v: kpis.value.gastoMes, isMoney: true },
 ]));
 
-
+const kpiCardsExtra = computed(() => ([
+  { t: `Conversión SOLPED→OC (aprox.)`, v: kpisExtra.value.conversionPct, isPct: true, s: 'Match por número SOLPED' },
+  { t: `Lead time (prom)`, v: kpisExtra.value.leadtimePromDias, isDays: true, s: 'Desde subida hasta aprobación' },
+  { t: `Rechazo OC (mes)`, v: kpisExtra.value.rechazoPct, isPct: true, s: 'OC rechazadas / total' },
+  { t: `Comentarios (taller)`, v: kpisExtra.value.comentariosTallerMes, s: 'Solo Taller/General' },
+]));
 
 /* ====== Datos auxiliares ====== */
 const topHoy = ref([]);
@@ -537,6 +622,29 @@ const ocTipoSolpedAggPayload = ref({ labels: [], counts: [], montos: [], totalCo
 
 /* ✅ NUEVO payload para desglose por usuario/estatus */
 const ocStatusByUserPayload = ref({ users: [], rows: [], datasets: [] });
+
+/* ✅ NUEVO: Top contratos por SOLPED dirigidas a editores (dirigidoA) */
+const editorDirigidoASelect = ref(localStorage.getItem("xt_dash_editor_dirigidoA") || "");
+watch(editorDirigidoASelect, (v) => {
+  try { localStorage.setItem("xt_dash_editor_dirigidoA", v || ""); } catch(e) {console.log(e)}
+});
+
+const editorContratosAggPayload = ref({
+  editors: [],
+  topAll: [],
+  perEditorTop: {},
+  totals: { totalSolpes: 0, uniqueContratos: 0 },
+});
+
+const editorContratosRows = computed(() => {
+  const p = editorContratosAggPayload.value || {};
+  if (!editorDirigidoASelect.value) return p.topAll || [];
+  return (p.perEditorTop && p.perEditorTop[editorDirigidoASelect.value]) ? p.perEditorTop[editorDirigidoASelect.value] : [];
+});
+
+const editorContratosTotals = computed(() => {
+  return editorContratosAggPayload.value?.totals || { totalSolpes: 0, uniqueContratos: 0 };
+});
 
 /* ====== Refs charts ====== */
 const cTopCreadores = ref(null);
@@ -682,15 +790,13 @@ function canonOcStatus(raw) {
 
   if (n.includes("aprobado") && !n.includes("pre")) return "Aprobado";
   if (n.includes("pre") && n.includes("aprob")) return "Preaprobado";
-  if (n.includes("prepaprob")) return "Preaprobado"; // typo frecuente
+  if (n.includes("prepaprob")) return "Preaprobado";
   if (n.includes("pend")) return "Pendiente de Aprobación";
   if (n.includes("revision guillermo") || (n.includes("revision") && n.includes("guillermo")) || (n.includes("revisión") && n.includes("guillermo"))) {
     return "Revisión Guillermo";
   }
   if (n.includes("proveedor")) return "Enviada a proveedor";
   if (n.includes("rech")) return "Rechazado";
-
-  // fallback
   if (n.includes("aprob")) return "Aprobado";
   return "Pendiente de Aprobación";
 }
@@ -740,13 +846,11 @@ function buildSolIndexByNumero(solAll) {
 function solMatchesSolpedFilters(sol) {
   if (!sol) return false;
 
-  // Empresa solo aplica en segmento empresa
   if (segmento.value === 'empresa' && filtroEmpresa.value) {
     const emp = String(sol.empresa || sol.empresas || '');
     if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
   }
 
-  // Contrato/CC solo aplica si corresponde
   if (segmento.value === 'empresa') {
     const c = String(sol.numero_contrato || sol.numeroContrato || '');
     if (filtroContratoSel.value && c !== filtroContratoSel.value) return false;
@@ -796,7 +900,6 @@ function solIsCompletedLike(sol) {
   if (!n) return false;
   if (n === "completado") return true;
 
-  // ✅ incluye cotizado/cotizando parcial o completado
   if ((n.includes("cotizado") || n.includes("cotizando")) && (n.includes("parcial") || n.includes("complet"))) {
     return true;
   }
@@ -804,26 +907,21 @@ function solIsCompletedLike(sol) {
   return false;
 }
 
-// ✅ Normaliza estatus SOLPED para conteos (arregla "Cotizando" -> "Cotizado")
 function canonSolpedStatus(raw) {
   const txt = String(raw || "").trim();
   const n = _normTxt(txt);
 
-  // si viene "cotizando parcial" lo convertimos a "Cotizado Parcial"
   if (n.includes("cotizando") && n.includes("parcial")) return "Cotizado Parcial";
-
-  // si viene "cotizando completado" o similar
   if (n.includes("cotizando") && n.includes("complet")) return "Cotizado Completado";
 
-  // si ya viene bien, devolvemos el original (pero con capitalización estándar cuando aplique)
   if (n.includes("cotizado") && n.includes("parcial")) return "Cotizado Parcial";
   if (n.includes("cotizado") && n.includes("complet")) return "Cotizado Completado";
 
-  return txt; // otros estatus quedan iguales
+  return txt;
 }
 
 /* ====== Catálogos (rápidos) ====== */
-const CATALOG_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+const CATALOG_TTL_MS = 12 * 60 * 60 * 1000;
 function catKey() { return `dashCatV2:${segmento.value}`; }
 function getCatalogCache() {
   try {
@@ -854,7 +952,6 @@ async function cargarCatalogosRapidos() {
   }
 
   try {
-    // Tomamos una “muestra grande” reciente (limit) en vez de traerse toda la colección
     const sample = [];
 
     if (segmento.value === 'empresa') {
@@ -868,7 +965,6 @@ async function cargarCatalogosRapidos() {
       contratosOptions.value = [];
       centroCostoOptions.value = uniqSorted(sample.map(x => x.centro_costo || x.centroCosto || x.centroCostoNombre || ''));
     } else {
-      // general: mezcla
       const [a, b] = await Promise.allSettled([
         getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(900))),
         getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(900))),
@@ -893,6 +989,90 @@ async function cargarCatalogosRapidos() {
   }
 }
 
+/* ✅ Helpers: dirigidoA + contrato + agregación por editores */
+function solDirigidoAList(sol) {
+  const da = sol?.dirigidoA;
+  if (Array.isArray(da)) return da.map(x => String(x || "").trim()).filter(Boolean);
+  if (typeof da === "string") return da.split(/[,;|]/).map(v => v.trim()).filter(Boolean);
+  return [];
+}
+
+function solContratoParts(sol) {
+  const num = String(sol?.numero_contrato || sol?.numeroContrato || "").trim();
+  const rawNombre = String(sol?.nombre_centro_costo || sol?.nombreCentroCosto || "").trim();
+
+  let nombre = rawNombre;
+  if (num && rawNombre) {
+    const re = new RegExp(`^\\s*contrato\\s*${num}\\s*`, "i");
+    nombre = rawNombre.replace(re, "").trim();
+  }
+
+  const key = (num || nombre || rawNombre || "—");
+  return { key, num: num || "", nombre: (nombre || rawNombre || "") };
+}
+
+function _addContratoCount(map, parts) {
+  const cur = map.get(parts.key) || { key: parts.key, num: parts.num, nombre: parts.nombre, count: 0 };
+  cur.count += 1;
+  if (!cur.num && parts.num) cur.num = parts.num;
+  if (!cur.nombre && parts.nombre) cur.nombre = parts.nombre;
+  map.set(parts.key, cur);
+}
+
+function _topRowsFromMap(map, take = 12) {
+  const arr = [...map.values()].sort((a, b) => b.count - a.count).slice(0, take);
+  const max = arr[0]?.count || 1;
+  return arr.map(r => ({ ...r, pct: Math.round(100 * r.count / max) }));
+}
+
+function buildEditorContratosAgg(solList, editorsArr) {
+  const editors = uniqSorted(editorsArr || []);
+  const normToName = new Map(editors.map(n => [_normTxt(n), n]));
+
+  const globalMap = new Map();
+  const perEditor = new Map();
+  editors.forEach(e => perEditor.set(e, new Map()));
+
+  const seenSol = new Set();
+  for (const sol of (solList || [])) {
+    const daList = solDirigidoAList(sol);
+    if (!daList.length) continue;
+
+    const matchedEditors = [];
+    for (const nm of daList) {
+      const canon = normToName.get(_normTxt(nm));
+      if (canon) matchedEditors.push(canon);
+    }
+    if (!matchedEditors.length) continue;
+
+    const parts = solContratoParts(sol);
+
+    const uid = sol.id || `${sol.numero_solpe || sol.numeroSolpe || ""}-${sol.fecha || ""}-${parts.key}`;
+    if (!seenSol.has(uid)) {
+      seenSol.add(uid);
+      _addContratoCount(globalMap, parts);
+    }
+
+    const uniqueEditors = [...new Set(matchedEditors)];
+    for (const ed of uniqueEditors) {
+      const m = perEditor.get(ed) || new Map();
+      _addContratoCount(m, parts);
+      perEditor.set(ed, m);
+    }
+  }
+
+  const topAll = _topRowsFromMap(globalMap, 12);
+  const perEditorTop = {};
+  for (const ed of editors) perEditorTop[ed] = _topRowsFromMap(perEditor.get(ed) || new Map(), 12);
+
+  return {
+    editors,
+    topAll,
+    perEditorTop,
+    totals: { totalSolpes: seenSol.size, uniqueContratos: globalMap.size },
+  };
+}
+
 /* ====== VS payload ====== */
 const vsEditorsPayload = ref({ labels: [], aprobadas: [], subidas: [] });
 
@@ -908,7 +1088,6 @@ async function cargarTodo(force=false) {
   isLoading.value = true;
   lastError.value = "";
 
-  // catálogos “rápidos” (no bloquea)
   cargarCatalogosRapidos().catch(()=>{});
 
   if (!force) {
@@ -925,12 +1104,11 @@ async function cargarTodo(force=false) {
   })();
 
   try {
-    /* === 1) Traer datos base por mes (queries acotadas) === */
     let solDocsMes = [];
     let solDocsMesTaller = [];
     let ocDocsMes = [];
     let ocDocsMesTaller = [];
-    let solAllForPend = []; // para "pendientes (todos los meses)" (muestra limitada)
+    let solAllForPend = [];
 
     if (segmento.value === 'empresa') {
       const solQ = query(collection(db, "solpes"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
@@ -987,7 +1165,6 @@ async function cargarTodo(force=false) {
       solAllForPend = [...pendA, ...pendB];
     }
 
-    /* === 2) Unificar listas según segmento === */
     const baseSolMes = (segmento.value === "empresa") ? solDocsMes
                     : (segmento.value === "taller")  ? solDocsMesTaller
                     : [...solDocsMes, ...solDocsMesTaller];
@@ -996,22 +1173,18 @@ async function cargarTodo(force=false) {
                   : (segmento.value === "taller")  ? ocDocsMesTaller
                   : [...ocDocsMes, ...ocDocsMesTaller];
 
-    /* === 3) Catálogos OC (desde lo del mes: rápido) === */
     monedaOptions.value = uniqSorted(baseOCMes.map(o => (o.moneda || 'CLP').toString().toUpperCase()));
     responsableOptions.value = uniqSorted(baseOCMes.map(o => (o.responsable || '—').toString()));
 
-    /* === 4) Filtro SOLPED del mes === */
     const solMes = baseSolMes.filter(x => {
       const f = x.fechaSubida || x.creado_en || x.fecha;
       if (!isInRange(f, start, end)) return false;
 
-      // Empresa sólo en empresa (no general)
       if (segmento.value === 'empresa' && filtroEmpresa.value) {
         const emp = String(x.empresa || x.empresas || '');
         if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
-      // Contrato/CC solo cuando aplica
       if (segmento.value === 'empresa') {
         if (filtroContratoSel.value && String(x.numero_contrato || x.numeroContrato || '') !== filtroContratoSel.value) return false;
       } else if (segmento.value === 'taller') {
@@ -1030,25 +1203,21 @@ async function cargarTodo(force=false) {
       !!filtroEstatusSolped.value ||
       !!filtroTipoSolped.value;
 
-    /* === 5) Construir índice SOLPED “target” (solo los necesarios por OC) === */
     const nums = new Set();
     for (const o of baseOCMes) ocSolpeNums(o).forEach(n => nums.add(n));
     const numsArr = [...nums];
 
     const solIndexDocs = [];
-    // añadimos los del mes ya traídos (sirven de base)
     solIndexDocs.push(...baseSolMes);
 
-    // intentamos traer por IN (batched) para mejorar match (si fallara, seguimos con los del mes)
     async function fetchByNumero(collName) {
       if (!numsArr.length) return;
-      const chunks = chunkArray(numsArr, 10); // safe
+      const chunks = chunkArray(numsArr, 10);
       for (const ch of chunks) {
         try {
           const snap = await getDocs(query(collection(db, collName), where("numero_solpe", "in", ch)));
           snap.forEach(d => solIndexDocs.push({ id:d.id, ...d.data() }));
         } catch (e) {
-          // si hay mismatch de tipos o falta índice, no bloqueamos
           console.warn(`No se pudo fetchByNumero(${collName})`, e);
           break;
         }
@@ -1063,18 +1232,15 @@ async function cargarTodo(force=false) {
 
     const solIndexAllByNumero = buildSolIndexByNumero(solIndexDocs);
 
-    /* === 6) Filtro OC del mes (incluye match a SOLPED si hay filtros de SOLPED activos) === */
     const ocFiltradas = baseOCMes.filter(x => {
       const f = x.fechaSubida || x.fecha || x.creado_en;
       if (!isInRange(f, start, end)) return false;
 
-      // Empresa solo en segmento empresa
       if (segmento.value === 'empresa' && filtroEmpresa.value) {
         const emp = String(x.empresa || x.empresas || '');
         if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
-      // Contrato/CC directo (si existe) solo cuando aplica (no en general)
       const valContrato = (x.numero_contrato || x.numeroContrato || '').toString();
       const valCC = (x.nombre_centro_costo || x.centroCostoNombre || x.centro_costo || x.centroCosto || x.centroCostoTexto || '').toString();
       if (segmento.value === 'empresa') {
@@ -1083,12 +1249,10 @@ async function cargarTodo(force=false) {
         if (filtroCentroCostoSel.value && valCC && valCC !== filtroCentroCostoSel.value) return false;
       }
 
-      // filtros OC
       if (filtroEstatusOC.value && _normTxt(x.estatus||'') !== _normTxt(filtroEstatusOC.value)) return false;
       if (filtroMonedaOC.value && (x.moneda || 'CLP').toString().toUpperCase() !== filtroMonedaOC.value) return false;
       if (filtroResponsableOC.value && (x.responsable || '—').toString() !== filtroResponsableOC.value) return false;
 
-      // match SOLPED si hay filtros SOLPED activos
       if (solpedFiltersActive) {
         const ns = ocSolpeNums(x);
         if (ns.length) {
@@ -1099,7 +1263,6 @@ async function cargarTodo(force=false) {
           }
           if (!ok) return false;
         } else {
-          // fallback mínimo si no hay solpe en la OC
           if (filtroTipoSolped.value) {
             const t = (x.tipo_solped || x.tipoSolped || '').toString();
             if (!t || _normTxt(t) !== _normTxt(filtroTipoSolped.value)) return false;
@@ -1110,17 +1273,14 @@ async function cargarTodo(force=false) {
       return true;
     });
 
-    /* ===== KPIs ===== */
     kpis.value.creadasMes = solMes.length;
-    kpis.value.completadasMes = solMes.filter(solIsCompletedLike).length; // ✅ incluye cotizado parcial/completado
+    kpis.value.completadasMes = solMes.filter(solIsCompletedLike).length;
     kpis.value.ocMes = ocFiltradas.length;
 
     const totalOC = ocFiltradas.reduce((acc, x) => acc + ocMonto(x), 0);
     kpis.value.gastoMes = totalOC;
     kpis.value.ticketProm = ocFiltradas.length ? Math.round(totalOC / ocFiltradas.length) : 0;
 
-    /* ===== KPIs avanzados ===== */
-    // conversión: aproximación por match OC ↔ SOLPED (por numero)
     const setSol = new Set(solMes.map(x => Number(x.numero_solpe || x.numeroSolpe || x.numero_solped || x.numeroSolped)).filter(Boolean));
     const setOcSol = new Set();
     for (const o of ocFiltradas) ocSolpeNums(o).forEach(n => setOcSol.add(n));
@@ -1144,14 +1304,12 @@ async function cargarTodo(force=false) {
     const rechazoPct = ocFiltradas.length ? (100 * rechazadas / ocFiltradas.length) : 0;
 
     let comentariosTallerMes = 0;
-    // solo cuenta comentarios si estás viendo taller o general (porque puede incluir docs de taller)
     if (segmento.value !== 'empresa') {
       for (const s of solMes) if (Array.isArray(s.comentarios)) comentariosTallerMes += s.comentarios.length;
     }
 
     kpisExtra.value = { conversionPct, leadtimePromDias, rechazoPct, comentariosTallerMes };
 
-    /* ===== Agregaciones para gráficos ===== */
     const contarPor = (arr, getKey) => {
       const m = new Map();
       for (const x of arr) {
@@ -1185,7 +1343,6 @@ async function cargarTodo(force=false) {
 
     const topCreadores = contarPor(solMes, (x) => {
       if (segmento.value === 'empresa') return (x.usuario || x.dirigidoA?.[0] || '—');
-      // taller o general (puede venir con campos de ambos)
       return (x.nombre_solicitante || x.usuario_sesion || x.usuario || x.dirigidoA?.[0] || '—');
     }).slice(0, 10);
 
@@ -1277,12 +1434,10 @@ async function cargarTodo(force=false) {
     const pendLabels = pendEntries.map(([k]) => k);
     const pendValues = pendEntries.map(([,v]) => v);
 
-    // "todos los meses": usamos muestra limitada (solAllForPend)
     const pendAllEntries = pendientesPorDirigidoA(solAllForPend, ['pendiente']).slice(0, 15);
     const pendAllLabels = pendAllEntries.map(([k]) => k);
     const pendAllValues = pendAllEntries.map(([,v]) => v);
 
-    /* ===== Pies OC ===== */
     const aggByKey = (ocs, getKey) => {
       const mCount = new Map();
       const mMonto = new Map();
@@ -1310,6 +1465,19 @@ async function cargarTodo(force=false) {
       });
     } catch (e) {
       console.warn("No se pudo cargar Usuarios (role=editor). VS quedará vacío.", e);
+    }
+
+    /* ✅ NUEVO: Top contratos por SOLPED dirigidas a editores (dirigidoA) */
+    let editorContratosAgg = { editors: [], topAll: [], perEditorTop: {}, totals: { totalSolpes: 0, uniqueContratos: 0 } };
+    try {
+      const solEmpresaOnly = (solMes || []).filter(s =>
+        (s.numero_contrato || s.numeroContrato || s.nombre_centro_costo || s.nombreCentroCosto)
+      );
+      if (editorsSet.size) {
+        editorContratosAgg = buildEditorContratosAgg(solEmpresaOnly, [...editorsSet]);
+      }
+    } catch (e) {
+      console.warn("No se pudo construir editorContratosAgg", e);
     }
 
     const isAprobadaLike = (s) => {
@@ -1372,7 +1540,6 @@ async function cargarTodo(force=false) {
       return { user: u, counts, total };
     });
 
-    /* ===== Payload ===== */
     const payload = {
       kpis: { ...kpis.value },
       kpisExtra: { ...kpisExtra.value },
@@ -1395,7 +1562,10 @@ async function cargarTodo(force=false) {
         users: usersTop,
         rows,
         datasets: datasetsStatus,
-      }
+      },
+
+      /* ✅ NUEVO */
+      editorContratosAgg,
     };
 
     const thisKey = cacheKey();
@@ -1413,7 +1583,6 @@ async function cargarTodo(force=false) {
     isLoading.value = false;
   }
 }
-
 
 function destroyAll() {
   Object.values(charts).forEach(ch => { try { ch && ch.destroy && ch.destroy(); } catch(e) { console.error(e); } });
@@ -1562,16 +1731,13 @@ function drawGroupedBar(canvas, key, labels, series, formatters = {}) {
   });
 }
 
-
 function drawMultiBarsByUser(canvas, key, labels, datasets) {
   if (!window.Chart || !canvas) return;
   charts[key]?.destroy?.();
 
-
   const ds = (datasets || []).map(d => ({
     ...d,
     borderWidth: 1,
-
     barThickness: 10,
     maxBarThickness: 14,
     categoryPercentage: 0.9,
@@ -1586,44 +1752,34 @@ function drawMultiBarsByUser(canvas, key, labels, datasets) {
       maintainAspectRatio: false,
       indexAxis: "y",
       plugins: {
-        legend: {
-          display: true,
-          position: "top",
-        },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x ?? 0}`
-          }
-        }
+        legend: { display: true, position: "top" },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x ?? 0}` } }
       },
       scales: {
-        x: {
-          beginAtZero: true,
-          stacked: false,
-          ticks: { precision: 0 }
-        },
-        y: {
-          stacked: false,
-          ticks: { autoSkip: false }
-        }
+        x: { beginAtZero: true, stacked: false, ticks: { precision: 0 } },
+        y: { stacked: false, ticks: { autoSkip: false } }
       }
     }
   });
 }
 
 function pintarDesdePayload(p){
-
   kpis.value = { ...p.kpis };
   kpisExtra.value = { ...p.kpisExtra };
   topHoy.value = p.topHoy || [];
 
-
   ocTipoAggPayload.value = p.ocTipoAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
   ocTipoSolpedAggPayload.value = p.ocTipoSolpedAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
 
-
   ocStatusByUserPayload.value = p.ocStatusByUser || { users: [], rows: [], datasets: [] };
 
+  /* ✅ NUEVO */
+  editorContratosAggPayload.value = p.editorContratosAgg || {
+    editors: [],
+    topAll: [],
+    perEditorTop: {},
+    totals: { totalSolpes: 0, uniqueContratos: 0 },
+  };
 
   drawBar(cTopCreadores.value, 'topCread', (p.topCreadores||[]).map(([k])=>k), (p.topCreadores||[]).map(([,v])=>v), 'Creadas');
   drawPie(cEstatusPie.value, 'estatusPie', Object.keys(p.distEstatus || {}), Object.values(p.distEstatus || {}));
@@ -1649,7 +1805,6 @@ function pintarDesdePayload(p){
   if (p.solpedPend) drawBar(cSolpedPendH.value, 'solpedPend', p.solpedPend.labels, p.solpedPend.values, 'Pendientes', null);
   if (p.solpedPendAll) drawBar(cSolpedPendAll.value, 'solpedPendAll', p.solpedPendAll.labels, p.solpedPendAll.values, 'Pendientes', null);
 
-
   vsEditorsPayload.value = p.vsEditors || { labels: [], aprobadas: [], subidas: [] };
   if (p.vsEditors && Array.isArray(p.vsEditors.labels)) {
     drawGroupedBar(
@@ -1662,7 +1817,6 @@ function pintarDesdePayload(p){
       ]
     );
   }
-
 
   if (p.ocTipoAgg?.labels?.length) {
     drawPie(cOcTipoCountPie.value, 'ocTipoCountPie', p.ocTipoAgg.labels, p.ocTipoAgg.counts);
@@ -1688,7 +1842,6 @@ function pintarDesdePayload(p){
   } else {
     charts.ocStatusByUser?.destroy?.();
   }
-
 }
 </script>
 
@@ -1717,7 +1870,6 @@ function pintarDesdePayload(p){
 canvas{ width:100% !important; height:100% !important; display:block; }
 
 .pie-box{ height: 260px; }
-
 
 .table-sticky thead th{
   position: sticky;

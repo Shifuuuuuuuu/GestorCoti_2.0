@@ -31,7 +31,11 @@
           <!-- Botón Filtros (abre offcanvas) -->
           <button class="btn btn-outline-primary" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
-            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
+            <span
+              v-if="hasActiveFilters"
+              class="badge bg-primary-subtle text-primary-emphasis ms-2"
+              >{{ totalFiltrosActivos }}</span
+            >
           </button>
 
           <button class="btn btn-primary" @click="abrirModalNueva">
@@ -43,7 +47,11 @@
         <div class="d-flex d-md-none w-100 gap-2">
           <button class="btn btn-outline-secondary flex-fill" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
-            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-1">{{ totalFiltrosActivos }}</span>
+            <span
+              v-if="hasActiveFilters"
+              class="badge bg-primary-subtle text-primary-emphasis ms-1"
+              >{{ totalFiltrosActivos }}</span
+            >
           </button>
           <button class="btn btn-primary flex-fill" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva
@@ -367,7 +375,12 @@
                   <span v-if="edit.solpedId" class="badge bg-primary me-2">
                     Asociada: #{{ edit.numero_solped }}
                   </span>
-                  <button v-if="edit.solpedId" class="btn btn-sm btn-outline-danger" :disabled="guardandoSolped" @click="quitarAsociacionSolped">
+                  <button
+                    v-if="edit.solpedId"
+                    class="btn btn-sm btn-outline-danger"
+                    :disabled="guardandoSolped"
+                    @click="quitarAsociacionSolped"
+                  >
                     Quitar asociación
                   </button>
                 </div>
@@ -375,7 +388,12 @@
 
               <div class="row g-2 align-items-center mt-1">
                 <div class="col-12 col-md-8">
-                  <select class="form-select" :disabled="cargandoSolpeds || guardandoSolped" v-model="solpedSeleccionId" @change="onSeleccionarSolped">
+                  <select
+                    class="form-select"
+                    :disabled="cargandoSolpeds || guardandoSolped"
+                    v-model="solpedSeleccionId"
+                    @change="onSeleccionarSolped"
+                  >
                     <option value="">— Selecciona una SOLPED —</option>
                     <option v-for="s in solpedsFiltradas" :key="s.id" :value="s.id">
                       #{{ s.numero_solpe }} · {{ s.tipo_solped ?? 'SIN TIPO' }} · {{ s.centroCostoTexto ?? 's/CC' }} · {{ s.estatus }}
@@ -383,7 +401,13 @@
                   </select>
                 </div>
                 <div class="col-12 col-md-4">
-                  <input v-model="solpedBusqueda" type="text" class="form-control" placeholder="Buscar por número, tipo o CC…" :disabled="cargandoSolpeds"/>
+                  <input
+                    v-model="solpedBusqueda"
+                    type="text"
+                    class="form-control"
+                    placeholder="Buscar por número, tipo o CC…"
+                    :disabled="cargandoSolpeds"
+                  />
                 </div>
               </div>
               <div class="form-text">
@@ -430,15 +454,15 @@
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivo OC (único)</div>
                 <div class="d-flex gap-2 flex-wrap">
-                  <input id="inputArchivoOC" type="file" class="d-none"
-                         accept="application/pdf,image/*"
-                         @change="onArchivoOC">
-                  <button class="btn btn-sm btn-outline-secondary"
-                          @click="() => document.getElementById('inputArchivoOC')?.click()">
+                  <input
+                    ref="inputArchivoOCEl"
+                    type="file"
+                    class="d-none"
+                    accept="application/pdf,image/*"
+                    @change="onArchivoOC"
+                  >
+                  <button class="btn btn-sm btn-outline-secondary" @click="openArchivoOCPicker">
                     <i class="bi bi-paperclip me-1"></i> Reemplazar archivo OC
-                  </button>
-                  <button class="btn btn-sm btn-outline-danger" v-if="edit.archivoOC?.url" @click="borrarArchivoOC">
-                    <i class="bi bi-trash3 me-1"></i> Quitar archivo OC
                   </button>
                 </div>
               </div>
@@ -451,7 +475,12 @@
                       <span class="text-secondary ms-2">{{ edit.archivoOC?.tipo }}</span>
                       <span class="text-secondary ms-2">{{ prettyTS(edit.archivoOC?.fechaSubida) }}</span>
                     </div>
-                    <a class="btn btn-sm btn-outline-secondary" :href="edit.archivoOC?.url" target="_blank">Ver</a>
+                    <div class="d-flex gap-2">
+                      <a class="btn btn-sm btn-outline-secondary" :href="edit.archivoOC?.url" target="_blank">Ver</a>
+                      <button class="btn btn-sm btn-outline-danger" @click="borrarArchivoOC">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div v-else class="list-group-item text-secondary small">Sin archivo OC.</div>
@@ -463,19 +492,25 @@
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivos en Storage</div>
                 <div class="d-flex gap-2 flex-wrap">
-                  <input id="inputArchivosStorage" type="file" class="d-none"
-                         multiple
-                         accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                         @change="onArchivosStorage">
-                  <button class="btn btn-sm btn-outline-secondary"
-                          @click="() => document.getElementById('inputArchivosStorage')?.click()">
+                  <input
+                    ref="inputArchivosStorageEl"
+                    type="file"
+                    class="d-none"
+                    multiple
+                    accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    @change="onArchivosStorage"
+                  >
+                  <button class="btn btn-sm btn-outline-secondary" @click="openArchivosStoragePicker">
                     <i class="bi bi-cloud-upload me-1"></i> Agregar archivos
                   </button>
                 </div>
               </div>
               <div class="list-group">
-                <div class="list-group-item d-flex align-items-center justify-content-between"
-                     v-for="(a, ai) in edit.archivosStorage" :key="'st'+ai">
+                <div
+                  class="list-group-item d-flex align-items-center justify-content-between"
+                  v-for="(a, ai) in edit.archivosStorage"
+                  :key="'st'+ai"
+                >
                   <div class="small">
                     <i class="bi bi-file-earmark me-2"></i>
                     <strong>{{ a.nombre }}</strong>
@@ -489,6 +524,9 @@
                   </div>
                 </div>
                 <div v-if="!edit.archivosStorage?.length" class="list-group-item text-secondary small">Sin archivos.</div>
+              </div>
+              <div class="form-text">
+                Nota: el botón “Eliminar” solo quita el link del documento (no borra el archivo del Storage).
               </div>
             </div>
 
@@ -619,10 +657,14 @@
             <div class="col-12">
               <label class="form-label">Archivo OC (PDF/imagen)</label>
               <div class="d-flex gap-2 flex-wrap">
-                <input id="inputArchivoOCNuevo" type="file" class="d-none"
-                       accept="application/pdf,image/*"
-                       @change="onArchivoOCNuevo">
-                <button class="btn btn-secondary" @click="() => document.getElementById('inputArchivoOCNuevo')?.click()">
+                <input
+                  ref="inputArchivoOCNuevoEl"
+                  type="file"
+                  class="d-none"
+                  accept="application/pdf,image/*"
+                  @change="onArchivoOCNuevo"
+                >
+                <button class="btn btn-secondary" @click="openArchivoOCNuevoPicker">
                   <i class="bi bi-paperclip me-1"></i> Seleccionar archivo OC
                 </button>
                 <div class="small text-secondary" v-if="archivoOCNuevoNombre">
@@ -635,11 +677,15 @@
             <div class="col-12">
               <label class="form-label">Archivos Storage (múltiples)</label>
               <div class="d-flex gap-2 flex-wrap">
-                <input id="inputArchivosStorageNuevo" type="file" class="d-none"
-                       multiple
-                       accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                       @change="onArchivosStorageNuevo">
-                <button class="btn btn-secondary" @click="() => document.getElementById('inputArchivosStorageNuevo')?.click()">
+                <input
+                  ref="inputArchivosStorageNuevoEl"
+                  type="file"
+                  class="d-none"
+                  multiple
+                  accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  @change="onArchivosStorageNuevo"
+                >
+                <button class="btn btn-secondary" @click="openArchivosStorageNuevoPicker">
                   <i class="bi bi-cloud-upload me-1"></i> Seleccionar archivos
                 </button>
                 <div class="small text-secondary" v-if="previewArchivosStorageNuevo.length">
@@ -712,15 +758,24 @@ import {
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 /* ========== Helpers de fecha ========== */
-
 const prettyTS = (v) => {
   if (!v) return "—";
-  if (v instanceof Timestamp) return v.toDate().toISOString().replace("T"," ").replace("Z","");
-  if (v?.seconds) return new Date(v.seconds*1000).toISOString().replace("T"," ").replace("Z","");
-  if (v instanceof Date) return v.toISOString().replace("T"," ").replace("Z","");
-  if (typeof v === "string") return v.replace("T"," ").replace("Z","");
+  if (v instanceof Timestamp) return v.toDate().toISOString().replace("T", " ").replace("Z", "");
+  if (v?.seconds) return new Date(v.seconds * 1000).toISOString().replace("T", " ").replace("Z", "");
+  if (v instanceof Date) return v.toISOString().replace("T", " ").replace("Z", "");
+  if (typeof v === "string") return v.replace("T", " ").replace("Z", "");
   return String(v);
 };
+
+/* ========== Clon UI que preserva Timestamp/Date/FieldValue ========== */
+function cloneForUI(x) {
+  if (x === null || typeof x !== "object") return x;
+  if (x instanceof Date || x instanceof Timestamp) return x;
+  if (Array.isArray(x)) return x.map(cloneForUI);
+  const out = {};
+  for (const [k, v] of Object.entries(x)) out[k] = cloneForUI(v);
+  return out;
+}
 
 /* ========== Clon seguro para Firestore (preserva Timestamp/FieldValue y omite _previewFecha) ========== */
 function safeCloneFirestore(x) {
@@ -738,7 +793,7 @@ function safeCloneFirestore(x) {
 /* ---------- Constantes ---------- */
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
-  "Solicitado","Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor", "Revisión Guillermo"
+  "Solicitado","Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
 ];
 const RESPONSABLES_OPC = [
   "Luis Orellana","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez","Juan Cubillos"
@@ -749,7 +804,7 @@ const rows = ref([]);
 const cargando = ref(true);
 const currentPage = ref(1);
 const hasNextPage = ref(false);
-const pageCursors = ref([]);
+const pageCursors = ref([]); // guarda cursor (QueryDocumentSnapshot) de la página anterior
 let unsubList = null;
 
 /* Búsqueda / Filtros */
@@ -769,7 +824,6 @@ const addToast = (type, text, timeout = 2600) => {
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
 /* ---------- Utils ---------- */
-const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 const badgeClass = (estatus) => {
   const s = (estatus || "").toLowerCase();
   if (s.includes("complet") || s.includes("aprob") || s.includes("recep")) return "bg-success-subtle text-success-emphasis";
@@ -779,32 +833,54 @@ const badgeClass = (estatus) => {
   return "bg-secondary-subtle text-secondary-emphasis";
 };
 
+/* ---------- Filtros móvil/desktop (offcanvas) ---------- */
+const mobileFiltersOpen = ref(false);
+const hasActiveFilters = computed(() => !!filtroEstatus.value || !!filtroResponsable.value);
+const totalFiltrosActivos = computed(() => (filtroEstatus.value ? 1 : 0) + (filtroResponsable.value ? 1 : 0));
+function mobileApplyFilters(){
+  aplicarFiltros();
+  mobileFiltersOpen.value = false;
+}
+function limpiarFiltros(){
+  filtroEstatus.value = "";
+  filtroResponsable.value = "";
+  if (busquedaActiva.value) limpiarBusqueda();
+  else aplicarFiltros();
+}
+
 /* ---------- Paginación (tiempo real) ---------- */
 const visiblePageButtons = computed(() => {
   const maxButtons = 7;
+  const maxReach = currentPage.value + (hasNextPage.value ? 2 : 1);
+  const start = Math.max(1, currentPage.value - Math.floor(maxButtons / 2));
   const pages = [];
-  let start = Math.max(1, currentPage.value - Math.floor(maxButtons/2));
-  for (let i=0; i<maxButtons; i++) pages.push(start+i);
+  for (let n = start; n < start + maxButtons; n++) {
+    if (n <= maxReach) pages.push(n);
+  }
+  if (!pages.includes(currentPage.value)) pages.push(currentPage.value);
+  pages.sort((a,b)=>a-b);
   return pages;
 });
 
-function buildBaseQuery(page, withFilters = true){
-  const col = collection(db, "ordenes_oc");
-  let clauses = [ orderBy("id", "desc") ];
+function buildPageQuery(page, withFilters = true) {
+  const colRef = collection(db, "ordenes_oc");
+  const constraints = [];
+
   if (withFilters) {
-    if (filtroEstatus.value) clauses.unshift(where("estatus", "==", filtroEstatus.value));
-    if (filtroResponsable.value) clauses.unshift(where("responsable", "==", filtroResponsable.value));
+    if (filtroEstatus.value) constraints.push(where("estatus", "==", filtroEstatus.value));
+    if (filtroResponsable.value) constraints.push(where("responsable", "==", filtroResponsable.value));
   }
-  if (page === 1) {
-    clauses.push(limit(PAGE_SIZE + 1));
-    return query(col, ...clauses);
-  } else {
-    const prevCursor = pageCursors.value[page-2];
+
+  constraints.push(orderBy("id", "desc"));
+
+  if (page > 1) {
+    const prevCursor = pageCursors.value[page - 2];
     if (!prevCursor) return null;
-    clauses.splice(clauses.findIndex(c => c.type === "orderBy") + 1, 0, startAfter(prevCursor));
-    clauses.push(limit(PAGE_SIZE + 1));
-    return query(col, ...clauses);
+    constraints.push(startAfter(prevCursor));
   }
+
+  constraints.push(limit(PAGE_SIZE + 1));
+  return query(colRef, ...constraints);
 }
 
 function subscribePage(page){
@@ -814,17 +890,20 @@ function subscribePage(page){
   cargando.value = true;
   busquedaActiva.value = false;
 
-  const qy = buildBaseQuery(page, true);
+  const qy = buildPageQuery(page, true);
   if (!qy) { cargando.value = false; return; }
 
   unsubList = onSnapshot(qy, (snap) => {
     const arr = [];
     snap.forEach(d => arr.push({ __id: d.id, ...d.data(), __snap: d }));
     hasNextPage.value = arr.length > PAGE_SIZE;
+
     const pageDocs = arr.slice(0, PAGE_SIZE);
     rows.value = pageDocs.map(x => { const y = { ...x }; delete y.__snap; return y; });
-    const lastSnap = pageDocs.length ? pageDocs[pageDocs.length-1].__snap : null;
-    if (lastSnap) pageCursors.value[page-1] = lastSnap;
+
+    const lastSnap = pageDocs.length ? pageDocs[pageDocs.length - 1].__snap : null;
+    if (lastSnap) pageCursors.value[page - 1] = lastSnap;
+
     cargando.value = false;
   }, (err) => {
     console.error("onSnapshot page:", err);
@@ -834,7 +913,7 @@ function subscribePage(page){
 }
 
 function goToPage(n){
-  if (hasActiveFilters.value || busquedaActiva.value) return; // sin paginar con filtros/búsqueda
+  if (hasActiveFilters.value || busquedaActiva.value) return;
   if (n < 1) return;
   if (n > currentPage.value + 1 && !hasNextPage.value) return;
   currentPage.value = n;
@@ -852,18 +931,21 @@ async function onBuscar(){
   if (!isNaN(num) && String(num) === raw) {
     if (unsubList) { unsubList(); unsubList = null; }
     if (unsubSearch) { unsubSearch(); unsubSearch = null; }
-    cargando.value = true; busquedaActiva.value = true;
+    cargando.value = true;
+    busquedaActiva.value = true;
 
-    const col = collection(db, "ordenes_oc");
-    const clauses = [ where("id", "==", num), orderBy("id", "desc"), limit(10) ];
-    if (filtroEstatus.value) clauses.unshift(where("estatus","==",filtroEstatus.value));
-    if (filtroResponsable.value) clauses.unshift(where("responsable","==",filtroResponsable.value));
-    const qy = query(col, ...clauses);
+    const colRef = collection(db, "ordenes_oc");
+    const constraints = [ where("id", "==", num) ];
+    if (filtroEstatus.value) constraints.push(where("estatus","==",filtroEstatus.value));
+    if (filtroResponsable.value) constraints.push(where("responsable","==",filtroResponsable.value));
+    constraints.push(limit(20));
+
+    const qy = query(colRef, ...constraints);
 
     unsubSearch = onSnapshot(qy, (snap) => {
       const arr = [];
       snap.forEach(d => arr.push({ __id: d.id, ...d.data() }));
-      rows.value = arr;
+      rows.value = arr.sort((a,b)=>(b.id??0)-(a.id??0));
       cargando.value = false;
       hasNextPage.value = false;
     }, (err) => {
@@ -878,7 +960,8 @@ async function onBuscar(){
   if (raw.length >= 8) {
     if (unsubList) { unsubList(); unsubList = null; }
     if (unsubSearch) { unsubSearch(); unsubSearch = null; }
-    cargando.value = true; busquedaActiva.value = true;
+    cargando.value = true;
+    busquedaActiva.value = true;
     try {
       const dref = doc(db, "ordenes_oc", raw);
       const d = await getDoc(dref);
@@ -897,6 +980,7 @@ async function onBuscar(){
 
   addToast("warning", "Ingresa un ID numérico o un ID de documento válido.");
 }
+
 function limpiarBusqueda(){
   buscarTexto.value = "";
   busquedaActiva.value = false;
@@ -904,27 +988,22 @@ function limpiarBusqueda(){
   subscribePage(1);
 }
 
-/* --------- Filtros móvil/desktop (offcanvas) --------- */
-const mobileFiltersOpen = ref(false);
-const hasActiveFilters = computed(() =>
-  !!filtroEstatus.value || !!filtroResponsable.value
-);
-const totalFiltrosActivos = computed(() => {
-  let n = 0;
-  if (filtroEstatus.value) n++;
-  if (filtroResponsable.value) n++;
-  return n;
-});
-function mobileApplyFilters(){
-  aplicarFiltros();
-  mobileFiltersOpen.value = false;
-}
-function limpiarFiltros(){
-  filtroEstatus.value = "";
-  filtroResponsable.value = "";
-  if (busquedaActiva.value) limpiarBusqueda();
-  else aplicarFiltros();
-}
+/* ---------- Inputs File refs + triggers ---------- */
+const inputArchivoOCEl = ref(null);
+const inputArchivosStorageEl = ref(null);
+const inputArchivoOCNuevoEl = ref(null);
+const inputArchivosStorageNuevoEl = ref(null);
+
+const triggerPicker = (el) => {
+  if (!el) return;
+  el.value = ""; // permite seleccionar el mismo archivo otra vez
+  el.click();
+};
+
+function openArchivoOCPicker(){ triggerPicker(inputArchivoOCEl.value); }
+function openArchivosStoragePicker(){ triggerPicker(inputArchivosStorageEl.value); }
+function openArchivoOCNuevoPicker(){ triggerPicker(inputArchivoOCNuevoEl.value); }
+function openArchivosStorageNuevoPicker(){ triggerPicker(inputArchivosStorageNuevoEl.value); }
 
 /* ---------- Editor (offcanvas) ---------- */
 const editorAbierto = ref(false);
@@ -934,7 +1013,10 @@ const guardando = ref(false);
 
 // Archivo OC (único) - edición
 const archivoOCFile = ref(null);
-function onArchivoOC(e){ const f = (e.target.files || [])[0]; archivoOCFile.value = f || null; }
+function onArchivoOC(e){
+  const f = (e.target.files || [])[0];
+  archivoOCFile.value = f || null;
+}
 function borrarArchivoOC(){ edit.value.archivoOC = null; }
 
 // Archivos Storage (múltiples) - edición
@@ -946,7 +1028,7 @@ function eliminarArchivoStorage(ix){ edit.value.archivosStorage.splice(ix, 1); }
 const SOLPEDS_COL = "solpes"; // cambia si tu colección tiene otro nombre
 const cargandoSolpeds = ref(false);
 const guardandoSolped = ref(false);
-const solpeds = ref([]);                 // [{id, numero_solpe, estatus, tipo_solped?, centroCostoTexto?}]
+const solpeds = ref([]);
 const solpedBusqueda = ref("");
 const solpedSeleccionId = ref("");
 
@@ -985,11 +1067,10 @@ async function cargarSolpedsPendientes(){
         });
       }
     });
-    // Parciales primero
     items.sort((a,b) => {
-      const ap = String(a.estatus).toLowerCase()==="parcial";
-      const bp = String(b.estatus).toLowerCase()==="parcial";
-      if (ap!==bp) return ap ? -1 : 1;
+      const ap = String(a.estatus).toLowerCase() === "parcial";
+      const bp = String(b.estatus).toLowerCase() === "parcial";
+      if (ap !== bp) return ap ? -1 : 1;
       return (b.numero_solpe ?? 0) - (a.numero_solpe ?? 0);
     });
     solpeds.value = items;
@@ -1005,15 +1086,14 @@ async function onSeleccionarSolped(){
   if (!seleccion.value) return;
   const sel = solpeds.value.find(s => s.id === solpedSeleccionId.value);
   if (!sel) return;
+
   guardandoSolped.value = true;
   try {
     const dref = doc(db, "ordenes_oc", seleccion.value.__id);
-    // Guardamos solo vínculo, NO tocamos ninguna fecha
     await updateDoc(dref, {
       solpedId: sel.id,
       numero_solped: sel.numero_solpe
     });
-    // Reflejar en UI
     edit.value.solpedId = sel.id;
     edit.value.numero_solped = sel.numero_solpe;
     addToast("success","SOLPED asociada.");
@@ -1048,20 +1128,20 @@ async function quitarAsociacionSolped(){
 function abrirEditor(row){
   seleccion.value = row;
 
-  edit.value = deepClone({
+  edit.value = cloneForUI({
     aprobadoPor: row.aprobadoPor ?? "",
     aprobadorSugerido: row.aprobadorSugerido ?? "",
     archivoOC: row.archivoOC ?? null,
-    archivosStorage: Array.isArray(row.archivosStorage) ? deepClone(row.archivosStorage) : [],
+    archivosStorage: Array.isArray(row.archivosStorage) ? row.archivosStorage : [],
     centroCosto: row.centroCosto ?? row.numero_contrato ?? "",
     centroCostoNombre: row.centroCostoNombre ?? row.nombre_centro_costo ?? "",
     comentario: row.comentario ?? "",
     destinoCompra: row.destinoCompra ?? "",
     empresa: row.empresa ?? "Xtreme Servicio",
     estatus: row.estatus ?? "Solicitado",
-    fechaAprobacion: row.fechaAprobacion ?? null,  // NO editable al guardar
-    fechaSubida: row.fechaSubida ?? null,          // NO editable al guardar
-    historial: Array.isArray(row.historial) ? deepClone(row.historial) : [],
+    fechaAprobacion: row.fechaAprobacion ?? null, // NO editable al guardar
+    fechaSubida: row.fechaSubida ?? null,         // NO editable al guardar
+    historial: Array.isArray(row.historial) ? row.historial : [],
     id: row.id ?? null,
     moneda: row.moneda ?? "CLP",
     precioTotalConIVA: row.precioTotalConIVA ?? 0,
@@ -1070,10 +1150,9 @@ function abrirEditor(row){
     tipo_solped: row.tipo_solped ?? "Sin SOLPED",
     numero_solped: row.numero_solped ?? "",
     solpedId: row.solpedId ?? null,
-    items: Array.isArray(row.items) ? deepClone(row.items) : []
+    items: Array.isArray(row.items) ? row.items : []
   });
 
-  // Si ya hay fecha real, limpiamos posibles _previewFecha
   edit.value.historial = (edit.value.historial || []).map(h => {
     const hh = { ...h };
     const hasRealTs =
@@ -1085,13 +1164,9 @@ function abrirEditor(row){
 
   editorAbierto.value = true;
 
-  // Files
-  const a = document.getElementById("inputArchivoOC"); if (a) a.value = "";
-  const b = document.getElementById("inputArchivosStorage"); if (b) b.value = "";
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
 
-  // Cargar SOLPEDs y prefijar selección
   cargarSolpedsPendientes().then(() => {
     solpedSeleccionId.value = edit.value.solpedId || "";
   });
@@ -1103,7 +1178,6 @@ function cerrarEditor(){
   edit.value = {};
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
-  // limpiar búsqueda/selección SOLPED
   solpeds.value = [];
   solpedBusqueda.value = "";
   solpedSeleccionId.value = "";
@@ -1117,7 +1191,7 @@ async function guardarEdicion() {
     const idDoc = seleccion.value.__id;
     const dref = doc(db, "ordenes_oc", idDoc);
 
-    // Reemplazar archivo OC con serverTimestamp()
+    // Reemplazar archivo OC
     if (archivoOCFile.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${idDoc}/oc_enviada_${Date.now()}_${archivoOCFile.value.name}`;
@@ -1167,10 +1241,9 @@ async function guardarEdicion() {
       }));
     }
 
-    // Clonar preservando Timestamps/FieldValues
     const payload = safeCloneFirestore(edit.value);
 
-    // No tocar estas fechas en Firestore (se mantienen como estaban)
+    // No tocar estas fechas
     delete payload.fechaSubida;
     delete payload.fechaAprobacion;
 
@@ -1190,8 +1263,8 @@ function agregarHistorial(){
   if (!Array.isArray(edit.value.historial)) edit.value.historial = [];
   edit.value.historial.push({
     estatus: edit.value.estatus || "Actualizado",
-    fecha: serverTimestamp(),    // Timestamp real del servidor
-    _previewFecha: new Date(),   // Solo para mostrar mientras llega el server
+    fecha: serverTimestamp(),
+    _previewFecha: new Date(),
     usuario: edit.value.responsable || edit.value.aprobadoPor || ""
   });
 }
@@ -1252,6 +1325,7 @@ function defaultNuevo(){
     items: []
   };
 }
+
 function abrirModalNueva(){
   nuevo.value = defaultNuevo();
   archivoOCNuevo.value = null;
@@ -1260,8 +1334,15 @@ function abrirModalNueva(){
   modalNueva.value = true;
 }
 function cerrarModalNueva(){ modalNueva.value = false; }
-function onArchivoOCNuevo(e){ const f = (e.target.files || [])[0]; archivoOCNuevo.value = f || null; archivoOCNuevoNombre.value = f?.name || ""; }
-function onArchivosStorageNuevo(e){ previewArchivosStorageNuevo.value = Array.from(e.target.files || []); }
+
+function onArchivoOCNuevo(e){
+  const f = (e.target.files || [])[0];
+  archivoOCNuevo.value = f || null;
+  archivoOCNuevoNombre.value = f?.name || "";
+}
+function onArchivosStorageNuevo(e){
+  previewArchivosStorageNuevo.value = Array.from(e.target.files || []);
+}
 
 async function crearNueva(){
   try {
@@ -1281,13 +1362,14 @@ async function crearNueva(){
       ...nuevo.value,
       archivoOC: null,
       archivosStorage: [],
-      fechaSubida: serverTimestamp(), // hora del server
+      fechaSubida: serverTimestamp(),
       fechaAprobacion: null,
       historial: []
     });
 
     const dref = await addDoc(collection(db, "ordenes_oc"), payload);
 
+    // archivoOC único
     if (archivoOCNuevo.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${dref.id}/oc_enviada_${Date.now()}_${archivoOCNuevo.value.name}`;
@@ -1304,6 +1386,7 @@ async function crearNueva(){
       });
     }
 
+    // adjuntos múltiples
     if (previewArchivosStorageNuevo.value.length) {
       const storage = getStorage();
       const uploads = [];
@@ -1336,7 +1419,10 @@ function verArchivoOC(row){
 
 /* ---------- Lifecycle ---------- */
 onMounted(() => { subscribePage(1); });
-onBeforeUnmount(() => { if (unsubList) unsubList(); if (unsubSearch) unsubSearch(); });
+onBeforeUnmount(() => {
+  if (unsubList) unsubList();
+  if (unsubSearch) unsubSearch();
+});
 </script>
 
 <style scoped>

@@ -70,6 +70,7 @@
           <div class="d-flex gap-2 flex-wrap">
             <span class="kpi-chip">Faltan: {{ faltantesGenerales }}</span>
             <span v-if="nombreInvalido" class="kpi-chip kpi-warn">Revisa el nombre del solicitante</span>
+            <span v-else-if="nombreNoEnLista" class="kpi-chip kpi-warn">Selecciona un solicitante válido</span>
           </div>
         </div>
 
@@ -90,22 +91,89 @@
               <input type="date" class="form-control" v-model="solpe.fecha" readonly>
             </div>
 
-            <!-- Nombre solicitante -->
-            <div class="col-12">
+            <!-- ✅ Nombre solicitante (autocomplete cerrado) -->
+            <div class="col-12 position-relative">
               <label class="form-label">Nombre del solicitante <span class="text-danger">*</span></label>
-              <input
-                type="text"
-                class="form-control"
-                :class="{'is-invalid': (nombreInvalido || (intentadoGuardar && !solpe.nombre_solicitante.trim()))}"
-                v-model="solpe.nombre_solicitante"
-                placeholder="Ej: JUAN PÉREZ"
-                @input="onNombreSolicitanteChange(); triggerAutoSave()"
+
+              <div class="input-with-icon">
+                <i class="bi bi-person-badge"></i>
+                <input
+                  ref="solicitanteInputEl"
+                  type="text"
+                  class="form-control"
+                  v-model="solpe.nombre_solicitante"
+                  placeholder="Buscar solicitante… (ej: JUAN)"
+                  autocomplete="off"
+                  :class="{
+                    'is-invalid':
+                      nombreInvalido ||
+                      nombreNoEnLista ||
+                      (intentadoGuardar && !solpe.nombre_solicitante.trim())
+                  }"
+                  @focus="openSolicitanteSuggest"
+                  @blur="closeSolicitanteSuggestSoon"
+                  @input="onSolicitanteInput"
+                  @keydown="onSolicitanteKeydown"
+                />
+              </div>
+
+              <!-- Dropdown sugerencias -->
+              <div
+                v-if="solicitanteSuggestOpen && (solicitanteFiltrados.length || !solpe.nombre_solicitante.trim())"
+                class="suggest-box suggest-box--below"
+                @mouseenter="solicitanteHovering=true"
+                @mouseleave="solicitanteHovering=false"
               >
+                <div class="suggest-head">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-search"></i>
+                    <strong>Solicitantes</strong>
+                    <span class="badge bg-light text-dark border">{{ solicitanteFiltrados.length }}</span>
+                  </div>
+                  <div class="hint">
+                    <span class="kbd">↑</span><span class="kbd">↓</span>
+                    <span class="d-none d-md-inline"> navegar · </span>
+                    <span class="kbd">Enter</span><span class="d-none d-md-inline"> seleccionar · </span>
+                    <span class="kbd">Esc</span>
+                  </div>
+                </div>
+
+                <ul class="list-unstyled mb-0">
+                  <li v-if="!solicitanteFiltrados.length" class="suggest-empty">
+                    No hay coincidencias. Escribe más letras.
+                  </li>
+
+                  <li
+                    v-for="(n, idx) in solicitanteFiltrados"
+                    :key="n"
+                    class="suggest-item"
+                    :class="{ 'is-active': idx === solicitanteActivePos }"
+                    @mouseenter="solicitanteActivePos = idx"
+                    @mousedown.prevent="() => {}"
+                    @click="selectSolicitante(n)"
+                  >
+                    <div class="suggest-text">
+                      <span v-html="renderSuggestMatch(solpe.nombre_solicitante, n)"></span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Mensajes de error -->
               <div v-if="nombreInvalido" class="invalid-feedback d-block">
                 El nombre del solicitante no puede ser igual al usuario de sesión (“{{ nombreSesion }}”).
               </div>
+
+              <div v-else-if="nombreNoEnLista && solpe.nombre_solicitante.trim()" class="invalid-feedback d-block">
+                Debes seleccionar un solicitante válido de la lista (usa el buscador).
+              </div>
+
               <div v-else-if="intentadoGuardar && !solpe.nombre_solicitante.trim()" class="invalid-feedback d-block">
                 Falta el campo: Nombre del solicitante.
+              </div>
+
+              <div class="form-text">
+                Escribe para buscar y selecciona de la lista (evita nombres fuera de estándar).
               </div>
             </div>
 
@@ -161,7 +229,7 @@
             <button
               class="btn btn-success ms-auto"
               @click="guardarSolpe"
-              :disabled="enviandoSolpe || nombreInvalido || faltantesGenerales>0 || itemsIncompletos>0"
+              :disabled="enviandoSolpe || nombreInvalido || nombreNoEnLista || faltantesGenerales>0 || itemsIncompletos>0"
             >
               <span v-if="enviandoSolpe" class="spinner-border spinner-border-sm me-2"></span>
               Enviar SOLPED
@@ -648,6 +716,143 @@ export default {
       return 0;
     };
 
+    // ======================
+    // ✅ Solicitantes (lista cerrada + buscador)
+    // ======================
+    const SOLICITANTES = Object.freeze([
+      "SERGIO TAPIA",
+      "ALEXIS MELLA",
+      "BRYAN MARTINEZ",
+      "CRISTIAN CONTRERAS",
+      "CRISTIAN MUÑOZ",
+      "ESTEBAN MADRID",
+      "FELIPE PARDO",
+      "FERNANDO GONZALEZ",
+      "FERNANDO CASTRO",
+      "FRANK PINTO",
+      "GUSTAVO CASTRO",
+      "JAIME FREDES",
+      "JHONATHAN ARAUNA",
+      "JORGE GARRIDO",
+      "JOSE HERRERA",
+      "JUAN CUBILLOS",
+      "JUAN PUENTES",
+      "JULIO ROJAS",
+      "MATIAS GONZALEZ",
+      "MATIAS HUALA",
+      "MATIAS MELLA",
+      "OSCAR ARREDONDO",
+      "RICARDO PROUVAY",
+      "GERSON TRONCOSO",
+      "MATIAS DÍAZ",
+      "LUIS GUERRERO",
+    ]);
+
+    const solicitantesNorm = SOLICITANTES.map((n) => normalize(n));
+
+    const solicitanteInputEl = ref(null);
+    const solicitanteSuggestOpen = ref(false);
+    const solicitanteActivePos = ref(0);
+    const solicitanteHovering = ref(false);
+    let solicitanteHideTimer = null;
+
+    const nombreNoEnLista = computed(() => {
+      const typed = (solpe.nombre_solicitante || "").trim();
+      if (!typed) return false;
+      const tNorm = normalize(typed);
+      return !solicitantesNorm.includes(tNorm);
+    });
+
+    const SOLICITANTE_LIMIT = 30;
+
+    const solicitanteFiltrados = computed(() => {
+      const typed = (solpe.nombre_solicitante || "").trim();
+      const term = normalize(typed);
+
+      if (!term || term.length < 1) return SOLICITANTES.slice(0, SOLICITANTE_LIMIT);
+
+      const scored = [];
+      for (let i = 0; i < SOLICITANTES.length; i++) {
+        const full = SOLICITANTES[i];
+        const fullNorm = solicitantesNorm[i];
+        const sc = scoreMatch(term, fullNorm);
+        if (sc > 0) scored.push({ full, sc });
+      }
+
+      scored.sort((a, b) => b.sc - a.sc || a.full.localeCompare(b.full, "es", { sensitivity: "base" }));
+      return scored.slice(0, SOLICITANTE_LIMIT).map((x) => x.full);
+    });
+
+    const openSolicitanteSuggest = () => {
+      solicitanteSuggestOpen.value = true;
+      solicitanteActivePos.value = 0;
+      clearTimeout(solicitanteHideTimer);
+    };
+
+    const closeSolicitanteSuggestSoon = () => {
+      clearTimeout(solicitanteHideTimer);
+      solicitanteHideTimer = setTimeout(() => {
+        if (!solicitanteHovering.value) solicitanteSuggestOpen.value = false;
+      }, 120);
+    };
+
+    const selectSolicitante = (name) => {
+      solpe.nombre_solicitante = upper(name).trim();
+      solicitanteSuggestOpen.value = false;
+
+      onNombreSolicitanteChange();
+
+      triggerAutoSave();
+      addToast("success", "Solicitante seleccionado.");
+      setTimeout(() => solicitanteInputEl.value?.focus?.(), 0);
+    };
+
+    const onSolicitanteInput = (ev) => {
+      solpe.nombre_solicitante = upper(ev?.target?.value ?? "");
+      openSolicitanteSuggest();
+      onNombreSolicitanteChange();
+      triggerAutoSave();
+    };
+
+    const onSolicitanteKeydown = (ev) => {
+      if (!solicitanteSuggestOpen.value) return;
+
+      const list = solicitanteFiltrados.value || [];
+      const hasList = list.length > 0;
+
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        solicitanteSuggestOpen.value = false;
+        return;
+      }
+
+      if (ev.key === "ArrowDown") {
+        if (!hasList) return;
+        ev.preventDefault();
+        solicitanteActivePos.value = Math.min(list.length - 1, (solicitanteActivePos.value || 0) + 1);
+        return;
+      }
+
+      if (ev.key === "ArrowUp") {
+        if (!hasList) return;
+        ev.preventDefault();
+        solicitanteActivePos.value = Math.max(0, (solicitanteActivePos.value || 0) - 1);
+        return;
+      }
+
+      if (ev.key === "Enter") {
+        if (!hasList) return;
+        ev.preventDefault();
+        const chosen = list[solicitanteActivePos.value || 0];
+        if (chosen) selectSolicitante(chosen);
+        return;
+      }
+
+      if (ev.key === "Tab") {
+        solicitanteSuggestOpen.value = false;
+      }
+    };
+
     // ====== Online / Offline listeners ======
     const onOnline = () => {
       isOnline.value = true;
@@ -804,6 +1009,7 @@ export default {
     const faltantesGenerales = computed(() => {
       let f = 0;
       if (!(solpe.nombre_solicitante || "").trim()) f++;
+      if (nombreNoEnLista.value) f++; // ✅ NUEVO: debe ser de lista
       if (!(solpe.centro_costo || "").trim()) f++;
       // ✅ obligatorio (aunque no se muestre)
       if (!Array.isArray(solpe.cotizadores) || solpe.cotizadores.length === 0) f++;
@@ -1016,7 +1222,7 @@ export default {
       }
     };
 
-    // ✅ Mejor sugeridor + límite 20
+    // ✅ Mejor sugeridor + límite
     const suggestions = (i) => {
       const typed = solpe.items[i]?.descripcion || "";
       const term = normalize(typed);
@@ -1268,6 +1474,7 @@ export default {
       const sesion = upper((nombreSesion.value || "").trim());
 
       if (!solicitante) missing.push("Nombre del solicitante");
+      if (nombreNoEnLista.value) missing.push("Nombre del solicitante (debe ser de la lista)"); // ✅ NUEVO
       if (!(solpe.centro_costo || "").trim()) missing.push("Patente o N° interno (Centro de costo)");
       if (!Array.isArray(solpe.cotizadores) || solpe.cotizadores.length === 0) missing.push("Cotizadores (config)");
 
@@ -1432,6 +1639,7 @@ export default {
       error,
       nombreSesion,
       nombreInvalido,
+      nombreNoEnLista, // ✅ NUEVO
       enviandoSolpe,
       intentadoGuardar,
       isOnline,
@@ -1440,6 +1648,18 @@ export default {
       deletingImagen,
       dragOverIndex,
       localConsent,
+
+      // solicitante autocomplete ✅ NUEVO
+      solicitanteInputEl,
+      solicitanteSuggestOpen,
+      solicitanteActivePos,
+      solicitanteHovering,
+      solicitanteFiltrados,
+      openSolicitanteSuggest,
+      closeSolicitanteSuggestSoon,
+      selectSolicitante,
+      onSolicitanteInput,
+      onSolicitanteKeydown,
 
       // kpis
       faltantesGenerales,
@@ -1576,6 +1796,13 @@ export default {
   overflow: hidden;
 }
 
+/* ✅ Dropdown solicitante hacia ABAJO */
+.suggest-box--below{
+  top: calc(100% + 6px) !important;
+  bottom: auto !important;
+  margin-bottom: 0 !important;
+}
+
 .suggest-box--fixed{
   position: fixed !important;
   z-index: 4000 !important;
@@ -1680,6 +1907,17 @@ export default {
   color: #0f172a !important;
 }
 .input-with-icon > textarea:focus{
+  color: #0f172a !important;
+}
+
+/* ✅ para el input del solicitante (mismo look) */
+.input-with-icon > input{
+  padding-left: 44px;
+  min-height: 46px;
+  height: 46px;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  border-radius: 12px;
   color: #0f172a !important;
 }
 
