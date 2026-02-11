@@ -1274,6 +1274,7 @@ const centrosCostoLista = ref([
   { key: "30-10-11", name: "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM" },
   { key: "10-10-20", name: "TALLER SAN BERNARDO" },
   { key: "31155", name: "DIVISION ANDINA 4600031155 Y 23302 CARPETAS" },
+  { Key: '23302', name:'CONTRATO 23302'}
 ]);
 
 const centrosFiltrados = computed(() => {

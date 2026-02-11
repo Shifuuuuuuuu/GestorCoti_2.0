@@ -38,6 +38,7 @@ export function useRoleMenus() {
   const menuPerms = computed(() => auth?.profile?.menuPerms || { allow: [], deny: [] });
   const allowedSet = computed(() => new Set((menuPerms.value.allow || []).map(String)));
   const deniedSet = computed(() => new Set((menuPerms.value.deny || []).map(String)));
+
   const isTallerCMUser = computed(() => {
     const n = normalize(fullName.value);
     return n === "taller cm" || email.value === "tallercm@xtremeservicios.cl";
@@ -71,25 +72,6 @@ export function useRoleMenus() {
     );
   });
 
-  function isAllowedRouteName(name) {
-    const n = String(name || "");
-    if (!n) return false;
-    if (n === "GenerarCotizacion" && isTallerCMUser.value) return false;
-    const hasAllow = (menuPerms.value.allow || []).length > 0;
-    if (hasAllow && !allowedSet.value.has(n)) return false;
-    if (deniedSet.value.has(n)) return false;
-
-    return true;
-  }
-
-  function filterMenuByPerms(menuArr) {
-    const filtered = (menuArr || []).filter((it) => {
-      if (it === null) return true;
-      return isAllowedRouteName(it.name);
-    });
-    return compactMenu(filtered);
-  }
-
   const isGenerador = computed(() => roleKey.value === "generador_solped");
   const isEditor = computed(() => roleKey.value === "editor");
   const isAprobadorEditor = computed(
@@ -104,9 +86,11 @@ export function useRoleMenus() {
       normalizeRoleKey(role.value) === "recepcion_oc"
     );
   });
+
   const isCargadorDoc = computed(() => {
     return roleKey.value === "cargadordoc" || roleKey.value === "cargador_doc";
   });
+
   const canSeeGenerarCotizacion = computed(() => {
     if (isTallerCMUser.value) return false;
     return (
@@ -123,7 +107,18 @@ export function useRoleMenus() {
     return isEditor.value || isGenerador.value || canSeeGenerarCotizacion.value;
   });
 
-  const canSeeAprobacionDocs = computed(() => isAdmin.value || isAlejandroCandia.value);
+  // ✅ Juan Cubillos incluido
+  const canSeeAprobacionDocs = computed(() => {
+    if (isAdmin.value || isAlejandroCandia.value || isJuanCubillos.value) return true;
+
+    if (roleKey.value === "aprobador_facturas" || roleKey.value === "aprobador_docs") return true;
+
+    // habilitar por menuPerms.allow si lo usas
+    if (allowedSet.value.has("AprobacionDocs")) return true;
+
+    return false;
+  });
+
   const canSeeAprobacionOC = computed(() => {
     return isAdmin.value || isGuillermo.value || isAprobadorEditor.value || isMariaJoseBallesteros.value;
   });
@@ -131,6 +126,34 @@ export function useRoleMenus() {
   const canSeeAprobacionOCTaller = computed(() => {
     return isAdmin.value || isGuillermo.value || isAprobadorEditor.value || isMariaJoseBallesteros.value;
   });
+
+  // ✅ deny manda siempre; bypass allow-list para AprobacionDocs si canSeeAprobacionDocs=true
+  function isAllowedRouteName(name) {
+    const n = String(name || "");
+    if (!n) return false;
+
+    if (n === "GenerarCotizacion" && isTallerCMUser.value) return false;
+
+    // 1) deny manda siempre
+    if (deniedSet.value.has(n)) return false;
+
+    // 2) bypass allow para Facturas
+    if (n === "AprobacionDocs" && canSeeAprobacionDocs.value) return true;
+
+    // 3) allow-list normal
+    const hasAllow = (menuPerms.value.allow || []).length > 0;
+    if (hasAllow && !allowedSet.value.has(n)) return false;
+
+    return true;
+  }
+
+  function filterMenuByPerms(menuArr) {
+    const filtered = (menuArr || []).filter((it) => {
+      if (it === null) return true;
+      return isAllowedRouteName(it.name);
+    });
+    return compactMenu(filtered);
+  }
 
   const existsByName = (arr, name) => arr.some((it) => it && it.name === name);
   const pushIfMissing = (arr, item) => {
@@ -151,6 +174,7 @@ export function useRoleMenus() {
 
   const empresaMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
+
     if (isCargadorDoc.value) {
       return filterMenuByPerms([
         { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
@@ -192,9 +216,11 @@ export function useRoleMenus() {
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
       ];
     }
+
     if (canSeeAprobacionOC.value) {
       pushIfMissing(base, { name: "AprobacionOC", text: "Aprobador Cotización", icon: "bi-patch-check" });
     }
+
     if (canSeeGenerarCotizacionEmpresa.value) {
       pushIfMissing(base, {
         name: "GenerarCotizacion",
@@ -203,6 +229,7 @@ export function useRoleMenus() {
       });
     }
 
+    // ✅ Facturas SOLO una vez (en EMPRESA)
     if (canSeeAprobacionDocs.value) {
       pushIfMissing(base, {
         name: "AprobacionDocs",
@@ -213,6 +240,7 @@ export function useRoleMenus() {
 
     return filterMenuByPerms(base);
   });
+
   const tallerMenu = computed(() => {
     if (!auth?.isAuthenticated) return [];
     if (isCargadorDoc.value) return [];
@@ -254,8 +282,13 @@ export function useRoleMenus() {
         { name: "AiInspectorView", text: "Chatbot", icon: "bi bi-robot" },
       ];
     }
+
     if (canSeeAprobacionOCTaller.value) {
-      pushIfMissing(base, { name: "AprobacionOCTaller", text: "Aprobador Cotización (Taller)", icon: "bi-patch-check" });
+      pushIfMissing(base, {
+        name: "AprobacionOCTaller",
+        text: "Aprobador Cotización (Taller)",
+        icon: "bi-patch-check",
+      });
     }
 
     if (isJuanCubillos.value) {
@@ -266,13 +299,8 @@ export function useRoleMenus() {
       });
     }
 
-    if (canSeeAprobacionDocs.value && !isAdmin.value) {
-      pushIfMissing(base, {
-        name: "AprobacionDocs",
-        text: "Aprobador de Facturas",
-        icon: "bi bi-clipboard2-check",
-      });
-    }
+    // ✅ IMPORTANTE: NO agregamos AprobacionDocs en TALLER
+    // (así no se duplica el item para Juan ni para nadie)
 
     return filterMenuByPerms(base);
   });
