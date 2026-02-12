@@ -743,13 +743,9 @@ function mapRow(raw:any){
   const tipo_equipo     = toStr(get('Tipo de equipo', ['Tipo equipo','Tipo']));
   const numero_chasis   = toStr(get('NUMERO DE CHASIS', ['N° Chasis','N CHASIS','Numero chasis']));
   const localizacion    = toStr(get('Localización', ['Localizacion','Ubicacion']));
-
-  // ✅ numero interno (tu Excel viene como "numero interno" a veces)
   const numero_interno  = toStr(get('NUMERO INTERNO', [
     'numero interno','Numero interno','N° Interno','N Interno','Interno','NUMERO_INTERNO','NUMERO  INTERNO'
   ]));
-
-  // ✅ numero de motor (tu Excel viene como "NUMERO DE MOTOR")
   const numero_motor    = toStr(get('NUMERO DE MOTOR', [
     'Numero de motor','numero de motor','NUMERO MOTOR','Numero motor','N° Motor','N Motor','MOTOR'
   ]));

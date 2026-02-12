@@ -91,6 +91,12 @@ export function useRoleMenus() {
     return roleKey.value === "cargadordoc" || roleKey.value === "cargador_doc";
   });
 
+  // ✅ NUEVO: permiso central para ver Recepción OC
+  // (incluye editor como pediste)
+  const canSeeRecepcionOC = computed(() => {
+    return isAdmin.value || isRecepcion.value || isEditor.value;
+  });
+
   const canSeeGenerarCotizacion = computed(() => {
     if (isTallerCMUser.value) return false;
     return (
@@ -127,7 +133,7 @@ export function useRoleMenus() {
     return isAdmin.value || isGuillermo.value || isAprobadorEditor.value || isMariaJoseBallesteros.value;
   });
 
-  // ✅ deny manda siempre; bypass allow-list para AprobacionDocs si canSeeAprobacionDocs=true
+  // ✅ deny manda siempre; bypass allow-list para items "especiales"
   function isAllowedRouteName(name) {
     const n = String(name || "");
     if (!n) return false;
@@ -139,6 +145,9 @@ export function useRoleMenus() {
 
     // 2) bypass allow para Facturas
     if (n === "AprobacionDocs" && canSeeAprobacionDocs.value) return true;
+
+    // ✅ NUEVO: bypass allow para Recepción OC (si editor/admin/recepcion)
+    if (n === "RecepcionOC" && canSeeRecepcionOC.value) return true;
 
     // 3) allow-list normal
     const hasAllow = (menuPerms.value.allow || []).length > 0;
@@ -207,6 +216,8 @@ export function useRoleMenus() {
       base = [
         { name: "GeneradorOC", text: "Generador Cotización", icon: "bi-cart-plus" },
         { name: "historial-oc", text: "Historial Cotizaciones", icon: "bi-journal-text" },
+        // ✅ NUEVO: Recepción OC visible para editor
+        { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
       ];
     } else if (isAprobadorEditor.value) {
@@ -236,6 +247,11 @@ export function useRoleMenus() {
         text: "Aprobador de Facturas",
         icon: "bi bi-clipboard2-check",
       });
+    }
+
+    // ✅ NUEVO: Si editor/admin/recepcion, asegúrate que aparezca aunque no haya caído en el base
+    if (canSeeRecepcionOC.value) {
+      pushIfMissing(base, { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" });
     }
 
     return filterMenuByPerms(base);
@@ -299,8 +315,7 @@ export function useRoleMenus() {
       });
     }
 
-    // ✅ IMPORTANTE: NO agregamos AprobacionDocs en TALLER
-    // (así no se duplica el item para Juan ni para nadie)
+    // ✅ IMPORTANTE: NO agregamos AprobacionDocs en TALLER (como ya lo tenías)
 
     return filterMenuByPerms(base);
   });
@@ -339,5 +354,6 @@ export function useRoleMenus() {
     tallerMenu,
     adminMenu,
     recepcionMenu,
+    canSeeRecepcionOC,
   };
 }
