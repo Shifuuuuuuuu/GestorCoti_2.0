@@ -18,8 +18,6 @@
           Historial
         </router-link>
       </div>
-
-      <!-- Banner de conexión / consentimiento -->
       <div class="row g-2 align-items-center mb-3">
         <div class="col-12" v-if="!isOnline">
           <div class="alert alert-warning d-flex align-items-center mb-0">
@@ -55,12 +53,11 @@
         </div>
       </div>
 
-      <!-- ALERTA GLOBAL -->
+
       <div v-if="error" class="alert alert-danger d-flex align-items-center" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i><div>{{ error }}</div>
       </div>
 
-      <!-- ================== DATOS GENERALES ================== -->
       <div class="card card-squared mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
           <div>
@@ -91,7 +88,6 @@
               <input type="date" class="form-control" v-model="solpe.fecha" readonly>
             </div>
 
-            <!-- ✅ Nombre solicitante (autocomplete cerrado) -->
             <div class="col-12 position-relative">
               <label class="form-label">Nombre del solicitante <span class="text-danger">*</span></label>
 
@@ -117,7 +113,6 @@
                 />
               </div>
 
-              <!-- Dropdown sugerencias -->
               <div
                 v-if="solicitanteSuggestOpen && (solicitanteFiltrados.length || !solpe.nombre_solicitante.trim())"
                 class="suggest-box suggest-box--below"
@@ -158,8 +153,6 @@
                   </li>
                 </ul>
               </div>
-
-              <!-- Mensajes de error -->
               <div v-if="nombreInvalido" class="invalid-feedback d-block">
                 El nombre del solicitante no puede ser igual al usuario de sesión (“{{ nombreSesion }}”).
               </div>
@@ -177,7 +170,6 @@
               </div>
             </div>
 
-            <!-- Centro de costo -->
             <div class="col-12">
               <label class="form-label">Patente o N° interno (Centro de costo) <span class="text-danger">*</span></label>
               <input
@@ -193,7 +185,6 @@
               </div>
             </div>
 
-            <!-- Tipo de SOLPED (select) -->
             <div class="col-12">
               <label class="form-label">Tipo de SOLPED</label>
               <select class="form-select" v-model="solpe.tipo_solped" @change="triggerAutoSave()">
@@ -202,9 +193,6 @@
                 <option value="HERRAMIENTAS">Herramientas</option>
               </select>
             </div>
-
-            <!-- ✅ Cotizadores NO se muestran en HTML.
-                 Se cargan y sincronizan desde Firestore internamente (solpe.cotizadores). -->
           </div>
 
           <div class="mt-3">
@@ -213,8 +201,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ================== ÍTEMS ================== -->
       <div class="card card-squared">
         <div class="card-header d-flex justify-content-between align-items-center">
           <div>
@@ -286,8 +272,6 @@
                           @keydown="onDescKeydown($event, i)"
                         ></textarea>
                       </div>
-
-                      <!-- Sugerencias (arriba + teclado) -->
                       <div
                         v-if="item.editando && suggestOpenIndex===i && (catalogLoading || suggestions(i).length)"
                         class="suggest-box suggest-box--fixed"
@@ -425,8 +409,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'"></i>
@@ -435,8 +417,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Overlay global de envío -->
     <div v-if="enviandoSolpe" class="overlay">
       <div class="spinner-border" role="status" aria-hidden="true"></div>
       <div class="mt-2">Enviando SOLPED…</div>
@@ -474,47 +454,34 @@ export default {
 
     const error = ref("");
     const isOnline = ref(navigator.onLine);
-
-    // ======= Estado principal =======
     const solpe = reactive({
       numero_solpe: null,
       fecha: "",
-      empresa: "Xtreme Servicio", // ✅ fijo
+      empresa: "Xtreme Servicio",
       nombre_solicitante: "",
-      cotizadores: [], // ✅ se llena SOLO desde Firestore (no editable)
+      cotizadores: [],
       tipo_solped: "REPUESTOS",
       centro_costo: "",
       items: [],
       estatus: "Pendiente",
     });
-
-    // ======= Cotizadores (lógica interna, sin UI) =======
-    const cotizadoresEmpresa = ref([]); // se mantiene para lógica/sync (no se muestra)
+    const cotizadoresEmpresa = ref([]);
     const loadingCotizadores = ref(false);
     let unsubCotizadores = null;
-
-    // Sesión / validaciones
     const nombreSesion = ref(null);
     const nombreInvalido = ref(false);
     const enviandoSolpe = ref(false);
     const intentadoGuardar = ref(false);
-
-    // Subida/Eliminación de imagen
     const fileInputs = reactive([]);
     const subiendoImagen = ref(-1);
     const deletingImagen = ref(-1);
     const dragOverIndex = ref(-1);
-
-    // Consentimiento guardado local
     const LS_LOCAL_CONSENT = "solped_taller_local_consent";
     const localConsent = ref(true);
-
-    // Draft local
     const DRAFT_KEY = "solped_taller_draft_v1";
     const JUST_SENT_KEY = "solped_taller_just_sent";
     const IMPORT_KEY = "solped_taller_import";
     let saveTimer = null;
-
     const hasMeaningfulState = (s) => {
       const nombreOk = !!(s.nombre_solicitante || "").trim();
       const ccOk = !!(s.centro_costo || "").trim();
@@ -529,28 +496,19 @@ export default {
       });
       return nombreOk || ccOk || itemsConContenido;
     };
-
-    // ======================
-    // Catálogo (predicciones)
-    // ======================
     const catalog = ref([]);
     const catalogLoading = ref(false);
     const suggestOpenIndex = ref(-1);
     const suggestActivePos = ref(0);
     let suggestHideTimer = null;
     const suggestHovering = ref(false);
-
-    // Límite de sugerencias
     const SUGGEST_LIMIT = 100;
-
-    // Refs para posicionar el popover (evitar recorte dentro de tablas/scroll)
-    const descInputEls = ref([]); // refs a <textarea> descripción por fila
+    const descInputEls = ref([]);
     const focusedDescIndex = ref(-1);
-
     const suggestPos = reactive({
       left: 0,
       width: 0,
-      bottom: 0,      // distancia desde el borde inferior del viewport (para abrir hacia arriba)
+      bottom: 0,
       maxHeight: 260,
     });
 
@@ -565,10 +523,8 @@ export default {
 
       const rect = el.getBoundingClientRect();
       const gap = 8;
-
-      // Popover hacia ARRIBA: lo “anclamos” al borde superior del input usando bottom.
       const bottom = Math.max(8, window.innerHeight - rect.top + gap);
-      const maxHeight = Math.max(180, Math.min(520, rect.top - 12)); // aprovecha espacio disponible arriba
+      const maxHeight = Math.max(180, Math.min(520, rect.top - 12));
 
       suggestPos.left = Math.round(rect.left);
       suggestPos.width = Math.round(rect.width);
@@ -596,7 +552,7 @@ export default {
       const el = descInputEls.value?.[i];
       if (!el) return;
       el.style.height = "auto";
-      const max = 140; // px
+      const max = 140;
       el.style.height = Math.min(el.scrollHeight, max) + "px";
     };
 
@@ -630,7 +586,6 @@ export default {
       await updateSuggestPos(i);
     };
 
-    // Toasts
     const toasts = ref([]);
     const addToast = (type, text, timeout = 2400) => {
       const id = Date.now() + Math.random();
@@ -640,8 +595,6 @@ export default {
     const closeToast = (id) => {
       toasts.value = toasts.value.filter((t) => t.id !== id);
     };
-
-    // ============ Util =============
     const formatDate = (d) => {
       const y = d.getFullYear();
       const m = (d.getMonth() + 1).toString().padStart(2, "0");
@@ -663,8 +616,6 @@ export default {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
-
-    // Resalta coincidencia (cualquier posición, no solo prefijo)
     const renderSuggestMatch = (typed, full) => {
       const t = String(typed || "").trim();
       const f = String(full || "");
@@ -682,27 +633,13 @@ export default {
       }
       return escapeHtml(f);
     };
-
-    // ===============
-    // Matching “mejor”
-    // ===============
     const scoreMatch = (termNorm, textNorm) => {
       if (!termNorm || !textNorm) return 0;
-
-      // exacto
       if (termNorm === textNorm) return 1000;
-
-      // empieza por
       if (textNorm.startsWith(termNorm)) return 900;
-
-      // palabra empieza por (ej: "FILTRO AIRE" si term "AIR")
       const words = textNorm.split(/\s+/g).filter(Boolean);
       if (words.some((w) => w.startsWith(termNorm))) return 800;
-
-      // contiene
       if (textNorm.includes(termNorm)) return 650;
-
-      // contiene por tokens (todas las palabras del término aparecen)
       const tks = termNorm.split(/\s+/g).filter(Boolean);
       if (tks.length > 1) {
         let ok = 0;
@@ -716,9 +653,6 @@ export default {
       return 0;
     };
 
-    // ======================
-    // ✅ Solicitantes (lista cerrada + buscador)
-    // ======================
     const SOLICITANTES = Object.freeze([
       "SERGIO TAPIA",
       "ALEXIS MELLA",
@@ -853,7 +787,6 @@ export default {
       }
     };
 
-    // ====== Online / Offline listeners ======
     const onOnline = () => {
       isOnline.value = true;
       addToast("success", "Conexión restaurada.");
@@ -863,7 +796,6 @@ export default {
       addToast("danger", "Sin conexión. Tus cambios quedan locales.");
     };
 
-    // ====== Consentimiento local ======
     const persistLocalConsent = () => {
       try {
         localStorage.setItem(LS_LOCAL_CONSENT, localConsent.value ? "1" : "0");
@@ -877,8 +809,6 @@ export default {
         triggerAutoSave();
       }
     };
-
-    // ====== Autosave ======
     const triggerAutoSave = () => {
       if (!localConsent.value) return;
       clearTimeout(saveTimer);
@@ -903,8 +833,8 @@ export default {
             data: JSON.parse(JSON.stringify(solpe)),
           })
         );
-      } catch {
-        /* ignore */
+      } catch(e) {
+        console.log(e)
       }
     };
 
@@ -942,8 +872,7 @@ export default {
         });
 
         addToast("success", "Borrador restaurado.");
-      } catch {
-        /* ignore */
+      } catch(e) {console.log(e)
       }
     };
 
@@ -974,7 +903,6 @@ export default {
           fecha: hoy,
           empresa: "Xtreme Servicio",
           nombre_solicitante: sanitizeUpper(imp.nombre_solicitante || ""),
-          // cotizadores NO se tocan aquí: los setea la suscripción
           tipo_solped: imp.tipo_solped || "REPUESTOS",
           centro_costo: sanitizeUpper(imp.centro_costo || ""),
           items: (Array.isArray(imp.items) ? imp.items : []).map((it, idx) => ({
@@ -1004,14 +932,11 @@ export default {
         return false;
       }
     };
-
-    // ======= KPIs / validaciones =======
     const faltantesGenerales = computed(() => {
       let f = 0;
       if (!(solpe.nombre_solicitante || "").trim()) f++;
-      if (nombreNoEnLista.value) f++; // ✅ NUEVO: debe ser de lista
+      if (nombreNoEnLista.value) f++;
       if (!(solpe.centro_costo || "").trim()) f++;
-      // ✅ obligatorio (aunque no se muestre)
       if (!Array.isArray(solpe.cotizadores) || solpe.cotizadores.length === 0) f++;
       if (nombreInvalido.value) f++;
       return f;
@@ -1032,7 +957,6 @@ export default {
       return !(it.descripcion || "").trim() || !(Number(it.cantidad) > 0);
     };
 
-    // ======= Nombre solicitante =======
     const onNombreSolicitanteChange = () => {
       solpe.nombre_solicitante = upper(solpe.nombre_solicitante);
       const solicitante = (solpe.nombre_solicitante || "").trim();
@@ -1041,7 +965,6 @@ export default {
       triggerAutoSave();
     };
 
-    // ======= Ítems =======
     const agregarFila = () => {
       const nextId = solpe.items.length ? solpe.items[solpe.items.length - 1].id + 1 : 1;
       solpe.items.push({
@@ -1166,8 +1089,6 @@ export default {
         triggerAutoSave();
       }
     };
-
-    // ======= Correlativo =======
     const obtenerSiguienteNumeroDesdeColeccion = async () => {
       try {
         const counterRef = doc(db, "solped_counters", "solped_taller");
@@ -1207,8 +1128,6 @@ export default {
         return 0;
       }
     };
-
-    // ======= Catálogo =======
     const loadCatalog = async () => {
       catalogLoading.value = true;
       try {
@@ -1221,20 +1140,15 @@ export default {
         catalogLoading.value = false;
       }
     };
-
-    // ✅ Mejor sugeridor + límite
     const suggestions = (i) => {
       const typed = solpe.items[i]?.descripcion || "";
       const term = normalize(typed);
 
       const list = catalog.value || [];
-
-      // Si escriben poco, mostrar “top usados”
       if (!term || term.length < 2) {
         return list.slice(0, SUGGEST_LIMIT);
       }
 
-      // Scoring + orden
       const scored = [];
       for (const it of list) {
         const base = it.descripcion_upper || it.descripcion_raw || "";
@@ -1247,7 +1161,6 @@ export default {
 
       scored.sort((a, b) => {
         if (b.sc !== a.sc) return b.sc - a.sc;
-        // desempate: usage_count desc
         const bu = Number(b.it.usage_count || 0);
         const au = Number(a.it.usage_count || 0);
         if (bu !== au) return bu - au;
@@ -1278,8 +1191,6 @@ export default {
 
     const applySuggestion = (i, s) => {
       solpe.items[i].descripcion = upper(s.descripcion_raw || s.descripcion_upper || "");
-
-      // Código: si la sugerencia trae código, reemplaza; si no, mantiene lo escrito
       if (s.codigo_referencial) {
         solpe.items[i].codigo_referencial = upper(s.codigo_referencial);
       }
@@ -1289,8 +1200,6 @@ export default {
       triggerAutoSave();
       autoAgregarSiUltimoCompleto(i);
     };
-
-    // ✅ KEYDOWN: Enter aplica / Tab NO aplica (solo navega)
     const onDescKeydown = (ev, i) => {
       const isOpen = (solpe.items[i]?.editando && suggestOpenIndex.value === i);
       if (!isOpen) return;
@@ -1317,10 +1226,8 @@ export default {
         suggestActivePos.value = Math.max(0, (suggestActivePos.value || 0) - 1);
         return;
       }
-
-      // ✅ Enter: selecciona sugerencia (si existe). Si no hay sugerencias, evita salto de línea y permite tu flujo normal.
       if (ev.key === "Enter") {
-        ev.preventDefault(); // evita newline en textarea
+        ev.preventDefault();
         if (hasList) {
           const chosen = list[suggestActivePos.value || 0];
           if (chosen) applySuggestion(i, chosen);
@@ -1329,10 +1236,7 @@ export default {
         }
         return;
       }
-
-      // ✅ Tab: NO seleccionar. Solo cerrar dropdown y dejar que el navegador cambie de campo.
       if (ev.key === "Tab") {
-        // NO preventDefault
         suggestOpenIndex.value = -1;
         return;
       }
@@ -1371,7 +1275,6 @@ export default {
       }
     };
 
-    // ======= ✅ Cotizadores desde configuración (SIN UI, NO editable) =======
     const keyifyEmpresa = (empresaNombre) => {
       const n = normalize(empresaNombre).toLowerCase();
       if (n.includes("xtreme") && (n.includes("servicio") || n.includes("servicios"))) return "xtreme_servicio";
@@ -1464,7 +1367,6 @@ export default {
       );
     };
 
-    // ======= Guardar =======
     const guardarSolpe = async () => {
       if (enviandoSolpe.value) return;
       intentadoGuardar.value = true;
@@ -1474,7 +1376,7 @@ export default {
       const sesion = upper((nombreSesion.value || "").trim());
 
       if (!solicitante) missing.push("Nombre del solicitante");
-      if (nombreNoEnLista.value) missing.push("Nombre del solicitante (debe ser de la lista)"); // ✅ NUEVO
+      if (nombreNoEnLista.value) missing.push("Nombre del solicitante (debe ser de la lista)");
       if (!(solpe.centro_costo || "").trim()) missing.push("Patente o N° interno (Centro de costo)");
       if (!Array.isArray(solpe.cotizadores) || solpe.cotizadores.length === 0) missing.push("Cotizadores (config)");
 
@@ -1567,7 +1469,6 @@ export default {
       triggerAutoSave();
     };
 
-    // ======= Sesión =======
     const loadSesionName = async () => {
       try {
         const uid = auth?.user?.uid;
@@ -1582,7 +1483,6 @@ export default {
       }
     };
 
-    // ======= Init =======
     onMounted(async () => {
       window.addEventListener("online", onOnline);
       window.addEventListener("offline", onOffline);
@@ -1634,12 +1534,11 @@ export default {
     });
 
     return {
-      // estado
       solpe,
       error,
       nombreSesion,
       nombreInvalido,
-      nombreNoEnLista, // ✅ NUEVO
+      nombreNoEnLista,
       enviandoSolpe,
       intentadoGuardar,
       isOnline,
@@ -1648,8 +1547,6 @@ export default {
       deletingImagen,
       dragOverIndex,
       localConsent,
-
-      // solicitante autocomplete ✅ NUEVO
       solicitanteInputEl,
       solicitanteSuggestOpen,
       solicitanteActivePos,
@@ -1660,12 +1557,8 @@ export default {
       selectSolicitante,
       onSolicitanteInput,
       onSolicitanteKeydown,
-
-      // kpis
       faltantesGenerales,
       itemsIncompletos,
-
-      // catálogo/sugerencias
       catalog,
       catalogLoading,
       suggestions,
@@ -1674,26 +1567,18 @@ export default {
       showSuggestFor,
       hideSuggestSoon,
       applySuggestion,
-
-      // sugerencias UX
       suggestActivePos,
       onDescKeydown,
       renderSuggestMatch,
-
-      // popover fijo + textarea autosize
       suggestFixedStyle,
       setDescInputRef,
       focusedDescIndex,
       onDescInput,
       onDescFocus,
       onDescBlur,
-
-      // toasts
       toasts,
       addToast,
       closeToast,
-
-      // fns
       onNombreSolicitanteChange,
       triggerAutoSave,
       persistLocalConsent,
@@ -1721,7 +1606,6 @@ export default {
 <style scoped>
 .solped-taller-page{ min-height:100vh; }
 
-/* ===== UI más "redondeada" (menos cuadrada) ===== */
 :deep(.form-control),
 :deep(.form-select),
 :deep(.btn),
@@ -1796,7 +1680,6 @@ export default {
   overflow: hidden;
 }
 
-/* ✅ Dropdown solicitante hacia ABAJO */
 .suggest-box--below{
   top: calc(100% + 6px) !important;
   bottom: auto !important;
@@ -1909,8 +1792,6 @@ export default {
 .input-with-icon > textarea:focus{
   color: #0f172a !important;
 }
-
-/* ✅ para el input del solicitante (mismo look) */
 .input-with-icon > input{
   padding-left: 44px;
   min-height: 46px;
@@ -1924,8 +1805,6 @@ export default {
 .desc-input.is-expanded{
   font-size: 1.12rem;
 }
-
-/* Dark mode */
 :global(html.theme-dark) .suggest-box{
   background: rgba(17,24,39,.98);
   border-color: rgba(255,255,255,.08);

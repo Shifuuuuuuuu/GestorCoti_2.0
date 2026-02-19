@@ -36,7 +36,6 @@
     </div>
 
     <div class="row g-3">
-      <!-- FORM -->
       <div class="col-12 col-lg-5 no-print">
         <div class="card shadow-sm border-0">
           <div class="card-body">
@@ -48,8 +47,6 @@
             </div>
 
             <hr class="my-3" />
-
-            <!-- Tipo + Numero auto + Unidad -->
             <div class="row g-2">
               <div class="col-12">
                 <label class="form-label">Tipo de certificado</label>
@@ -58,8 +55,6 @@
                   <option value="OPERATIVIDAD">OPERATIVIDAD</option>
                 </select>
               </div>
-
-              <!-- Unidad -->
               <div class="col-12">
                 <label class="form-label">Unidad de lectura</label>
                 <select v-model="form.unidadLectura" class="form-select">
@@ -136,8 +131,6 @@
                 <span class="spinner-border spinner-border-sm me-2"></span> Cargando equipos…
               </div>
             </div>
-
-            <!-- Equipo seleccionado -->
             <div v-if="selectedEquipo" class="alert alert-light border small mb-3">
               <div class="fw-semibold">Equipo seleccionado</div>
               <div class="text-muted">
@@ -149,8 +142,6 @@
             </div>
 
             <hr class="my-3" />
-
-            <!-- CAMPOS SEGÚN TIPO -->
             <div v-if="form.tipo === 'MANTENCION'">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-semibold">Datos Mantención</div>
@@ -230,8 +221,6 @@
           </div>
         </div>
       </div>
-
-      <!-- PREVIEW -->
       <div class="col-12 col-lg-7">
         <div class="card shadow-sm border-0">
           <div class="card-body">
@@ -362,10 +351,6 @@
         </div>
       </div>
     </div>
-
-    <!-- =========================
-         MODAL HISTORIAL
-         ========================= -->
     <div class="modal fade" tabindex="-1" ref="histModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -471,10 +456,6 @@
         </div>
       </div>
     </div>
-
-    <!-- =========================
-         MODAL CONFIRMAR ELIMINACIÓN
-         ========================= -->
     <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">

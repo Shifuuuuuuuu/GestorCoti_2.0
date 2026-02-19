@@ -1,8 +1,6 @@
 <!-- src/views/RecepcionOC.vue -->
 <template>
   <div class="container-fluid py-3">
-
-    <!-- Busy overlay -->
     <div v-if="busy.on" class="busy-overlay">
       <div class="busy-card shadow">
         <div class="d-flex align-items-center gap-3">
@@ -14,8 +12,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Header -->
     <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
       <div>
         <h4 class="mb-0">Recepción OC Casa Matriz</h4>
@@ -42,8 +38,6 @@
         <select v-model.number="pageSize" class="form-select form-select-sm" style="width: 120px" title="Cantidad">
           <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
         </select>
-
-        <!-- ✅ filtro recepcionables -->
         <div class="form-check form-switch ms-1" title="Mostrar solo OCs recepcionables (SOLPED cotizada completa)">
           <input class="form-check-input" type="checkbox" id="onlyRecep" v-model="onlyRecepcionables">
           <label class="form-check-label small text-muted" for="onlyRecep">Solo recepcionables</label>
@@ -54,10 +48,7 @@
         </button>
       </div>
     </div>
-
-    <!-- Content -->
     <div class="row g-3">
-      <!-- Lista -->
       <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
@@ -68,8 +59,6 @@
                 Buscando (servidor)
               </span>
             </div>
-
-            <!-- Buscador -->
             <div class="d-flex align-items-center gap-2" style="min-width: 220px; max-width: 360px; width: 100%;">
               <div class="input-group input-group-sm">
                 <span class="input-group-text">
@@ -138,8 +127,6 @@
                         <span class="badge text-bg-primary">OC {{ ocNumero(o) }}</span>
                         <span class="badge text-bg-secondary" v-if="o.empresa">{{ o.empresa }}</span>
                         <span class="badge text-bg-dark">{{ (o.estatus||'').toString() }}</span>
-
-                        <!-- ✅ badges SOLPED -->
                         <span v-if="o._solpedInfo?.exists" class="badge"
                               :class="o._solpedInfo?.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'">
                           {{ o._solpedInfo?.estatus || 'SOLPED' }}
@@ -167,7 +154,6 @@
                         SOLPED: {{ o.numero_solped || o.numero_solpe }}
                       </small>
 
-                      <!-- ✅ faltante -->
                       <small v-if="o._solpedInfo?.exists && !o._solpedInfo?.isOk" class="text-danger d-block">
                         Falta por cotizar: <b>{{ o._solpedInfo?.faltantesTotal || 0 }}</b> unidad(es)
                       </small>
@@ -184,8 +170,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Detalle -->
       <div class="col-12 col-lg-8">
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -196,8 +180,6 @@
 
               <span v-if="currentOc?.solpedId" class="badge text-bg-secondary">Con SOLPED</span>
               <span v-else-if="currentOc" class="badge text-bg-warning text-dark">Sin SOLPED</span>
-
-              <!-- ✅ badge ok -->
               <span v-if="currentOc?._solpedInfo?.exists"
                     class="badge"
                     :class="currentOc._solpedInfo.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'">
@@ -234,7 +216,6 @@
             </div>
 
             <template v-else>
-              <!-- ✅ ALERTA si falta cotizar -->
               <div v-if="currentOc?._solpedInfo?.exists && !currentOc._solpedInfo.isOk" class="alert alert-warning">
                 <div class="fw-semibold">Esta SOLPED aún no está cotizada completa.</div>
                 <div class="small">
@@ -247,7 +228,6 @@
                 </div>
               </div>
 
-              <!-- Bloque info -->
               <div class="row g-2">
                 <div class="col-12 col-xl-6">
                   <div class="border rounded p-3 bg-light-subtle">
@@ -327,8 +307,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Tabla ítems -->
               <div v-if="itemsUI.length>0" class="mt-3">
                 <div class="table-responsive">
                   <table class="table table-sm align-middle">
@@ -432,40 +410,33 @@ const actorName = computed(
     "usuario"
 );
 
-// ===== Estados OC =====
 const ESTADO_ENVIADA = "Enviada a proveedor";
 const ESTADO_PARTIAL = "Recepcion parcial en casa matriz";
 const ESTADO_OK      = "Recepcion completa en casa matriz";
 
-// ✅ Estados SOLPED válidos para recepcionar
 const SOLPED_OK_ESTATUS = new Set([
   "Cotizado Completo",
   "Cotizado Completado",
   "Completado",
 ]);
 
-// Colecciones OC
 const COL_EMPRESA = "ordenes_oc";
 const COL_TALLER  = "ordenes_oc_taller";
 
-// Colecciones SOLPED
 const SOLPED_EMPRESA = "solpes";
 const SOLPED_TALLER  = "solped_taller";
 
-// Opciones UI
 const statusOptions = [ESTADO_ENVIADA, ESTADO_PARTIAL, ESTADO_OK];
 const statusFiltro = ref(ESTADO_ENVIADA);
 
-// ✅ mostrar solo recepcionables
 const onlyRecepcionables = ref(true);
 
-// ===== UI State =====
 const busy = ref({ on: false, label: "", hint: "" });
 function setBusy(on, label = "", hint = "") {
   busy.value = { on, label, hint };
 }
 
-const source = ref("empresa"); // 'empresa' | 'taller'
+const source = ref("empresa");
 const pageSize = ref(20);
 
 const loadingList = ref(false);
@@ -474,26 +445,20 @@ const listTaller = ref([]);
 
 const selectedId = ref("");
 
-// ===== Buscador =====
 const searchOc = ref("");
 const searchInputEl = ref(null);
 
-// ===== Search server =====
 const searchingServer = ref(false);
 const serverEmpresa = ref([]);
 const serverTaller = ref([]);
 
-// Cache de búsqueda
 const SEARCH_CACHE_TTL_MS = 90_000;
 const _searchCache = ref({ key: "", ts: 0, empresa: [], taller: [] });
 
-// límites
 const SEARCH_LIMIT = 120;
 const SCAN_LIMIT = 900;
 
-// ✅ Cache SOLPED meta (por id o por numero)
 const solpedMetaCache = ref(new Map());
-// key -> { exists, estatus, isOk, faltantesTotal, numero_solpe, solpedId }
 
 function normalizeText(s) {
   return String(s || "")
@@ -531,7 +496,6 @@ function onSearchEnter() {
   if (filteredList.value.length === 1) selectOc(filteredList.value[0]);
 }
 
-// ===== Colección actual =====
 const currentCollection = computed(() => (source.value === "empresa" ? COL_EMPRESA : COL_TALLER));
 const currentCollectionLabel = computed(() => (source.value === "empresa" ? "Empresa" : "Taller"));
 
@@ -560,12 +524,10 @@ function ocNumero(o) {
   return (o?.id || "").slice(0, 6);
 }
 
-// ===== SOLPED meta helpers =====
 function solpedKeyFromOc(oc) {
   const solpedId = oc?.solpedId ? String(oc.solpedId) : "";
   const num = oc?.numero_solped ?? oc?.numero_solpe;
   const numKey = (num != null && String(num).trim() !== "") ? String(num).trim() : "";
-  // prioriza id si existe
   if (solpedId) return `id:${solpedId}`;
   if (numKey) return `num:${numKey}`;
   return "";
@@ -593,7 +555,6 @@ async function fetchSolpedMetaForOc(oc, isTaller) {
   let meta = { exists: false, estatus: "", isOk: false, faltantesTotal: 0, numero_solpe: null, solpedId: null };
 
   try {
-    // 1) por solpedId directo
     if (oc?.solpedId) {
       const solRef = doc(db, solpedCol, String(oc.solpedId));
       const snap = await getDoc(solRef);
@@ -611,8 +572,6 @@ async function fetchSolpedMetaForOc(oc, isTaller) {
         };
       }
     }
-
-    // 2) fallback por numero_solpe / numero_solped si no existe por id
     if (!meta.exists) {
       const num = oc?.numero_solped ?? oc?.numero_solpe;
       if (num != null && String(num).trim() !== "") {
@@ -652,15 +611,9 @@ async function fetchSolpedMetaForOc(oc, isTaller) {
 
 async function hydrateSolpedMetaForList(ocs, isTaller) {
   if (!Array.isArray(ocs) || !ocs.length) return;
-
-  // solo los que tengan algo para consultar
   const targets = ocs.filter(o => !!solpedKeyFromOc(o));
   if (!targets.length) return;
-
-  // consulta en paralelo (simple)
   const metas = await Promise.all(targets.map(o => fetchSolpedMetaForOc(o, isTaller)));
-
-  // inyectar meta en cada OC (reactivo: clonar array)
   const mapById = new Map();
   targets.forEach((o, i) => {
     mapById.set(o.id, metas[i]);
@@ -674,14 +627,12 @@ async function hydrateSolpedMetaForList(ocs, isTaller) {
   if (isTaller) listTaller.value = out;
   else listEmpresa.value = out;
 
-  // también server arrays si corresponde
   if (isSearchMode.value) {
     if (isTaller) serverTaller.value = serverTaller.value.map(o => ({ ...o, _solpedInfo: mapById.get(o.id) || o._solpedInfo || null }));
     else serverEmpresa.value = serverEmpresa.value.map(o => ({ ...o, _solpedInfo: mapById.get(o.id) || o._solpedInfo || null }));
   }
 }
 
-// ===== Normalizador doc =====
 function normalizeDocForUI(docSnap) {
   const data = docSnap.data() || {};
   const docId = docSnap.id;
@@ -693,11 +644,10 @@ function normalizeDocForUI(docSnap) {
     __docId: docId,
     idNumero: numericId,
     _fechaText: safeDateText(data.fechaSubida || data.createdAt || data.updatedAt || null),
-    _solpedInfo: null, // se hidrata luego
+    _solpedInfo: null,
   };
 }
 
-// ===== Subscriptions =====
 let unsubEmpresa = null;
 let unsubTaller = null;
 
@@ -730,7 +680,6 @@ function subscribeAll() {
       listEmpresa.value = snap.docs.map(normalizeDocForUI);
       loadingList.value = false;
       autoPickFirstIfMissing();
-      // ✅ hidratar solped meta
       await hydrateSolpedMetaForList(listEmpresa.value, false);
     },
     (e) => {
@@ -745,7 +694,6 @@ function subscribeAll() {
       listTaller.value = snap.docs.map(normalizeDocForUI);
       loadingList.value = false;
       autoPickFirstIfMissing();
-      // ✅ hidratar solped meta
       await hydrateSolpedMetaForList(listTaller.value, true);
     },
     (e) => {
@@ -778,8 +726,6 @@ watch([statusFiltro, pageSize], () => {
   subscribeAll();
   if (isSearchMode.value) runServerSearchDebounced(true);
 });
-
-// ===== Server Search =====
 let _searchTimer = null;
 let _searchToken = 0;
 
@@ -1048,8 +994,6 @@ async function runServerSearch() {
       empresa: emp,
       taller: tal,
     };
-
-    // ✅ hidratar SOLPED meta también en resultados server
     await hydrateSolpedMetaForList(serverEmpresa.value, false);
     await hydrateSolpedMetaForList(serverTaller.value, true);
 
@@ -1086,15 +1030,12 @@ function ensureSelectionValidForCurrentBase() {
 
   nextTick(() => loadRecepcionFromExisting());
 }
-
-// ===== Lista base según source =====
 const baseList = computed(() => {
   const normal = source.value === "empresa" ? listEmpresa.value : listTaller.value;
   const server = source.value === "empresa" ? serverEmpresa.value : serverTaller.value;
   return isSearchMode.value ? server : normal;
 });
 
-// ✅ aplica filtro solo recepcionables
 const filteredList = computed(() => {
   const qn = normalizeText(searchOc.value);
   let arr = baseList.value;
@@ -1104,7 +1045,6 @@ const filteredList = computed(() => {
   if (onlyRecepcionables.value) {
     arr = arr.filter(o => {
       const inf = o?._solpedInfo;
-      // si no hay solped -> no recepcionable
       if (!inf || !inf.exists) return false;
       return !!inf.isOk;
     });
@@ -1120,7 +1060,6 @@ function selectOc(o) {
   loadRecepcionFromExisting();
 }
 
-// ===== Items / Recepción =====
 const recepcionQty = ref({});
 const qtyRefs = ref(new Map());
 
@@ -1234,7 +1173,6 @@ function advanceQty(currentKey) {
   }
 }
 
-// ===== Recepción previa =====
 function loadRecepcionFromExisting() {
   const oc = currentOc.value;
   if (!oc) return;
@@ -1265,7 +1203,6 @@ watch(
   }
 );
 
-// ===== Contadores / final estatus =====
 function countEstado(st) {
   return itemsUI.value.filter(it => itemEstado(it.key, it.qtyBase) === st).length;
 }
@@ -1276,7 +1213,6 @@ function calcFinalEstatusFromItems() {
   return allComplete ? ESTADO_OK : ESTADO_PARTIAL;
 }
 
-// ✅ SOLO editable/recepcionable si SOLPED ok
 const canEditRecepcion = computed(() => {
   const oc = currentOc.value;
   if (!oc) return false;
@@ -1297,7 +1233,6 @@ const finalizeDisabledReason = computed(() => {
 const canFinalize = computed(() => {
   if (!currentOc.value) return false;
   if (itemsUI.value.length === 0) return false;
-  // ✅ bloqueo por SOLPED
   if (!canEditRecepcion.value) return false;
   return true;
 });
@@ -1332,8 +1267,6 @@ function buildHistorialEntry(estatus, comentario = "") {
     usuario: actorName.value,
   };
 }
-
-// ===== SOLPED trazabilidad =====
 async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   const solpedStatus = (nuevoEstatus === ESTADO_OK)
     ? "Pedido en Casa matriz"
@@ -1386,7 +1319,6 @@ async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   });
 }
 
-// ===== Finalizar recepción =====
 async function finalizeRecepcion() {
   if (!currentOc.value) return;
   if (!canFinalize.value) {
@@ -1429,8 +1361,6 @@ async function finalizeRecepcion() {
     setBusy(false);
   }
 }
-
-// ===== Cambio de estatus solo (cuando no hay items) =====
 const statusOnlyValue = ref(ESTADO_ENVIADA);
 const statusOnlyNota = ref("");
 

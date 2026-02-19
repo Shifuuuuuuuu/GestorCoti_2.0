@@ -7,13 +7,11 @@ firebase.initializeApp({
   apiKey: "AIzaSyDEv3scnjXxzWEZRBjY38SRgi5gCwCAyp0",
   authDomain: "xtremesolped.firebaseapp.com",
   projectId: "xtremesolped",
-  storageBucket: "xtremesolped.appspot.com", // 👈 igual que en .env
+  storageBucket: "xtremesolped.appspot.com",
   messagingSenderId: "731445433885",
   appId: "1:731445433885:web:dcf44a5f24dce64d3518f4",
 });
 const messaging = firebase.messaging();
-
-// takeover para reemplazar SWs viejos
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 

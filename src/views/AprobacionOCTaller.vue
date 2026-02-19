@@ -3,7 +3,6 @@
 <template>
   <div class="aprob-oc-page">
     <div class="container py-4 py-md-5">
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <button class="btn btn-outline-secondary btn-sm order-1" @click="volver">
           <i class="bi bi-arrow-left"></i> Volver
@@ -26,13 +25,9 @@
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
       </div>
-
-      <!-- Rol / filtro activo -->
       <div v-if="!tengoBandeja" class="alert alert-warning">
         No tienes OCs asignadas para aprobar (o el flujo de Xtreme Servicio no está configurado para ti).
       </div>
-
-      <!-- Lista -->
       <div class="card" v-if="tengoBandeja">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="fw-semibold">Órdenes encontradas (Solo Xtreme Servicio)</div>
@@ -51,15 +46,12 @@
 
           <div v-else class="list-group list-group-flush">
             <div v-for="oc in ocs" :key="oc.__docId" class="list-group-item">
-              <!-- Cabecera OC -->
               <div class="row g-3 align-items-start">
                 <div class="col-12 col-lg-9">
                   <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="fw-semibold">OC N° {{ oc.id ?? '—' }}</span>
                     <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ prettyEstatus(oc) }}</span>
                   </div>
-
-                  <!-- Resumen (chips) -->
                   <div class="oc-highlight mt-2">
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <span class="oc-pill" title="Centro de costo">
@@ -83,12 +75,11 @@
 
                       <span class="oc-pill oc-pill-total" title="Total con IVA">
                         <i class="bi bi-coin me-1"></i>
-                        <strong>Total:</strong> {{ (oc.precioTotalConIVA ?? 0).toLocaleString('es-CL') }}
+                        <strong>Total:</strong> {{ formatMoneyCL(ocMonto(oc)) }}
                       </span>
                     </div>
                   </div>
 
-                  <!-- Compacto -->
                   <div class="text-body-secondary small mt-1 break-any">
                     <strong>Responsable:</strong> {{ oc.responsable || '—' }} ·
                     <strong>Subida:</strong> {{ fmtFecha(oc.fechaSubida) }}
@@ -98,8 +89,6 @@
                     <em>“{{ oc.comentario }}”</em>
                   </div>
                 </div>
-
-                <!-- Acciones -->
                 <div class="col-12 col-lg-3">
                   <div class="d-grid gap-2 d-lg-flex justify-content-lg-end">
                     <button class="btn btn-primary btn-sm" @click="oc.expandido = !oc.expandido">
@@ -116,11 +105,8 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Detalle -->
               <transition name="fade">
                 <div v-if="oc.expandido" class="mt-3">
-                  <!-- Archivos -->
                   <div v-if="(oc.archivosStorage||[]).length" class="mb-3">
                     <div class="fw-semibold mb-2">📂 Archivos Adjuntos</div>
 
@@ -140,7 +126,6 @@
                       </div>
 
                       <div v-if="a.ver" class="card-body">
-                        <!-- PDF preview -->
                         <div
                           v-if="(a.tipo||'').includes('pdf') || isPdf(a.url)"
                           class="ratio ratio-16x9"
@@ -149,8 +134,6 @@
                         >
                           <iframe :src="a.url" style="border:none;"></iframe>
                         </div>
-
-                        <!-- Imagen -->
                         <div v-else class="text-center">
                           <img
                             :src="a.url"
@@ -163,8 +146,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- Ítems -->
                   <div class="fw-semibold mb-2">📦 Ítems</div>
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
@@ -196,8 +177,6 @@
                       </tbody>
                     </table>
                   </div>
-
-                  <!-- Comentario acción -->
                   <div class="mb-2">
                     <label class="form-label">Comentario (obligatorio)</label>
                     <textarea
@@ -207,8 +186,6 @@
                       placeholder="Explica tu decisión…"
                     ></textarea>
                   </div>
-
-                  <!-- Botones acción -->
                   <div class="d-grid d-md-flex gap-2">
                     <button class="btn btn-success" :disabled="accionando" @click="aprobar(oc)">
                       <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
@@ -221,8 +198,6 @@
                       Rechazar
                     </button>
                   </div>
-
-                  <!-- Historial -->
                   <div class="mt-3">
                     <div class="fw-semibold mb-2">🕓 Historial</div>
                     <ul class="list-unstyled small mb-0">
@@ -240,8 +215,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i
@@ -255,8 +228,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ===== VISOR FULLSCREEN DE ADJUNTOS ===== -->
     <transition name="viewer">
       <div v-if="viewerOpen" class="viewer-wrap" @keydown.esc="closeViewer" tabindex="0">
         <div class="viewer-backdrop" @click="closeOnBackdrop && closeViewer()"></div>
@@ -305,7 +276,6 @@
         </div>
       </div>
     </transition>
-    <!-- ===== FIN VISOR ===== -->
   </div>
 </template>
 
@@ -315,11 +285,89 @@ import { useRouter } from 'vue-router';
 import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, onSnapshot, doc,
-  updateDoc, getDoc, addDoc, serverTimestamp, getDocs
+  updateDoc, getDoc, addDoc, serverTimestamp
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
-/* ===== Empresa (Taller = SOLO SERVICIOS) ===== */
+const parseMoney = (v: any): number => {
+  if (v == null) return 0;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+
+  let s = String(v).trim();
+  if (!s) return 0;
+  let negative = false;
+  if (s.includes('(') && s.includes(')')) {
+    negative = true;
+    s = s.replace(/[()]/g, '');
+  }
+  s = s
+    .replace(/\s+/g, '')
+    .replace(/[A-Za-z$€£¥₩₽₺₫₴₱₦₲₡₵₸₭₮₢₠₣]/g, '');
+  s = s.replace(/[^0-9.,+-]/g, '');
+  s = s.replace(/\+/g, '');
+  if (s.includes('-')) {
+    s = s.replace(/(?!^)-/g, '');
+    if (s.startsWith('-')) negative = true;
+    s = s.replace(/-/g, '');
+  }
+
+  if (!s) return 0;
+
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+  if (lastDot >= 0 && lastComma >= 0) {
+    const decSep = lastDot > lastComma ? '.' : ',';
+    const thouSep = decSep === '.' ? ',' : '.';
+
+    s = s.split(thouSep).join('');
+    s = s.replace(decSep, '.');
+  } else if (lastComma >= 0) {
+    const parts = s.split(',');
+    if (parts.length === 2 && parts[1].length > 0 && parts[1].length <= 2) {
+      s = parts[0].split('.').join('') + '.' + parts[1];
+    } else {
+      s = s.split(',').join('');
+      s = s.split('.').join('');
+    }
+  } else if (lastDot >= 0) {
+    const parts = s.split('.');
+    if (parts.length === 2 && parts[1].length > 0 && parts[1].length <= 2) {
+      s = parts[0].split(',').join('') + '.' + parts[1];
+    } else {
+      s = s.split('.').join('');
+      s = s.split(',').join('');
+    }
+  } else {
+  }
+
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return negative ? -Math.abs(n) : n;
+};
+
+const formatMoneyCL = (n: any) => {
+  const v = Number(n || 0);
+  const safe = Number.isFinite(v) ? v : 0;
+  return Math.round(safe).toLocaleString('es-CL');
+};
+
+const ocMonto = (oc: any): number => {
+  const candidates = [
+    oc?.precioTotalConIVA,
+    oc?.totalConIva,
+    oc?.total_con_iva,
+    oc?.montoTotal,
+    oc?.total,
+    oc?.monto,
+    oc?.precioTotal,
+    oc?.precio_total
+  ];
+  for (const c of candidates) {
+    const n = parseMoney(c);
+    if (Number.isFinite(n) && n !== 0) return n;
+  }
+  return parseMoney(oc?.precioTotalConIVA);
+};
 const normalizeCompany = (raw: any) => {
   const s = String(raw || '')
     .normalize('NFD')
@@ -332,19 +380,21 @@ const normalizeCompany = (raw: any) => {
   return s;
 };
 const isServiciosOnly = (oc: any) => normalizeCompany(oc?.empresa) === 'SERVICIOS';
-
-/* ===== Router + Auth ===== */
+const normStatusKey = (x:any) => String(x || '')
+  .trim()
+  .normalize('NFD')
+  .replace(/\p{Diacritic}/gu, '')
+  .toLowerCase()
+  .replace(/[_-]+/g, ' ')
+  .replace(/\s+/g, ' ');
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
 
-/* ===== Estado base ===== */
 const cargando = ref(true);
 const ocs = ref<any[]>([]);
 const usuarioNombre = ref<string>('');
 let _unsub: any = null;
-
-/* ===== UI: toasts ===== */
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) => {
   const id = Date.now()+Math.random();
@@ -352,8 +402,6 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
   setTimeout(()=>closeToast(id), timeout);
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
-
-/* ===== Visor fullscreen ===== */
 const isXs = window.matchMedia('(max-width: 576px)').matches;
 const viewerOpen = ref(false);
 const viewerItem = ref<{url:string,tipo?:string,nombre?:string}|null>(null);
@@ -379,8 +427,6 @@ const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(
 const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
 watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
-
-/* ===== Badges / util ===== */
 const estadoBadgeClass = (estatus: string) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -406,22 +452,13 @@ const fmtFecha = (f:any) => {
     return d.toLocaleString('es-CL', { dateStyle:'short', timeStyle:'short' });
   } catch { return '—'; }
 };
-
-/* =========================
-   ✅ Helpers de modelo simple
-   - aprobado = sum(cotPorOC)
-   - reservado = sum(pendienteRevisionPorOC)
-   - cantidad_cotizada = aprobado
-   ========================= */
 const sumMapNumbers = (obj: Record<string, unknown> | null | undefined): number => {
   if (!obj || typeof obj !== "object") return 0;
-
   return Object.values(obj).reduce<number>((acc, v) => {
     const n = typeof v === "number" ? v : Number(v || 0);
     return acc + (Number.isFinite(n) ? n : 0);
   }, 0);
 };
-
 
 const recomputeSolpedItem = (it:any) => {
   const out = { ...(it || {}) };
@@ -434,10 +471,8 @@ const recomputeSolpedItem = (it:any) => {
   const reservado = Math.min(total, sumMapNumbers(out.pendienteRevisionPorOC));
   const comprometido = Math.min(total, aprobado + reservado);
 
-  // ✅ AHORA cantidad_cotizada refleja lo comprometido
   out.cantidad_cotizada = comprometido;
 
-  // ✅ completado solo si APROBADO cubre total
   if (total > 0 && aprobado >= total) out.estado_cotizacion = 'completado';
   else if (comprometido > 0) out.estado_cotizacion = 'parcial';
   else out.estado_cotizacion = 'pendiente';
@@ -445,7 +480,6 @@ const recomputeSolpedItem = (it:any) => {
   out.estado = out.estado_cotizacion;
   return out;
 };
-
 
 const computeSolpedEstatus = (items:any[]) => {
   const arr = Array.isArray(items) ? items : [];
@@ -487,7 +521,6 @@ const buildMatchers = (itemsSol:any[]) => {
   });
 
   const findIndex = (ocIt:any) => {
-    // ✅ primero por item
     const n = Number(ocIt?.solped_item_no ?? ocIt?.item);
     if (Number.isFinite(n) && idxItemNo.has(n)) return idxItemNo.get(n)!;
 
@@ -505,7 +538,6 @@ const buildMatchers = (itemsSol:any[]) => {
   return { findIndex };
 };
 
-
 const extractOcQty = (ocIt:any) => {
   const raw = Math.max(
     Number(ocIt?.cantidad_solicitada_oc ?? 0),
@@ -515,10 +547,6 @@ const extractOcQty = (ocIt:any) => {
   return Math.max(0, raw);
 };
 
-/* =========================
-   ✅ Sync suave: asegurar reserva en SOLPED para OCs en revisión
-   (idempotente, NO toca cotPorOC)
-   ========================= */
 const ensureReservationForRevisionOC = async (oc:any) => {
   try {
     if (!isServiciosOnly(oc)) return;
@@ -529,6 +557,12 @@ const ensureReservationForRevisionOC = async (oc:any) => {
       est.includes('revisión') ||
       est.includes('revision') ||
       est.includes('preaprob') ||
+      est.includes('pre aprob') ||
+      est.includes('pre-aprob') ||
+      est.includes('preaprobado') ||
+      est.includes('pre aprobado') ||
+      est.includes('pre-aprobado') ||
+      est.includes('preparob') ||
       est.includes('casi') ||
       est.includes('pendiente de aprobacion') ||
       est.includes('pendiente de aprobación');
@@ -562,13 +596,12 @@ const ensureReservationForRevisionOC = async (oc:any) => {
       if (!sIt.pendienteRevisionPorOC || typeof sIt.pendienteRevisionPorOC !== 'object') sIt.pendienteRevisionPorOC = {};
       if (!sIt.cotPorOC || typeof sIt.cotPorOC !== 'object') sIt.cotPorOC = {};
 
-      // no reservas más de lo disponible
       const aprobado = Math.min(total, sumMapNumbers(sIt.cotPorOC));
       const reservadoActual = Math.min(total, sumMapNumbers(sIt.pendienteRevisionPorOC));
       const disponible = Math.max(0, total - aprobado - reservadoActual);
 
       const prev = Number(sIt.pendienteRevisionPorOC[ocKey] || 0);
-      const target = Math.max(prev, Math.min(qty, prev + disponible)); // idempotente + clamp
+      const target = Math.max(prev, Math.min(qty, prev + disponible));
 
       if (target !== prev) {
         sIt.pendienteRevisionPorOC[ocKey] = target;
@@ -596,11 +629,6 @@ const ensureReservationForRevisionOC = async (oc:any) => {
   }
 };
 
-/* =========================
-   ✅ Aplicar APROBACIÓN FINAL: mover pendienteRevisionPorOC[ocKey] -> cotPorOC[ocKey]
-   - NO borrar el map completo, solo la key
-   - cantidad_cotizada queda como sum(cotPorOC)
-   ========================= */
 const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:string, estatusOC?:string) => {
   if (!isServiciosOnly(oc)) return;
   if (!oc?.solpedId) return;
@@ -634,10 +662,8 @@ const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:s
     const pendQty = Number(sIt.pendienteRevisionPorOC?.[ocKey] || 0);
     const qtyFromOc = extractOcQty(ocIt);
 
-    // toma lo pendiente si existe, si no, usa lo de la OC
     const qty = Math.max(pendQty, qtyFromOc);
     if (qty <= 0) {
-      // igual recomputar por si había basura
       const rec = recomputeSolpedItem(sIt);
       if (JSON.stringify(rec) !== JSON.stringify(itemsSol[idx])) {
         itemsSol[idx] = rec;
@@ -646,7 +672,6 @@ const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:s
       continue;
     }
 
-    // idempotente: fija el cotPorOC[ocKey] al máximo (evita sumar doble si se ejecuta 2 veces)
     const prevAprob = Number(sIt.cotPorOC[ocKey] || 0);
     const nextAprob = Math.max(prevAprob, Math.min(qty, total));
     if (nextAprob !== prevAprob) {
@@ -654,7 +679,6 @@ const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:s
       changed = true;
     }
 
-    // borrar SOLO esta reserva
     if (sIt.pendienteRevisionPorOC && sIt.pendienteRevisionPorOC[ocKey] != null) {
       delete sIt.pendienteRevisionPorOC[ocKey];
       changed = true;
@@ -675,7 +699,6 @@ const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:s
       updated_at: serverTimestamp()
     });
 
-    // historial
     try {
       await addDoc(collection(sref, 'historialEstados'), {
         origen: 'Aprobación OC (Taller)',
@@ -700,9 +723,6 @@ const applyFinalApprovalToSolped = async (oc:any, aprobador:string, comentario:s
   }
 };
 
-/* =========================
-   ✅ Rechazo: liberar SOLO pendienteRevisionPorOC[ocKey]
-   ========================= */
 const releaseReservationInSolped = async (oc:any, usuario:string, comentario:string) => {
   if (!isServiciosOnly(oc)) return;
   if (!oc?.solpedId) return;
@@ -761,10 +781,6 @@ const releaseReservationInSolped = async (oc:any, usuario:string, comentario:str
     comentario: comentario || ''
   });
 };
-
-/* =========================
-   Flujo dinámico (Taller) - existente
-   ========================= */
 type StepCfg = {
   id: string;
   nombre: string;
@@ -797,7 +813,7 @@ const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } 
       nombre: 'Revisión Guillermo',
       inStatus: 'Revisión Guillermo',
       min: 0,
-      max: 250000,
+      max: 500000,
       approveTo: 'Aprobado',
       overTo: 'Preaprobado',
       activo: true,
@@ -807,7 +823,7 @@ const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } 
       id: 'juan',
       nombre: 'Preaprobado',
       inStatus: 'Preaprobado',
-      min: 250001,
+      min: 500001,
       max: 5000000,
       approveTo: 'Aprobado',
       overTo: 'Casi Aprobado',
@@ -835,8 +851,6 @@ const localDateKey = () => {
   const da = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${da}`;
 };
-
-const norm = (x:any) => String(x || '').trim().toLowerCase();
 
 const isOnVacation = (vac:any[] | undefined) => {
   if (!Array.isArray(vac) || !vac.length) return false;
@@ -886,8 +900,16 @@ const handlerIndexFor = (i: number) => {
 
   if (stepOperational(steps[i])) return i;
 
-  for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
-  for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
+  const cur = normStatusKey(steps[i]?.inStatus || steps[i]?.nombre || '');
+  const preferNext = cur === 'preaprobado' || cur.includes('preaprob');
+
+  if (preferNext) {
+    for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
+    for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
+  } else {
+    for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
+    for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
+  }
 
   return -1;
 };
@@ -895,11 +917,37 @@ const handlerIndexFor = (i: number) => {
 const statusToStepIndex = computed(() => {
   const m = new Map<string, number>();
   stepsCfg.value.forEach((st, idx) => {
-    const key = norm(st.inStatus);
+    const key = normStatusKey(st.inStatus);
     if (key) m.set(key, idx);
+
+    const compact = key.replace(/\s+/g, '');
+    if (compact) m.set(compact, idx);
   });
   return m;
 });
+
+const stepIndexFromOCStatus = (estatus:any) => {
+  const key = normStatusKey(estatus);
+  if (!key) return -1;
+
+  const direct = statusToStepIndex.value.get(key);
+  if (direct != null) return direct;
+
+  const compact = key.replace(/\s+/g, '');
+  const direct2 = statusToStepIndex.value.get(compact);
+  if (direct2 != null) return direct2;
+
+  const steps = stepsCfg.value;
+  const found = steps.findIndex(st => {
+    const k = normStatusKey(st.inStatus);
+    if (!k) return false;
+    if (key.includes(k) || k.includes(key)) return true;
+    if (key.includes('preparob') && k.includes('preaprob')) return true;
+    return false;
+  });
+
+  return found;
+};
 
 const myUid = computed(() => auth?.user?.uid || '');
 
@@ -916,9 +964,20 @@ const iHandleStep = (stepIndex: number) => {
 
 const estadosObjetivo = computed<string[]>(() => {
   const out: string[] = [];
-  stepsCfg.value.forEach((st, idx) => {
-    if (st.inStatus && iHandleStep(idx)) out.push(st.inStatus);
+  const steps = stepsCfg.value;
+  const uid = myUid.value;
+  if (!uid || !steps.length) return out;
+
+  steps.forEach((st, idx) => {
+    if (!st.inStatus) return;
+
+    const h = handlerIndexFor(idx);
+    if (h < 0) return;
+
+    const isMine = availableApprovers(steps[h]).some(a => a.uid === uid);
+    if (isMine) out.push(st.inStatus);
   });
+
   return Array.from(new Set(out));
 });
 
@@ -950,9 +1009,8 @@ const delegacionesBadge = computed(() => {
 });
 
 const prettyEstatus = (oc:any) => {
-  const est = norm(oc?.estatus);
-  const idx = statusToStepIndex.value.get(est);
-  if (idx == null) return oc?.estatus || '—';
+  const idx = stepIndexFromOCStatus(oc?.estatus);
+  if (idx < 0) return oc?.estatus || '—';
 
   const h = handlerIndexFor(idx);
   if (h >= 0 && h !== idx && iHandleStep(idx)) {
@@ -964,10 +1022,9 @@ const prettyEstatus = (oc:any) => {
 const computeNextStatusAutoSkip = (oc:any) => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
-  const monto = Number(oc?.precioTotalConIVA || 0);
+  const monto = ocMonto(oc);
 
-  const startStatus = norm(oc?.estatus);
-  let idx = statusToStepIndex.value.get(startStatus) ?? -1;
+  let idx = stepIndexFromOCStatus(oc?.estatus);
   if (idx < 0) return String(oc?.estatus || 'Aprobado');
 
   const visited = new Set<number>();
@@ -984,8 +1041,8 @@ const computeNextStatusAutoSkip = (oc:any) => {
 
     const next = (overTo && monto > max) ? overTo : approveTo;
 
-    const nextIdx = statusToStepIndex.value.get(norm(next));
-    if (nextIdx == null) return next;
+    const nextIdx = stepIndexFromOCStatus(next);
+    if (nextIdx < 0) return next;
 
     if (uid && iHandleStep(nextIdx)) {
       idx = nextIdx;
@@ -998,12 +1055,21 @@ const computeNextStatusAutoSkip = (oc:any) => {
 
 const canActOnOC = (oc:any) => {
   if (!isServiciosOnly(oc)) return false;
-  const idx = statusToStepIndex.value.get(norm(oc?.estatus));
-  if (idx == null) return false;
+  const idx = stepIndexFromOCStatus(oc?.estatus);
+  if (idx < 0) return false;
   return iHandleStep(idx);
 };
 
-/* ===== Historial en solped_taller (por cambio de estatus OC) ===== */
+const guardMaxByStep = (oc:any) => {
+  const idx = stepIndexFromOCStatus(oc?.estatus);
+  if (idx < 0) return { ok: true as const };
+
+  const st = stepsCfg.value[idx];
+  const monto = ocMonto(oc);
+  const max = Number(st?.max ?? 0);
+  const overTo = String(st?.overTo || '').trim();
+  return { ok: true as const };
+};
 const registrarHistorialSolpedAccionOC_Taller = async ({
   solpedId, ocNumero, usuario, estatusOC, comentario
 }: {
@@ -1026,10 +1092,8 @@ const registrarHistorialSolpedAccionOC_Taller = async ({
   }
 };
 
-/* ===== Acciones base ===== */
 const accionando = ref(false);
 
-/* ===== Navegación a SOLPED_TALLER ===== */
 const irASolped = (oc:any) => {
   const id = oc?.solpedId;
   if (!id) {
@@ -1039,8 +1103,6 @@ const irASolped = (oc:any) => {
   try { router.push({ name: 'SolpedTallerDetalle', params: { id } }); }
   catch { router.push(`/solped-taller/${id}`); }
 };
-
-/* ===== Acciones ===== */
 const solicitarAclaracion = async (oc:any) => {
   if (accionando.value) return;
 
@@ -1093,12 +1155,12 @@ const aprobar = async (oc:any) => {
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de aprobar.'); return; }
 
   if (!canActOnOC(oc)) { addToast('warning','No puedes aprobar este estado.'); return; }
+  const guard = guardMaxByStep(oc);
 
   accionando.value = true;
   try {
     const nuevoEstatus = computeNextStatusAutoSkip(oc);
 
-    // items OC: marcar aprobados solo si eran revision
     const nuevosItems = (oc.items || []).map((it:any) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
     );
@@ -1112,10 +1174,10 @@ const aprobar = async (oc:any) => {
       estatus: nuevoEstatus,
       historial: nuevoHistorial,
       items: nuevosItems,
-      aprobadoPor: usuarioNombre.value || ''
+      aprobadoPor: usuarioNombre.value || '',
+      montoParseado: ocMonto(oc),
     });
 
-    // ✅ SOLO cuando llega a Aprobado final: mover reserva -> aprobado en SOLPED
     if (String(nuevoEstatus).trim().toLowerCase() === 'aprobado') {
       await applyFinalApprovalToSolped(
         { ...oc, items: nuevosItems },
@@ -1124,12 +1186,10 @@ const aprobar = async (oc:any) => {
         nuevoEstatus
       );
     } else {
-      // si no es final, solo registrar historial
       await registrarHistorialSolpedAccionOC_Taller({
         solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
         estatusOC: nuevoEstatus, comentario
       });
-      // asegurar reserva si está en revisión
       await ensureReservationForRevisionOC({ ...oc, estatus: nuevoEstatus, items: nuevosItems });
     }
 
@@ -1173,7 +1233,6 @@ const rechazar = async (oc:any) => {
       items: nuevosItems
     });
 
-    // ✅ liberar SOLO la reserva de esta OC en la SOLPED
     await releaseReservationInSolped({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario);
 
     addToast('danger', 'OC (taller) rechazada.');
@@ -1186,7 +1245,46 @@ const rechazar = async (oc:any) => {
   }
 };
 
-/* ===== Suscripción a Flow + OCs (reactivo) ===== */
+const expandStatusVariants = (s: string) => {
+  const raw = String(s || '').trim();
+  const key = normStatusKey(raw);
+  const out = new Set<string>();
+  if (raw) out.add(raw);
+
+  if (raw.includes('-')) out.add(raw.replace(/-/g, ' '));
+  if (raw.includes(' ')) out.add(raw.replace(/\s+/g, '-'));
+
+  const title = key.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+  if (title) out.add(title);
+
+  if (key.replace(/\s+/g,'') === 'preaprobado') {
+    out.add('Pre Aprobado');
+    out.add('Pre-Aprobado');
+    out.add('PreAprobado');
+    out.add('PREAPROBADO');
+    out.add('Preparobado');
+    out.add('PREPAROBADO');
+  }
+
+  if (key.replace(/\s+/g,'') === 'casiaprobado') {
+    out.add('Casi-Aprobado');
+    out.add('CasiAprobado');
+    out.add('CASI APROBADO');
+  }
+
+  if (key === 'pendiente de aprobacion') {
+    out.add('Pendiente de Aprobación');
+    out.add('Pendiente de Aprobacion');
+    out.add('PENDIENTE DE APROBACION');
+  }
+
+  if (key === 'revision guillermo' || key === 'revison guillermo') {
+    out.add('Revisión Guillermo');
+    out.add('Revision Guillermo');
+  }
+
+  return Array.from(out).filter(Boolean);
+};
 const subscribeOCs = (targets: string[]) => {
   if (_unsub) { _unsub(); _unsub = null; }
   ocs.value = [];
@@ -1194,17 +1292,19 @@ const subscribeOCs = (targets: string[]) => {
 
   if (!targets.length) { cargando.value = false; return; }
 
-  const safeTargets = Array.from(new Set(targets)).slice(0, 10);
+  const expanded = Array.from(
+    new Set(targets.flatMap(t => expandStatusVariants(t)))
+  ).slice(0, 10);
 
-  const qy = safeTargets.length === 1
+  const qy = expanded.length === 1
     ? query(
         collection(db, 'ordenes_oc_taller'),
-        where('estatus', '==', safeTargets[0]),
+        where('estatus', '==', expanded[0]),
         orderBy('fechaSubida', 'desc')
       )
     : query(
         collection(db, 'ordenes_oc_taller'),
-        where('estatus', 'in', safeTargets),
+        where('estatus', 'in', expanded),
         orderBy('fechaSubida', 'desc')
       );
 
@@ -1228,17 +1328,22 @@ const subscribeOCs = (targets: string[]) => {
         expandido: false,
         _comentarioAccion: ''
       };
+      ocRow.__monto = ocMonto(ocRow);
+
       arr.push(ocRow);
 
-      // ✅ mantener reservas consistentes en estados de revisión
       const est = String(ocRow.estatus||'').toLowerCase();
       const isRevLike =
         est.includes('revisión') ||
         est.includes('revision') ||
         est.includes('preaprob') ||
+        est.includes('pre aprob') ||
+        est.includes('pre-aprob') ||
+        est.includes('preparob') ||
         est.includes('casi') ||
         est.includes('pendiente de aprobacion') ||
         est.includes('pendiente de aprobación');
+
       if (isRevLike && ocRow.solpedId) {
         ops.push(ensureReservationForRevisionOC(ocRow));
       }
@@ -1257,16 +1362,30 @@ const subscribeOCs = (targets: string[]) => {
   });
 };
 
+const pickUserName = (u:any = {}, fallback = '') => {
+  return (
+    u?.fullName ||
+    u?.Nombre_completo ||
+    u?.nombre ||
+    u?.name ||
+    u?.displayName ||
+    u?.email ||
+    fallback ||
+    ''
+  );
+};
+
 onMounted(async () => {
   try {
     const uid = auth?.user?.uid;
     let fullName = auth?.user?.displayName || auth?.user?.email || '';
     if (uid) {
       try {
-        const us = await getDoc(doc(db, 'Usuarios', uid));
+        let us = await getDoc(doc(db, 'Usuarios', uid));
+        if (!us.exists()) us = await getDoc(doc(db, 'usuarios', uid));
         if (us.exists()) {
           const d = us.data() || {};
-          fullName = (d as any).fullName || fullName;
+          fullName = pickUserName(d, fullName);
         }
       } catch {}
     }
@@ -1303,11 +1422,9 @@ onBeforeUnmount(()=> {
 <style scoped>
 .aprob-oc-page{ min-height:100vh; }
 
-/* Animación detalle */
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* Toasts */
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1320,8 +1437,6 @@ onBeforeUnmount(()=> {
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
-
-/* Chips resumen */
 .oc-highlight{
   padding: .65rem .75rem;
   border: 1px solid var(--bs-border-color);
@@ -1343,20 +1458,16 @@ onBeforeUnmount(()=> {
 }
 .oc-pill i{ font-size: 1rem; opacity: .9; }
 
-/* Utilidades */
 .break-any{ word-break: break-word; overflow-wrap: anywhere; }
 .minw-0{ min-width: 0; }
 .maxw-180{ max-width: 180px; }
 .maxw-140{ max-width: 140px; }
-
-/* Responsive */
 @media (max-width: 576px){
   .oc-highlight{ padding: .55rem .6rem; }
   .oc-pill{ font-size: .88rem; }
   .list-group-item .btn{ width: 100%; }
 }
 
-/* ===== Visor Fullscreen ===== */
 .viewer-enter-active, .viewer-leave-active { transition: opacity .18s ease; }
 .viewer-enter-from, .viewer-leave-to { opacity: 0; }
 
@@ -1385,7 +1496,6 @@ onBeforeUnmount(()=> {
   background: #0b0f14;
 }
 
-/* Imagen */
 .viewer-img-wrap{
   width: 100%; height: 100%;
   display: grid; place-items: center; overflow: auto;
@@ -1398,18 +1508,14 @@ onBeforeUnmount(()=> {
   image-rendering: crisp-edges;
 }
 
-/* PDF */
 .viewer-pdf-wrap{ width: 100%; height: 100%; }
 .viewer-pdf{ width: 100%; height: 100%; border: none; }
 
-/* Móvil */
 @media (max-width: 576px){
   .viewer-panel{
     width: 100vw; height: 100vh; border-radius: 0;
   }
   .viewer-title{ max-width: 50vw; }
 }
-
-/* cursor utilitario */
 :root { --cur-ptr: pointer; }
 </style>

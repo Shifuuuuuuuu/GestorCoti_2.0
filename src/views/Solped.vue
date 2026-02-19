@@ -459,16 +459,17 @@
                       <span class="input-group-text bg-light">
                         <i class="bi bi-search"></i>
                       </span>
-                      <input
-                        class="form-control"
+                      <textarea
+                        class="form-control desc-autogrow"
+                        rows="1"
                         v-model="item.descripcion"
-                        @focus="onDescFocus(i)"
-                        @blur="onDescBlur(i)"
-                        @input="onDescInput(i)"
+                        @focus="onDescFocus(i, $event)"
+                        @blur="onDescBlur(i, $event)"
+                        @input="onDescInput(i, $event)"
                         @keydown="onDescKeydown(i, $event)"
                         placeholder="Buscar o escribir descripción…"
                         autocomplete="off"
-                      />
+                      ></textarea>
                       <button
                         v-if="item.descripcion && (suggests[i]?.length || suggestLoading[i])"
                         class="btn btn-outline-secondary"
@@ -497,16 +498,16 @@
                         <li v-if="!suggestLoading[i] && !(suggests[i]?.length)" class="list-group-item py-2 text-muted">
                           Sin sugerencias
                         </li>
-
-                        <li
-                          v-for="(s, idx) in suggests[i]"
-                          :key="s.text || s"
-                          class="list-group-item suggest-item d-flex align-items-center justify-content-between"
-                          :class="{ 'is-active': suggestActive[i] === idx }"
-                          @mouseenter="suggestActive[i] = idx"
-                          @mousedown.prevent
-                          @click="aplicarSugerencia(i, s.text || s)"
-                        >
+                          <li
+                            v-for="(s, idx) in suggests[i]"
+                            :key="s.text || s"
+                            class="list-group-item suggest-item d-flex align-items-center justify-content-between"
+                            :class="{ 'is-active': suggestActive[i] === idx }"
+                            @mouseenter="suggestActive[i] = idx"
+                            @mousedown.prevent
+                            @click="onSuggestClick(i, idx)"
+                            @dblclick="aplicarSugerencia(i, s.text || s)"
+                          >
                           <div class="me-2 text-truncate" v-html="renderSuggestMatch(i, s)"></div>
                           <span v-if="s.usos" class="badge rounded-pill text-bg-light border">
                             {{ s.usos }} usos
@@ -1029,8 +1030,12 @@ export default {
     const toggleEquiposCard = () => {
       showEquiposCard.value = !showEquiposCard.value;
       if (!showEquiposCard.value) {
-        // clearEquiposSearch();
+      return;
       }
+    };
+    const onSuggestClick = (i, idx) => {
+      suggestOpen[i] = true;
+      suggestActive[i] = idx;
     };
     const isDragging = ref(false);
     const uploadingAdjuntos = ref(false);
@@ -1519,8 +1524,8 @@ export default {
               bestRaw = raw;
               bestEmpresa = data?.savedEmpresa || data?.empresa || null;
             }
-          } catch {
-            /* ignore */
+          } catch(e) {
+            console.log(e)
           }
         }
 
@@ -1668,11 +1673,28 @@ export default {
         suggestLoading[i] = false;
       }
     };
+    const AUTOGROW_MIN = 44;
+    const AUTOGROW_MAX = 140;
 
-    const onDescFocus = (i) => {
+    const autoGrow = (el) => {
+      if (!el) return;
+      el.style.height = "auto";
+      const next = Math.min(el.scrollHeight, AUTOGROW_MAX);
+      el.style.height = Math.max(next, AUTOGROW_MIN) + "px";
+    };
+
+    const autoShrink = (el) => {
+      if (!el) return;
+      el.style.height = AUTOGROW_MIN + "px";
+    };
+
+    const onDescFocus = (i, ev) => {
       focusRow.value = i;
       suggestOpen[i] = true;
       if (suggestActive[i] == null) suggestActive[i] = 0;
+
+      autoGrow(ev?.target);
+
       const raw = String(form.items[i]?.descripcion || "").trim();
       if (raw.length >= SUG_MIN_LEN) {
         clearTimeout(timers[i]);
@@ -1680,17 +1702,31 @@ export default {
       }
     };
 
-    const onDescInput = (i) => {
+    const onDescInput = (i, ev) => {
       focusRow.value = i;
       suggestOpen[i] = true;
       form.items[i].descripcion = (form.items[i].descripcion || "").toUpperCase();
+
+      autoGrow(ev?.target);
 
       clearTimeout(timers[i]);
       timers[i] = setTimeout(() => fetchQuickSuggest(i), SUG_DELAY);
     };
 
+    const onDescBlur = (i, ev) => {
+      setTimeout(() => {
+        if (focusRow.value === i) focusRow.value = -1;
+        closeSuggest(i);
+
+        const txt = String(form.items[i]?.descripcion || "").trim();
+        if (txt.length < 40) autoShrink(ev?.target);
+        else autoGrow(ev?.target);
+      }, 200);
+    };
+
     const onDescKeydown = (i, ev) => {
       if (!ev) return;
+
       if (!isSuggestOpen(i)) {
         if (ev.key === "ArrowDown") {
           const raw = String(form.items[i]?.descripcion || "").trim();
@@ -1709,6 +1745,11 @@ export default {
         return;
       }
 
+      if (ev.key === "Tab") {
+        closeSuggest(i);
+        return;
+      }
+
       const list = suggests[i] || [];
       if (!list.length) return;
 
@@ -1717,24 +1758,23 @@ export default {
       if (ev.key === "ArrowDown") {
         suggestActive[i] = Math.min(cur + 1, list.length - 1);
         ev.preventDefault();
-      } else if (ev.key === "ArrowUp") {
+        return;
+      }
+
+      if (ev.key === "ArrowUp") {
         suggestActive[i] = Math.max(cur - 1, 0);
         ev.preventDefault();
-      } else if (ev.key === "Enter" || ev.key === "Tab") {
+        return;
+      }
+
+      if (ev.key === "Enter") {
         const picked = list[cur];
         if (picked) aplicarSugerencia(i, picked.text || picked);
         closeSuggest(i);
         ev.preventDefault();
+        return;
       }
     };
-
-    const onDescBlur = (i) => {
-      setTimeout(() => {
-        if (focusRow.value === i) focusRow.value = -1;
-        closeSuggest(i);
-      }, 200);
-    };
-
     const aplicarSugerencia = (i, texto) => {
       form.items[i].descripcion = (texto || "").toUpperCase();
       closeSuggest(i);
@@ -2308,7 +2348,7 @@ export default {
       currentPage,
       totalPages,
       visiblePageButtons,
-      pagedEquipos,
+      pagedEquipos,onSuggestClick,
       goToPage,
       aplicarFiltrosEquiposDebounced,
       buscarEquipos,
@@ -2501,20 +2541,33 @@ export default {
   margin-bottom: 4px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   overflow: hidden;
-  max-height: 240px;
+  max-height: min(420px, 55vh);
   overflow-y: auto;
   background: #fff;
+}
+.desc-autogrow {
+  min-height: 44px;
+  max-height: 140px;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.2;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .suggest-header {
   background: #f8fafc;
   border-bottom: 1px solid #e5e7eb;
+  padding: 0.45rem 0.75rem !important;
 }
 .suggest-item {
-  cursor: pointer;
+  padding: 0.65rem 0.75rem;
+  line-height: 1.25;
+  font-size: 1.00rem;
 }
+
 .suggest-item.is-active {
   background: #eff6ff;
   color: #111827;

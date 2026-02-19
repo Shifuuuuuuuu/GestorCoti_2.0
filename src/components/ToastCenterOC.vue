@@ -19,8 +19,6 @@
         <div class="fw-semibold">{{ t.title }}</div>
         <div class="small text-muted" v-if="t.subtitle">{{ t.subtitle }}</div>
         <div class="mt-1" v-if="t.body" style="white-space: pre-wrap;">{{ t.body }}</div>
-
-        <!-- Botón que navega a /oc/:id (name: 'oc-detalle') y cierra el toast -->
         <button
           v-if="t._to"
           class="btn btn-sm btn-outline-primary mt-2"
@@ -41,12 +39,6 @@ import { useToastStore } from '@/stores/toastStore'
 const toasts = useToastStore()
 const router = useRouter()
 
-/**
- * Deriva una ruta válida para el detalle de OC:
- * - Si el toast trae 'to', se usa tal cual (y se valida).
- * - Si trae 'ocId' o 'docId', se construye { name:'oc-detalle', params:{ id: ... } }.
- * - Si nada de lo anterior, no se muestra botón.
- */
 const safeToasts = computed(() =>
   toasts.items
     .filter(t => t.channel === 'oc')
@@ -75,7 +67,6 @@ const safeToasts = computed(() =>
     })
 )
 
-/** Navega y cierra el toast */
 const go = async (t) => {
   if (!t?._to) return
   try {

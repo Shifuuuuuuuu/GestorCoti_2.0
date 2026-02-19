@@ -22,8 +22,6 @@ export const useToastStoreTaller = defineStore('toasts_taller', {
 
     remove(id) { this.items = this.items.filter(t => t.id !== id) },
     clear(channel) { this.items = channel ? this.items.filter(t => t.channel !== channel) : [] },
-
-    // Canal Órdenes de Compra (Taller)
     pushOcTallerAprobada(p)     { return this.push({ channel:'oc_taller', variant:'success', icon:'bi-check2-circle',     ...p }) },
     pushOcTallerPreaprobada(p)  { return this.push({ channel:'oc_taller', variant:'info',    icon:'bi-clipboard-check',   ...p }) },
     pushOcTallerCasiAprobada(p) { return this.push({ channel:'oc_taller', variant:'primary', icon:'bi-patch-check',       ...p }) },

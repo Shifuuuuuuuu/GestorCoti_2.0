@@ -3,7 +3,6 @@
   <div class="min-vh-100 bg-body">
     <div class="container py-4 py-md-5">
 
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
         <button class="btn btn-outline-secondary btn-sm" @click="router.back()">
           <i class="bi bi-arrow-left"></i> Volver
@@ -25,7 +24,6 @@
 
       <div v-else class="row g-3">
 
-        <!-- Left: selector de usuarios -->
         <div class="col-12 col-lg-4">
           <div class="card shadow-sm border-0">
             <div class="card-header bg-body fw-semibold d-flex align-items-center justify-content-between">
@@ -90,8 +88,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Right: módulos -->
         <div class="col-12 col-lg-8">
           <div class="card shadow-sm border-0">
             <div class="card-header bg-body">
@@ -110,9 +106,6 @@
             </div>
 
             <div class="card-body">
-              <!-- ======================================================
-                   MÓDULO: Aprobación OC Taller (por empresa + flujo)
-                   ====================================================== -->
               <div v-if="tab==='oc_taller'">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                   <div class="fw-semibold">Flujo de aprobación por empresa</div>
@@ -120,8 +113,6 @@
                     configuracion/aprobacion_oc_taller/empresas
                   </span>
                 </div>
-
-                <!-- Empresa selector -->
                 <div class="border rounded-4 p-3 mb-3">
                   <div class="row g-2 align-items-end">
                     <div class="col-12 col-md-6">
@@ -168,12 +159,17 @@
                 <div v-if="!empresaSelKey" class="alert alert-warning">
                   Selecciona (o crea) una empresa para configurar su flujo.
                 </div>
-
-                <!-- Edición flujo -->
                 <div v-else>
                   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                     <div class="fw-semibold">Etapas</div>
-                    <div class="d-flex gap-2">
+
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="small text-body-secondary">Monto de prueba</span>
+                        <input type="number" class="form-control form-control-sm" style="width:160px"
+                               v-model.number="previewMonto" min="0" />
+                      </div>
+
                       <button class="btn btn-outline-primary btn-sm" @click="addStep">
                         <i class="bi bi-plus-lg me-1"></i> Agregar etapa
                       </button>
@@ -205,10 +201,10 @@
                             >
                               {{ stepHasAvailableApprover(st) ? 'Disponible' : 'Sin aprobador disponible' }}
                             </span>
-
-                            <template v-if="delegationInfo(idx)">
+                            <template v-if="delegationPreview(idx)">
                               <span class="badge bg-warning-subtle text-warning-emphasis">
-                                Se delega a #{{ delegationInfo(idx)!.toIdx+1 }} ({{ delegationInfo(idx)!.toStep.nombre || delegationInfo(idx)!.toStep.inStatus }})
+                                Delegación (monto {{ money(previewMonto) }}): → #{{ delegationPreview(idx)!.toIdx+1 }}
+                                ({{ delegationPreview(idx)!.toStep.nombre || delegationPreview(idx)!.toStep.inStatus }})
                               </span>
                             </template>
                           </div>
@@ -268,8 +264,106 @@
                         </div>
 
                         <hr class="my-3" />
+                        <div class="border rounded-4 p-3 bg-body-tertiary">
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <div class="fw-semibold">Delegación si no hay aprobador disponible</div>
+                            <span class="small text-body-secondary">
+                              (no cambia el estatus real; solo decide quién aprueba ese estatus)
+                            </span>
+                          </div>
 
-                        <!-- Aprobadores asignados -->
+                          <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                              <label class="form-label small">Modo</label>
+                              <select class="form-select form-select-sm" v-model="st.delegation.mode">
+                                <option value="auto">Automático (más cercano)</option>
+                                <option value="fixed">Fijo (una etapa)</option>
+                                <option value="rules">Por monto (reglas)</option>
+                              </select>
+                            </div>
+
+                            <div class="col-12 col-md-8" v-if="st.delegation.mode==='fixed'">
+                              <label class="form-label small">Delegar a etapa</label>
+                              <select class="form-select form-select-sm" v-model="st.delegation.toStepId">
+                                <option value="" disabled>Selecciona etapa…</option>
+                                <option
+                                  v-for="opt in delegationTargets(st.id)"
+                                  :key="opt.id"
+                                  :value="opt.id"
+                                >
+                                  #{{ opt.idx+1 }} — {{ opt.nombre || opt.inStatus }}
+                                </option>
+                              </select>
+                              <div class="form-text">
+                                Si esta etapa queda sin aprobadores hoy, delega siempre a esa etapa.
+                              </div>
+                            </div>
+
+                            <div class="col-12" v-if="st.delegation.mode==='rules'">
+                              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                <div class="fw-semibold small">Reglas</div>
+                                <button class="btn btn-outline-primary btn-sm" @click="addDelegationRule(st)">
+                                  <i class="bi bi-plus-lg me-1"></i> Agregar regla
+                                </button>
+                              </div>
+
+                              <div v-if="!st.delegation.rules.length" class="text-body-secondary small">
+                                No hay reglas. Agrega al menos una.
+                              </div>
+
+                              <div v-else class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                  <thead class="table-light">
+                                    <tr>
+                                      <th style="width:160px;">Min</th>
+                                      <th style="width:160px;">Max</th>
+                                      <th>Delegar a etapa</th>
+                                      <th style="width:70px;"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-for="(r, rIdx) in st.delegation.rules" :key="rIdx">
+                                      <td>
+                                        <input type="number" class="form-control form-control-sm" v-model.number="r.min" min="0" />
+                                      </td>
+                                      <td>
+                                        <input type="number" class="form-control form-control-sm" v-model.number="r.max" :min="r.min || 0" />
+                                      </td>
+                                      <td>
+                                        <select class="form-select form-select-sm" v-model="r.toStepId">
+                                          <option value="" disabled>Selecciona etapa…</option>
+                                          <option
+                                            v-for="opt in delegationTargets(st.id)"
+                                            :key="opt.id"
+                                            :value="opt.id"
+                                          >
+                                            #{{ opt.idx+1 }} — {{ opt.nombre || opt.inStatus }}
+                                          </option>
+                                        </select>
+                                        <div class="form-text">
+                                          Si el monto cae en [min,max], delega a esa etapa.
+                                        </div>
+                                      </td>
+                                      <td class="text-end">
+                                        <button class="btn btn-outline-danger btn-sm" @click="removeDelegationRule(st, rIdx)">
+                                          <i class="bi bi-trash"></i>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              <div class="small text-body-secondary mt-2">
+                                Tip: para tu caso de Juan → usa 2 reglas:
+                                <span class="badge bg-light text-dark border ms-1">250001–500000 → Guillermo</span>
+                                <span class="badge bg-light text-dark border ms-1">500001–∞ → Alejandro</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <hr class="my-3" />
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                           <div class="fw-semibold">Aprobadores asignados</div>
                           <button
@@ -362,11 +456,7 @@
 
                         <div class="small text-body-secondary mt-2">
                           * Las OCs de esta empresa que estén en estatus <strong>{{ st.inStatus }}</strong>
-                          serán visibles por los aprobadores disponibles.
-                          <template v-if="delegationInfo(idx)">
-                            Si esta etapa queda sin aprobadores disponibles, <strong>se delega automáticamente</strong> a:
-                            <strong>#{{ delegationInfo(idx)!.toIdx+1 }} ({{ delegationInfo(idx)!.toStep.nombre || delegationInfo(idx)!.toStep.inStatus }})</strong>.
-                          </template>
+                          serán visibles por los aprobadores disponibles (o por los delegados según tus reglas).
                         </div>
                       </div>
                     </div>
@@ -376,15 +466,11 @@
                     <strong>Regla:</strong> cuando un aprobador aprueba una OC, si el monto está dentro del rango [min,max] pasa a <em>approveTo</em>.
                     Si excede el máximo, pasa a <em>overTo</em>.
                     <br />
-                    <strong>Automático:</strong> si una etapa NO tiene aprobadores disponibles (inactivos o de vacaciones hoy),
-                    el sistema delega esa etapa al aprobador disponible más cercano (primero anterior; si no existe, siguiente).
+                    <strong>Delegación:</strong> si una etapa NO tiene aprobadores disponibles (inactivos o de vacaciones hoy),
+                    se aplica el modo de delegación configurado para decidir quién aprueba ese estatus.
                   </div>
                 </div>
               </div>
-
-              <!-- ======================================================
-                   MÓDULO: Cotizadores por empresa
-                   ====================================================== -->
               <div v-else>
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                   <div class="fw-semibold">Cotizadores por empresa</div>
@@ -393,7 +479,6 @@
                   </span>
                 </div>
 
-                <!-- Empresa selector (reutiliza el mismo) -->
                 <div class="border rounded-4 p-3 mb-3">
                   <label class="form-label">Empresa</label>
                   <select class="form-select" v-model="empresaSelKey">
@@ -511,8 +596,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i
@@ -543,19 +626,19 @@ import { useAuthStore } from "@/stores/authService";
 const router = useRouter();
 const auth = useAuthStore();
 
-/* ===== Admin gate ===== */
 const isAdmin = computed(() => {
   return String((auth as any)?.role || (auth as any)?.userRole || "").toLowerCase() === "admin"
       || Boolean((auth as any)?.isAdmin);
 });
 
-/* ===== UI state ===== */
 const tab = ref<"oc_taller"|"cotizadores">("oc_taller");
 const cargando = ref(true);
 const guardando = ref(false);
 const seedLoading = ref(false);
 
-/* ===== Toasts ===== */
+const previewMonto = ref<number>(500001);
+
+
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2600) => {
   const id = Date.now()+Math.random();
@@ -564,15 +647,14 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2600) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
-/* ==========================================================
-   Firestore paths
-   ========================================================== */
+const money = (n:number) => {
+  const x = Number(n||0);
+  return x.toLocaleString("es-CL");
+};
+
 const rootRef = doc(db, "configuracion", "aprobacion_oc_taller");
 const empresasCol = collection(rootRef, "empresas");
 
-/* ==========================================================
-   Usuarios (para asignaciones)
-   ========================================================== */
 const usuarios = ref<any[]>([]);
 const usersFilter = ref("");
 const selectedUser = ref<any|null>(null);
@@ -588,7 +670,6 @@ const prettyRoles = (u:any) => getRoles(u);
 
 const isEditor = (u:any) => {
   const r = getRoles(u).map(x=>x.toLowerCase());
-  // ✅ si lo quieres 100% estricto SOLO editor, cambia esto a: return r.includes("editor");
   return r.includes("editor") || r.includes("admin");
 };
 
@@ -607,8 +688,6 @@ const selectUser = (u:any) => {
   selectedUser.value = u;
   addToast("success", `Seleccionado: ${u.fullName || u.email || "usuario"}`);
 };
-
-/* Lista izquierda depende del tab */
 const usuariosPanel = computed(() => {
   const base = usuarios.value || [];
   return tab.value === "cotizadores"
@@ -624,9 +703,6 @@ const usuariosFiltrados = computed(() => {
   return base.slice(0, 160);
 });
 
-/* ==========================================================
-   Empresas config + Steps draft
-   ========================================================== */
 const empresas = ref<{key:string,nombre:string,activo:boolean,steps:any[] }[]>([]);
 const empresaSelKey = ref<string>("");
 const empresaNuevaNombre = ref<string>("");
@@ -642,6 +718,14 @@ const empresaActivo = computed(() => {
 
 type Approver = { uid:string; fullName?:string; email?:string; activo:boolean; vacaciones:any[] };
 
+type DelegateRule = { min:number; max:number; toStepId:string };
+
+type DelegationCfg = {
+  mode: "auto" | "fixed" | "rules";
+  toStepId: string;
+  rules: DelegateRule[];
+};
+
 type Step = {
   id: string;
   locked?: boolean;
@@ -653,6 +737,7 @@ type Step = {
   overTo: string;
   activo: boolean;
   approvers: Approver[];
+  delegation: DelegationCfg;
 };
 
 const stepsDraft = ref<Step[]>([]);
@@ -667,7 +752,6 @@ const keyify = (name:string) =>
     .replace(/[^a-z0-9]+/g,"_")
     .replace(/^_+|_+$/g,"");
 
-/* Aprobadores: debe ser aprobador/editor y pertenecer a empresa seleccionada */
 const canAssignSelectedToEmpresa = computed(() => {
   if (!selectedUser.value) return false;
   if (!isAprobadorOEditor(selectedUser.value)) return false;
@@ -676,10 +760,6 @@ const canAssignSelectedToEmpresa = computed(() => {
   const uEmps = getEmpresas(selectedUser.value);
   return uEmps.includes(emp);
 });
-
-/* ==========================================================
-   DISPONIBILIDAD + DELEGACIÓN
-   ========================================================== */
 const todayISO = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -712,7 +792,12 @@ const stepHasAvailableApprover = (st:Step) => {
   return availableApprovers(st).length > 0;
 };
 
-const findFallbackIdx = (idx:number) => {
+const hasAnyAvailableStep = computed(() => stepsDraft.value.some(s => stepHasAvailableApprover(s)));
+
+
+const findIdxById = (id:string) => stepsDraft.value.findIndex(s => s.id === id);
+
+const findNearestAvailableIdx = (idx:number) => {
   const steps = stepsDraft.value;
   if (!steps[idx]) return -1;
   if (stepHasAvailableApprover(steps[idx])) return idx;
@@ -727,22 +812,76 @@ const findFallbackIdx = (idx:number) => {
   return -1;
 };
 
-const delegationInfo = (idx:number): null | { toIdx:number; toStep:Step } => {
+const cfgTargetIdx = (idx:number, amount:number) => {
+  const st = stepsDraft.value[idx];
+  if (!st) return -1;
+
+  const cfg = st.delegation;
+  if (!cfg) return -1;
+
+  if (cfg.mode === "fixed") {
+    const t = String(cfg.toStepId||"").trim();
+    if (!t) return -1;
+    return findIdxById(t);
+  }
+
+  if (cfg.mode === "rules") {
+    const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
+    const a = Number(amount||0);
+    const r = rules.find(x =>
+      Number(x?.min ?? -1) <= a && a <= Number(x?.max ?? -1) && String(x?.toStepId||"").trim()
+    );
+    if (!r) return -1;
+    return findIdxById(String(r.toStepId));
+  }
+
+  return -1;
+};
+
+const resolveEffectiveIdx = (idx:number, amount:number, depth=0, visited=new Set<number>()) => {
+  if (idx < 0 || idx >= stepsDraft.value.length) return -1;
+  const st = stepsDraft.value[idx];
+  if (!st) return -1;
+
+  if (stepHasAvailableApprover(st)) return idx;
+  if (depth > 6) return -1;
+
+  const tIdx = cfgTargetIdx(idx, amount);
+  if (tIdx >= 0 && tIdx !== idx && !visited.has(tIdx)) {
+    visited.add(tIdx);
+    const r = resolveEffectiveIdx(tIdx, amount, depth+1, visited);
+    if (r >= 0) return r;
+  }
+
+  return findNearestAvailableIdx(idx);
+};
+
+const delegationPreview = (idx:number): null | { toIdx:number; toStep:Step } => {
   const steps = stepsDraft.value;
   if (!steps[idx]) return null;
 
-  const f = findFallbackIdx(idx);
-  if (f < 0) return null;
-  if (f === idx) return null;
+  const eff = resolveEffectiveIdx(idx, previewMonto.value);
+  if (eff < 0) return null;
+  if (eff === idx) return null;
 
-  return { toIdx: f, toStep: steps[f] };
+  return { toIdx: eff, toStep: steps[eff] };
 };
 
-const hasAnyAvailableStep = computed(() => stepsDraft.value.some(s => stepHasAvailableApprover(s)));
+const delegationTargets = (selfId:string) => {
+  return stepsDraft.value
+    .map((s, idx) => ({ ...s, idx }))
+    .filter(s => s.id !== selfId);
+};
 
-/* ==========================================================
-   CRUD empresas
-   ========================================================== */
+const addDelegationRule = (st:Step) => {
+  st.delegation.rules = Array.isArray(st.delegation.rules) ? st.delegation.rules : [];
+  st.delegation.rules.push({ min: 0, max: 999999999999, toStepId: "" });
+};
+
+const removeDelegationRule = (st:Step, idx:number) => {
+  st.delegation.rules.splice(idx, 1);
+};
+
 const crearEmpresa = async () => {
   const nombre = empresaNuevaNombre.value.trim();
   if (!nombre) return;
@@ -775,9 +914,18 @@ const toggleEmpresaActivo = async (ev:any) => {
   }
 };
 
-/* ==========================================================
-   Steps editor
-   ========================================================== */
+const mkDelegation = (d?:any): DelegationCfg => ({
+  mode: (d?.mode === "fixed" || d?.mode === "rules") ? d.mode : "auto",
+  toStepId: String(d?.toStepId || ""),
+  rules: Array.isArray(d?.rules)
+    ? d.rules.map((r:any)=>({
+        min: Number(r?.min ?? 0),
+        max: Number(r?.max ?? 0),
+        toStepId: String(r?.toStepId || "")
+      }))
+    : []
+});
+
 const addStep = () => {
   stepsDraft.value.push({
     id: "st_" + Math.random().toString(36).slice(2,9),
@@ -788,7 +936,8 @@ const addStep = () => {
     approveTo: "Aprobado",
     overTo: "",
     activo: true,
-    approvers: []
+    approvers: [],
+    delegation: mkDelegation()
   });
 };
 
@@ -855,9 +1004,7 @@ const removeVac = (st:Step, uid:string, idx:number) => {
   addToast("warning", "Rango eliminado.");
 };
 
-/* ==========================================================
-   Validación (delegación permite 0 aprobadores por etapa)
-   ========================================================== */
+
 const validarSteps = (): string | null => {
   if (!stepsDraft.value.length) return "Debes tener al menos 1 etapa.";
 
@@ -873,6 +1020,18 @@ const validarSteps = (): string | null => {
     if (st.min == null || st.max == null || Number(st.min) < 0 || Number(st.max) < 0) return "Min/Max inválidos.";
     if (Number(st.min) > Number(st.max)) return `Rango inválido en "${st.nombre}" (min > max).`;
     if (!st.approveTo?.trim()) return `Falta approveTo en "${st.nombre}".`;
+
+    const d = st.delegation;
+    if (d.mode === "fixed") {
+      if (!String(d.toStepId||"").trim()) return `Delegación fija sin etapa destino en "${st.nombre}".`;
+    }
+    if (d.mode === "rules") {
+      if (!Array.isArray(d.rules) || !d.rules.length) return `Delegación por monto sin reglas en "${st.nombre}".`;
+      for (const r of d.rules) {
+        if (Number(r.min) > Number(r.max)) return `Regla inválida (min>max) en delegación de "${st.nombre}".`;
+        if (!String(r.toStepId||"").trim()) return `Regla sin etapa destino en delegación de "${st.nombre}".`;
+      }
+    }
   }
 
   if (!hasAnyAvailableStep.value) {
@@ -899,6 +1058,17 @@ const guardarFlujoEmpresa = async () => {
       approveTo: st.approveTo,
       overTo: st.overTo || "",
       activo: st.activo !== false,
+      delegation: {
+        mode: st.delegation?.mode || "auto",
+        toStepId: String(st.delegation?.toStepId || ""),
+        rules: Array.isArray(st.delegation?.rules)
+          ? st.delegation.rules.map(r => ({
+              min: Number(r.min||0),
+              max: Number(r.max||0),
+              toStepId: String(r.toStepId||"")
+            }))
+          : []
+      },
       approvers: (st.approvers||[]).map(a => ({
         uid: a.uid,
         fullName: a.fullName || "",
@@ -924,27 +1094,12 @@ const guardarFlujoEmpresa = async () => {
   }
 };
 
-/* ==========================================================
-   Plantilla por defecto (igual que tu lógica)
-   ========================================================== */
+
 const findUidByName = (fullName:string) => {
   const n = (fullName||"").trim().toLowerCase();
   const u = usuarios.value.find(x => String(x.fullName||"").trim().toLowerCase() === n);
   return u?.uid || null;
 };
-
-const step = (p:Partial<Step>): Step => ({
-  id: p.id || ("st_" + Math.random().toString(36).slice(2,9)),
-  locked: !!p.locked,
-  nombre: p.nombre || "Etapa",
-  inStatus: p.inStatus || "",
-  min: Number(p.min || 0),
-  max: Number(p.max || 0),
-  approveTo: p.approveTo || "Aprobado",
-  overTo: p.overTo || "",
-  activo: p.activo !== false,
-  approvers: p.approvers || []
-});
 
 const mkApprover = (name:string) => {
   const uid = findUidByName(name);
@@ -957,45 +1112,73 @@ const mkApprover = (name:string) => {
   };
 };
 
+const step = (p:Partial<Step>): Step => ({
+  id: p.id || ("st_" + Math.random().toString(36).slice(2,9)),
+  locked: !!p.locked,
+  nombre: p.nombre || "Etapa",
+  inStatus: p.inStatus || "",
+  min: Number(p.min || 0),
+  max: Number(p.max || 0),
+  approveTo: p.approveTo || "Aprobado",
+  overTo: p.overTo || "",
+  activo: p.activo !== false,
+  approvers: p.approvers || [],
+  delegation: p.delegation || mkDelegation()
+});
+
 const seedDefaults = async () => {
   seedLoading.value = true;
   try {
     const servicioKey = keyify("Xtreme Servicio");
     const miningKey = keyify("Xtreme Mining");
     const hormKey = keyify("Xtreme Hormigones");
+    const ID_GMO = "gmo";
+    const ID_JUAN = "jcu";
+    const ID_ALEJ = "acd";
 
     await setDoc(doc(empresasCol, servicioKey), {
       nombre: "Xtreme Servicio",
       activo: true,
       steps: [
         step({
-          id: "gmo",
+          id: ID_GMO,
           locked: true,
           nombre: "Revisión Guillermo",
           inStatus: "Revisión Guillermo",
           min: 0,
-          max: 250000,
+          max: 500000,
           approveTo: "Aprobado",
           overTo: "Preaprobado",
-          approvers: [ mkApprover("Guillermo Manzor") ]
+          approvers: [ mkApprover("Guillermo Manzor") ],
+          delegation: mkDelegation({ mode:"auto" })
         }),
         step({
+          id: ID_JUAN,
           nombre: "Preaprobado",
           inStatus: "Preaprobado",
           min: 250001,
           max: 5000000,
           approveTo: "Aprobado",
           overTo: "Casi Aprobado",
-          approvers: [ mkApprover("Juan Cubillos") ]
+          approvers: [ mkApprover("Juan Cubillos") ],
+          delegation: mkDelegation({
+            mode: "rules",
+            rules: [
+              { min: 250001, max: 500000, toStepId: ID_GMO },
+              { min: 500001, max: 999999999999, toStepId: ID_ALEJ }
+            ]
+          })
         }),
         step({
+          id: ID_ALEJ,
           nombre: "Casi Aprobado",
           inStatus: "Casi Aprobado",
           min: 5000001,
           max: 999999999999,
           approveTo: "Aprobado",
           overTo: "",
-          approvers: [ mkApprover("Alejandro Candia") ]
+          approvers: [ mkApprover("Alejandro Candia") ],
+          delegation: mkDelegation({ mode:"auto" })
         })
       ],
       updatedAt: serverTimestamp()
@@ -1012,7 +1195,8 @@ const seedDefaults = async () => {
           max: 1000000,
           approveTo: "Aprobado Mining",
           overTo: "Preaprobado Mining",
-          approvers: [ mkApprover("Felipe Gonzalez"), mkApprover("Ricardo Santibañez") ]
+          approvers: [ mkApprover("Felipe Gonzalez"), mkApprover("Ricardo Santibañez") ],
+          delegation: mkDelegation({ mode:"auto" })
         }),
         step({
           nombre: "Preaprobado Mining",
@@ -1021,7 +1205,8 @@ const seedDefaults = async () => {
           max: 5000000,
           approveTo: "Aprobado Mining",
           overTo: "Casi Aprobado Mining",
-          approvers: [ mkApprover("Patricio Muñoz") ]
+          approvers: [ mkApprover("Patricio Muñoz") ],
+          delegation: mkDelegation({ mode:"auto" })
         }),
         step({
           nombre: "Casi Aprobado Mining",
@@ -1030,7 +1215,8 @@ const seedDefaults = async () => {
           max: 999999999999,
           approveTo: "Aprobado Mining",
           overTo: "",
-          approvers: [ mkApprover("Cesar Palma") ]
+          approvers: [ mkApprover("Cesar Palma") ],
+          delegation: mkDelegation({ mode:"auto" })
         })
       ],
       updatedAt: serverTimestamp()
@@ -1047,7 +1233,8 @@ const seedDefaults = async () => {
           max: 1000000,
           approveTo: "Aprobado Hormigones",
           overTo: "Preaprobado Hormigones",
-          approvers: [ mkApprover("Felipe Gonzalez"), mkApprover("Ricardo Santibañez") ]
+          approvers: [ mkApprover("Felipe Gonzalez"), mkApprover("Ricardo Santibañez") ],
+          delegation: mkDelegation({ mode:"auto" })
         }),
         step({
           nombre: "Preaprobado Hormigones",
@@ -1056,7 +1243,8 @@ const seedDefaults = async () => {
           max: 5000000,
           approveTo: "Aprobado Hormigones",
           overTo: "Casi Aprobado Hormigones",
-          approvers: [ mkApprover("Patricio Muñoz") ]
+          approvers: [ mkApprover("Patricio Muñoz") ],
+          delegation: mkDelegation({ mode:"auto" })
         }),
         step({
           nombre: "Casi Aprobado Hormigones",
@@ -1065,13 +1253,14 @@ const seedDefaults = async () => {
           max: 999999999999,
           approveTo: "Aprobado Hormigones",
           overTo: "",
-          approvers: [ mkApprover("Cesar Palma") ]
+          approvers: [ mkApprover("Cesar Palma") ],
+          delegation: mkDelegation({ mode:"auto" })
         })
       ],
       updatedAt: serverTimestamp()
     }, { merge:true });
 
-    addToast("success", "Plantilla cargada. Ajusta uids/roles si algún nombre no coincide.");
+    addToast("success", "Plantilla cargada (incluye delegación por monto para Juan→Guillermo/Alejandro).");
   } catch (e) {
     console.error(e);
     addToast("danger", "No se pudo cargar plantilla.");
@@ -1079,11 +1268,6 @@ const seedDefaults = async () => {
     seedLoading.value = false;
   }
 };
-
-/* ==========================================================
-   Cotizadores POR EMPRESA (subcolección)
-   Path: configuracion/aprobacion_oc_taller/empresas/{empresaKey}/cotizadores/{uid}
-   ========================================================== */
 const cotizadores = ref<Record<string, any>>({});
 const cotVacFrom = ref<Record<string, string>>({});
 const cotVacTo = ref<Record<string, string>>({});
@@ -1106,7 +1290,7 @@ const userBelongsToSelectedEmpresa = (u:any) => {
 const canAddCotizadorSelected = computed(() => {
   if (!empresaSelKey.value) return false;
   if (!selectedUser.value) return false;
-  if (!isEditor(selectedUser.value)) return false; // ✅ solo Editor
+  if (!isEditor(selectedUser.value)) return false;
   if (!userBelongsToSelectedEmpresa(selectedUser.value)) return false;
   return true;
 });
@@ -1196,9 +1380,6 @@ const removeVacacionCotizador = async (c:any, idx:number) => {
   }
 };
 
-/* ==========================================================
-   Subscripciones
-   ========================================================== */
 let unsubEmp:any=null, unsubUsers:any=null, unsubCotEmp:any=null;
 
 const subscribeCotizadoresEmpresa = (empresaKey:string) => {
@@ -1249,7 +1430,7 @@ onMounted(() => {
   cargando.value = false;
 });
 
-/* cargar steps cuando selecciona empresa (OC Taller) */
+
 watch(empresaSelKey, (k) => {
   const e = empresas.value.find(x => x.key === k);
   stepsDraft.value = (e?.steps || []).map((x:any)=>( {
@@ -1268,10 +1449,9 @@ watch(empresaSelKey, (k) => {
       email: a.email || "",
       activo: a.activo !== false,
       vacaciones: Array.isArray(a.vacaciones) ? a.vacaciones : []
-    })) : []
+    })) : [],
+    delegation: mkDelegation(x.delegation)
   }));
-
-  // ✅ cotizadores por empresa
   subscribeCotizadoresEmpresa(k || "");
 }, { immediate:true });
 
@@ -1285,7 +1465,6 @@ onBeforeUnmount(() => {
 .break-any{ word-break: break-word; overflow-wrap: anywhere; }
 .users-list{ max-height: 520px; overflow:auto; border-radius: 12px; }
 
-/* Toasts */
 .toast-stack{ position:fixed; right:16px; bottom:16px; z-index:1200; display:flex; flex-direction:column; gap:10px; }
 .toast-box{ display:flex; align-items:center; padding:.6rem .8rem; border-radius:.6rem; color:#fff; min-width:260px; max-width:360px; box-shadow:0 8px 24px rgba(0,0,0,.18); }
 .toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }

@@ -3,8 +3,6 @@
 <template>
   <div class="aprob-oc-page">
     <div class="container py-4 py-md-5">
-
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <button class="btn btn-outline-secondary btn-sm order-1" @click="volver">
           <i class="bi bi-arrow-left"></i> Volver
@@ -13,22 +11,18 @@
         <h1 class="h4 fw-semibold mb-0 order-2 flex-grow-1 text-center text-md-start">
           Aprobación de OC
         </h1>
-
-        <!-- Controles en desktop/tablet -->
         <div class="d-none d-md-flex align-items-center gap-2 ms-auto order-3">
           <div class="input-group input-group-sm" style="width:260px;">
             <span class="input-group-text"><i class="bi bi-buildings"></i></span>
             <select v-model="empresaFiltro" class="form-select">
               <option value="TODAS">Todas las empresas</option>
-              <option v-for="e in empresasCfg" :key="e.key" :value="e.key">
+              <option v-for="e in empresasEffective" :key="e.key" :value="e.key">
                 {{ e.nombre }}
               </option>
             </select>
           </div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
-
-        <!-- Controles en móvil -->
         <div class="d-flex d-md-none align-items-center gap-2 ms-auto order-3">
           <button
             class="btn btn-outline-primary btn-sm"
@@ -41,13 +35,9 @@
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
       </div>
-
-      <!-- Mensaje rol -->
       <div v-if="!rolActual && !cargando" class="alert alert-warning">
         Tu usuario no tiene bandeja de aprobación asignada (o hoy estás fuera por vacaciones/estado).
       </div>
-
-      <!-- Lista -->
       <div class="card" v-if="rolActual">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="minw-0">
@@ -55,9 +45,6 @@
             <div class="small text-secondary text-truncate">
               Estado(s): <strong>{{ estatusFiltrado }}</strong> ·
               Empresa: <strong>{{ etiquetaEmpresaFiltro }}</strong>
-              <span v-if="delegatedStatusesCount" class="ms-2 badge bg-warning-subtle text-warning-emphasis">
-                Delegaciones activas: {{ delegatedStatusesCount }}
-              </span>
             </div>
           </div>
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ ocsFiltradas.length }}</span>
@@ -75,24 +62,14 @@
 
           <div v-else class="list-group list-group-flush">
             <div v-for="oc in ocsFiltradas" :key="oc.__docId" class="list-group-item">
-              <!-- Fila responsive -->
               <div class="row g-3 align-items-start">
-                <!-- Col: info -->
                 <div class="col-12 col-lg-9">
                   <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="fw-semibold">OC N° {{ oc.id ?? '—' }}</span>
                     <span class="badge" :class="estadoBadgeClass(oc.estatus)">
                       {{ prettyEstatus(oc) }}
                     </span>
-
-                    <template v-if="getDelegationInfo(oc)">
-                      <span class="badge bg-warning-subtle text-warning-emphasis">
-                        Delegado: {{ getDelegationInfo(oc).from }} → {{ getDelegationInfo(oc).to }}
-                      </span>
-                    </template>
                   </div>
-
-                  <!-- Chips resumen -->
                   <div class="oc-highlight mt-2">
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <span class="oc-pill" title="Centro de costo">
@@ -122,8 +99,6 @@
                       </span>
                     </div>
                   </div>
-
-                  <!-- Compacto -->
                   <div class="text-body-secondary small mt-1 break-any">
                     <strong>Responsable:</strong> {{ oc.responsable || '—' }} ·
                     <strong>Subida:</strong> {{ fmtFecha(oc.fechaSubida) }}
@@ -133,8 +108,6 @@
                     <em>“{{ oc.comentario }}”</em>
                   </div>
                 </div>
-
-                <!-- Col: acciones -->
                 <div class="col-12 col-lg-3">
                   <div class="d-grid gap-2 d-lg-flex justify-content-lg-end">
                     <button
@@ -153,15 +126,12 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Detalle -->
               <transition name="fade">
                 <div v-if="oc.expandido" class="mt-3">
-                  <!-- Archivos (propios de la OC) -->
                   <div v-if="(oc.archivosStorage||[]).length" class="mb-3">
                     <div class="fw-semibold mb-2">📂 Archivos Adjuntos</div>
 
-                    <div v-for="(a,i) in oc.archivosStorage" :key="a.url" class="card mb-2">
+                    <div v-for="(a,i) in oc.archivosStorage" :key="(a.url || i) + '_' + i" class="card mb-2">
                       <div class="card-header d-flex align-items-center flex-wrap gap-2">
                         <div class="fw-semibold me-auto text-truncate">{{ a.nombre || ('archivo_'+(i+1)) }}</div>
                         <button class="btn btn-sm btn-primary" @click="openViewer(a)">
@@ -194,8 +164,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- ===== Autorizaciones (desde SOLPED) ===== -->
                   <div class="mb-3">
                     <div class="fw-semibold mb-2">📝 Autorizaciones (desde SOLPED)</div>
                     <div v-if="getAuthState(oc).loading" class="text-secondary small">Cargando documentos…</div>
@@ -204,7 +172,7 @@
                       <div v-if="getAuthList(oc).length" class="auth-list">
                         <div
                           v-for="(f, idx) in getAuthList(oc)"
-                          :key="f.url + '_' + idx"
+                          :key="(f.url || idx) + '_' + idx"
                           class="card auth-item mb-2"
                         >
                           <div class="card-body py-2">
@@ -258,9 +226,6 @@
                       </div>
                     </template>
                   </div>
-                  <!-- ===== Fin Autorizaciones ===== -->
-
-                  <!-- Ítems -->
                   <div class="fw-semibold mb-2">📦 Ítems</div>
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
@@ -290,14 +255,10 @@
                       </tbody>
                     </table>
                   </div>
-
-                  <!-- Comentario acción -->
                   <div class="mb-2">
                     <label class="form-label">Comentario (obligatorio)</label>
                     <textarea class="form-control" rows="2" v-model="oc._comentarioAccion" placeholder="Explica tu decisión…"></textarea>
                   </div>
-
-                  <!-- Botones acción -->
                   <div class="d-grid d-md-flex gap-2">
                     <button class="btn btn-success" :disabled="accionando" @click="aprobar(oc)">
                       <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
@@ -310,8 +271,6 @@
                       Rechazar
                     </button>
                   </div>
-
-                  <!-- Historial -->
                   <div class="mt-3">
                     <div class="fw-semibold mb-2">🕓 Historial</div>
                     <ul class="list-unstyled small mb-0">
@@ -323,25 +282,23 @@
                       </li>
                     </ul>
                   </div>
-
                 </div>
               </transition>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
-          <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
+          <i
+            class="me-2"
+            :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"
+          ></i>
           <span class="me-3">{{ t.text }}</span>
           <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas filtros (móvil / tablet) - CUSTOM -->
     <transition name="oc">
       <div v-if="showFiltersMobile" class="oc-wrap d-lg-none" id="offFiltrosCustom">
         <div class="oc-backdrop" @click="closeFiltersMobile"></div>
@@ -361,7 +318,7 @@
               <button class="btn btn-sm btn-outline-secondary" @click="limpiarFiltros">
                 Limpiar
               </button>
-              <button class="btn btn-sm btn-success" @click="applyFilters(); closeFiltersMobile()">
+              <button class="btn btn-sm btn-success" @click="closeFiltersMobile">
                 Aplicar
               </button>
               <button class="btn btn-sm btn-outline-dark" @click="closeFiltersMobile" aria-label="Cerrar filtros">
@@ -375,7 +332,7 @@
               <label class="form-label">Empresa</label>
               <select v-model="empresaFiltro" class="form-select">
                 <option value="TODAS">Todas las empresas</option>
-                <option v-for="e in empresasCfg" :key="e.key" :value="e.key">
+                <option v-for="e in empresasEffective" :key="e.key" :value="e.key">
                   {{ e.nombre }}
                 </option>
               </select>
@@ -384,8 +341,6 @@
         </div>
       </div>
     </transition>
-
-    <!-- ===== VISOR FULLSCREEN DE ADJUNTOS ===== -->
     <transition name="viewer">
       <div v-if="viewerOpen" class="viewer-wrap" @keydown.esc="closeViewer" tabindex="0">
         <div class="viewer-backdrop" @click="closeOnBackdrop && closeViewer()"></div>
@@ -434,8 +389,6 @@
         </div>
       </div>
     </transition>
-    <!-- ===== FIN VISOR ===== -->
-
   </div>
 </template>
 
@@ -448,21 +401,94 @@ import {
   getDoc, addDoc, serverTimestamp
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
+const UMBRAL_PREAPROBADO = 500000;
 
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
-const actorName = computed(
-  () =>
-    auth?.profile?.Nombre_completo ||
-    auth?.profile?.nombre ||
-    auth?.user?.displayName ||
-    auth?.user?.email ||
-    "usuario"
-);
-/* =========================
-   Toasts
-   ========================= */
+const normalize = (s) =>
+  String(s || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+const normStatus = (s) => normalize(s).replace(/\s+/g, " ").trim();
+
+const keyify = (name) =>
+  normalize(name)
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const normalizeCompanyKey = (raw) => {
+  const s = normalize(raw);
+  if (!s) return '';
+  if (s.includes('serv')) return 'xtreme_servicio';
+  if (s.includes('min')) return 'xtreme_mining';
+  if (s.includes('hormig')) return 'xtreme_hormigones';
+  return keyify(raw);
+};
+
+const pickUserName = (u = {}, fallback = '') => {
+  return (
+    u.fullName ||
+    u.Nombre_completo ||
+    u.nombre ||
+    u.name ||
+    u.displayName ||
+    u.email ||
+    fallback ||
+    ''
+  );
+};
+
+const actorName = computed(() => {
+  return pickUserName(
+    auth?.profile || {},
+    auth?.user?.displayName || auth?.user?.email || "usuario"
+  );
+});
+
+const DEFAULT_APPROVAL_FLOW = {
+  nombre: 'Flujo default',
+  activo: true,
+  steps: [
+    {
+      id: 'gmo',
+      nombre: 'Revisión Guillermo',
+      inStatus: 'Revisión Guillermo',
+      min: 0,
+      max: 250000,
+      approveTo: 'Aprobado',
+      overTo: 'Preaprobado',
+      activo: true,
+      approvers: []
+    },
+    {
+      id: 'juan',
+      nombre: 'Preaprobado',
+      inStatus: 'Preaprobado',
+      min: 250001,
+      max: 5000000,
+      approveTo: 'Aprobado',
+      overTo: 'Casi Aprobado',
+      activo: true,
+      approvers: []
+    },
+    {
+      id: 'ale',
+      nombre: 'Casi Aprobado',
+      inStatus: 'Casi Aprobado',
+      min: 5000001,
+      max: 999999999999,
+      approveTo: 'Aprobado',
+      overTo: '',
+      activo: true,
+      approvers: []
+    }
+  ]
+};
+
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2800) => {
   const id = Date.now() + Math.random();
@@ -471,28 +497,22 @@ const addToast = (type, text, timeout = 2800) => {
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
 
-/* =========================
-   Usuario
-   ========================= */
 const userUid = ref('');
 const usuarioNombre = ref('');
-
-/* =========================
-   Config flujo por empresa (AdminConfig)
-   configuracion/aprobacion_oc_taller/empresas/*
-   ========================= */
 const rootRef = doc(db, 'configuracion', 'aprobacion_oc_taller');
 const empresasCol = collection(rootRef, 'empresas');
-const empresasCfg = ref([]); // [{key,nombre,activo,steps:[]}]
+const empresasCfg = ref([]);
 let unsubEmp = null;
 
-const keyify = (name) =>
-  String(name || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
+const empresasEffective = computed(() => {
+  if (empresasCfg.value.length) return empresasCfg.value;
+  return [{
+    key: 'xtreme_servicio',
+    nombre: 'Xtreme Servicio',
+    activo: true,
+    steps: DEFAULT_APPROVAL_FLOW.steps
+  }];
+});
 
 const todayISO = () => {
   const d = new Date();
@@ -526,15 +546,19 @@ const findEmpresaDoc = (empresaRaw) => {
   const raw = String(empresaRaw || '').trim();
   if (!raw) return null;
 
-  const k = keyify(raw);
-  let e = empresasCfg.value.find(x => x.key === k);
+  const k2 = normalizeCompanyKey(raw);
+  let e = empresasEffective.value.find(x => x.key === k2);
   if (e) return e;
 
-  e = empresasCfg.value.find(x => keyify(x.nombre) === k);
+  const k = keyify(raw);
+  e = empresasEffective.value.find(x => x.key === k);
+  if (e) return e;
+
+  e = empresasEffective.value.find(x => keyify(x.nombre) === k);
   if (e) return e;
 
   const nr = keyify(raw).replace(/_/g, '');
-  e = empresasCfg.value.find(x =>
+  e = empresasEffective.value.find(x =>
     keyify(x.nombre).replace(/_/g, '').includes(nr) ||
     nr.includes(keyify(x.nombre).replace(/_/g, ''))
   );
@@ -544,37 +568,58 @@ const findEmpresaDoc = (empresaRaw) => {
 const getStepsForOC = (oc) => {
   const emp = findEmpresaDoc(oc?.empresa);
   const steps = Array.isArray(emp?.steps) ? emp.steps : [];
-  return steps;
+  if (!steps.length) return DEFAULT_APPROVAL_FLOW.steps;
+
+  return steps.map(s => ({
+    ...s,
+    nombre: s.nombre || 'Etapa',
+    inStatus: s.inStatus || '',
+    min: Number(s.min || 0),
+    max: Number(s.max || 0),
+    approveTo: String(s.approveTo || 'Aprobado'),
+    overTo: String(s.overTo || ''),
+    activo: s.activo !== false,
+    approvers: Array.isArray(s.approvers) ? s.approvers : []
+  }));
 };
 
 const findStepIndexByStatus = (steps, status) =>
-  steps.findIndex(s => String(s?.inStatus || '') === String(status || ''));
+  steps.findIndex(s => normStatus(s?.inStatus) === normStatus(status));
 
-/** Delegación: si step sin aprobadores, delega al step anterior disponible (si no, al siguiente) */
 const findFallbackIndex = (steps, idx) => {
   if (!Array.isArray(steps) || idx < 0) return -1;
   if (stepHasAvailableApprover(steps[idx])) return idx;
 
+  const curStatus = normStatus(steps[idx]?.inStatus || steps[idx]?.nombre || '');
+  const preferNext =
+    curStatus === 'preaprobado' ||
+    curStatus.includes('preaprob');
+
   for (let d = 1; d < steps.length; d++) {
     const prev = idx - d;
-    if (prev >= 0 && stepHasAvailableApprover(steps[prev])) return prev;
-
     const next = idx + d;
-    if (next < steps.length && stepHasAvailableApprover(steps[next])) return next;
+
+    if (preferNext) {
+      if (next < steps.length && stepHasAvailableApprover(steps[next])) return next;
+      if (prev >= 0 && stepHasAvailableApprover(steps[prev])) return prev;
+    } else {
+      if (prev >= 0 && stepHasAvailableApprover(steps[prev])) return prev;
+      if (next < steps.length && stepHasAvailableApprover(steps[next])) return next;
+    }
   }
   return -1;
 };
 
-/** Estados (bandejas) que el usuario debe ver hoy */
 const statusesWanted = computed(() => {
   const uid = userUid.value;
   if (!uid) return [];
 
   const out = new Set();
 
-  for (const emp of empresasCfg.value) {
+  for (const emp of empresasEffective.value) {
     if (!emp || emp.activo === false) continue;
-    const steps = Array.isArray(emp.steps) ? emp.steps : [];
+    const steps = Array.isArray(emp.steps) && emp.steps.length ? emp.steps : DEFAULT_APPROVAL_FLOW.steps;
+
     for (let i = 0; i < steps.length; i++) {
       const st = steps[i];
       const inStatus = String(st?.inStatus || '').trim();
@@ -590,55 +635,25 @@ const statusesWanted = computed(() => {
   return [...out];
 });
 
-const delegatedStatusesCount = computed(() => {
-  const uid = userUid.value;
-  if (!uid) return 0;
-  let c = 0;
-
-  for (const emp of empresasCfg.value) {
-    if (!emp || emp.activo === false) continue;
-    const steps = Array.isArray(emp.steps) ? emp.steps : [];
-    for (let i = 0; i < steps.length; i++) {
-      const st = steps[i];
-      const inStatus = String(st?.inStatus || '').trim();
-      if (!inStatus) continue;
-
-      const f = findFallbackIndex(steps, i);
-      if (f < 0 || f === i) continue;
-
-      const uidsAvail = new Set(availableApprovers(steps[f]).map(a => a.uid));
-      if (uidsAvail.has(uid)) c++;
-    }
-  }
-  return c;
-});
-
 const rolActual = computed(() => (statusesWanted.value.length ? 'APROBADOR' : null));
 const estatusFiltrado = computed(() => statusesWanted.value.join(' / ') || '—');
 
-/* =========================
-   Empresa filtro (empresaKey)
-   ========================= */
 const empresaFiltro = ref('TODAS');
 const etiquetaEmpresaFiltro = computed(() => {
   if (empresaFiltro.value === 'TODAS') return 'Todas las empresas';
-  const e = empresasCfg.value.find(x => x.key === empresaFiltro.value);
+  const e = empresasEffective.value.find(x => x.key === empresaFiltro.value);
   return e?.nombre || empresaFiltro.value;
 });
 
-/* =========================
-   Offcanvas custom (móvil)
-   ========================= */
 const showFiltersMobile = ref(false);
 const toggleFiltersResponsive = () => { showFiltersMobile.value = !showFiltersMobile.value; };
 const closeFiltersMobile = () => { showFiltersMobile.value = false; };
-const applyFilters = () => {};
 const limpiarFiltros = () => { empresaFiltro.value = 'TODAS'; };
 
-/* =========================
-   Visor fullscreen de adjuntos
-   ========================= */
-const isXs = window.matchMedia('(max-width: 576px)').matches;
+const isXs = ref(false);
+let mqXs = null;
+const updateXs = () => { isXs.value = !!mqXs?.matches; };
+
 const viewerOpen = ref(false);
 const viewerItem = ref(null);
 const zoom = ref(1);
@@ -659,11 +674,11 @@ const zoomIn = () => { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2))
 const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)); };
 const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
-watch(viewerOpen, v => { document.documentElement.style.overflow = v ? 'hidden' : ''; });
 
-/* =========================
-   Autorizaciones SOLPED
-   ========================= */
+watch(viewerOpen, v => {
+  document.documentElement.style.overflow = v ? 'hidden' : '';
+});
+
 const solpedAuthById = ref({});
 const authKey = (oc, idx) => `${oc.__docId || oc.solpedId || 'x'}_${idx}`;
 const authPreviewOpen = ref({});
@@ -759,9 +774,6 @@ const ensureSolpedAuthLoaded = async (oc) => {
   }
 };
 
-/* =========================
-   Badges / utils
-   ========================= */
 const estadoBadgeClass = (estatus) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -807,9 +819,6 @@ const prettyEstatus = (oc) => {
   return `${est} (delegado)`;
 };
 
-/* =========================
-   Permiso: puedo actuar en esta OC hoy
-   ========================= */
 const canActOnOC = (oc) => {
   const uid = userUid.value;
   if (!uid) return false;
@@ -825,9 +834,7 @@ const canActOnOC = (oc) => {
   return uidsAvail.has(uid);
 };
 
-/* =========================
-   Suscripción OCs (chunked IN <= 10)
-   ========================= */
+
 const cargando = ref(true);
 const ocs = ref([]);
 let unsubsOCs = [];
@@ -843,11 +850,14 @@ const rebuildOCsFromChunks = (chunkMaps) => {
   for (const m of chunkMaps) for (const [id, val] of m.entries()) map.set(id, val);
 
   const arr = [...map.values()]
-    .map(oc => ({
-      ...oc,
-      _empresaKey: findEmpresaDoc(oc?.empresa)?.key || keyify(oc?.empresa || ''),
-      _empresaNombre: findEmpresaDoc(oc?.empresa)?.nombre || (oc?.empresa || ''),
-    }))
+    .map(oc => {
+      const emp = findEmpresaDoc(oc?.empresa);
+      return {
+        ...oc,
+        _empresaKey: emp?.key || normalizeCompanyKey(oc?.empresa || ''),
+        _empresaNombre: emp?.nombre || (oc?.empresa || ''),
+      };
+    })
     .filter(oc => canActOnOC(oc));
 
   arr.sort((a,b) =>
@@ -909,18 +919,11 @@ const subscribeOCs = () => {
     unsubsOCs.push(unsub);
   });
 };
-
-/* =========================
-   Empresa filtro
-   ========================= */
 const ocsFiltradas = computed(() => {
   if (empresaFiltro.value === 'TODAS') return ocs.value;
   return ocs.value.filter(oc => String(oc._empresaKey || '') === String(empresaFiltro.value));
 });
 
-/* =========================
-   Navegación a SOLPED
-   ========================= */
 const irASolped = (oc) => {
   const id = oc?.solpedId;
   if (!id) { addToast('warning','Esta OC no tiene SOLPED asociada.'); return; }
@@ -928,9 +931,6 @@ const irASolped = (oc) => {
   catch { router.push(`/solped/${id}`); }
 };
 
-/* =========================================================
-   Historial en solpes/historialEstados (por cambio estatus OC)
-   ========================================================= */
 const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, estatusOC, comentario }) => {
   if (!solpedId) return;
   try {
@@ -948,10 +948,6 @@ const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, e
     console.warn('No se pudo registrar acción de OC en historialEstados de la SOLPED:', e);
   }
 };
-
-/* =========================================================
-   Actualizar SOLPED con avances de esta OC (tu versión)
-   ========================================================= */
 const DEBUG = false;
 const s = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
 const dlog = (tag, payload = {}) => {
@@ -1069,7 +1065,6 @@ const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
     ? 'Cotizado Completado'
     : (anyCot ? 'Cotizado Parcial' : 'Pendiente');
 
-
   dlog('SOLPED:update:huboAvance?', { huboAvance, cambiosEstado, nuevoEstatusSol });
 
   const debeActualizar = huboAvance || cambiosEstado || (String(sdata.estatus || '') !== String(nuevoEstatusSol));
@@ -1130,8 +1125,8 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
     if (todosCompletos && !yaEstaOk) {
       await updateDoc(sref, {
         estatus: "Cotizado Completado",
-        updatedAt: serverTimestamp?.() || undefined,
-        updatedBy: actorName?.value || undefined,
+        updatedAt: serverTimestamp(),
+        updatedBy: actorName.value || undefined,
       });
 
       addToast("success", "SOLPED cotizada completa ✔");
@@ -1140,53 +1135,30 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
     console.error("cerrarSolpedSiCompleta:", e);
   }
 };
-
-
-/* =========================================================
-   Resolver siguiente estatus al aprobar (saltando steps sin gente)
-   ========================================================= */
-const computeNextStatusOnApprove = (steps, currentStatus, monto, actingUid) => {
-  const idx0 = findStepIndexByStatus(steps, currentStatus);
-  if (idx0 < 0) return 'Aprobado';
-
-  const indexByStatus = new Map(steps.map((s, i) => [String(s?.inStatus || ''), i]));
-  const visited = new Set();
-  let idx = idx0;
-
-  while (true) {
-    const st = steps[idx];
-    if (!st) return 'Aprobado';
-
-    const max = Number(st.max ?? 0);
-    const approveTo = String(st.approveTo || 'Aprobado').trim() || 'Aprobado';
-    const overTo = String(st.overTo || '').trim();
-
-    if (monto <= max) return approveTo;
-    if (!overTo) return approveTo;
-
-    const j = indexByStatus.get(overTo);
-    if (j == null) return overTo;
-
-    const av = availableApprovers(steps[j]).map(a => a.uid);
-    const avSet = new Set(av);
-    const nextHasApprovers = stepHasAvailableApprover(steps[j]);
-    const onlyMeInNext = (avSet.size === 1 && avSet.has(actingUid));
-
-    if (!nextHasApprovers || onlyMeInNext) {
-      const key = `${j}`;
-      if (visited.has(key)) return overTo;
-      visited.add(key);
-      idx = j;
-      continue;
-    }
-
-    return overTo;
+const computeNextStatusOnApprove = (steps, currentStatus, montoRaw) => {
+  const monto = parseMoneyCLP(montoRaw);
+  const cur = normStatus(currentStatus);
+  if (cur.includes("preaprob") || cur.includes("casi aprob") || cur === "aprobado") {
+    const idx = findStepIndexByStatus(steps, currentStatus);
+    if (idx < 0) return "Aprobado";
+    return String(steps[idx]?.approveTo || "Aprobado").trim() || "Aprobado";
   }
+  if (monto > UMBRAL_PREAPROBADO) return "Preaprobado";
+  const idx0 = findStepIndexByStatus(steps, currentStatus);
+  if (idx0 < 0) return "Aprobado";
+
+  return String(steps[idx0]?.approveTo || "Aprobado").trim() || "Aprobado";
 };
 
-/* =========================
-   Acciones
-   ========================= */
+const parseMoneyCLP = (v) => {
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  if (v == null) return 0;
+
+  const s = String(v).trim();
+  const digits = s.replace(/[^\d]/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+};
+
 const accionando = ref(false);
 
 const solicitarAclaracion = async (oc) => {
@@ -1231,7 +1203,7 @@ const aprobar = async (oc) => {
   accionando.value = true;
   try {
     const steps = getStepsForOC(oc);
-    const monto = Number(oc.precioTotalConIVA || 0);
+    const monto = parseMoneyCLP(oc.precioTotalConIVA);
 
     const nuevoEstatus = computeNextStatusOnApprove(steps, oc.estatus, monto, userUid.value) || 'Aprobado';
 
@@ -1308,31 +1280,26 @@ const rechazar = async (oc) => {
     accionando.value = false;
   }
 };
-
-/* =========================
-   Mount / Unmount
-   ========================= */
 onMounted(async () => {
   try {
     cargando.value = true;
-
-    // usuario
+    mqXs = window.matchMedia('(max-width: 576px)');
+    updateXs();
+    mqXs.addEventListener?.('change', updateXs);
     const uid = auth?.user?.uid || '';
     userUid.value = uid;
-
     let fullName = auth?.user?.displayName || auth?.user?.email || '';
     if (uid) {
       try {
-        const us = await getDoc(doc(db, 'Usuarios', uid));
+        let us = await getDoc(doc(db, 'Usuarios', uid));
+        if (!us.exists()) us = await getDoc(doc(db, 'usuarios', uid));
         if (us.exists()) {
           const d = us.data() || {};
-          fullName = d.fullName || fullName;
+          fullName = pickUserName(d, fullName);
         }
-      } catch { /* ignore */ }
+      } catch(e) {console.log(e) }
     }
     usuarioNombre.value = fullName || '';
-
-    // empresas/steps
     unsubEmp = onSnapshot(query(empresasCol, orderBy('nombre')), (snap) => {
       const arr = [];
       snap.forEach(snapDoc => {
@@ -1346,7 +1313,7 @@ onMounted(async () => {
       });
       empresasCfg.value = arr;
 
-      if (empresaFiltro.value !== 'TODAS' && !arr.some(e => e.key === empresaFiltro.value)) {
+      if (empresaFiltro.value !== 'TODAS' && !empresasEffective.value.some(e => e.key === empresaFiltro.value)) {
         empresaFiltro.value = 'TODAS';
       }
     });
@@ -1363,6 +1330,11 @@ onBeforeUnmount(() => {
   unsubEmp?.();
   unsubsOCs.forEach(fn => fn?.());
   unsubsOCs = [];
+
+  mqXs?.removeEventListener?.('change', updateXs);
+  mqXs = null;
+
+  document.documentElement.style.overflow = '';
 });
 
 watch(
@@ -1374,12 +1346,9 @@ watch(
 
 <style scoped>
 .aprob-oc-page{ min-height:100vh; }
-
-/* Animación detalle */
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* Toasts */
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1392,8 +1361,6 @@ watch(
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
-
-/* Chips resumen */
 .oc-highlight{
   padding: .65rem .75rem;
   border: 1px solid var(--bs-border-color);
@@ -1421,14 +1388,11 @@ watch(
   font-weight: 600;
 }
 .oc-pill i{ font-size: 1rem; opacity: .9; }
-
-/* Utilidades de corte y wrap */
 .break-any{ word-break: break-word; overflow-wrap: anywhere; }
 .minw-0{ min-width: 0; }
 .maxw-180{ max-width: 180px; }
 .maxw-140{ max-width: 140px; }
 
-/* Responsive */
 @media (max-width: 576px){
   .oc-highlight{ padding: .55rem .6rem; }
   .oc-pill{ font-size: .86rem; }
@@ -1438,8 +1402,6 @@ watch(
   .maxw-180{ max-width: 240px; }
   .maxw-140{ max-width: 180px; }
 }
-
-/* Offcanvas móvil CUSTOM */
 .oc-enter-active, .oc-leave-active { transition: opacity .2s ease; }
 .oc-enter-from, .oc-leave-to { opacity: 0; }
 
@@ -1453,7 +1415,6 @@ watch(
   backdrop-filter: blur(1px);
 }
 
-/* Autorizaciones responsive */
 .auth-list { width: 100%; }
 .auth-item .card-body { padding: .75rem .8rem; }
 .auth-ratio { border-radius: .5rem; overflow: hidden; background: var(--bs-tertiary-bg, #0b0f14); }
@@ -1490,8 +1451,6 @@ watch(
   position: sticky; top: 0; background: var(--bs-body-bg, #fff); z-index: 1;
 }
 .oc-body{ padding: .9rem; overflow: auto; }
-
-/* Visor Fullscreen */
 .viewer-enter-active, .viewer-leave-active { transition: opacity .18s ease; }
 .viewer-enter-from, .viewer-leave-to { opacity: 0; }
 
@@ -1520,7 +1479,6 @@ watch(
   background: #0b0f14;
 }
 
-/* Imagen */
 .viewer-img-wrap{
   width: 100%; height: 100%;
   display: grid; place-items: center; overflow: auto;
@@ -1533,7 +1491,6 @@ watch(
   image-rendering: crisp-edges;
 }
 
-/* PDF */
 .viewer-pdf-wrap{ width: 100%; height: 100%; }
 .viewer-pdf{ width: 100%; height: 100%; border: none; }
 
@@ -1543,7 +1500,5 @@ watch(
   }
   .viewer-title{ max-width: 50vw; }
 }
-
-/* cursor utilitario */
-:root { --cur-ptr: pointer; }
+:global(:root){ --cur-ptr: pointer; }
 </style>

@@ -7,7 +7,6 @@ function nowLabel() {
 
 export const useToastStore = defineStore('toasts', {
   state: () => ({
-    // { id, title, subtitle, body, time, variant, timeout, to, channel, icon }
     items: [],
     maxStack: 5,
   }),
@@ -23,8 +22,6 @@ export const useToastStore = defineStore('toasts', {
 
     remove(id) { this.items = this.items.filter(t => t.id !== id) },
     clear(channel) { this.items = channel ? this.items.filter(t => t.channel !== channel) : [] },
-
-    // ===== Canal Órdenes de Compra (nuevo)
     pushOcAprobada(p)        { return this.push({ channel:'oc', variant:'success', icon:'bi-check2-circle',     ...p }) },
     pushOcPreaprobada(p)     { return this.push({ channel:'oc', variant:'info',    icon:'bi-clipboard-check',   ...p }) },
     pushOcCasiAprobada(p)    { return this.push({ channel:'oc', variant:'primary', icon:'bi-patch-check',       ...p }) },

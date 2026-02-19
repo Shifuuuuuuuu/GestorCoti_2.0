@@ -11,21 +11,17 @@ export async function saveInspection({
   files = [],
   userId = null,
 }) {
-  // Estructura esperada por el AiInspectorView
   const payload = {
-    userId: userId || null,       // <-- IMPORTANTE (para where("userId","==",uid))
-    createdBy: userId || null,    // <-- opcional, por compatibilidad
+    userId: userId || null,
+    createdBy: userId || null,
     createdAt: serverTimestamp(),
 
     question: String(question || "").trim(),
     extraNotes: extraNotes || "",
     answerRaw: answerRaw || "",
-
-    // Facilita búsquedas y UI
     codigo: equipo?.codigo || null,
     tipo_equipo: equipo?.tipo_equipo || equipo?.clasificacion1 || null,
 
-    // Equipo como objeto (tu vista lo usa como data.equipo)
     equipo: equipo
       ? {
           id: equipo.id || null,
@@ -44,10 +40,8 @@ export async function saveInspection({
     imagePaths: [],
   };
 
-  // ✅ IMPORTANTE: guardar en ai_inspections (lo que tu view consulta)
   const docRef = await addDoc(collection(db, "ai_inspections"), payload);
 
-  // Subir imágenes a Storage
   const paths = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
@@ -56,8 +50,6 @@ export async function saveInspection({
     await uploadBytes(sRef(storage, path), f, { contentType: f.type });
     paths.push(path);
   }
-
-  // Guardar paths en el doc (para poder mostrarlas después)
   if (paths.length) {
     await updateDoc(docRef, { imagePaths: paths });
   }

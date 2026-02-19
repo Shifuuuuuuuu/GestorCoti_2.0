@@ -12,9 +12,8 @@ export function useOCNotificationTaller() {
   const loaded = ref(false)
 
   const unsubList = []
-  const lastStatus = new Map() // key: docId -> { estatus, idOc, empresa, total }
+  const lastStatus = new Map()
 
-  // Navegamos SIEMPRE con el docId (parámetro :id). Evitamos query ?id=...
   function buildTo(docId /* string */) {
     return { name: 'OrdenOCTallerDetalle', params: { id: String(docId) }, query: {} }
   }
@@ -53,7 +52,6 @@ export function useOCNotificationTaller() {
     const unsub = onSnapshot(
       qRef,
       (snap) => {
-        // ya cargado: sólo reaccionamos a cambios "modified"
         if (loaded.value) {
           snap.docChanges().forEach((ch) => {
             if (ch.type !== 'modified') return
@@ -67,7 +65,6 @@ export function useOCNotificationTaller() {
           })
         }
 
-        // refrescamos el mapa local de estados
         snap.docs.forEach((d) => {
           const data = d.data() || {}
           lastStatus.set(d.id, {
@@ -101,7 +98,6 @@ export function useOCNotificationTaller() {
     lastStatus.clear()
   }
 
-  // Inicia/renueva listeners cuando cambie el usuario
   watch(
     () => auth.user,
     (u) => {
@@ -110,8 +106,6 @@ export function useOCNotificationTaller() {
 
       const fullName = (auth?.profile?.fullName || u.displayName || '').trim()
       const uid = u.uid
-
-      // Escuchas según cómo guardes al responsable en 'ordenes_oc_taller'
       if (fullName) startFor('responsable', fullName)
       startFor('responsable', uid)
     },

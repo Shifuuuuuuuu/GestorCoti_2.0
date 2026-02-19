@@ -4,7 +4,7 @@
   <div class="generador-oc-page">
     <div class="container py-4 py-md-5">
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
-        <button class="btn btn-outline-secondary btn-sm" @click="volver">
+        <button type="button" class="btn btn-outline-secondary btn-sm" @click="volver">
           <i class="bi bi-arrow-left"></i>
           <span class="d-none d-sm-inline ms-1">Volver</span>
         </button>
@@ -14,6 +14,7 @@
         </h1>
 
         <button
+          type="button"
           class="btn btn-secondary btn-sm d-none d-lg-inline-flex"
           @click="toggleEquiposResponsive"
           :aria-pressed="mostrarEquipos.toString()"
@@ -23,6 +24,7 @@
         </button>
 
         <button
+          type="button"
           class="btn btn-outline-dark btn-sm d-none d-md-inline-flex"
           @click="toggleMisOC"
           :aria-pressed="mostrarMisOC.toString()"
@@ -32,6 +34,7 @@
         </button>
 
         <button
+          type="button"
           class="btn btn-outline-primary btn-sm d-none d-md-inline-flex"
           @click="toggleResumenOC"
           :aria-pressed="mostrarResumenOC.toString()"
@@ -61,7 +64,6 @@
 
       <div class="row g-3">
         <div class="col-12" :class="mostrarEquipos ? 'col-lg-8' : 'col-lg-12'">
-          <!-- ===== MIS OC ===== -->
           <div v-if="mostrarMisOC" class="card mb-3 card-elevated">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">🧾 Mis Cotizaciones</div>
@@ -99,7 +101,9 @@
                     </div>
                   </div>
                   <div class="ms-auto">
-                    <button class="btn btn-sm btn-outline-primary" @click="irADetalleOC(oc)">Ver detalle</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="irADetalleOC(oc)">
+                      Ver detalle
+                    </button>
                   </div>
                 </div>
               </div>
@@ -110,6 +114,7 @@
                 <ul class="pagination justify-content-center mb-0">
                   <li class="page-item" :class="{ disabled: misOCCurrentPage === 1 }">
                     <button
+                      type="button"
                       class="page-link"
                       @click="misOCGoTo(misOCCurrentPage - 1)"
                       :disabled="misOCCurrentPage === 1"
@@ -125,11 +130,12 @@
                     :key="'pg-' + n"
                     :class="{ active: misOCCurrentPage === n }"
                   >
-                    <button class="page-link" @click="misOCGoTo(n)">{{ n }}</button>
+                    <button type="button" class="page-link" @click="misOCGoTo(n)">{{ n }}</button>
                   </li>
 
                   <li class="page-item" :class="{ disabled: misOCCurrentPage === misOCTotalPages }">
                     <button
+                      type="button"
                       class="page-link"
                       @click="misOCGoTo(misOCCurrentPage + 1)"
                       :disabled="misOCTotalPages === misOCCurrentPage"
@@ -142,8 +148,6 @@
               </nav>
             </div>
           </div>
-
-          <!-- ===== RESUMEN ===== -->
           <div v-if="mostrarResumenOC" class="card mb-3 card-elevated">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">📊 Resumen de mis Cotizaciones</div>
@@ -207,6 +211,7 @@
                 <ul class="pagination justify-content-center mb-0">
                   <li class="page-item" :class="{ disabled: resumenOCCurrentPage === 1 }">
                     <button
+                      type="button"
                       class="page-link"
                       @click="resumenOCGoTo(resumenOCCurrentPage - 1)"
                       :disabled="resumenOCCurrentPage === 1"
@@ -221,11 +226,12 @@
                     :key="'pg-resumen-oc-' + n"
                     :class="{ active: resumenOCCurrentPage === n }"
                   >
-                    <button class="page-link" @click="resumenOCGoTo(n)">{{ n }}</button>
+                    <button type="button" class="page-link" @click="resumenOCGoTo(n)">{{ n }}</button>
                   </li>
 
                   <li class="page-item" :class="{ disabled: resumenOCCurrentPage === resumenOCTotalPages }">
                     <button
+                      type="button"
                       class="page-link"
                       @click="resumenOCGoTo(resumenOCCurrentPage + 1)"
                       :disabled="resumenOCCurrentPage === resumenOCTotalPages"
@@ -237,8 +243,6 @@
               </nav>
             </div>
           </div>
-
-          <!-- ===== FORM ===== -->
           <div class="card card-elevated position-relative overflow-hidden" :class="{ 'is-locked': bloqueoPorAprobadas }">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold d-flex align-items-center gap-2">
@@ -252,13 +256,13 @@
               </div>
 
               <div class="d-flex gap-2 d-lg-none">
-                <button class="btn btn-outline-dark btn-sm" @click="toggleMisOC" :aria-pressed="mostrarMisOC.toString()">
+                <button type="button" class="btn btn-outline-dark btn-sm" @click="toggleMisOC" :aria-pressed="mostrarMisOC.toString()">
                   <i class="bi bi-receipt-cutoff"></i>
                 </button>
-                <button class="btn btn-outline-primary btn-sm" @click="toggleResumenOC" :aria-pressed="mostrarResumenOC.toString()">
+                <button type="button" class="btn btn-outline-primary btn-sm" @click="toggleResumenOC" :aria-pressed="mostrarResumenOC.toString()">
                   <i class="bi bi-graph-up-arrow"></i>
                 </button>
-                <button class="btn btn-secondary btn-sm" @click="toggleEquiposResponsive" :aria-pressed="mostrarEquipos.toString()">
+                <button type="button" class="btn btn-secondary btn-sm" @click="toggleEquiposResponsive" :aria-pressed="mostrarEquipos.toString()">
                   <i class="bi bi-search"></i>
                 </button>
               </div>
@@ -272,13 +276,14 @@
                   Debes gestionar tus cotizaciones <strong>Aprobadas</strong> y subir la orden de compra correspondiente
                   antes de continuar con el proceso.
                 </div>
-                <button class="btn btn-sm btn-dark mt-3" @click="router.push('/historial-oc')">Ver mis cotizaciones</button>
+                <button type="button" class="btn btn-sm btn-dark mt-3" @click="router.push('/historial-oc')">
+                  Ver mis cotizaciones
+                </button>
               </div>
             </div>
 
             <div class="card-body">
               <fieldset :disabled="formDisabled" style="border: 0; padding: 0; margin: 0">
-                <!-- N° OC -->
                 <div class="mb-3">
                   <label class="form-label d-flex align-items-center justify-content-between">
                     <span>N° de Cotización</span>
@@ -298,8 +303,8 @@
                     />
 
                     <button
-                      class="btn btn-outline-secondary"
                       type="button"
+                      class="btn btn-outline-secondary"
                       @click="cargarSiguienteNumero"
                       :disabled="cargandoNuevoId"
                       title="Recargar número"
@@ -311,8 +316,6 @@
 
                   <div class="form-text">Se asigna automáticamente y es de solo lectura.</div>
                 </div>
-
-                <!-- SOLPED -->
                 <div class="form-check form-switch mb-3">
                   <input class="form-check-input" type="checkbox" id="swSolped" v-model="usarSolped" @change="onToggleUsarSolped" />
                   <label class="form-check-label" for="swSolped">¿Asociar a una SOLPED?</label>
@@ -349,8 +352,6 @@
                     <div class="fw-semibold">{{ solpedSeleccionada.tipo_solped }} — {{ solpedSeleccionada.nombre_solped }}</div>
                   </div>
                 </div>
-
-                <!-- Items SOLPED -->
                 <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
                   <div class="card-header bg-white d-flex align-items-center justify-content-between">
                     <span class="fw-semibold">📦 Ítems de la SOLPED</span>
@@ -391,8 +392,6 @@
                         </tbody>
                       </table>
                     </div>
-
-                    <!-- ✅ Documentos adjuntos desde SOLPED -->
                     <div v-if="autorizacionesSolped.length" class="mt-3">
                       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="fw-semibold d-flex align-items-center gap-2">
@@ -469,15 +468,21 @@
                 </div>
 
                 <hr class="my-4" />
-
-                <!-- Centro costo -->
                 <div class="mb-3">
                   <label class="form-label">Centro de Costo</label>
                   <div class="input-group">
                     <input class="form-control" :value="nombreCentroCosto || ''" placeholder="Selecciona un centro…" readonly />
-                    <button class="btn btn-outline-primary" @click="modalCentroAbierto = true" aria-label="Seleccionar Centro de Costo">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary"
+                      @click="modalCentroAbierto = true"
+                      aria-label="Seleccionar Centro de Costo"
+                    >
                       <i class="bi bi-search"></i>
                     </button>
+                  </div>
+                  <div class="form-text">
+                    Debes <strong>elegir</strong> un centro de costo antes de enviar.
                   </div>
                 </div>
 
@@ -518,18 +523,23 @@
                     <div class="form-text">Se formatea automáticamente según moneda seleccionada.</div>
                   </div>
                 </div>
-
-                <div v-if="aprobadorSugerido" class="alert alert-info d-flex align-items-center mt-3">
-                  <i class="bi bi-person-check me-2"></i>
-                  <div><strong>Aprobador sugerido:</strong> {{ aprobadorSugerido }}</div>
+                <div
+                  v-if="aprobadorUI.show"
+                  class="alert d-flex align-items-start mt-3"
+                  :class="aprobadorUI.cls"
+                  role="alert"
+                >
+                  <i class="bi fs-5 me-2" :class="aprobadorUI.icon"></i>
+                  <div>
+                    <div class="fw-semibold">{{ aprobadorUI.title }}</div>
+                    <div class="small" v-if="aprobadorUI.subtitle">{{ aprobadorUI.subtitle }}</div>
+                  </div>
                 </div>
 
                 <div class="mb-3">
                   <label class="form-label">Comentario</label>
                   <textarea class="form-control" rows="3" v-model="comentario" placeholder="Agrega un comentario opcional…"></textarea>
                 </div>
-
-                <!-- Archivos -->
                 <div class="mb-3">
                   <label class="form-label">Archivos PDF, Imagen o Excel (se convierte a PDF)</label>
 
@@ -542,7 +552,7 @@
                       class="d-none"
                       @change="onMultipleFilesSelected"
                     />
-                    <button class="btn btn-outline-primary" @click="abrirSelectorArchivos">
+                    <button type="button" class="btn btn-outline-primary" @click="abrirSelectorArchivos">
                       <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
                     </button>
                     <small class="text-secondary">Puedes subir más de uno.</small>
@@ -553,8 +563,6 @@
                     Si seleccionas Excel/CSV, se convertirá a PDF automáticamente.
                   </div>
                 </div>
-
-                <!-- ✅ PREVIEW / DESCARGA SEGÚN TIPO -->
                 <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
                   <div class="card-header d-flex align-items-center">
                     <div class="fw-semibold me-auto text-truncate">
@@ -562,18 +570,15 @@
                       <span v-if="archivo.convertedFromExcel" class="badge bg-warning-subtle text-warning-emphasis me-2">EXCEL→PDF</span>
                       {{ archivo.name }}
                     </div>
-                    <button class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)" aria-label="Eliminar archivo">
+                    <button type="button" class="btn btn-sm btn-outline-danger" @click="eliminarArchivo(i)" aria-label="Eliminar archivo">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
 
                   <div class="card-body">
-                    <!-- PDF -->
                     <div v-if="isPdfArchivo(archivo)" class="ratio ratio-16x9">
                       <iframe v-if="archivo.previewUrl" :src="archivo.previewUrl + '#toolbar=0'" style="border: none"></iframe>
                     </div>
-
-                    <!-- Imagen -->
                     <div v-else-if="isImageArchivo(archivo)" class="text-center">
                       <img
                         v-if="archivo.previewUrl"
@@ -583,8 +588,6 @@
                         style="max-height: 700px; object-fit: contain"
                       />
                     </div>
-
-                    <!-- ✅ Excel/otros: NO vista previa -> mostrar descarga -->
                     <div v-else class="excel-fallback text-center">
                       <div class="excel-icon">
                         <i
@@ -624,6 +627,7 @@
 
                 <div class="d-grid mt-3">
                   <button
+                    type="button"
                     class="btn btn-danger btn-lg"
                     :disabled="enviando || bloqueoPorAprobadas"
                     :title="bloqueoPorAprobadas ? 'No puedes enviar nuevas cotizaciones: límite de aprobadas alcanzado' : ''"
@@ -637,13 +641,11 @@
             </div>
           </div>
         </div>
-
-        <!-- ===== PANEL EQUIPOS DESKTOP ===== -->
         <aside class="col-12 col-lg-4 d-none d-lg-block" v-if="mostrarEquipos">
           <div class="card h-100 card-elevated sticky-panel">
             <div class="card-header d-flex align-items-center justify-content-between">
               <div class="fw-semibold">🔎 Buscar equipos</div>
-              <button class="btn btn-sm btn-outline-secondary d-lg-none" @click="cerrarEquiposMobile">Cerrar</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none" @click="cerrarEquiposMobile">Cerrar</button>
             </div>
 
             <div class="card-body d-flex flex-column">
@@ -705,7 +707,7 @@
                     </div>
 
                     <div class="ms-3">
-                      <button class="btn btn-sm btn-outline-primary" @click="copiarEquipo(e)">Copiar</button>
+                      <button type="button" class="btn btn-sm btn-outline-primary" @click="copiarEquipo(e)">Copiar</button>
                     </div>
                   </div>
                 </div>
@@ -714,15 +716,15 @@
               <nav v-if="totalPages > 1" class="mt-3">
                 <ul class="pagination justify-content-center mb-0">
                   <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                    <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" aria-label="Anterior">
+                    <button type="button" class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" aria-label="Anterior">
                       «
                     </button>
                   </li>
                   <li class="page-item" v-for="n in visiblePageButtons" :key="n" :class="{ active: currentPage === n }">
-                    <button class="page-link" @click="goToPage(n)">{{ n }}</button>
+                    <button type="button" class="page-link" @click="goToPage(n)">{{ n }}</button>
                   </li>
                   <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                    <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" aria-label="Siguiente">
+                    <button type="button" class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" aria-label="Siguiente">
                       »
                     </button>
                   </li>
@@ -738,7 +740,6 @@
       </div>
     </div>
 
-    <!-- ===== PANEL EQUIPOS MOBILE ===== -->
     <transition name="oc">
       <div v-if="showEquiposMobile" class="oc-wrap d-lg-none" @keydown.esc="cerrarEquiposMobile">
         <div class="oc-backdrop" @click="cerrarEquiposMobile"></div>
@@ -747,7 +748,7 @@
           <div class="oc-header">
             <h2 class="h6 mb-0 fw-semibold">🔎 Buscar equipos</h2>
             <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-outline-dark" @click="cerrarEquiposMobile" aria-label="Cerrar">
+              <button type="button" class="btn btn-sm btn-outline-dark" @click="cerrarEquiposMobile" aria-label="Cerrar">
                 <i class="bi bi-x-lg"></i>
               </button>
             </div>
@@ -808,7 +809,7 @@
                   </div>
 
                   <div class="ms-3">
-                    <button class="btn btn-sm btn-outline-primary" @click="copiarEquipo(e)">Copiar</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" @click="copiarEquipo(e)">Copiar</button>
                   </div>
                 </div>
               </div>
@@ -817,13 +818,13 @@
             <nav v-if="totalPages > 1" class="mt-3">
               <ul class="pagination justify-content-center mb-0">
                 <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                  <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" aria-label="Anterior">«</button>
+                  <button type="button" class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" aria-label="Anterior">«</button>
                 </li>
                 <li class="page-item" v-for="n in visiblePageButtons" :key="n" :class="{ active: currentPage === n }">
-                  <button class="page-link" @click="goToPage(n)">{{ n }}</button>
+                  <button type="button" class="page-link" @click="goToPage(n)">{{ n }}</button>
                 </li>
                 <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                  <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages " aria-label="Siguiente">»</button>
+                  <button type="button" class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages " aria-label="Siguiente">»</button>
                 </li>
               </ul>
             </nav>
@@ -832,13 +833,14 @@
           </div>
 
           <div class="oc-footer">
-            <button class="btn btn-outline-secondary" @click="cerrarEquiposMobile">Cerrar</button>
+            <button type="button" class="btn btn-outline-secondary" @click="cerrarEquiposMobile">Cerrar</button>
           </div>
         </div>
       </div>
     </transition>
 
     <button
+      type="button"
       class="btn btn-primary floating-equipos-btn d-lg-none"
       @click="toggleEquiposResponsive"
       :title="showEquiposMobile ? 'Ocultar búsqueda de equipos' : 'Buscar equipos'"
@@ -847,7 +849,6 @@
       <i class="bi bi-search"></i>
     </button>
 
-    <!-- ===== MODAL CENTRO COSTO ===== -->
     <div v-if="modalCentroAbierto" class="vmodal-backdrop" @click.self="modalCentroAbierto = false">
       <div class="vmodal">
         <div class="vmodal-header">
@@ -856,7 +857,20 @@
         <div class="vmodal-body">
           <div class="input-group mb-2">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input class="form-control" placeholder="Buscar contrato o código…" v-model="filtroCentro" />
+            <input
+              class="form-control"
+              placeholder="Buscar contrato o código…"
+              v-model="filtroCentro"
+              @keydown.enter.prevent="onEnterCentro"
+            />
+          </div>
+
+          <div v-if="!(filtroCentro || '').trim()" class="small text-secondary mb-2">
+            Escribe o elige un centro de costo de la lista.
+          </div>
+
+          <div v-if="(filtroCentro || '').trim() && centrosFiltrados.length === 0" class="alert alert-warning py-2">
+            No se encontró ningún centro. Escribe o elige un centro de costo.
           </div>
 
           <div class="list-group vmodal-list">
@@ -873,12 +887,10 @@
           </div>
         </div>
         <div class="vmodal-footer">
-          <button class="btn btn-outline-secondary" @click="modalCentroAbierto = false">Cerrar</button>
+          <button type="button" class="btn btn-outline-secondary" @click="modalCentroAbierto = false">Cerrar</button>
         </div>
       </div>
     </div>
-
-    <!-- ===== TOASTS ===== -->
     <div class="toast-stack">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
         <i
@@ -886,11 +898,9 @@
           :class="t.type === 'success' ? 'bi bi-check-circle-fill' : (t.type === 'warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"
         ></i>
         <span class="me-3">{{ t.text }}</span>
-        <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
+        <button type="button" class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
       </div>
     </div>
-
-    <!-- ===== OVERLAY CARGA (CONVERSIÓN / ENVÍO) ===== -->
     <div v-if="busy.on" class="busy-overlay" role="alert" aria-live="polite">
       <div class="busy-card shadow">
         <div class="d-flex align-items-center gap-3">
@@ -914,7 +924,6 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -931,12 +940,11 @@ const route = useRoute();
 const volver = () => router.back();
 const auth = useAuthStore();
 
-/** ===== OVERLAY CARGA ===== */
 const busy = reactive({
   on: false,
   label: "Procesando…",
   hint: "",
-  progress: null, // number|null
+  progress: null,
 });
 const setBusy = (on, label = "Procesando…", hint = "", progress = null) => {
   busy.on = on;
@@ -978,7 +986,7 @@ const bloqueoPorAprobadas = computed(() => {
   if (!esEditor) return false;
   if (!aprobadasListo.value) return false;
   if (!aprobadasState.ok) return true;
-  return totalAprobadasDelUsuario.value >= 10;
+  return totalAprobadasDelUsuario.value >= 20;
 });
 
 const mostrarBloqueoAprobadas = computed(() => {
@@ -1173,13 +1181,8 @@ const buscarEquipos = async (q) => {
     return;
   }
 
-  if (!equiposLoaded.value) {
-    await ensureEquiposLoaded();
-  }
-  if (!equiposLoaded.value) {
-    resultadosEquipos.value = [];
-    return;
-  }
+  if (!equiposLoaded.value) await ensureEquiposLoaded();
+  if (!equiposLoaded.value) { resultadosEquipos.value = []; return; }
 
   if (cacheResultados.has(qNorm)) {
     resultadosEquipos.value = cacheResultados.get(qNorm);
@@ -1251,9 +1254,11 @@ const solpedSeleccionada = ref(null);
 const itemsSolped = ref([]);
 const autorizacionesSolped = ref([]);
 const autorizacionSeleccionadaIndex = ref(0);
+
 const modalCentroAbierto = ref(false);
 const centroCosto = ref("");
 const filtroCentro = ref("");
+
 const centrosCostoLista = ref([
   { key: "30858", name: "CONTRATO 30858 INFRA CHUQUICAMATA" },
   { key: "27483", name: "CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA" },
@@ -1274,7 +1279,7 @@ const centrosCostoLista = ref([
   { key: "30-10-11", name: "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM" },
   { key: "10-10-20", name: "TALLER SAN BERNARDO" },
   { key: "31155", name: "DIVISION ANDINA 4600031155 Y 23302 CARPETAS" },
-  { Key: '23302', name:'CONTRATO 23302'}
+  { key: "23302", name: "CONTRATO 23302" },
 ]);
 
 const centrosFiltrados = computed(() => {
@@ -1288,48 +1293,38 @@ const nombreCentroCosto = computed(() => {
 });
 const seleccionarCentro = (c) => { centroCosto.value = c.key; };
 
+const onEnterCentro = () => {
+  const f = (filtroCentro.value || "").trim();
+  if (!f) {
+    addToast("warning", "Escribe o elige un centro de costo.");
+    return;
+  }
+  const list = centrosFiltrados.value || [];
+  if (!list.length) {
+    addToast("warning", "No se encontró centro. Escribe o elige un centro de costo.");
+    return;
+  }
+  seleccionarCentro(list[0]);
+  modalCentroAbierto.value = false;
+  addToast("success", `Centro seleccionado: ${list[0].key}`);
+};
+
 const tipoCompra = ref("stock");
 const destinoCompra = ref("");
 
 const monedaSeleccionada = ref("CLP");
 const precioTotalConIVA = ref(0);
 const precioFormateado = ref("");
+
 const aprobadorSugerido = ref("");
+const aprobadorAsignado = ref("");
 const empresaPorDefecto = "Xtreme Servicio";
 const tipoCambioUSD = 950;
 const tipoCambioEUR = 1050;
-
+const ESTATUS_FIJO_INICIAL = "Revisión Guillermo";
 const myUid = computed(() => auth?.user?.uid || null);
 const usuarioActual = ref("");
-
-/** ===== ARCHIVOS ===== **/
 const archivos = ref([]);
-
-/** ✅ Helpers de tipo para PREVIEW/DESCARGA */
-const isPdfArchivo = (a) => {
-  const t = String(a?.tipo || "").toLowerCase();
-  const n = String(a?.name || "").toLowerCase();
-  return t.includes("pdf") || n.endsWith(".pdf");
-};
-const isImageArchivo = (a) => {
-  const t = String(a?.tipo || "").toLowerCase();
-  return t.startsWith("image/");
-};
-const isExcelArchivo = (a) => {
-  const t = String(a?.tipo || "").toLowerCase();
-  const n = String(a?.name || "").toLowerCase();
-  return (
-    n.endsWith(".xlsx") || n.endsWith(".xls") || n.endsWith(".csv") ||
-    t.includes("spreadsheet") || t.includes("excel") || t.includes("vnd.ms-excel") ||
-    t.includes("vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
-    t.includes("csv") || t.includes("text/csv")
-  );
-};
-
-const abrirSelectorArchivos = () => {
-  const input = document.getElementById("inputArchivo");
-  if (input) input.click();
-};
 
 const isExcelLike = (file) => {
   const name = String(file?.name || "").toLowerCase();
@@ -1354,7 +1349,6 @@ const toSafePdfName = (originalName) => {
 };
 
 async function excelFileToPdfFile(file) {
-  // Requiere: npm i xlsx jspdf jspdf-autotable
   const XLSXmod = await import("xlsx");
   const XLSX = XLSXmod.default || XLSXmod;
   const { jsPDF } = await import("jspdf");
@@ -1399,6 +1393,11 @@ async function excelFileToPdfFile(file) {
   return new File([pdfBlob], pdfName, { type: "application/pdf" });
 }
 
+const abrirSelectorArchivos = () => {
+  const input = document.getElementById("inputArchivo");
+  if (input) input.click();
+};
+
 const onMultipleFilesSelected = async (e) => {
   const list = Array.from(e.target.files || []);
   if (!list.length) return;
@@ -1415,8 +1414,6 @@ const onMultipleFilesSelected = async (e) => {
         addToast("warning", `Archivo inválido: ${file?.name || "desconocido"}`);
         continue;
       }
-
-      // Excel/CSV -> PDF
       if (isExcelLike(file)) {
         setBusy(true, "Convirtiendo Excel a PDF…", file.name, Math.min(95, pct));
         try {
@@ -1546,6 +1543,454 @@ const obtenerNombreUsuario = async () => {
   } catch (e) {
     console.error(e);
   }
+};
+
+const aprobacionCfg = reactive({
+  loading: false,
+  ok: false,
+  error: null,
+
+  empresaDocId: "",
+  empresaSlug: "",
+  empresaNombre: "",
+
+  raw: null,
+  steps: [],
+
+  approverByUid: new Map(),
+  approverByName: new Map(),
+
+  lastUpdatedAt: null,
+});
+
+let _unsubCfgEmpresa = null;
+const nameKey = (s) => normalizePlain(s).replace(/\s+/g, " ").trim();
+
+const slugEmpresa = (empresaName) => {
+  const base = normalizePlain(empresaName)
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  const alias = {
+    "xtreme_servicio": "xtreme_servicio",
+    "xtreme-servicio": "xtreme_servicio",
+    "xtreme_servicios": "xtreme_servicio",
+    "xtreme-mining": "xtreme_mining",
+    "xtreme_mining": "xtreme_mining",
+    "xtreme-hormigones": "xtreme_hormigones",
+    "xtreme_hormigones": "xtreme_hormigones",
+  };
+
+  return alias[base] || base || "xtreme_servicio";
+};
+
+const toNum = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const s = String(v).replace(/[^\d.-]/g, "");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+const toList = (v) => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((x) => String(x || "").trim()).filter(Boolean);
+  if (typeof v === "string") return v.split(/[,;|]+/g).map((x) => x.trim()).filter(Boolean);
+  if (typeof v === "object") return Object.keys(v).map((x) => String(x || "").trim()).filter(Boolean);
+  return [];
+};
+
+const pickFirst = (...vals) => {
+  for (const v of vals) if (v !== undefined && v !== null && v !== "") return v;
+  return null;
+};
+const ymdToInt = (s) => {
+  const m = String(s || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+};
+const todayInt = () => {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+};
+const estaEnVacaciones = (vacacionesArr) => {
+  const list = Array.isArray(vacacionesArr) ? vacacionesArr : [];
+  if (!list.length) return false;
+
+  const t = todayInt();
+  for (const r of list) {
+    if (r?.activo === false) continue;
+    const from = ymdToInt(pickFirst(r?.from, r?.desde));
+    const to = ymdToInt(pickFirst(r?.to, r?.hasta));
+    if (from && to && t >= from && t <= to) return true;
+  }
+  return false;
+};
+const buildStepsFromRaw = (raw) => {
+  const steps = Array.isArray(raw?.steps) ? raw.steps : [];
+
+  const out = steps.map((st, idx) => {
+    const min = toNum(pickFirst(st?.min, st?.desde, st?.from)) ?? 0;
+    const max = toNum(pickFirst(st?.max, st?.hasta, st?.to)) ?? Number.POSITIVE_INFINITY;
+
+    const approvers = (Array.isArray(st?.approvers) ? st.approvers : []).map((ap) => {
+      const fullName = String(ap?.fullName || ap?.nombre || ap?.name || "").trim();
+      return {
+        uid: String(ap?.uid || ap?.userId || "").trim(),
+        email: String(ap?.email || "").trim(),
+        fullName,
+        activo: ap?.activo === false ? false : true,
+        vacaciones: Array.isArray(ap?.vacaciones) ? ap.vacaciones : [],
+        reemplazos: toList(ap?.reemplazos || ap?.reemplazo || ap?.suplentes || ap?.suplente),
+      };
+    }).filter((a) => a.fullName || a.uid || a.email);
+
+    const delegation = st?.delegation && typeof st.delegation === "object" ? st.delegation : {};
+    const delegationRules =
+      Array.isArray(delegation?.rules) ? delegation.rules :
+      (Array.isArray(st?.rules) ? st.rules : []);
+
+    return {
+      idx,
+      id: String(st?.id || `st_${idx + 1}`).trim(),
+      activo: st?.activo === false ? false : true,
+      nombre: String(st?.nombre || st?.inStatus || `Paso ${idx + 1}`).trim(),
+      inStatus: String(st?.inStatus || st?.nombre || "").trim(),
+      approveTo: String(st?.approveTo || "Aprobado").trim(),
+      overTo: String(st?.overTo || "").trim(),
+      locked: !!st?.locked,
+      min,
+      max,
+      toStepId: String(st?.toStepId || "").trim(),
+      delegation: {
+        mode: String(delegation?.mode || "").trim(),
+        rules: delegationRules,
+      },
+      approvers,
+    };
+  });
+
+  out.sort((a, b) => (a.min - b.min) || ((a.max ?? Infinity) - (b.max ?? Infinity)) || (a.idx - b.idx));
+  return out;
+};
+
+const rebuildApproverMaps = (steps) => {
+  const byUid = new Map();
+  const byName = new Map();
+
+  for (const st of steps || []) {
+    for (const ap of st.approvers || []) {
+      if (ap.uid) byUid.set(ap.uid, ap);
+      if (ap.fullName) byName.set(nameKey(ap.fullName), ap);
+    }
+  }
+
+  aprobacionCfg.approverByUid = byUid;
+  aprobacionCfg.approverByName = byName;
+};
+
+function resetCfgEmpresa() {
+  if (_unsubCfgEmpresa) {
+    _unsubCfgEmpresa();
+    _unsubCfgEmpresa = null;
+  }
+  aprobacionCfg.loading = false;
+  aprobacionCfg.ok = false;
+  aprobacionCfg.error = null;
+
+  aprobacionCfg.empresaDocId = "";
+  aprobacionCfg.empresaSlug = "";
+  aprobacionCfg.empresaNombre = "";
+  aprobacionCfg.raw = null;
+  aprobacionCfg.steps = [];
+  aprobacionCfg.approverByUid = new Map();
+  aprobacionCfg.approverByName = new Map();
+  aprobacionCfg.lastUpdatedAt = null;
+}
+function suscribirCfgEmpresa(empresaDocId) {
+  const docId1 = empresaDocId || "xtreme_servicio";
+  const docId2 = docId1.includes("_") ? docId1.replace(/_/g, "-") : docId1.replace(/-/g, "_");
+
+  if (aprobacionCfg.empresaSlug === docId1 && _unsubCfgEmpresa) return;
+
+  resetCfgEmpresa();
+
+  aprobacionCfg.loading = true;
+  aprobacionCfg.empresaDocId = docId1;
+  aprobacionCfg.empresaSlug = docId1;
+
+  const mkRef = (id) => doc(db, "configuracion", "aprobacion_oc_taller", "empresas", id);
+
+  const subTo = (idToUse) => {
+    const dref = mkRef(idToUse);
+
+    _unsubCfgEmpresa = onSnapshot(
+      dref,
+      (snap) => {
+        aprobacionCfg.loading = false;
+
+        if (!snap.exists()) {
+          if (idToUse === docId1 && docId2 && docId2 !== docId1) {
+            resetCfgEmpresa();
+            aprobacionCfg.loading = true;
+            aprobacionCfg.empresaDocId = docId2;
+            aprobacionCfg.empresaSlug = docId2;
+            subTo(docId2);
+            return;
+          }
+
+          aprobacionCfg.ok = false;
+          aprobacionCfg.error = new Error(`No existe config para empresa: ${idToUse}`);
+          aprobacionCfg.raw = null;
+          aprobacionCfg.steps = [];
+          rebuildApproverMaps([]);
+          aprobacionCfg.lastUpdatedAt = Date.now();
+          calcularAprobador();
+          return;
+        }
+
+        const raw = snap.data() || {};
+        aprobacionCfg.raw = raw;
+        aprobacionCfg.empresaNombre = String(raw?.nombre || "").trim();
+        aprobacionCfg.steps = buildStepsFromRaw(raw);
+        rebuildApproverMaps(aprobacionCfg.steps);
+
+        aprobacionCfg.ok = true;
+        aprobacionCfg.error = null;
+        aprobacionCfg.lastUpdatedAt = Date.now();
+
+        calcularAprobador();
+      },
+      (err) => {
+        aprobacionCfg.loading = false;
+        aprobacionCfg.ok = false;
+        aprobacionCfg.error = err;
+        aprobacionCfg.raw = null;
+        aprobacionCfg.steps = [];
+        rebuildApproverMaps([]);
+        aprobacionCfg.lastUpdatedAt = Date.now();
+        calcularAprobador();
+      }
+    );
+  };
+
+  subTo(docId1);
+}
+
+function isDisponibleApprover(ap) {
+  if (!ap) return false;
+  if (!String(ap?.fullName || "").trim()) return false;
+  if (ap.activo === false) return false;
+  if (estaEnVacaciones(ap.vacaciones)) return false;
+  return true;
+}
+
+const DEFAULT_FALLBACK = {
+  [nameKey("Guillermo Manzor")]: ["Juan Cubillos", "Alejandro Candia"],
+  [nameKey("Juan Cubillos")]: ["Alejandro Candia"],
+  [nameKey("Alejandro Candia")]: ["Juan Cubillos"],
+};
+
+function getReemplazos(ap, step) {
+  const out = [];
+
+  for (const r of (ap?.reemplazos || [])) out.push(r);
+
+  const rules = Array.isArray(step?.delegation?.rules) ? step.delegation.rules : [];
+  for (const rule of rules) {
+    const fromUid = String(rule?.fromUid || rule?.from_uid || "").trim();
+    const fromName = String(rule?.fromName || rule?.from || "").trim();
+    const toUid = toList(rule?.toUid || rule?.to_uid);
+    const toName = toList(rule?.toName || rule?.to);
+
+    const match =
+      (fromUid && ap?.uid && fromUid === ap.uid) ||
+      (fromName && ap?.fullName && nameKey(fromName) === nameKey(ap.fullName));
+
+    if (match) {
+      for (const u of toUid) out.push({ __uid: String(u).trim() });
+      for (const n of toName) out.push(String(n).trim());
+    }
+  }
+
+  const fb = DEFAULT_FALLBACK[nameKey(ap?.fullName)] || [];
+  for (const n of fb) out.push(n);
+
+  const normalized = [];
+  for (const r of out) {
+    if (!r) continue;
+
+    if (typeof r === "object" && r.__uid) {
+      const ap2 = aprobacionCfg.approverByUid.get(r.__uid);
+      if (ap2) normalized.push(ap2);
+      continue;
+    }
+
+    if (typeof r === "string") {
+      const ap2 = aprobacionCfg.approverByName.get(nameKey(r));
+      if (ap2) normalized.push(ap2);
+      else normalized.push({ uid: "", email: "", fullName: r, activo: true, vacaciones: [], reemplazos: [] });
+    }
+  }
+
+  return normalized;
+}
+function resolverAprobador(approvers = [], step = null) {
+  const queue = (approvers || []).filter(Boolean);
+  const base = queue[0]?.fullName || "";
+  const visited = new Set();
+  let baseMotivo = "";
+
+  while (queue.length) {
+    const candidato = queue.shift();
+    const k = candidato?.uid ? `uid:${candidato.uid}` : `nm:${nameKey(candidato?.fullName || "")}`;
+    if (!k || visited.has(k)) continue;
+    visited.add(k);
+
+    if (isDisponibleApprover(candidato)) {
+      const reemplazo = base && nameKey(candidato.fullName) !== nameKey(base);
+      const motivo = reemplazo ? "reemplazo" : "regla";
+      const detalle = reemplazo
+        ? `Reemplazo por ${baseMotivo || "no disponible"} de ${base}`
+        : "Asignado por regla (steps)";
+
+      return {
+        fullName: candidato.fullName || "",
+        uid: candidato.uid || "",
+        email: candidato.email || "",
+        base,
+        motivo,
+        detalle,
+      };
+    }
+
+    if (base && nameKey(candidato?.fullName) === nameKey(base) && !baseMotivo) {
+      if (candidato?.activo === false) baseMotivo = "inactivo";
+      else if (estaEnVacaciones(candidato?.vacaciones)) baseMotivo = "vacaciones";
+      else baseMotivo = "no_disponible";
+    }
+
+    const repl = getReemplazos(candidato, step);
+    for (const r of repl) queue.push(r);
+  }
+
+  return {
+    fullName: "",
+    uid: "",
+    email: "",
+    base,
+    motivo: "sin_disponible",
+    detalle: base ? `Sin aprobador disponible (base: ${base})` : "Sin aprobador disponible",
+  };
+}
+function pickStep(totalCLP) {
+  const steps = aprobacionCfg.steps || [];
+  if (!steps.length) return null;
+
+  const match = steps.find((s) =>
+    s.activo !== false &&
+    totalCLP >= (s.min ?? 0) &&
+    totalCLP <= (s.max ?? Number.POSITIVE_INFINITY)
+  );
+
+  return match || steps.find((s) => s.activo !== false) || steps[0] || null;
+}
+
+function candidatosDesdeCfg(totalCLP) {
+  const step = pickStep(totalCLP);
+  const candidatos = step?.approvers || [];
+  return { step, candidatos };
+}
+
+const aprobadorMeta = reactive({
+  base: "",
+  final: "",
+  finalUid: "",
+  finalEmail: "",
+  motivo: "",
+  detalle: "",
+  bloquea: false,
+  stepId: "",
+  stepNombre: "",
+  inStatus: "",
+  approveTo: "",
+  overTo: "",
+  min: null,
+  max: null,
+  locked: false,
+  regla: null,
+});
+
+const aprobadorUI = computed(() => {
+  if (aprobacionCfg.loading) {
+    return {
+      show: true,
+      cls: "alert-secondary",
+      icon: "bi-hourglass-split",
+      title: "Cargando reglas de aprobación…",
+      subtitle: `Empresa config: ${aprobacionCfg.empresaSlug || "—"}`,
+    };
+  }
+
+  if (!aprobadorMeta.final) {
+    const msg = aprobacionCfg.ok
+      ? "No hay aprobadores disponibles (inactivos o en vacaciones). Revisa steps/approvers."
+      : "No se pudo cargar la configuración (revisa permisos / doc empresa).";
+    return {
+      show: true,
+      cls: "alert-danger",
+      icon: "bi-person-x",
+      title: "Sin aprobador disponible",
+      subtitle: msg,
+    };
+  }
+
+  const extra = aprobadorMeta.stepId
+    ? `Estatus: ${aprobadorMeta.stepNombre || aprobadorMeta.stepId} `
+    : "";
+
+  if (aprobadorMeta.motivo === "reemplazo") {
+    return {
+      show: true,
+      cls: "alert-warning",
+      icon: "bi-person-exclamation",
+      title: `Aprobador sugerido (reemplazo): ${aprobadorMeta.final}`,
+      subtitle: `${aprobadorMeta.detalle || ""}${extra ? " — " + extra : ""}`,
+    };
+  }
+
+  return {
+    show: true,
+    cls: "alert-info",
+    icon: "bi-person-check",
+    title: `Aprobador sugerido: ${aprobadorMeta.final}`,
+    subtitle: extra,
+  };
+});
+const isPdfArchivo = (a) => {
+  const t = String(a?.tipo ?? a?.type ?? "").toLowerCase();
+  const n = String(a?.name ?? a?.nombre ?? "").toLowerCase();
+  return t.includes("pdf") || n.endsWith(".pdf");
+};
+
+const isImageArchivo = (a) => {
+  const t = String(a?.tipo ?? a?.type ?? "").toLowerCase();
+  return t.startsWith("image/");
+};
+
+const isExcelArchivo = (a) => {
+  const t = String(a?.tipo ?? a?.type ?? "").toLowerCase();
+  const n = String(a?.name ?? a?.nombre ?? "").toLowerCase();
+  return (
+    n.endsWith(".xlsx") ||
+    n.endsWith(".xls") ||
+    n.endsWith(".csv") ||
+    t.includes("spreadsheet") ||
+    t.includes("excel") ||
+    t.includes("vnd.ms-excel") ||
+    t.includes("vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
+    t.includes("csv") ||
+    t.includes("text/csv")
+  );
 };
 
 async function refrescarAprobadasConCount() {
@@ -1729,6 +2174,7 @@ const onChangeSolped = async () => {
 
       centroCosto.value = data.numero_contrato || centroCosto.value;
       archivos.value = archivos.value.filter((a) => !a?.fromSolped);
+      calcularAprobador();
     }
   } catch (e) {
     console.error(e);
@@ -1768,26 +2214,42 @@ const calcularAprobador = () => {
     ? (solpedSeleccionada.value?.empresa || empresaPorDefecto)
     : empresaPorDefecto;
 
-  const empresa = (empresaBase || "").toLowerCase();
+  const empresaDocId = slugEmpresa(empresaBase);
+  suscribirCfgEmpresa(empresaDocId);
 
-  if (empresa === "xtreme mining") {
-    if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
-    else if (totalCLP <= 1000000) aprobadorSugerido.value = "Felipe Gonzalez / Ricardo Santibañez";
-    else if (totalCLP <= 2000000) aprobadorSugerido.value = "Patricio Muñoz";
-    else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos / César Palma";
-    else aprobadorSugerido.value = "Alejandro Candia";
-  } else if (empresa === "xtreme servicio") {
-    if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
-    else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
-    else aprobadorSugerido.value = "Alejandro Candia";
-  } else if (empresa === "xtreme hormigones") {
-    if (totalCLP <= 1000000) aprobadorSugerido.value = "Felipe Gonzalez / Ricardo Santibañez";
-    else if (totalCLP <= 3000000) aprobadorSugerido.value = "Patricio Muñoz";
-    else if (totalCLP <= 7000000) aprobadorSugerido.value = "César Palma";
-    else aprobadorSugerido.value = "Alejandro Candia";
-  } else {
-    aprobadorSugerido.value = "Empresa no reconocida";
-  }
+  const { step, candidatos } = candidatosDesdeCfg(totalCLP);
+  const res = resolverAprobador(candidatos, step);
+
+  aprobadorSugerido.value = res.fullName || "";
+  aprobadorAsignado.value = res.fullName || "";
+
+  aprobadorMeta.base = res.base || "";
+  aprobadorMeta.final = res.fullName || "";
+  aprobadorMeta.finalUid = res.uid || "";
+  aprobadorMeta.finalEmail = res.email || "";
+  aprobadorMeta.motivo = res.motivo || "";
+  aprobadorMeta.detalle = res.detalle || "";
+  aprobadorMeta.bloquea = !res.fullName;
+
+  aprobadorMeta.stepId = step?.id || "";
+  aprobadorMeta.stepNombre = step?.nombre || "";
+  aprobadorMeta.inStatus = step?.inStatus || step?.nombre || "";
+  aprobadorMeta.approveTo = step?.approveTo || "Aprobado";
+  aprobadorMeta.overTo = step?.overTo || "";
+  aprobadorMeta.min = step?.min ?? null;
+  aprobadorMeta.max = step?.max ?? null;
+  aprobadorMeta.locked = !!step?.locked;
+
+  aprobadorMeta.regla = step ? ({
+    id: step.id || "",
+    label: step.nombre || "",
+    min: step.min ?? null,
+    max: step.max ?? null,
+    inStatus: step.inStatus || "",
+    approveTo: step.approveTo || "Aprobado",
+    overTo: step.overTo || "",
+    locked: !!step.locked,
+  }) : null;
 };
 
 const mapearItemsSegunRegla = (itemsFuente) => {
@@ -1817,7 +2279,7 @@ const mapearItemsSegunRegla = (itemsFuente) => {
   return salida;
 };
 
-const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario) => {
+const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario, estatusInicial) => {
   if (!solpedId) return;
   const srefDoc = doc(db, "solpes", solpedId);
   const ss = await getDoc(srefDoc);
@@ -1851,7 +2313,7 @@ const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario) => 
   await addDoc(hcoll, {
     usuario: nombreUsuario || "Sistema",
     fecha: serverTimestamp(),
-    estatus: "Cotización enviada - Revisión Guillermo",
+    estatus: `Cotización enviada - ${estatusInicial || "Pendiente de Aprobación"}`,
   });
 };
 
@@ -1867,6 +2329,15 @@ const enviarOC = async () => {
     addToast("warning", `${msgExtra} Ve al detalle y súbelas antes de continuar.`);
     return;
   }
+  if (aprobacionCfg.loading) {
+    addToast("warning", "Espera un momento: cargando reglas de aprobación…");
+    return;
+  }
+  calcularAprobador();
+  if (aprobadorMeta.bloquea) {
+    addToast("danger", "No hay aprobador disponible (inactivo/vacaciones o config no válida). No se puede enviar.");
+    return;
+  }
 
   if (!centroCosto.value.trim()) { addToast("warning", "Selecciona Centro de Costo"); return; }
   if (!tipoCompra.value) { addToast("warning", "Selecciona tipo de compra"); return; }
@@ -1874,8 +2345,6 @@ const enviarOC = async () => {
   if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning", "Precio inválido"); return; }
   if (!monedaSeleccionada.value) { addToast("warning", "Selecciona moneda"); return; }
   if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
-
-  // ✅ Validación items
   if (usarSolped.value && solpedSeleccionadaId.value) {
     const items = itemsSolped.value || [];
     const alguno = items.some((it) => Number(it?.cantidad_para_cotizar || 0) > 0);
@@ -1933,8 +2402,8 @@ const enviarOC = async () => {
     const empresaElegida = (usarSolped.value && solpedSeleccionada.value?.empresa)
       ? solpedSeleccionada.value.empresa
       : empresaPorDefecto;
+    const estatusInicial = ESTATUS_FIJO_INICIAL;
 
-    const estatusInicial = "Revisión Guillermo";
     const comentarioFinal = (comentario.value || "").trim();
 
     let itemsOC = [];
@@ -1952,8 +2421,6 @@ const enviarOC = async () => {
       doneAdj++;
       const pct = Math.min(90, 10 + Math.round((doneAdj / totalAdj) * 80));
       setBusy(true, "Enviando cotización…", `Subiendo adjunto ${doneAdj} de ${totalAdj}`, pct);
-
-      // ✅ SOLPED (ya tiene URL) -> NO re-subir
       if (a?.fromSolped && a?.url) {
         subidos.push({
           nombre: a.name,
@@ -1964,8 +2431,6 @@ const enviarOC = async () => {
         });
         continue;
       }
-
-      // ✅ archivo nuevo -> subir a Storage
       if (!a.file || a.file.size < 100) continue;
 
       const safeName = String(a.name || "archivo")
@@ -2001,7 +2466,15 @@ const enviarOC = async () => {
       nombre_centro_costo: centroNombre,
       moneda: monedaSeleccionada.value,
       precioTotalConIVA: precioTotalConIVA.value,
-      aprobadorSugerido: aprobadorSugerido.value || "",
+      aprobadorSugerido: aprobadorAsignado.value || "",
+      aprobadorBase: aprobadorMeta.base || "",
+      aprobadorMotivo: aprobadorMeta.motivo || "",
+      aprobadorDetalle: aprobadorMeta.detalle || "",
+
+      aprobadorReglaId: aprobadorMeta.stepId || aprobadorMeta.regla?.id || "",
+      aprobadorReglaLabel: aprobadorMeta.stepNombre || aprobadorMeta.regla?.label || "",
+      aprobadorEmpresaSlug: aprobacionCfg.empresaSlug || aprobacionCfg.empresaDocId || "",
+
       empresa: empresaElegida,
       archivosStorage: subidos,
       ...(usarSolped.value && solpedSeleccionadaId.value ? {
@@ -2019,13 +2492,11 @@ const enviarOC = async () => {
     await updateDoc(newDocRef, { __docId: newDocId });
 
     if (usarSolped.value && solpedSeleccionadaId.value) {
-      await actualizarSolpedAsociada(solpedSeleccionadaId.value, itemsOC, nombreUsuario);
+      await actualizarSolpedAsociada(solpedSeleccionadaId.value, itemsOC, nombreUsuario, estatusInicial);
     }
 
     setBusy(true, "Listo ✅", "Cotización enviada correctamente", 100);
     addToast("success", "Cotización enviada exitosamente.");
-
-    // reset
     centroCosto.value = "";
     tipoCompra.value = "stock";
     destinoCompra.value = "";
@@ -2047,6 +2518,25 @@ const enviarOC = async () => {
     precioTotalConIVA.value = 0;
     precioFormateado.value = "";
     aprobadorSugerido.value = "";
+    aprobadorAsignado.value = "";
+
+    aprobadorMeta.base = "";
+    aprobadorMeta.final = "";
+    aprobadorMeta.finalUid = "";
+    aprobadorMeta.finalEmail = "";
+    aprobadorMeta.motivo = "";
+    aprobadorMeta.detalle = "";
+    aprobadorMeta.bloquea = false;
+    aprobadorMeta.stepId = "";
+    aprobadorMeta.stepNombre = "";
+    aprobadorMeta.inStatus = "";
+    aprobadorMeta.approveTo = "";
+    aprobadorMeta.overTo = "";
+    aprobadorMeta.min = null;
+    aprobadorMeta.max = null;
+    aprobadorMeta.locked = false;
+    aprobadorMeta.regla = null;
+
     monedaSeleccionada.value = "CLP";
     await cargarSiguienteNumero();
 
@@ -2097,6 +2587,7 @@ const estadoBadgeClass = (estatus) => {
   if (s.includes("preaprob")) return "bg-info-subtle text-info-emphasis";
   if (s.includes("escala") || s.includes("rechaz")) return "bg-danger-subtle text-danger-emphasis";
   if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
+  if (s.includes("pendiente")) return "bg-warning-subtle text-warning-emphasis";
   return "bg-secondary-subtle text-secondary-emphasis";
 };
 
@@ -2259,6 +2750,9 @@ onMounted(async () => {
   window.addEventListener("resize", onResize);
 
   await obtenerNombreUsuario();
+
+  suscribirCfgEmpresa(slugEmpresa(empresaPorDefecto));
+
   await refrescarAprobadasConCount();
   suscribirAprobadasLiveMinima();
 
@@ -2282,6 +2776,8 @@ onMounted(async () => {
     await onChangeSolped();
     addToast("success", "SOLPED preseleccionada desde el historial.");
   }
+
+  calcularAprobador();
 });
 
 onBeforeUnmount(() => {
@@ -2290,6 +2786,7 @@ onBeforeUnmount(() => {
   if (_unsubMisOC) _unsubMisOC();
   if (_unsubAprobadasLive) _unsubAprobadasLive();
   if (_unsubResumenOC) _unsubResumenOC();
+  if (_unsubCfgEmpresa) _unsubCfgEmpresa();
   if (debounceTimer) clearTimeout(debounceTimer);
 
   for (const a of archivos.value) {
@@ -2299,6 +2796,8 @@ onBeforeUnmount(() => {
   }
 });
 </script>
+
+
 
 <style scoped>
 .generador-oc-page { min-height: 100vh; }
@@ -2448,7 +2947,6 @@ onBeforeUnmount(() => {
   .card-header .small { font-size: .8rem; }
 }
 
-/* ===== OVERLAY CARGA ===== */
 .busy-overlay{
   position: fixed;
   inset: 0;
@@ -2467,7 +2965,6 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(0,0,0,.08);
 }
 
-/* ✅ Bloque descarga Excel */
 .excel-fallback{
   border: 1px dashed rgba(0,0,0,.12);
   border-radius: 12px;

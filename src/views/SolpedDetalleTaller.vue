@@ -2,7 +2,6 @@
 <template>
   <div class="solped-detalle-page">
     <div class="container py-4 py-md-5">
-      <!-- Header -->
         <div class="d-flex align-items-center justify-content-between mb-3">
           <button class="btn btn-outline-secondary btn-sm" @click="volver">
             <i class="bi bi-arrow-left"></i> Volver
@@ -13,8 +12,6 @@
           </h1>
 
         </div>
-
-      <!-- Loading / Error -->
       <div v-if="loading" class="text-center py-5">
         <div class="spinner-border" role="status"></div>
         <div class="mt-2">Cargando SOLPED…</div>
@@ -24,7 +21,6 @@
       </div>
 
       <div v-else>
-        <!-- Card resumen -->
         <div class="card card-elevated mb-3">
           <div class="card-header e d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
@@ -77,8 +73,6 @@
                 <div class="border rounded p-2 ">{{ docData.descripcion_general }}</div>
               </div>
             </div>
-
-            <!-- Autorización adjunta (opcional) -->
             <div v-if="docData.autorizacion_url" class="alert alert-light d-flex align-items-center mt-3">
               <i class="bi bi-paperclip me-2"></i>
               <div class="me-auto">
@@ -92,8 +86,6 @@
             </div>
           </div>
         </div>
-
-        <!-- OCs vinculadas (ordenes_oc_taller) -->
         <div class="card card-elevated mb-3">
           <div class="card-header  d-flex align-items-center justify-content-between">
             <span class="fw-semibold">🧾 Órdenes de Compra vinculadas</span>
@@ -149,8 +141,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Ítems -->
         <div class="card card-elevated mb-3">
           <div class="card-header ">
             <span class="fw-semibold">📦 Ítems solicitados</span>
@@ -198,8 +188,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Historial de estados -->
         <div class="card card-elevated">
           <div class="card-header">
             <span class="fw-semibold">🕒 Historial de estados</span>
@@ -242,26 +230,20 @@ import { doc, getDoc, collection, getDocs, query, orderBy, where } from 'firebas
 
 const route = useRoute();
 const router = useRouter();
-
 const loading = ref(true);
 const error   = ref('');
 const docData = ref(null);
-
 const historial = ref([]);
 const cargandoHistorial = ref(true);
-
-// OCs vinculadas (ordenes_oc_taller)
 const ocs = ref([]);
 const cargandoOCs = ref(true);
 
 const volver = () => router.back();
 
 const numeroSolpe = computed(() => {
-  // en taller suele ser numero_solpe (numérico)
   return docData.value?.numero_solpe ?? docData.value?.numero_solped ?? '';
 });
 
-// ===== Fetch principal =====
 onMounted(async () => {
   try {
     const id = route.params.id;
@@ -270,19 +252,13 @@ onMounted(async () => {
       loading.value = false;
       return;
     }
-
-    // Colección de taller
     const dref = doc(db, 'solped_taller', String(id));
     const snap = await getDoc(dref);
     if (!snap.exists()) {
       error.value = 'No se encontró la SOLPED de taller.';
     } else {
       docData.value = normalizeDoc({ __docId: snap.id, ...snap.data() });
-
-      // historialEstados (subcolección en el doc de taller)
       await cargarHistorial(dref);
-
-      // OCs vinculadas desde ordenes_oc_taller
       await cargarOCsVinculadas();
     }
   } catch (e) {
@@ -293,7 +269,6 @@ onMounted(async () => {
   }
 });
 
-// ===== Normalización simple =====
 const normalizeDoc = (d) => {
   const n = { ...d };
   n.creado_en = coerceDateLike(n.creado_en);
@@ -309,8 +284,6 @@ const coerceDateLike = (v) => {
   }
   return v;
 };
-
-// ===== Historial =====
 const cargarHistorial = async (dref) => {
   cargandoHistorial.value = true;
   try {
@@ -333,15 +306,12 @@ const cargarHistorial = async (dref) => {
     cargandoHistorial.value = false;
   }
 };
-
-// ===== OCs vinculadas (ordenes_oc_taller) =====
 const cargarOCsVinculadas = async () => {
   cargandoOCs.value = true;
   try {
     const lista = [];
 
     const solpedDocId = route.params.id;
-    // 1) Buscar por solpedId == id del doc
     let snap1;
     try {
       const q1 = query(
@@ -356,8 +326,6 @@ const cargarOCsVinculadas = async () => {
       snap1 = await getDocs(q1);
     }
     snap1.forEach(d => lista.push(cleanOC({ __docId: d.id, ...d.data() })));
-
-    // 2) Si no hay, intentar por numero_solped (numérico)
     if (lista.length === 0 && numeroSolpe.value) {
       const n = Number(numeroSolpe.value);
       if (!Number.isNaN(n)) {
@@ -377,8 +345,6 @@ const cargarOCsVinculadas = async () => {
         snap2.forEach(d => lista.push(cleanOC({ __docId: d.id, ...d.data() })));
       }
     }
-
-    // Ordenar por fechaSubida desc en cliente por seguridad
     lista.sort((a, b) => dateLikeToMillis(b?.fechaSubida) - dateLikeToMillis(a?.fechaSubida));
     ocs.value = lista;
   } catch (e) {
@@ -395,7 +361,6 @@ const cleanOC = (x) => {
   return n;
 };
 
-// ===== Derivados / helpers =====
 const itemsOrdenados = computed(() => {
   const arr = Array.isArray(docData.value?.items) ? [...docData.value.items] : [];
   arr.sort((a, b) => (a.item ?? 0) - (b.item ?? 0));
@@ -465,7 +430,6 @@ const itemEstadoBadge = (e) => {
   min-height:100vh;
 }
 
-/* Card estética */
 .card-elevated{
   border:1px solid #e5e7eb !important;
   box-shadow:
@@ -474,7 +438,6 @@ const itemEstadoBadge = (e) => {
   border-radius:.9rem !important;
 }
 
-/* thumbs */
 .thumb-img{
   width: 84px;
   height: 56px;
@@ -487,7 +450,6 @@ const itemEstadoBadge = (e) => {
   transition: transform .15s ease;
 }
 
-/* Timeline simple */
 .timeline{
   position: relative;
   margin: 0;
@@ -514,7 +476,7 @@ const itemEstadoBadge = (e) => {
   width:12px;
   height:12px;
   border-radius:50%;
-  background:#ef4444; /* rojo corporativo */
+  background:#ef4444;
   border:2px solid #fff;
   box-shadow:0 0 0 2px #e5e7eb;
 }

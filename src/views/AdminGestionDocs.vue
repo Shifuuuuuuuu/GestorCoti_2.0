@@ -11,7 +11,6 @@
           <i class="bi bi-folder-plus me-1"></i> Nuevo lote
         </button>
 
-        <!-- ✅ ahora el select usa lotesForTab -->
         <select
           class="form-select"
           style="min-width: 280px"
@@ -36,7 +35,6 @@
       </div>
     </div>
 
-    <!-- ✅ Mensajes según tab -->
     <div v-if="tab === 'staging' && lotesForTab.length === 0" class="alert alert-warning">
       No hay lotes <b>pendientes</b> para revisión local. Crea un lote nuevo.
     </div>
@@ -44,9 +42,6 @@
       No hay lotes en <b>en_revision</b> o <b>revision_completada</b> para ver en Firestore.
     </div>
 
-    <!-- ========================= -->
-    <!-- TAB: STAGING -->
-    <!-- ========================= -->
     <div v-if="tab === 'staging'" class="row g-3">
       <div class="col-12 col-lg-5">
         <div class="card shadow-sm">
@@ -338,16 +333,13 @@
       </div>
     </div>
 
-    <!-- ========================= -->
-    <!-- TAB: CLOUD -->
-    <!-- ========================= -->
+
     <div v-else class="row g-3">
       <div v-if="!selectedLoteId" class="col-12">
         <div class="alert alert-warning">Selecciona un lote para empezar.</div>
       </div>
 
       <template v-else>
-        <!-- ✅ NUEVO: FIRMAR OCs APROBADAS (por lote) -->
         <div class="col-12">
           <div class="card shadow-sm">
             <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
@@ -434,7 +426,6 @@
           </div>
         </div>
 
-        <!-- COLUMNA IZQ: LISTA DOCS -->
         <div class="col-12 col-lg-4">
           <div class="card shadow-sm">
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -514,6 +505,14 @@
                         N°: <span class="fw-semibold">{{ d.numero || "—" }}</span>
                         <span v-if="d.origen?.pageRange"> · Páginas: {{ d.origen.pageRange }}</span>
                       </small>
+                      <div
+                        v-if="d.estado === 'rechazado' && hasRechazoMotivo(d)"
+                        class="small text-danger mt-1"
+                        style="white-space: normal"
+                      >
+                        <i class="bi bi-chat-left-text me-1"></i>
+                        <b>Motivo:</b> {{ rechazoMotivo(d) }}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -558,6 +557,14 @@
             </div>
 
             <div class="card-body">
+              <div
+                v-if="selectedDoc && selectedDoc.estado === 'rechazado' && hasRechazoMotivo(selectedDoc)"
+                class="alert alert-danger py-2"
+              >
+                <i class="bi bi-x-octagon me-2"></i>
+                <b>Documento rechazado:</b> {{ rechazoMotivo(selectedDoc) }}
+              </div>
+
               <div v-if="selectedDocNeedsOc" class="mb-3 p-2 rounded border bg-light-subtle">
                 <div class="small text-muted mb-2">
                   Esta <b>{{ selectedDoc?.tipo }}</b> no tiene OC detectada. Escribe la OC, guarda y avanzará a la siguiente “Sin OC”.
@@ -618,8 +625,6 @@
         </div>
       </template>
     </div>
-
-    <!-- MODAL: CREAR LOTE -->
     <div class="modal fade" ref="createLoteModalEl" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -639,7 +644,6 @@
       </div>
     </div>
 
-    <!-- MODAL: EDITAR STAGE -->
     <div class="modal fade" ref="editStageModalEl" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -671,7 +675,6 @@
       </div>
     </div>
 
-    <!-- ✅ MODAL: FIRMA MASIVA -->
     <div class="modal fade" ref="signModalEl" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -708,7 +711,6 @@
       </div>
     </div>
 
-    <!-- OVERLAY BUSY -->
     <transition name="fade">
       <div v-if="localBusy || uploadBusy || exportBusy || signBusy" class="busy-overlay">
         <div class="busy-card shadow-lg">
@@ -2276,6 +2278,19 @@ function swapSides() {
   const tmp = leftDocId.value;
   leftDocId.value = rightDocId.value;
   rightDocId.value = tmp;
+}
+function rechazoMotivo(d) {
+  const m =
+    d?.motivo ||
+    d?.rechazo?.motivo ||
+    d?.rechazo?.comentario ||
+    d?.rechazo?.razon ||
+    "";
+  return String(m || "").trim();
+}
+
+function hasRechazoMotivo(d) {
+  return !!rechazoMotivo(d);
 }
 
 function openCreateLoteModal() {

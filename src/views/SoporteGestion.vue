@@ -1,15 +1,12 @@
 <!-- src/views/SoporteGestion.vue -->
 <template>
   <div class="soporte-gestion container py-4 py-md-5">
-    <!-- Top -->
     <div class="d-flex align-items-center justify-content-between mb-3">
       <h1 class="h5 fw-semibold mb-0">Gestión de Soporte</h1>
       <button class="btn btn-outline-secondary btn-sm" @click="volver">
         <i class="bi bi-arrow-left"></i> Volver
       </button>
     </div>
-
-    <!-- Sin permisos -->
     <div v-if="!canManage" class="alert alert-warning d-flex justify-content-between align-items-start">
       <div>
         No tienes permisos para ver esta página.
@@ -21,7 +18,6 @@
     </div>
 
     <template v-else>
-      <!-- Filtros -->
       <div class="card card-elevated mb-3">
         <div class="card-body">
           <div class="row g-2 align-items-center">
@@ -55,8 +51,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ====== LISTA SM+ (tabla) ====== -->
       <div class="table-responsive d-none d-sm-block">
         <table class="table table-sm align-middle">
           <thead class="table-light">
@@ -98,8 +92,6 @@
           </tbody>
         </table>
       </div>
-
-      <!-- ====== LISTA XS (cards) ====== -->
       <div class="d-sm-none">
         <div v-for="t in ticketsFiltrados" :key="t.id" class="ticket-card">
           <div class="d-flex align-items-start gap-2">
@@ -131,8 +123,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ====== Offcanvas Detalle ====== -->
       <div class="offcanvas offcanvas-end offcanvas-mobile-full" tabindex="-1" ref="offRef">
         <div class="offcanvas-header">
           <h5 class="offcanvas-title">Ticket #{{ sel?.numero || '—' }}</h5>
@@ -224,7 +214,6 @@ export default {
       nombre: auth?.user?.displayName || auth?.user?.email || "Soporte"
     });
 
-    // Rol
     const myRole = ref(
       (auth?.user?.role || auth?.user?.rol || "").toString().trim().toLowerCase()
     );
@@ -287,8 +276,6 @@ export default {
         return hay.includes(txt);
       });
     });
-
-    // Offcanvas
     const offRef = ref(null);
     const sel = ref(null);
     const respuesta = ref("");
@@ -401,23 +388,18 @@ export default {
 </script>
 
 <style scoped>
-/* Tarjeta y sombras */
 .card-elevated{
   border:1px solid var(--bs-border-color);
   border-radius: 10px;
   box-shadow: 0 8px 18px rgba(0,0,0,.06);
 }
 
-/* Badge */
 .badge{ border-radius:999px; font-weight:700; }
 
-/* Miniatura */
 .thumb{
   width:160px; height:160px; object-fit:cover;
   border-radius:8px; border:1px solid #e5e7eb; cursor: zoom-in;
 }
-
-/* Cards móviles */
 .ticket-card{
   border:1px solid var(--bs-border-color);
   border-radius:12px;
@@ -427,16 +409,13 @@ export default {
   background: var(--bs-body-bg);
 }
 
-/* Offcanvas full screen en móviles */
 .offcanvas-mobile-full{ width: 480px; }
 @media (max-width: 576px){
   .offcanvas-mobile-full{ width: 100% !important; }
 }
 
-/* Evitar cortes de texto */
 .prewrap{ white-space: pre-wrap; word-break: break-word; }
 
-/* Truncamiento elegante */
 .min-w-0{ min-width: 0; }
 .text-truncate{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

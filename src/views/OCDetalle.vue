@@ -1,7 +1,6 @@
 <!-- src/views/OCDetalle.vue -->
 <template>
   <div class="container py-4 py-md-5">
-    <!-- Overlay (guardando/subiendo) -->
     <transition name="fade">
       <div v-if="busy.on" class="busy-overlay">
         <div class="busy-card shadow-lg">
@@ -15,8 +14,6 @@
         </div>
       </div>
     </transition>
-
-    <!-- Header / Back -->
     <div class="d-flex align-items-center justify-content-between mb-3">
       <button class="btn btn-outline-secondary btn-sm" @click="volver" :disabled="busy.on">
         <i class="bi bi-arrow-left"></i> Volver
@@ -28,8 +25,6 @@
         <span v-if="docData" class="badge" :class="estadoBadgeClass(docData.estatus)">
           {{ docData.estatus || "—" }}
         </span>
-
-        <!-- ✅ Botones Editar / Guardar / Cancelar (solo Editor + Responsable) -->
         <template v-if="docData">
           <template v-if="!editingDetalle">
             <button
@@ -61,20 +56,15 @@
         </template>
       </div>
     </div>
-
-    <!-- Loading -->
     <div v-if="loading" class="text-center py-5">
       <div class="spinner-border" role="status"></div>
       <div class="mt-2">Cargando cotización…</div>
     </div>
 
     <template v-else>
-      <!-- Error -->
       <div v-if="error" class="alert alert-danger">
         {{ error }}
       </div>
-
-      <!-- ✅ Flash (éxito / info / error) -->
       <div v-if="flash.show" class="alert alert-dismissible" :class="flashClass">
         <div class="d-flex align-items-start gap-2">
           <i v-if="flash.type === 'success'" class="bi bi-check-circle-fill"></i>
@@ -84,10 +74,7 @@
           <button type="button" class="btn-close" aria-label="Close" @click="hideFlash"></button>
         </div>
       </div>
-
-      <!-- Content -->
       <div v-if="docData" class="d-grid gap-3">
-        <!-- Resumen principal -->
         <div class="card card-elevated">
           <div class="card-header d-flex align-items-center justify-content-between">
             <div class="fw-semibold">
@@ -131,8 +118,6 @@
                 <div class="small">Moneda</div>
                 <div class="fw-semibold">{{ docData.moneda || "—" }}</div>
               </div>
-
-              <!-- ✅ Total editable -->
               <div class="col-12 col-md-4">
                 <div class="small">Total con IVA</div>
                 <template v-if="!editingDetalle">
@@ -155,8 +140,6 @@
                 <div class="small">Aprobado por</div>
                 <div class="fw-semibold">{{ docData.aprobadoPor }}</div>
               </div>
-
-              <!-- ✅ Comentario editable -->
               <div class="col-12">
                 <div class="small">Comentario</div>
                 <template v-if="!editingDetalle">
@@ -177,8 +160,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Re-subir cotización (solo Editor) -->
         <div v-if="canResubmitEditor" class="card border-2 border-danger-subtle">
           <div class="card-header d-flex align-items-center justify-content-between">
             <div class="fw-semibold text-danger">Subir nueva cotización</div>
@@ -237,8 +218,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Subir OC aprobada (solo Editor) -> guarda en archivoOC[] -->
         <div v-if="canUploadOCProveedorEditor" class="card border-2 border-primary-subtle">
           <div class="card-header d-flex align-items-center justify-content-between">
             <div class="fw-semibold text-primary">Subir Archivos OCs (Aprobada)</div>
@@ -282,8 +261,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Vinculación SOLPED -->
         <div class="card" v-if="docData.tipo_solped || docData.solpedId || docData.numero_solped">
           <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold">Vinculación SOLPED</span>
@@ -309,8 +286,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Ítems -->
         <div class="card" v-if="(docData.items || []).length">
           <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold">📦 Estado de ítems</span>
@@ -351,13 +326,10 @@
             </div>
           </div>
         </div>
-
-        <!-- Archivos -->
         <div class="card" v-if="tieneArchivos || editingDetalle">
           <div class="card-header fw-semibold">📎 Archivos adjuntos</div>
           <div class="card-body">
             <div class="list-group">
-              <!-- ✅ archivoOC[] -->
               <div
                 v-for="(a, idx) in archivoOCArrayView"
                 :key="'oc-' + idx"
@@ -371,8 +343,6 @@
                   </div>
                   <i class="bi bi-box-arrow-up-right ms-2"></i>
                 </a>
-
-                <!-- 🗑️ eliminar SOLO cuando está en editar -->
                 <button
                   v-if="editingDetalle && canEditDetalle"
                   class="btn btn-sm btn-outline-danger ms-3"
@@ -384,8 +354,6 @@
                   <i v-else class="bi bi-trash3"></i>
                 </button>
               </div>
-
-              <!-- archivosStorage -->
               <div
                 v-for="(a, idx) in (docData.archivosStorage || [])"
                 :key="'att-' + idx"
@@ -399,8 +367,6 @@
                   </div>
                   <i class="bi bi-box-arrow-up-right ms-2"></i>
                 </a>
-
-                <!-- 🗑️ eliminar SOLO cuando está en editar -->
                 <button
                   v-if="editingDetalle && canEditDetalle"
                   class="btn btn-sm btn-outline-danger ms-3"
@@ -413,8 +379,6 @@
                 </button>
               </div>
             </div>
-
-            <!-- Editar archivos (reemplazo) -->
             <div v-if="editingDetalle" class="mt-3">
               <div class="alert alert-warning border-0 mb-3">
                 <i class="bi bi-info-circle me-1"></i>
@@ -457,11 +421,8 @@
                 </div>
               </div>
             </div>
-            <!-- /editar archivos -->
           </div>
         </div>
-
-        <!-- Historial -->
         <div class="card" v-if="(docData.historial || []).length">
           <div class="card-header fw-semibold">🕘 Historial</div>
           <div class="card-body">
@@ -484,15 +445,12 @@
             </div>
           </div>
         </div>
-      </div><!-- /grid -->
+      </div>
     </template>
-
-    <!-- ✅ Modal confirmación eliminar (ordenado + espacioso) -->
     <transition name="modal-fade">
       <div v-if="confirmDel.show" class="modal-backdrop-custom" @click.self="closeConfirm()">
         <div class="modal-dialog modal-dialog-centered modal-dialog-custom">
           <div class="modal-content shadow-lg border-0 modal-surface">
-            <!-- Header -->
             <div class="modal-header border-0 px-4 pt-4 pb-3">
               <div class="d-flex align-items-start gap-3 flex-grow-1 pe-2 minw-0">
                 <div class="modal-icon">
@@ -506,8 +464,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- ✅ X ordenada -->
               <button
                 type="button"
                 class="icon-btn"
@@ -519,15 +475,11 @@
                 <i class="bi bi-x-lg"></i>
               </button>
             </div>
-
-            <!-- Body -->
             <div class="modal-body px-4 pt-0 pb-3">
               <div v-if="confirmErr" class="alert alert-danger py-2 mb-3">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
                 {{ confirmErr }}
               </div>
-
-              <!-- ✅ Card más grande, con aire -->
               <div class="file-card">
                 <div class="d-flex align-items-start gap-3">
                   <div class="file-ico">
@@ -551,8 +503,6 @@
                 pero sí se quitará del registro.
               </div>
             </div>
-
-            <!-- Footer -->
             <div class="modal-footer border-0 px-4 pb-4 pt-0">
               <div class="d-flex justify-content-end gap-2 w-100">
                 <button class="btn btn-outline-secondary modal-btn" @click="closeConfirm()" :disabled="confirmBusy">
@@ -593,7 +543,6 @@ const busy = ref({ on: false, label: "Procesando…", hint: "" });
 
 const volver = () => router.back();
 
-/* ===== Flash alerts ===== */
 const flash = ref({ show: false, type: "success", message: "" });
 const flashTimer = ref(null);
 
@@ -617,8 +566,6 @@ function hideFlash() {
 onBeforeUnmount(() => {
   if (flashTimer.value) clearTimeout(flashTimer.value);
 });
-
-/* ===== Utils ===== */
 function norm(s) {
   return String(s || "")
     .normalize("NFD")
@@ -642,7 +589,6 @@ function safeName(name = "archivo") {
     .slice(0, 140);
 }
 
-/* ====== Rol + datos del usuario ====== */
 const userRole = ref("");
 const userDocData = ref(null);
 
@@ -684,7 +630,6 @@ function getUsuarioNombre() {
 const roleEffective = computed(() => (auth?.role || userRole.value || "").toString());
 const isEditor = computed(() => norm(roleEffective.value) === "editor");
 
-/* ===== Responsable del documento ===== */
 const responsableDoc = computed(() => {
   const d = docData.value || {};
   if (d.responsable) return d.responsable;
@@ -703,7 +648,6 @@ const canEditDetalle = computed(() => {
   return !!docData.value?.__docId && isEditor.value && isResponsableDoc.value;
 });
 
-/* ===== archivoOC compat: map -> array (solo vista) ===== */
 const archivoOCArrayView = computed(() => {
   const d = docData.value || {};
   const out = [];
@@ -718,8 +662,6 @@ function getArchivoOCArrayRaw() {
   if (d.archivoOC && typeof d.archivoOC === "object" && d.archivoOC.url) return [{ ...d.archivoOC }];
   return [];
 }
-
-/* ===== Fetch / Reload ===== */
 async function reloadDoc() {
   const id = route.params.id;
   if (!id) return;
@@ -750,8 +692,6 @@ onMounted(async () => {
     loading.value = false;
   }
 });
-
-/* ===== Flags UI ===== */
 const canResubmitBase = computed(() => {
   const s = norm(docData.value?.estatus);
   return s.includes("rechaz") || s.includes("pendiente");
@@ -760,16 +700,12 @@ const canUploadOCProveedorBase = computed(() => norm(docData.value?.estatus) ===
 
 const canResubmitEditor = computed(() => isEditor.value && canResubmitBase.value);
 const canUploadOCProveedorEditor = computed(() => isEditor.value && canUploadOCProveedorBase.value);
-
-/* =========================================================
-   ✅ Modo edición detalle
-========================================================= */
 const editingDetalle = ref(false);
 const draftComentario = ref("");
 const draftPrecioTotal = ref(0);
 
-const editArchivoOCFiles = ref([]); // File[]
-const editAdjuntos = ref([]); // File[]
+const editArchivoOCFiles = ref([]);
+const editAdjuntos = ref([]);
 
 function startEditDetalle() {
   if (!canEditDetalle.value) return;
@@ -804,7 +740,6 @@ function onPickEditAdjuntos(e) {
   editAdjuntos.value = Array.from(e?.target?.files || []);
 }
 
-/* ===== Storage helpers (sin refFromURL) ===== */
 function storageRefFromDownloadURL(url) {
   if (!url) return null;
   const u = String(url);
@@ -847,8 +782,7 @@ async function safeDeleteFileObj(fileObj) {
       if (!r) return;
       await deleteObject(r);
     }
-  } catch {
-    // silencioso
+  } catch(e) {console.log(e)
   }
 }
 
@@ -913,8 +847,6 @@ async function saveEditDetalle() {
       precioTotalConIVA: precioNum,
       historial: nuevoHist,
     };
-
-    // Reemplazar archivoOC[] si seleccionó nuevos
     if (editArchivoOCFiles.value.length) {
       const actualesOC = getArchivoOCArrayRaw();
       const borrarOC = actualesOC.filter((a) => isOwnedByThisDoc(a));
@@ -939,10 +871,8 @@ async function saveEditDetalle() {
       }
 
       const keepExternos = actualesOC.filter((a) => !isOwnedByThisDoc(a));
-      updates.archivoOC = [...nuevosOC, ...keepExternos]; // ✅ siempre array
+      updates.archivoOC = [...nuevosOC, ...keepExternos];
     }
-
-    // Reemplazar archivosStorage si seleccionó nuevos
     if (editAdjuntos.value.length) {
       const actuales = Array.isArray(docData.value.archivosStorage) ? docData.value.archivosStorage : [];
       const borrar = actuales.filter((a) => isOwnedByThisDoc(a));
@@ -996,10 +926,6 @@ async function saveEditDetalle() {
     busy.value.hint = "";
   }
 }
-
-/* =========================================================
-   ✅ Modal + Eliminación (NO blanco + CIERRA al final OK)
-========================================================= */
 const deleting = ref({ key: "", idx: -1 });
 
 function isDeleting(key, idx) {
@@ -1036,7 +962,6 @@ function askDelete(key, idx, fileObj) {
 }
 
 function closeConfirm(force = false) {
-  // ✅ si está eliminando, no dejes cerrar (salvo force)
   if (!force && confirmBusy.value) return;
 
   confirmErr.value = "";
@@ -1050,8 +975,6 @@ async function confirmDelete() {
   const { key, idx } = confirmDel.value;
 
   const ok = await performDelete(key, idx);
-
-  // ✅ cierra solo si fue OK
   if (ok) closeConfirm(true);
 }
 
@@ -1067,11 +990,7 @@ async function performDelete(key, idx) {
       const arr = getArchivoOCArrayRaw();
       const target = arr[idx];
       if (!target) return false;
-
-      // 1) borrar Storage (intenta siempre)
       await safeDeleteFileObj(target);
-
-      // 2) borrar Firestore (remover del array)
       arr.splice(idx, 1);
 
       const usuario = getUsuarioNombre();
@@ -1095,13 +1014,8 @@ async function performDelete(key, idx) {
       const arr = Array.isArray(docData.value.archivosStorage) ? [...docData.value.archivosStorage] : [];
       const target = arr[idx];
       if (!target) return false;
-
-      // 1) borrar Storage
       await safeDeleteFileObj(target);
-
-      // 2) borrar Firestore
       arr.splice(idx, 1);
-
       const usuario = getUsuarioNombre();
       const nuevoHist = Array.isArray(docData.value.historial) ? [...docData.value.historial] : [];
       nuevoHist.push({
@@ -1129,10 +1043,6 @@ async function performDelete(key, idx) {
     deleting.value = { key: "", idx: -1 };
   }
 }
-
-/* =========================================================
-   Subidas existentes (sin cambios)
-========================================================= */
 const filesNuevaCoti = ref([]);
 const nuevoPrecio = ref(null);
 const nuevoComentario = ref("");
@@ -1323,7 +1233,6 @@ const subirOCProveedor = async () => {
   }
 };
 
-/* ===== Utils de presentación ===== */
 const fmtFecha = (f) => {
   try {
     let d = null;
@@ -1396,8 +1305,6 @@ const tieneArchivos = computed(() => {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.06) !important;
   border-radius: 0.9rem !important;
 }
-
-/* Timeline */
 .timeline {
   position: relative;
   padding-left: 1.25rem;
@@ -1429,8 +1336,6 @@ const tieneArchivos = computed(() => {
 .timeline-content {
   padding-left: 0.75rem;
 }
-
-/* Overlay */
 .busy-overlay {
   position: fixed;
   inset: 0;
@@ -1454,8 +1359,6 @@ const tieneArchivos = computed(() => {
 .fade-leave-to {
   opacity: 0;
 }
-
-/* ✅ Modal (limpio y ordenado) */
 .modal-backdrop-custom {
   position: fixed;
   inset: 0;
@@ -1482,8 +1385,6 @@ const tieneArchivos = computed(() => {
 .minw-0 {
   min-width: 0;
 }
-
-/* Icono rojo (trash) */
 .modal-icon {
   width: 54px;
   height: 54px;
@@ -1495,8 +1396,6 @@ const tieneArchivos = computed(() => {
   font-size: 1.25rem;
   flex: 0 0 auto;
 }
-
-/* ✅ Botón X ordenado */
 .icon-btn {
   width: 42px;
   height: 42px;
@@ -1519,8 +1418,6 @@ const tieneArchivos = computed(() => {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
-/* ✅ Card archivo más grande + padding */
 .file-card {
   background: #f8fafc;
   border: 1px solid #e5e7eb;
@@ -1543,15 +1440,12 @@ const tieneArchivos = computed(() => {
 .file-name {
   color: #111827;
 }
-
-/* ✅ Botones más grandes y separados */
 .modal-btn {
   min-width: 130px;
   padding: 10px 18px;
   border-radius: 14px;
 }
 
-/* Transición */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
   transition: opacity 0.18s ease;

@@ -25,8 +25,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Alerta de error -->
       <div
         v-if="error"
         class="alert-pro alert-dismissible fade show d-flex align-items-start gap-2 mb-3"
@@ -39,8 +37,6 @@
         </div>
         <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Close"></button>
       </div>
-
-      <!-- Acceso restringido -->
       <div v-if="!canViewHistorial" class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
         <i class="bi bi-lock-fill fs-5 flex-shrink-0"></i>
         <div class="flex-grow-1">
@@ -50,9 +46,7 @@
         <button class="btn btn-sm btn-outline-secondary" @click="volver">Volver</button>
       </div>
 
-      <!-- Contenido del historial (editores o whitelisted) -->
       <template v-else>
-        <!-- Buscador exacto por número -->
         <div class="card card-elevated mb-3">
           <div class="card-header d-flex align-items-center justify-content-between">
             <div class="fw-semibold">🔎 Buscar SOLPED Taller (número, nombre o ítems)</div>
@@ -108,8 +102,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Chips filtros activos -->
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2" v-if="hasActiveFilters">
           <small class="text-secondary">Filtros:</small>
 
@@ -151,7 +143,6 @@
         </div>
 
         <div class="row">
-          <!-- Listado -->
           <div class="col-12" :class="showSidebar ? 'col-lg-9' : 'col-lg-12'">
             <div v-if="loading" class="loading-box my-4">
               <div class="spinner-border" role="status" aria-hidden="true"></div>
@@ -159,7 +150,6 @@
             </div>
 
             <template v-else>
-              <!-- Paginación superior pegajosa -->
               <nav v-if="totalPages > 1" class="mt-3 sticky-pager">
                 <ul class="pagination justify-content-center mb-1 flex-wrap">
                   <li class="page-item" :class="{disabled: page===1}">
@@ -173,8 +163,6 @@
                   Mostrando {{ pageFrom }}–{{ pageTo }} de {{ filteredAll.length }}
                 </div>
               </nav>
-
-              <!-- Lista de SOLPED -->
               <div
                 v-for="s in pagedList"
                 :key="s.id"
@@ -257,10 +245,7 @@
                 </div>
 
                 <div v-if="solpeExpandidaId===s.id" class="card-body">
-                  <!-- Ítems -->
                   <div class="fw-semibold mb-2">🛠 Ítems asociados</div>
-
-                  <!-- Tabla (md y arriba) -->
                   <div class="table-responsive d-none d-md-block">
                     <table class="table table-sm align-middle">
                       <thead class="table-light">
@@ -313,8 +298,6 @@
                       </tbody>
                     </table>
                   </div>
-
-                  <!-- Lista tipo cards (xs/sm) -->
                   <div class="d-md-none">
                     <div v-for="it in s.items" :key="it.item" class="border rounded p-2 mb-2">
                       <div class="d-flex justify-content-between align-items-start">
@@ -356,8 +339,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- Comentarios -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">💬 Comentarios</label>
@@ -385,8 +366,6 @@
                       </button>
                     </div>
                   </div>
-
-                  <!-- Órdenes de Compra asociadas (tiempo real) -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">🧾 Órdenes de Compra asociadas</label>
@@ -431,8 +410,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- Autorización adjunta (si existe) -->
                   <div v-if="s.autorizacion_url" class="alert alert-light d-flex align-items-center mt-3 flex-wrap gap-2">
                     <i class="bi bi-paperclip me-2"></i>
                     <div class="me-auto">
@@ -446,8 +423,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Vacío con fantasma -->
               <div v-if="!loading && filteredAll.length===0" class="ghost-wrap">
                 <div class="ghost">
                   <div class="ghost-eyes"></div>
@@ -457,8 +432,6 @@
               </div>
             </template>
           </div>
-
-          <!-- Sidebar filtros (sticky, derecha) desktop (≥lg) -->
           <aside v-if="showSidebar" class="col-12 col-lg-3 d-none d-lg-block">
             <div class="filters-panel card card-elevated sticky-sidebar">
               <div class="card-header d-flex align-items-center justify-content-between">
@@ -469,7 +442,6 @@
                 </div>
               </div>
               <div class="card-body">
-                <!-- Texto libre -->
                 <div class="mb-3">
                   <label class="form-label">Texto libre</label>
                   <div class="input-group">
@@ -477,8 +449,6 @@
                     <input class="form-control" placeholder="Descripción, código, solicitante, empresa, CC…" v-model="filtroTexto">
                   </div>
                 </div>
-
-                <!-- Rango de fechas -->
                 <div class="mb-3">
                   <label class="form-label">Fecha (rango)</label>
                   <div class="row g-2">
@@ -490,8 +460,6 @@
                     </div>
                   </div>
                 </div>
-
-                <!-- Estado -->
                 <div class="mb-3">
                   <label class="form-label">Estado</label>
                   <select class="form-select" multiple v-model="filtroEstatus">
@@ -500,7 +468,6 @@
                   <small class="text-secondary">Puedes seleccionar varios.</small>
                 </div>
 
-                <!-- Solicitante -->
                 <div class="mb-1 d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Solicitante</label>
                   <small v-if="filtroSolicitante.length" class="text-secondary">{{ filtroSolicitante.length }} seleccionados</small>
@@ -522,7 +489,6 @@
                   <input class="form-check-input" type="checkbox" id="chkOnlyMineDesk" v-model="onlyMine" @change="persistOnlyMine">
                   <label class="form-check-label" for="chkOnlyMineDesk"> Mis SOLPED</label>
                 </div>
-                <!-- Tamaño de página -->
                 <div class="mb-0">
                   <label class="form-label">Tamaño de página</label>
                   <select class="form-select" v-model.number="pageSize" @change="persistPageSize">
@@ -533,18 +499,13 @@
             </div>
           </aside>
         </div>
-
-        <!-- Offcanvas filtros (móvil / tablet) -->
         <transition name="oc">
           <div
             v-if="showFiltersMobile"
             class="oc-wrap d-lg-none"
             @keydown.esc="closeFiltersMobile"
           >
-            <!-- backdrop -->
             <div class="oc-backdrop" @click="closeFiltersMobile"></div>
-
-            <!-- panel -->
             <div
               class="oc-panel"
               role="dialog"
@@ -565,7 +526,6 @@
               </div>
 
               <div class="oc-body">
-                <!-- Texto libre -->
                 <div class="mb-3">
                   <label class="form-label">Texto libre</label>
                   <input
@@ -574,8 +534,6 @@
                     v-model="filtroTexto"
                   >
                 </div>
-
-                <!-- Rango de fechas -->
                 <div class="row g-2 mb-3">
                   <div class="col-6">
                     <label class="form-label">Desde</label>
@@ -586,8 +544,6 @@
                     <input type="date" class="form-control" v-model="fechaHasta">
                   </div>
                 </div>
-
-                <!-- Estado -->
                 <div class="mb-3">
                   <label class="form-label">Estado</label>
                   <select class="form-select" multiple v-model="filtroEstatus">
@@ -595,8 +551,6 @@
                   </select>
                   <small class="text-secondary">Puedes seleccionar varios.</small>
                 </div>
-
-                <!-- Solicitante -->
                 <div class="mb-1 d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Solicitante</label>
                   <small v-if="tempSolicitanteSelSet.size" class="text-secondary">
@@ -624,8 +578,6 @@
                     <label class="form-check-label" :for="'m_u_'+normalize(u)">{{ u }}</label>
                   </div>
                 </div>
-
-                <!-- Solo mis SOLPED -->
                 <div class="mb-3">
                   <div class="form-check">
                     <input
@@ -639,8 +591,6 @@
                     </label>
                   </div>
                 </div>
-
-                <!-- Tamaño de página -->
                 <div class="mb-0">
                   <label class="form-label">Tamaño de página</label>
                   <select class="form-select" v-model.number="pageSize">
@@ -652,8 +602,6 @@
             </div>
           </div>
         </transition>
-
-        <!-- FAB filtros (móvil) -->
         <button
           class="btn btn-primary floating-filters-btn d-lg-none"
           type="button"
@@ -670,8 +618,6 @@
         >
           <i class="bi bi-funnel" aria-hidden="true"></i>
         </button>
-
-        <!-- ========= MODAL EDICIÓN SOLPED TALLER ========= -->
         <div v-if="showEditModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.55);">
           <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
@@ -772,7 +718,6 @@
             </div>
           </div>
         </div>
-        <!-- ========= /MODAL ========= -->
       </template>
     </div>
   </div>
@@ -800,26 +745,19 @@ export default {
 
     const loading = ref(true);
     const loadingSearch = ref(false);
-
-    // Buscar exacto
     const numeroBusqueda = ref("");
     const solpeEncontrada = ref(null);
 
-    const REALTIME_LIMIT = 800; // escucha los más recientes
+    const REALTIME_LIMIT = 800;
     let solpesUnsub = null;
-
-    // Datos y filtros
     const solpesOriginal = ref([]);
 
-    // OCs por SOLPED (tiempo real por tarjeta expandida)
     const _ocBySolped = ref(new Map());
     const _ocLoading = ref(new Set());
-    const _ocUnsubs = new Map(); // solpedId -> unsubscribe
+    const _ocUnsubs = new Map();
 
     const isLoadingOC = (solpedId) => _ocLoading.value.has(solpedId);
     const ocListFor = (solpedId) => _ocBySolped.value.get(solpedId) || [];
-
-    // ===== Dropdowns (Bootstrap) =====
     let _dropdownMap = new Map();
     let DropdownClass = null;
     const ensureDropdownClass = async () => {
@@ -837,7 +775,7 @@ export default {
 
       const toggles = el.querySelectorAll('[data-bs-toggle="dropdown"]');
       toggles.forEach((btn) => {
-        if (_dropdownMap.has(btn)) return; // ya instanciado
+        if (_dropdownMap.has(btn)) return;
         const instance = new Dropdown(btn, { boundary: 'viewport', display: 'static' });
         _dropdownMap.set(btn, instance);
 
@@ -872,16 +810,13 @@ export default {
       }
     }
 
-    // Filtros base
     const filtroTexto = ref("");
     const fechaDesde = ref("");
     const fechaHasta = ref("");
     const filtroEstatus = ref([]);
-    const filtroSolicitante = ref([]);   // nombres en MAYÚSCULAS
+    const filtroSolicitante = ref([]);
     const busquedaSolicitante = ref("");
     const onlyMine = ref(false);
-
-    // Centros de costo (map)
     const centrosCosto = {
       "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
       "PPCALAMA":"PLANTA PREDOSIFICADO CALAMA",
@@ -931,12 +866,8 @@ export default {
       selectedCC.value = selectedCC.value.filter(c => c !== code);
       goPage(1);
     };
-
-    // Persistencia
     const LS_TALLER_FILTERS   = "hist_taller_filters_v2";
     const LS_SHOW_SIDEBAR     = "hist_taller_show_sidebar";
-
-    // ✅ Persistencia de vista (página + scroll) para HistorialSolpedTaller
     const LS_TALLER_VIEW = "HISTORIAL_SOLPED_TALLER_VIEW_V1";
 
     const pendingViewState = ref(null);
@@ -961,8 +892,7 @@ export default {
         const current = readViewState() || {};
         const next = { ...current, ...patch };
         localStorage.setItem(LS_TALLER_VIEW, JSON.stringify(next));
-      } catch {
-        /* noop */
+      } catch(e) {console.log(e)
       }
     };
 
@@ -974,7 +904,6 @@ export default {
     };
 
 
-    // Paginación
     const page = ref(1);
     const pageSizeOptions = [10, 20, 30, 40, 50];
     const pageSize = ref(10);
@@ -1021,21 +950,13 @@ export default {
         showSidebar.value = (e.newValue === "1");
       }
     };
-
-    // Solicitantes
     const listaSolicitantes = ref([]);
     const tempSolicitanteSelSet = ref(new Set());
-
-    // Otros estados
     const solpeExpandidaId = ref(null);
     const ordenAscendente = ref(false);
-
-    // Identidad
     const myFullName = ref("");
     const myUid = computed(() => (auth?.user?.uid || "").toString());
     const myEmail = computed(() => (auth?.user?.email || "").toLowerCase());
-
-    // Roles y permisos
     const userRole = ref('');
     const allowedRoles = new Set(['admin', 'aprobador/editor', 'editor']);
     const canChangeStatus = computed(() => allowedRoles.has((userRole.value || '').toLowerCase()));
@@ -1060,11 +981,7 @@ export default {
       try {
         const uid = auth?.user?.uid;
         if (!uid) return;
-
-        // intenta "Usuarios"
         let usnap = await getDoc(doc(db, "Usuarios", uid));
-
-        // fallback a "usuarios" si no existe
         if (!usnap.exists()) {
           usnap = await getDoc(doc(db, "usuarios", uid));
         }
@@ -1188,7 +1105,6 @@ export default {
         listaSolicitantes.value = Array.from(setSol).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
 
         loading.value = false;
-        // ✅ Restaurar página/scroll SOLO una vez, cuando ya existe data (totalPages ya está correcto)
         if (!didRestoreView.value && pendingViewState.value) {
           didRestoreView.value = true;
 
@@ -1205,7 +1121,7 @@ export default {
           });
 
         }
-        isHydrating.value = false; // ✅
+        isHydrating.value = false;
 
       }, (err) => {
         console.error(err);
@@ -1278,8 +1194,6 @@ export default {
 
     const goOC = (oc) => {
       if (!oc) return;
-
-      // ✅ guardar página + scroll antes de navegar
       persistViewStateNow();
 
       const docId = oc.__docId;
@@ -1293,8 +1207,6 @@ export default {
     const verDetalleSolped = (s) => {
       try {
         if (!s?.id) return;
-
-        // ✅ guardar página/scroll antes de navegar
         persistViewStateNow();
 
         if (router.hasRoute("SolpedTallerDetalle")) {
@@ -1342,7 +1254,7 @@ export default {
         })) : [];
         await setDoc(doc(db, "solped_taller", s.id), { comentarios }, { merge: true });
         s.comentarios = comentarios;
-      } catch { /* noop */ }
+      } catch(e) {console.log(e)  }
     };
 
     const solicitantesFiltrados = computed(() => {
@@ -1443,8 +1355,6 @@ export default {
     const goPage = async (p) => {
       if (p < 1) p = 1;
       if (p > totalPages.value) p = totalPages.value;
-
-      // ✅ NUEVO: persistir “dónde estoy” apenas cambio de página
       writeViewState({ page: p, scrollY: window.scrollY || 0 });
 
       page.value = p;
@@ -1482,8 +1392,6 @@ export default {
 
     const removeEstatus = (s) => { filtroEstatus.value = filtroEstatus.value.filter(x => x!==s); persistFilters(); goPage(1) ;};
     const removeSolicitante = (u) => { filtroSolicitante.value = filtroSolicitante.value.filter(x => x!==u); tempSolicitanteSelSet.value.delete(u); persistFilters(); goPage(1); };
-
-    // ===== Evitar saltos al cambiar estado =====
     const savedScrollY = ref(0);
     const restoreScrollSoon = async () => {
       await nextTick();
@@ -1555,8 +1463,6 @@ export default {
         error.value = "No se pudo cambiar el estado del ítem.";
       }
     };
-
-    // Comentarios
     const agregarComentario = async (s) => {
       const texto = (s.nuevoComentario || "").trim();
       if (!texto) return;
@@ -1782,7 +1688,6 @@ export default {
       }
     };
 
-    // Sesión
     const loadMyName = async () => {
       try {
         let full = (auth?.user?.displayName || auth?.user?.email || "") || "";
@@ -1792,10 +1697,8 @@ export default {
           if (me.exists()) full = me.data()?.fullName || full;
         }
         myFullName.value = (full || "").toString().toUpperCase();
-      } catch { /* noop */ }
+      } catch(e) { console.log(e) }
     };
-
-    // ====== Offcanvas móvil custom ======
     const showFiltersMobile = ref(false);
 
     const openFiltersMobile = () => {
@@ -1812,8 +1715,6 @@ export default {
       applySolicitantesFiltro();
       closeFiltersMobile();
     };
-
-    // ====== Edición ======
     const showEditModal = ref(false);
     const savingEdit = ref(false);
     const editForm = ref({});
@@ -1884,7 +1785,6 @@ export default {
         numero_interno: it.numero_interno || ''
       }));
       showEditModal.value = true;
-      // reinit dentro del modal por nuevos dropdowns si aparecen
       nextTick().then(async () => {
         disposeDropdowns();
         await ensureDropdownClass();
@@ -1897,7 +1797,6 @@ export default {
       savingEdit.value = false;
       editForm.value = {};
       editItems.value = [];
-      // reinit por cambios en DOM
       nextTick().then(async () => {
         disposeDropdowns();
         await ensureDropdownClass();
@@ -1965,28 +1864,20 @@ export default {
       try {
         const savedSidebar = localStorage.getItem(LS_SHOW_SIDEBAR);
         if (savedSidebar === "0") showSidebar.value = false;
-      } catch { /* noop */ }
+      } catch(e) {console.log(e) }
 
       loadPersistedFilters();
       await loadUserRole();
-
-      // ✅ lee la página/scroll guardados (se aplicarán cuando llegue el primer snapshot)
       pendingViewState.value = readViewState();
       didRestoreView.value = false;
-
-      // Gate de acceso
       if (!(isEditor.value || isWhitelistedViewer.value)) {
         loading.value = false;
-        isHydrating.value = false; // 👈 importante para que no quede “colgado”
+        isHydrating.value = false;
         return;
       }
 
       await loadMyName();
-
-      // Arranca TIEMPO REAL
       startRealtimeSolpes();
-
-      // Bootstrap Dropdown
       await ensureDropdownClass();
       await nextTick();
       initDropdownsIn();
@@ -1995,9 +1886,7 @@ export default {
     });
 
     onUnmounted(() => {
-      // ✅ guarda la página/scroll antes de salir
       persistViewStateNow();
-
       window.removeEventListener("storage", syncFromStorageEvent);
       stopAllOCListeners();
       stopRealtimeSolpes();
@@ -2010,7 +1899,7 @@ export default {
       [filtroTexto, fechaDesde, fechaHasta, filtroEstatus, filtroSolicitante, selectedCC, onlyMine],
       async () => {
         persistFilters();
-        if (isHydrating.value) return; // ✅ NUEVO: no reiniciar página durante restore
+        if (isHydrating.value) return;
         await goPage(1);
       },
       { deep: true }
@@ -2018,23 +1907,17 @@ export default {
 
     watch([pageSize], async () => {
       persistFilters();
-      if (isHydrating.value) return; // ✅ NUEVO
+      if (isHydrating.value) return;
       await goPage(1);
     });
 
-
-    // Reinicialización de dropdowns ante cambios relevantes
     watch([pagedList, solpeExpandidaId, showEditModal], async () => {
       await nextTick();
       disposeDropdowns();
       await ensureDropdownClass();
       initDropdownsIn();
     });
-
-    // Constantes
     const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial","Cotizado Parcial","Cotizado Completado","Parcial, Pedido en Casa matriz","Pedido en Casa matriz"];
-
-    // Autorización
     const abrirAutorizacion = (s) => { if (!s?.autorizacion_url) return; window.open(s.autorizacion_url, "_blank"); };
     const descargarAutorizacion = (s) => {
       if (!s?.autorizacion_url) return;
@@ -2044,33 +1927,18 @@ export default {
     };
 
     return {
-      // estado
       error, loading, loadingSearch,
       numeroBusqueda, solpeEncontrada,
-
-      // filtros
       filtroTexto, fechaDesde, fechaHasta,
       filtroEstatus, filtroSolicitante, busquedaSolicitante,
       listaEstatus, listaSolicitantes, tempSolicitanteSelSet, onlyMine,
-
-      // data
       solpesOriginal, solpeExpandidaId, ordenAscendente,
-
-      // UI
       showSidebar,
-
-      // CC
       centrosCosto, ccAll, ccSearch, selectedCC, ccFiltered, removeCC,
-
-      // paginación
       page, pageSize, pageSizeOptions, filteredAll, pagedList,
       totalPages, pageFrom, pageTo,
-
-      // permisos
       userRole, canChangeStatus, canCopySolped,
       isEditor, canViewHistorial, isWhitelistedViewer,
-
-      // métodos
       goPage, nextPage, prevPage, goFirst, goLast,
       ordenarSolpes, limpiarFiltros, toggleSidebar,
       persistOnlyMine, persistPageSize,
@@ -2081,8 +1949,6 @@ export default {
       descargarExcel, volver, onExpandCard, marcarComentariosVistos,
       abrirAutorizacion, descargarAutorizacion, agregarComentario,
       buscarSolpeExacta, goOC, verDetalleSolped, limpiarBusquedaExacta,
-
-      // helpers
       formatDateTime, estadoChipStyle, getBadgeColor, solicitantesFiltrados, normalize,
       hasUnreadForMe: (s) => {
         const uid = myUid.value;
@@ -2091,25 +1957,15 @@ export default {
         return arr.some(c => !Array.isArray(c.vistoPor) || !c.vistoPor.includes(uid));
       },
       hasActiveFilters,
-
-      // OCs realtime
       isLoadingOC, ocListFor, ensureOCListener,
-
-      // nuevos
       canGenerateOC, irAGenerarOCTaller,
-
-      // edición
       showEditModal, savingEdit, editForm, editItems,
       puedeEditarSolped, puedeEditarPorRol, abrirEditar, cerrarEditar,
       agregarItem, eliminarItem, guardarEdicion,
-
-      // offcanvas móvil custom
       showFiltersMobile,
       openFiltersMobile,
       closeFiltersMobile,
       applyFiltersAndClose,prepararCopiaParaCrear,
-
-      // para sesión
       myUid
     };
   }
@@ -2119,7 +1975,6 @@ export default {
 <style scoped>
 [v-cloak]{ display:none; }
 
-/* ===== Layout base ===== */
 .btn { border-radius: 6px; }
 .btn.btn-sm { border-radius: 6px; }
 
@@ -2128,7 +1983,6 @@ export default {
 }
 .pointer{ cursor:pointer; }
 
-/* ===== Alertas “pro” ===== */
 .historial-taller-page .alert{
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -2154,7 +2008,6 @@ export default {
   from{ opacity:0; transform: translateY(-4px); }
   to{ opacity:1; transform: translateY(0); }
 }
-/* Botón flotante filtros en móvil */
 .floating-filters-btn{
   position: fixed;
   right: 16px; bottom: 16px;
@@ -2165,7 +2018,6 @@ export default {
   box-shadow: 0 10px 20px rgba(0,0,0,.2);
 }
 
-/* ===== Cards elevadas ===== */
 .card-elevated{
   border:1px solid #e5e7eb !important;
   box-shadow:
@@ -2175,7 +2027,6 @@ export default {
   background: var(--bs-card-bg, #fff);
 }
 
-/* Paginación superior pegajosa */
 .sticky-pager{
   position: sticky;
   top: 8px;
@@ -2185,10 +2036,8 @@ export default {
   border-radius: 8px;
 }
 
-/* Sidebar filtros pegajoso */
 .sticky-sidebar{ position: sticky; top: 12px; }
 
-/* ===== Resaltado por comentarios no vistos ===== */
 .card-unread{
   border-color:#2563eb !important;
   box-shadow:
@@ -2202,33 +2051,27 @@ export default {
   box-shadow: 0 0 0 6px rgba(37,99,235,.15);
 }
 
-/* Comentario no visto */
 .comment-unread{
   border-left: 3px solid #2563eb;
   background: #f0f7ff;
 }
 
-/* ===== Tabla / imágenes ===== */
 .thumb{ width:40px; height:40px; object-fit:cover; border-radius:4px; border:1px solid #e2e8f0; }
 
-/* Dropdown en móvil: que no se salga de pantalla */
 .dropup .dropdown-menu{
   inset: auto auto 100% 0 !important;
 }
 
-/* Permitir que el menú se muestre por fuera del contenedor scrollable de la tabla */
 .table-responsive.dropdown-open{
   overflow: visible;
 }
 
-/* ===== Loading ===== */
 .loading-box{
   display:flex; flex-direction:column; align-items:center; justify-content:center;
 }
 .loading-box .spinner-border{ width:2rem; height:2rem; }
 .loading-box .small{ color:#64748b; }
 
-/* ===== Estado vacío (fantasma) ===== */
 .ghost-wrap{ text-align:center; padding:2rem 0; color:#64748b; }
 .ghost{
   width:120px; height:140px; margin:0 auto; background:#fff; border-radius:60px 60px 20px 20px;
@@ -2249,7 +2092,6 @@ export default {
   50%{ transform: translateY(-6px); }
 }
 
-/* ===== Chips / badges ===== */
 .mark-pill{
   display:inline-block; background:#eef2ff; color:#3730a3; padding:.1rem .5rem; border-radius:999px;
 }
@@ -2258,11 +2100,9 @@ export default {
   font-weight:700; letter-spacing:.2px;
 }
 
-/* ===== Tabla compacta ===== */
 .table.table-sm thead th{ vertical-align: middle; font-weight:700; color:#111827; }
 .table.table-sm tbody td{ vertical-align: middle; }
 
-/* ---------- FAB (botón flotante de filtros) ---------- */
 .filter-fab{
   position: fixed;
   right: 16px;
@@ -2274,7 +2114,6 @@ export default {
   z-index: 1066;
 }
 
-/* ====== Overlay Offcanvas Custom (móvil) ====== */
 .oc-wrap{
   position: fixed;
   inset: 0;
@@ -2322,7 +2161,6 @@ export default {
   background: #f9fafb;
 }
 
-/* Animaciones de aparición (slide desde la derecha) */
 .oc-enter-active,
 .oc-leave-active{
   transition: opacity .18s ease-out;
@@ -2341,14 +2179,12 @@ export default {
   transform: translateX(100%);
 }
 
-/* Ajuste de padding cuando está abierto el overlay en móvil */
 @media (max-width: 991.98px){
   .historial-taller-page .container{
     padding-bottom: 84px;
   }
 }
 
-/* Ocultar botones flotantes genéricos cuando el overlay está abierto (si los tienes en layout global) */
 :global(body.filters-open .topbar .d-lg-none .btn){
   visibility: hidden;
   pointer-events: none;

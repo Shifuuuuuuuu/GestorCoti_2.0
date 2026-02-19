@@ -22,7 +22,6 @@ function normalizeKey(s) {
     .slice(0, 240);
 }
 
-// hash chico para evitar ids enormes
 function djb2Hash(str) {
   let h = 5381;
   for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i);
@@ -56,7 +55,7 @@ export async function upsertQuestion({ text, userId = null }) {
       });
     } else {
       tx.update(ref, {
-        text: clean, // por si cambió mayúsculas
+        text: clean,
         key,
         lastUsedAt: serverTimestamp(),
         timesUsed: increment(1),

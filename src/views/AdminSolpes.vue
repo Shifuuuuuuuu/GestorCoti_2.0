@@ -3,12 +3,9 @@
 <template>
   <div class="admin-solpes-page">
     <div class="container py-4">
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <h1 class="h4 fw-semibold mb-0">Admin · SOLPES</h1>
-
         <div class="d-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto">
-          <!-- Buscar numero_solpe -->
           <div class="input-group toolbar-item flex-grow-1" style="min-width: 240px; max-width: 360px;">
             <span class="input-group-text">#</span>
             <input
@@ -28,21 +25,15 @@
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
-
-          <!-- Botón Filtros (abre offcanvas top en móvil / panel en md+) -->
           <button class="btn btn-outline-primary toolbar-item" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
             <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
           </button>
-
-          <!-- Nueva -->
           <button class="btn btn-primary toolbar-item" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED
           </button>
         </div>
       </div>
-
-      <!-- Chips de filtros activos -->
       <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <small class="text-secondary">Filtros activos:</small>
 
@@ -67,16 +58,12 @@
           Búsqueda por número activa
         </span>
       </div>
-
-      <!-- Tabla / Cards -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
             Listado ({{ rows.length }} / pág.)
             <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">paginación desactivada</span>
           </div>
-
-          <!-- Barra compacta de búsqueda en móvil -->
           <div class="d-flex d-md-none gap-2">
             <div class="input-group input-group-sm">
               <span class="input-group-text">#</span>
@@ -90,8 +77,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Vista tabla (md y arriba) -->
         <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
             <thead class="table-light">
@@ -147,7 +132,6 @@
           </table>
         </div>
 
-        <!-- Vista cards (xs - sm) -->
         <div class="d-block d-md-none">
           <div v-if="cargando" class="text-center py-4">
             <div class="spinner-border" role="status"></div>
@@ -189,8 +173,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Paginación -->
         <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0">
@@ -213,8 +195,6 @@
           </nav>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -223,8 +203,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas Filtros (móvil / top) -->
     <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
@@ -312,8 +290,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas Editor -->
     <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel editor-panel">
         <div class="offcanvas-header editor-header">
@@ -323,7 +299,6 @@
 
         <div class="offcanvas-body editor-body">
           <div class="row g-3">
-            <!-- N° + Fecha + Empresa + Estatus -->
             <div class="col-12 col-sm-6 col-md-3">
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
@@ -349,8 +324,6 @@
                 <option v-for="s in ESTATUS_OPC" :key="'ed-'+s" :value="s">{{ s }}</option>
               </select>
             </div>
-
-            <!-- Centro de costo (2 selects: contrato y nombre) -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
 
@@ -376,8 +349,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Usuario / Tipo / Nombre -->
             <div class="col-12 col-md-4">
               <label class="form-label">Usuario</label>
               <input class="form-control" v-model="edit.usuario" placeholder="Ej: ADMIN">
@@ -390,8 +361,6 @@
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="edit.nombre_solped">
             </div>
-
-            <!-- Dirigido A -->
             <div class="col-12">
               <label class="form-label mb-1">Dirigido A</label>
               <div class="d-flex flex-wrap gap-2">
@@ -401,8 +370,6 @@
                 </label>
               </div>
             </div>
-
-            <!-- Autorización (archivo) -->
             <div class="col-12">
               <label class="form-label">Documento de autorización</label>
               <div class="d-flex gap-2 flex-wrap">
@@ -425,8 +392,6 @@
                 <a :href="edit.autorizacion_url" target="_blank" class="small">Ver documento</a>
               </div>
             </div>
-
-            <!-- Ítems -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Ítems</div>
@@ -481,8 +446,6 @@
                   </tbody>
                 </table>
               </div>
-
-              <!-- Cards en xs -->
               <div class="d-block d-sm-none">
                 <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
                 <div class="list-group list-group-flush">
@@ -517,8 +480,6 @@
               </div>
 
             </div>
-
-            <!-- Historial Estados (subcolección) -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Historial de Estados</div>
@@ -550,8 +511,6 @@
                   Sin historial.
                 </div>
               </div>
-
-              <!-- Form agregar historial -->
               <div class="card">
                 <div class="card-body">
                   <div class="row g-2">
@@ -596,8 +555,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal NUEVA SOLPED -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
@@ -627,8 +584,6 @@
                 <option v-for="s in ESTATUS_OPC" :key="'nw-'+s" :value="s">{{ s }}</option>
               </select>
             </div>
-
-            <!-- Centro de costo (2 selects también) -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
 
@@ -668,8 +623,6 @@
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="nuevo.nombre_solped">
             </div>
-
-            <!-- Dirigido A -->
             <div class="col-12">
               <label class="form-label mb-1">Dirigido A</label>
               <div class="d-flex flex-wrap gap-2">
@@ -679,8 +632,6 @@
                 </label>
               </div>
             </div>
-
-            <!-- Autorización -->
             <div class="col-12">
               <label class="form-label">Autorización (PDF / imagen / Excel)</label>
               <div class="d-flex gap-2 flex-wrap">
@@ -712,8 +663,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal Ítem (crear/editar) -->
     <div v-if="modalItem" class="vmodal-backdrop" @click.self="cerrarModalItem">
       <div class="vmodal" style="max-width: 720px;">
         <div class="vmodal-header">
@@ -776,8 +725,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">

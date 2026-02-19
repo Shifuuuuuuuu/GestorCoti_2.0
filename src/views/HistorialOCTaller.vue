@@ -2,7 +2,6 @@
 <template>
   <div class="hist-oc-page">
     <div class="container py-4 py-md-5">
-      <!-- Top bar -->
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
           <i class="bi bi-arrow-left"></i>
@@ -29,8 +28,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Error global -->
       <div
         v-if="error"
         class="alert-pro alert-dismissible fade show d-flex align-items-start gap-2 mb-3"
@@ -43,8 +40,6 @@
         </div>
         <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Close"></button>
       </div>
-
-      <!-- ✅ BÚSQUEDA ÚNICA: N° OC + Nombre de archivo (archivoOC.nombre) -->
       <div class="card card-elevated mb-3">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">🔎 Buscar cotización (N° o archivo)</div>
@@ -70,12 +65,10 @@
             </div>
           </div>
 
-          <!-- Coincidencias SOLO para informar (no filtra el listado) -->
           <div v-if="lastSearchTextTrim" class="mt-2 small text-secondary">
             Coincidencias en esta página (por nombre de archivo): <strong>{{ pageMatchesCount }}</strong>
           </div>
 
-          <!-- Resultados -->
           <div v-if="resultadosBusqueda.length" class="mt-3">
             <div class="small text-secondary mb-2">
               Resultados Firestore: {{ resultadosBusqueda.length }}
@@ -107,8 +100,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Chips de filtros activos -->
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2" v-if="hasActiveFilters">
         <small class="text-secondary">Filtros:</small>
 
@@ -139,8 +130,6 @@
 
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
       </div>
-
-      <!-- Segmento (placeholder para futuras empresas) -->
       <div class="mb-3">
         <div class="btn-group flex-wrap">
           <button class="btn btn-sm" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
@@ -148,14 +137,12 @@
       </div>
 
       <div class="row">
-        <!-- Listado -->
         <div class="col-12" :class="showSidebar ? 'col-lg-9' : 'col-lg-12'">
           <div v-if="loading" class="loading-global">
             <div class="spinner-border me-2"></div> Cargando cotizaciones…
           </div>
 
           <template v-else>
-            <!-- Paginación (superior) -->
             <nav v-if="totalPages > 1" class="mt-3 sticky-pager">
               <ul class="pagination justify-content-center mb-1">
                 <li class="page-item" :class="{disabled: page===1}">
@@ -192,7 +179,6 @@
                 }"
                 @click="onCardClick(oc)"
               >
-                <!-- Header con colores por estado (solo editores) -->
                 <div
                   class="card-header d-flex justify-content-between align-items-center"
                   :class="isEditor ? estadoHeaderClass(oc.estatus) : ''"
@@ -211,7 +197,6 @@
                 </div>
 
                 <div class="card-body">
-                  <!-- 🔶 ALERTA AMARILLA (solo Aprobado sin OC) -->
                   <div v-if="faltaSubirOC(oc)" class="alert alert-warning d-flex align-items-center mb-3" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
                     <div class="fw-semibold">Falta subir OC</div>
@@ -235,10 +220,6 @@
                       <div class="small text-secondary">Total con IVA</div>
                       <div class="fw-semibold">{{ fmtMoneda(oc.precioTotalConIVA, oc.moneda) }}</div>
                     </div>
-                    <div class="col-12 col-md-4">
-                      <div class="small text-secondary">Aprobador sugerido</div>
-                      <div class="fw-semibold">{{ oc.aprobadorSugerido || '—' }}</div>
-                    </div>
 
                     <div class="col-12">
                       <div class="small text-secondary">Comentario</div>
@@ -250,8 +231,6 @@
                       <div class="fw-semibold">{{ getArchivoNombre(oc) || '—' }}</div>
                     </div>
                   </div>
-
-                  <!-- Vinculado a SOLPED -->
                   <div class="mt-3 d-flex align-items-center gap-2"
                        v-if="oc.solpedId || oc.numero_solped != null">
                     <i class="bi bi-link-45deg"></i>
@@ -281,8 +260,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Vacío -->
             <div v-if="displayList.length===0" class="ghost-wrap">
               <div class="ghost">
                 <div class="ghost-eyes"></div>
@@ -292,8 +269,6 @@
             </div>
           </template>
         </div>
-
-        <!-- Sidebar filtros (sticky en desktop) -->
         <aside v-if="showSidebar" class="col-12 col-lg-3 d-none d-lg-block">
           <div class="card card-elevated sticky-sidebar">
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -339,14 +314,9 @@
         </aside>
       </div>
     </div>
-
-    <!-- Offcanvas filtros (móvil / tablet) -->
     <transition name="oc">
       <div v-if="showFiltersMobile" class="oc-wrap d-lg-none">
-        <!-- backdrop -->
         <div class="oc-backdrop" @click="closeFiltersMobile"></div>
-
-        <!-- panel -->
         <div
           class="oc-panel"
           role="dialog"
@@ -405,8 +375,6 @@
         </div>
       </div>
     </transition>
-
-    <!-- Botón flotante filtros (móvil) -->
     <button
       class="btn btn-primary floating-filters-btn d-lg-none"
       @click="toggleFiltersResponsive"

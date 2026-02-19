@@ -1,7 +1,6 @@
 <!-- src/views/AiInspectorView.vue -->
 <template>
   <div class="container-fluid py-4 page-root" style="max-width: 1320px;">
-    <!-- Header -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div>
         <h4 class="mb-0 d-flex align-items-center gap-2">
@@ -26,7 +25,6 @@
     </div>
 
     <div class="row g-3 flex-grow-1">
-      <!-- LEFT: HISTORIAL -->
       <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header bg-white d-flex align-items-center justify-content-between">
@@ -63,8 +61,6 @@
             <div v-else-if="historyFiltered.length === 0" class="text-muted small py-2">
               Aún no hay chats guardados.
             </div>
-
-            <!-- ✅ Scroll que ocupa el alto disponible -->
             <TransitionGroup
               v-else
               name="list"
@@ -77,7 +73,6 @@
                 class="list-group-item p-0 overflow-hidden"
               >
                 <div class="d-flex">
-                  <!-- ✅ sin azul: NO btn-link, y forzamos color normal en CSS -->
                   <button
                     class="btn text-start flex-grow-1 py-2 px-3 history-btn"
                     :class="{ 'bg-info-subtle': h.id === activeChatId }"
@@ -113,10 +108,7 @@
           </div>
         </div>
       </div>
-
-      <!-- RIGHT -->
       <div class="col-12 col-lg-8 d-flex flex-column gap-3">
-        <!-- FORM -->
         <div class="card shadow-sm">
           <div class="card-header bg-white d-flex align-items-center justify-content-between">
             <div class="fw-semibold">
@@ -132,7 +124,6 @@
 
           <div class="card-body">
             <div class="row g-3">
-              <!-- Equipo -->
               <div class="col-12">
                 <label class="form-label mb-1">Equipo (Patente / Código)</label>
 
@@ -232,8 +223,6 @@
                       <div v-else-if="!equiposFiltered.length" class="px-3 py-3 text-muted small">
                         No hay resultados. Prueba con otra letra o parte del código.
                       </div>
-
-                      <!-- ✅ activo = bg-info-subtle (via .is-active en CSS) -->
                       <button
                         v-else
                         v-for="(e, idx) in equiposFiltered"
@@ -268,8 +257,6 @@
                   {{ selectedEquipo.equipo }}
                 </div>
               </div>
-
-              <!-- Fotos -->
               <div class="col-12 col-md-6">
                 <label class="form-label mb-1">Fotos (múltiples)</label>
                 <input
@@ -301,8 +288,6 @@
                   </button>
                 </div>
               </div>
-
-              <!-- Preguntas -->
               <div class="col-12 col-md-6">
                 <label class="form-label mb-1 d-flex align-items-center justify-content-between">
                   <span>Pregunta</span>
@@ -351,8 +336,6 @@
             </div>
           </div>
         </div>
-
-        <!-- CHAT -->
         <div class="card shadow-sm chat-card flex-grow-1">
           <div class="card-header bg-white d-flex align-items-center justify-content-between">
             <div class="fw-semibold">
@@ -377,7 +360,6 @@
           </div>
 
           <div class="card-body position-relative d-flex flex-column" style="min-height: 380px;">
-            <!-- Overlay carga -->
             <Transition name="fade">
               <div v-if="loading" class="loading-overlay">
                 <div class="loading-panel">
@@ -400,14 +382,11 @@
               <div v-else-if="pendingChat" :key="'pending'" class="chat-wrap">
                 <div class="msg msg-user">
                   <div>
-                    <!-- ✅ “Tú” en plomo -->
                     <div class="fw-semibold text-body-secondary">
                       <i class="bi bi-person me-1"></i> Tú
                     </div>
                     <small class="text-muted">{{ pendingChat.tsLabel }}</small>
                   </div>
-
-                  <!-- ✅ burbuja ploma -->
                   <div class="msg-bubble bg-body-tertiary border">{{ pendingChat.question }}</div>
 
                   <div v-if="pendingChat.extraNotes" class="small text-muted mt-1">
@@ -417,7 +396,6 @@
 
                 <div class="msg msg-ai">
                   <div class="msg-head">
-                    <!-- ✅ “IA” en plomo -->
                     <div class="fw-semibold text-body-secondary">
                       <i class="bi bi-robot me-1"></i> IA
                     </div>
@@ -442,14 +420,11 @@
               <div v-else :key="activeChatId" class="chat-wrap">
                 <div class="msg msg-user">
                   <div class="msg-head">
-                    <!-- ✅ “Tú” plomo -->
                     <div class="fw-semibold text-body-secondary">
                       <i class="bi bi-person me-1"></i> Tú
                     </div>
                     <small class="text-muted">{{ activeChat.tsLabel }}</small>
                   </div>
-
-                  <!-- ✅ burbuja ploma -->
                   <div class="msg-bubble bg-body-tertiary border" style="white-space: pre-wrap;">
                     {{ activeChat.question }}
                   </div>
@@ -461,7 +436,6 @@
 
                 <div class="msg msg-ai">
                   <div class="d-flex justify-content-between align-items-center">
-                    <!-- ✅ “IA” plomo -->
                     <div class="fw-semibold text-body-secondary">
                       <i class="bi bi-robot me-1"></i> IA
                     </div>
@@ -497,20 +471,14 @@
                           Tipo: {{ activeChat.view.tipo_equipo || "N/D" }}
                         </span>
                       </div>
-
-                      <!-- Respuesta -->
                       <div v-if="activeChat.view.respuesta" class="mb-3">
                         <div class="fw-semibold mb-1">Respuesta</div>
-
-                        <!-- ✅ respuesta ploma -->
                         <div class="border rounded p-2 bg-body-tertiary" style="white-space: pre-wrap;">
                           <span v-if="!showFullAnswer">{{ typedRespuesta }}</span>
                           <span v-else>{{ activeChat.view.respuesta }}</span>
                           <span v-if="isTyping && !showFullAnswer" class="typing-caret">▍</span>
                         </div>
                       </div>
-
-                      <!-- Fotos del chat (lazy) -->
                       <div class="mb-3">
                         <div class="d-flex align-items-center justify-content-between">
                           <div class="fw-semibold">Fotos asociadas</div>
@@ -553,8 +521,6 @@
                           </div>
                         </Transition>
                       </div>
-
-                      <!-- Secciones -->
                       <div class="row g-3">
                         <div class="col-12" v-if="activeChat.view.riesgos_criticos?.length">
                           <div class="fw-semibold mb-1">Riesgos críticos</div>
@@ -718,8 +684,6 @@
         </div>
       </div>
     </div>
-
-    <!-- MODAL: Pregunta libre -->
     <Transition name="fade">
       <div
         v-if="freeModalOpen"
@@ -762,8 +726,6 @@
     <Transition name="fade">
       <div v-if="freeModalOpen" class="modal-backdrop fade show"></div>
     </Transition>
-
-    <!-- MODAL: Gestionar preguntas -->
     <Transition name="fade">
       <div
         v-if="questionsModalOpen"
@@ -835,8 +797,6 @@
     <Transition name="fade">
       <div v-if="questionsModalOpen" class="modal-backdrop fade show"></div>
     </Transition>
-
-    <!-- ✅ MODAL: Confirmar eliminar chat -->
     <Transition name="fade">
       <div
         v-if="deleteChatModalOpen"
@@ -916,11 +876,7 @@ import { askInspectorAI, resetAiChat } from "@/services/aiInspector";
 import { fetchEquiposList } from "@/services/equiposService";
 import { saveInspection } from "@/services/aiMemory";
 import { fetchQuestions, upsertQuestion } from "@/services/aiQuestions";
-
-/** ✅ Debe coincidir con tu saveInspection(): collection(db,"inspecciones") */
 const COLLECTION_INSPECTIONS = "ai_inspections";
-
-/** Presets */
 const presetQuestions = [
   "¿Qué cosas le faltan para cumplir estándares mineros visibles en la foto?",
   "¿Ves riesgos críticos evidentes? Lista y prioriza.",
@@ -929,8 +885,6 @@ const presetQuestions = [
   "Resume hallazgos en: Observado / Falta / Riesgo / Acción recomendada.",
   "Indica qué fotos faltan (sectores) para confirmar cumplimiento y por qué.",
 ];
-
-/** Equipos */
 const equipos = ref([]);
 const equiposLoading = ref(false);
 const equiposFilter = ref("");
@@ -971,11 +925,6 @@ function makeHaystack(e) {
       .join(" ")
   );
 }
-
-/**
- * ✅ 645 equipos: muestra todos.
- * Si escribes SOLO 1 letra ("s") -> prioriza los que PARTEN con esa letra en campos principales.
- */
 const equiposFiltered = computed(() => {
   const q = norm(equiposFilterTrim.value);
   if (!q) return equipos.value;
@@ -1087,8 +1036,6 @@ function selectEquipo(e) {
   equiposFilter.value = e.codigo || "";
   equiposDropdownOpen.value = false;
 }
-
-/** Preguntas guardadas */
 const savedQuestions = ref([]);
 const questionOptions = computed(() => {
   const preset = presetQuestions;
@@ -1112,35 +1059,25 @@ const selectedSavedQuestion = computed(() => {
   return savedQuestions.value.find((x) => (x.text || "").trim() === txt) || null;
 });
 
-/** Form */
 const extraNotes = ref("");
 const files = ref([]);
 const previews = ref([]);
 const loading = ref(false);
 const error = ref("");
-
-/** Historial */
 const history = ref([]);
 const historyLoading = ref(false);
 const historyFilter = ref("");
-
 const activeChatId = ref("");
 const activeChat = ref(null);
 const pendingChat = ref(null);
 const showRaw = ref(false);
-
-/** Fotos del chat */
 const photosOpen = ref(false);
 const photosLoading = ref(false);
 const photoUrls = ref([]);
-
-/** Typing */
 const typedRespuesta = ref("");
 const isTyping = ref(false);
 const showFullAnswer = ref(false);
 let typingTimer = null;
-
-/** Modals */
 const freeModalOpen = ref(false);
 const freeQuestionText = ref("");
 const freeInput = ref(null);
@@ -1148,14 +1085,12 @@ const freeInput = ref(null);
 const questionsModalOpen = ref(false);
 const questionsFilter = ref("");
 
-/** ✅ Modal eliminar chat */
 const deleteChatModalOpen = ref(false);
 const deleteChatTarget = ref(null);
 
 const activeHeaderTs = computed(() => pendingChat.value?.tsLabel || activeChat.value?.tsLabel || "");
 const activeHeaderCodigo = computed(() => pendingChat.value?.codigo || activeChat.value?.codigo || "");
 
-/** Utils */
 function nowStampLabel(dateOrTs) {
   try {
     const d = dateOrTs?.toDate ? dateOrTs.toDate() : dateOrTs instanceof Date ? dateOrTs : new Date();
@@ -1207,7 +1142,6 @@ function normalizeAI(parsed) {
   };
 }
 
-/** Typing */
 function stopTyping() {
   isTyping.value = false;
   if (typingTimer) {
@@ -1245,7 +1179,6 @@ function toggleFullAnswer() {
   }
 }
 
-/** Equipos */
 async function reloadEquipos() {
   equiposLoading.value = true;
   try {
@@ -1257,7 +1190,6 @@ async function reloadEquipos() {
   }
 }
 
-/** Preguntas */
 function tsLabelFromFirestore(ts) {
   try {
     const d = ts?.toDate ? ts.toDate() : null;
@@ -1283,7 +1215,6 @@ const questionsFiltered = computed(() => {
   return savedQuestions.value.filter((q) => (q.text || "").toLowerCase().includes(t));
 });
 
-/** Historial */
 async function loadHistory() {
   historyLoading.value = true;
   try {
@@ -1331,8 +1262,6 @@ const historyFiltered = computed(() => {
   if (!t) return history.value;
   return history.value.filter((h) => `${h.codigo || ""} ${h.question || ""}`.toLowerCase().includes(t));
 });
-
-/** Abrir chat */
 async function openChat(id) {
   stopTyping();
   photosOpen.value = false;
@@ -1377,8 +1306,6 @@ async function openChat(id) {
     activeChat.value = null;
   }
 }
-
-/** Fotos del chat */
 async function loadChatPhotos(chatId) {
   photosLoading.value = true;
   try {
@@ -1405,8 +1332,6 @@ async function togglePhotos() {
     await loadChatPhotos(activeChatId.value);
   }
 }
-
-/** Nuevo chat */
 function newChat() {
   stopTyping();
   photosOpen.value = false;
@@ -1419,7 +1344,6 @@ function newChat() {
   resetAiChat();
 }
 
-/** Imágenes */
 function onPick(e) {
   const picked = Array.from(e.target.files || []);
   if (!picked.length) return;
@@ -1440,7 +1364,6 @@ function clearImgs() {
   previews.value = [];
 }
 
-/** Reset */
 function resetAll() {
   newChat();
   selectedEquipoId.value = "";
@@ -1452,7 +1375,6 @@ function resetAll() {
   error.value = "";
 }
 
-/** Modal pregunta libre */
 async function openFreeModal() {
   freeQuestionText.value = "";
   freeModalOpen.value = true;
@@ -1469,8 +1391,6 @@ async function submitFreeModal() {
   selectedQuestion.value = q;
   await sendWithQuestion(q);
 }
-
-/** Modal gestionar preguntas */
 function openQuestionsManager() {
   questionsFilter.value = "";
   questionsModalOpen.value = true;
@@ -1482,8 +1402,6 @@ function useQuestion(text) {
   selectedQuestion.value = text;
   closeQuestionsManager();
 }
-
-/** Enviar */
 async function send() {
   await sendWithQuestion(selectedQuestion.value);
 }
@@ -1551,8 +1469,6 @@ async function sendWithQuestion(q) {
     loading.value = false;
   }
 }
-
-/** ✅ Eliminar chat: ahora abre MODAL */
 function confirmDeleteChat(h) {
   const id = h?.id;
   if (!id) return;
@@ -1600,8 +1516,6 @@ async function deleteChatAndPhotos(chatId) {
     loading.value = false;
   }
 }
-
-/** Eliminar pregunta (lo dejé como confirm nativo, si quieres lo pasamos a modal también) */
 function confirmDeleteQuestion(q) {
   const id = q?.id;
   if (!id) return;
@@ -1622,8 +1536,6 @@ async function deleteQuestionById(id) {
     loading.value = false;
   }
 }
-
-/** Cerrar con ESC + click afuera dropdown equipos */
 function onKeydown(ev) {
   if (ev.key === "Escape") {
     if (deleteChatModalOpen.value) closeDeleteChatModal();
@@ -1640,7 +1552,6 @@ function onDocClick(ev) {
   }
 }
 
-/** Lifecycle */
 let unsubAuth = null;
 
 onMounted(async () => {
@@ -1666,21 +1577,17 @@ onUnmounted(() => {
   previews.value.forEach((u) => URL.revokeObjectURL(u));
 });
 
-/** Watches */
 watch(activeChatId, () => {
   showFullAnswer.value = false;
 });
 </script>
 
 <style scoped>
-/* Layout */
 .page-root {
   min-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
 }
-
-/* ✅ Dropdown equipos: active = bg-info-subtle */
 .dropdown-item.is-active {
   background-color: var(--bs-info-bg-subtle);
   color: var(--bs-body-color);
@@ -1697,7 +1604,6 @@ watch(activeChatId, () => {
   color: var(--bs-body-color);
 }
 
-/* Historial */
 .history-scroll {
   overflow: auto;
   border-radius: 12px;
@@ -1705,7 +1611,6 @@ watch(activeChatId, () => {
   max-height: calc(100vh - 290px);
 }
 
-/* ✅ evita “azul link” y deja texto normal */
 .history-btn {
   border: 0;
   width: 100%;
@@ -1726,12 +1631,10 @@ watch(activeChatId, () => {
   overflow: hidden;
 }
 
-/* Chat */
 .chat-card {
   overflow: hidden;
 }
 
-/* Loading overlay */
 .loading-overlay {
   position: absolute;
   inset: 0;
@@ -1750,7 +1653,6 @@ watch(activeChatId, () => {
   min-width: 260px;
 }
 
-/* Chat bubbles */
 .chat-wrap {
   display: flex;
   flex-direction: column;
@@ -1769,7 +1671,6 @@ watch(activeChatId, () => {
 .msg-user .msg-bubble { border-top-left-radius: 8px; }
 .msg-ai .msg-bubble { border-top-right-radius: 8px; }
 
-/* Typing dots */
 .typing-dots span {
   display: inline-block;
   width: 6px;
@@ -1786,7 +1687,6 @@ watch(activeChatId, () => {
   40% { transform: translateY(-3px); opacity: .85; }
 }
 
-/* caret */
 .typing-caret {
   display: inline-block;
   margin-left: 4px;
@@ -1795,7 +1695,6 @@ watch(activeChatId, () => {
 }
 @keyframes caret { 50% { opacity: 0; } }
 
-/* Skeleton */
 .skeleton {
   height: 12px;
   border-radius: 10px;
@@ -1808,7 +1707,6 @@ watch(activeChatId, () => {
   100% { background-position: -200% 0; }
 }
 
-/* Small pop */
 .appear { animation: pop .22s ease-out; }
 @keyframes pop {
   from { transform: translateY(6px); opacity: 0; }
@@ -1824,7 +1722,6 @@ watch(activeChatId, () => {
   box-shadow: 0 10px 22px rgba(0,0,0,.10);
 }
 
-/* Vue transitions */
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
@@ -1846,7 +1743,6 @@ watch(activeChatId, () => {
 .thumb-enter-active, .thumb-leave-active { transition: opacity .18s ease, transform .18s ease; }
 .thumb-enter-from, .thumb-leave-to { opacity: 0; transform: scale(.96); }
 
-/* Dropdown equipos */
 .drop-enter-active, .drop-leave-active {
   transition: opacity .14s ease, transform .14s ease;
 }
@@ -1855,7 +1751,6 @@ watch(activeChatId, () => {
   transform: translateY(8px);
 }
 
-/* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

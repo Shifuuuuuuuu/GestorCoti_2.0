@@ -3,7 +3,6 @@
 <template>
   <div class="admin-users-page">
     <div class="container py-4 py-md-5">
-      <!-- Header / acciones -->
       <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
         <h1 class="h5 h4-sm fw-semibold mb-0">Administrar usuarios</h1>
 
@@ -25,8 +24,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Filtros (≥ md) -->
       <div class="card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
@@ -57,8 +54,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Tabla -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">Usuarios</div>
@@ -102,8 +97,6 @@
                     <td class="fw-semibold">
                       <div class="text-truncate" style="max-width: 200px;">{{ u.fullName || '—' }}</div>
                       <div class="small text-secondary d-sm-none">{{ u.email || '—' }}</div>
-
-                      <!-- En XS mostramos empresas debajo -->
                       <div class="d-sm-none mt-1 d-flex flex-wrap gap-1">
                         <span
                           v-for="e in (u.empresas||[]).slice(0,2)"
@@ -125,8 +118,6 @@
                         {{ u.email || '—' }}
                       </div>
                     </td>
-
-                    <!-- Empresas -->
                     <td class="d-none d-md-table-cell">
                       <div class="d-flex flex-wrap gap-1">
                         <span
@@ -148,8 +139,6 @@
                       <span class="badge bg-secondary-subtle text-secondary-emphasis">
                         {{ u.role || '—' }}
                       </span>
-
-                      <!-- Indicador permisos -->
                       <div class="small text-secondary mt-1" v-if="(u.menuPerms?.allow?.length || 0) > 0 || (u.menuPerms?.deny?.length || 0) > 0">
                         <span class="me-2" v-if="(u.menuPerms?.allow?.length || 0) > 0">
                           <i class="bi bi-shield-check me-1"></i>Permitido: {{ u.menuPerms.allow.length }}
@@ -162,8 +151,6 @@
 
                     <td class="d-none d-lg-table-cell">{{ u.phone || '—' }}</td>
                     <td class="d-none d-lg-table-cell">{{ u.rut || '—' }}</td>
-
-                    <!-- Contratos -->
                     <td class="d-none d-xl-table-cell">
                       <div v-if="(u.centrosAsignados||[]).length===0" class="text-secondary small">—</div>
                       <div v-else class="d-flex flex-wrap gap-1">
@@ -212,8 +199,6 @@
 
               </table>
             </div>
-
-            <!-- Paginación -->
             <div class="card-footer">
               <nav class="overflow-auto">
                 <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
@@ -237,8 +222,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Offcanvas: crear/editar -->
       <div v-if="offOpen" class="offcanvas-backdrop" @click.self="cerrarOff">
         <div class="offcanvas-panel">
           <div class="offcanvas-header">
@@ -273,8 +256,6 @@
                 <label class="form-label">RUT</label>
                 <input class="form-control" v-model="form.rut" placeholder="99.999.999-9" />
               </div>
-
-              <!-- ======= Empresas (multi) ======= -->
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Empresas</label>
@@ -333,7 +314,6 @@
                 </div>
 
                 <div class="row g-2">
-                  <!-- ALLOW -->
                   <div class="col-12 col-lg-6">
                     <div class="perm-card">
                       <div class="d-flex align-items-center justify-content-between mb-2">
@@ -386,7 +366,6 @@
                     </div>
                   </div>
 
-                  <!-- DENY -->
                   <div class="col-12 col-lg-6">
                     <div class="perm-card">
                       <div class="d-flex align-items-center justify-content-between mb-2">
@@ -437,11 +416,6 @@
                   </div>
                 </div>
               </div>
-              <!-- ========================= -->
-              <!-- /Permisos de Menú -->
-              <!-- ========================= -->
-
-              <!-- ======= Asignación de contratos ======= -->
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Contratos asignados</label>
@@ -490,7 +464,6 @@
                   Si no asignas contratos, el usuario verá <em>todos</em> (no recomendado).
                 </div>
               </div>
-              <!-- ======= /Asignación de contratos ======= -->
             </div>
           </div>
 
@@ -515,8 +488,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Offcanvas Filtros (móvil) -->
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
@@ -553,8 +524,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2"
@@ -566,8 +535,6 @@
       </div>
 
     </div>
-
-    <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">

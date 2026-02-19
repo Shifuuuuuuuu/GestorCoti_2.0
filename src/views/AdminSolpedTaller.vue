@@ -2,12 +2,10 @@
 <template>
   <div class="admin-solpes-page">
     <div class="container py-4">
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
         <h1 class="h4 fw-semibold mb-0">Admin · SOLPED Taller</h1>
 
         <div class="d-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto">
-          <!-- Buscar numero_solpe -->
           <div class="input-group toolbar-item flex-grow-1" style="min-width: 240px; max-width: 360px;">
             <span class="input-group-text">#</span>
             <input
@@ -27,21 +25,15 @@
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
-
-          <!-- Botón Filtros (abre offcanvas) -->
           <button class="btn btn-outline-primary toolbar-item" @click="abrirFiltros">
             <i class="bi bi-funnel me-1"></i> Filtros
             <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
           </button>
-
-          <!-- Nueva -->
           <button class="btn btn-primary toolbar-item" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED (Taller)
           </button>
         </div>
       </div>
-
-      <!-- Chips de filtros activos -->
       <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <small class="text-secondary">Filtros activos:</small>
 
@@ -67,8 +59,6 @@
           Búsqueda por número activa
         </span>
       </div>
-
-      <!-- Tabla / Cards -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
@@ -76,8 +66,6 @@
             <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">paginación desactivada</span>
           </div>
         </div>
-
-        <!-- Vista tabla (md y arriba) -->
         <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
             <thead>
@@ -132,8 +120,6 @@
             </tbody>
           </table>
         </div>
-
-        <!-- Vista cards (xs - sm) -->
         <div class="d-block d-md-none">
           <div v-if="cargando" class="text-center py-4">
             <div class="spinner-border" role="status"></div>
@@ -174,8 +160,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Paginación -->
         <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0">
@@ -198,8 +182,6 @@
           </nav>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -208,8 +190,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas Filtros -->
     <div v-if="filtrosAbiertos" class="offcanvas-backdrop" @click.self="cerrarFiltros">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
@@ -219,13 +199,10 @@
 
         <div class="offcanvas-body">
           <div class="row g-3">
-            <!-- Fecha -->
             <div class="col-12 col-md-6">
               <label class="form-label">Fecha</label>
               <input class="form-control" type="date" v-model="filtroFecha">
             </div>
-
-            <!-- Solicitante -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <label class="form-label mb-0 fw-semibold">
@@ -286,8 +263,6 @@
                 </span>
               </div>
             </div>
-
-            <!-- Estatus (multi) -->
             <div class="col-12">
               <label class="form-label mb-2">Estatus</label>
               <div class="d-flex flex-wrap gap-2">
@@ -315,8 +290,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas Editor -->
     <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel editor-panel">
         <div class="offcanvas-header editor-header">
@@ -326,7 +299,6 @@
 
         <div class="offcanvas-body editor-body">
           <div class="row g-3">
-            <!-- Encabezado -->
             <div class="col-12 col-sm-6 col-md-3">
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
@@ -349,8 +321,6 @@
                 <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
-
-            <!-- Centro de costo -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
               <input
@@ -360,8 +330,6 @@
               >
               <div class="form-text">Campo manual (sin sugerencias).</div>
             </div>
-
-            <!-- Solicitante / sesión -->
             <div class="col-12 col-md-6">
               <label class="form-label">Nombre solicitante</label>
               <input class="form-control" v-model="edit.nombre_solicitante" placeholder="Ej: MATIAS MELLA">
@@ -370,8 +338,6 @@
               <label class="form-label">Usuario sesión</label>
               <input class="form-control" v-model="edit.usuario_sesion" placeholder="Ej: TALLER CM">
             </div>
-
-            <!-- Cotizadores (checkboxes) -->
             <div class="col-12">
               <label class="form-label mb-1">Cotizadores</label>
               <div class="d-flex flex-wrap gap-2">
@@ -381,8 +347,6 @@
                 </label>
               </div>
             </div>
-
-            <!-- Ítems -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Ítems</div>
@@ -390,8 +354,6 @@
                   <i class="bi bi-plus-lg me-1"></i> Agregar ítem
                 </button>
               </div>
-
-              <!-- Tabla en ≥ sm -->
               <div class="table-responsive d-none d-sm-block">
                 <table class="table table-sm align-middle mb-0">
                   <thead class="table-light">
@@ -425,8 +387,6 @@
                       <td>{{ it.cantidad_cotizada ?? 0 }}</td>
                       <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
                       <td>{{ it.estado || '—' }}</td>
-
-                      <!-- cotPorOC -->
                       <td class="small">
                         <div v-if="hasCotPorOC(it)" class="d-flex flex-wrap gap-1">
                           <span
@@ -464,8 +424,6 @@
                   </tbody>
                 </table>
               </div>
-
-              <!-- Cards en xs -->
               <div class="d-block d-sm-none">
                 <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
                 <div class="list-group list-group-flush">
@@ -525,8 +483,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Historial Estados (SUBCOLECCIÓN) -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Historial de Estados (subcolección)</div>
@@ -562,7 +518,6 @@
                   </div>
 
                   <div class="row g-2 mt-2">
-                    <!-- Fecha NO editable -->
                     <div class="col-12 col-md-4">
                       <label class="form-label small text-muted mb-1">Fecha (no editable)</label>
                       <input class="form-control form-control-sm" :value="fmtTs(h.fecha)" disabled />
@@ -593,8 +548,6 @@
                       <input class="form-control form-control-sm" v-model.number="h.ocNumero" type="number" min="0" placeholder="362" />
                     </div>
                   </div>
-
-                  <!-- No hay botón eliminar (no removible) -->
                   <div class="small text-muted mt-2">
                     <i class="bi bi-shield-lock me-1"></i>
                     La fecha no se edita y el registro no se puede eliminar.
@@ -617,8 +570,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal cotPorOC -->
     <div v-if="modalCotPorOC" class="vmodal-backdrop" @click.self="cerrarCotPorOC">
       <div class="vmodal" style="max-width: 780px;">
         <div class="vmodal-header d-flex align-items-center justify-content-between">
@@ -693,8 +644,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal NUEVA SOLPED (Taller) -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
@@ -724,8 +673,6 @@
                 <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
-
-            <!-- Centro de costo -->
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
               <div class="input-group">
@@ -747,8 +694,6 @@
               <label class="form-label">Usuario sesión</label>
               <input class="form-control" v-model="nuevo.usuario_sesion" placeholder="TALLER CM">
             </div>
-
-            <!-- Cotizadores -->
             <div class="col-12">
               <label class="form-label mb-1">Cotizadores</label>
               <div class="d-flex flex-wrap gap-2">
@@ -758,8 +703,6 @@
                 </label>
               </div>
             </div>
-
-            <!-- Ítems en creación -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Ítems (nuevo)</div>
@@ -830,8 +773,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal Ítem (crear/editar) -->
     <div v-if="modalItem" class="vmodal-backdrop" @click.self="cerrarModalItem">
       <div class="vmodal" style="max-width: 720px;">
         <div class="vmodal-header">
@@ -894,8 +835,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal NUEVO HISTORIAL (subcolección) -->
     <div v-if="modalHistorialNuevo" class="vmodal-backdrop" @click.self="cerrarModalHistorialNuevo">
       <div class="vmodal" style="max-width: 720px;">
         <div class="vmodal-header d-flex align-items-center justify-content-between">
@@ -943,8 +882,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">

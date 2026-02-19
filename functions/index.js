@@ -11,15 +11,12 @@
 // eslint-disable-next-line no-undef
 // eslint-disable-next-line no-undef
 const {onRequest} = require("firebase-functions/https");
-/**
- * Cloud Functions v2 (Callable) - CommonJS
- */
+
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
-// ✅ Config global (una sola vez)
 setGlobalOptions({
   region: "southamerica-west1",
   timeoutSeconds: 10,
@@ -28,13 +25,11 @@ setGlobalOptions({
 
 admin.initializeApp();
 
-/* ================== Helpers ================== */
 const isEmail = (s) => typeof s === "string" && /\S+@\S+\.\S+/.test(s);
 
-// Limpia espacios, guiones, paréntesis, etc. y valida E.164 (+ + 8-15 dígitos)
 const toE164OrUndef = (p) => {
   if (!p) return undefined;
-  const cleaned = String(p).trim().replace(/[^\d+]/g, ""); // deja solo + y dígitos
+  const cleaned = String(p).trim().replace(/[^\d+]/g, "");
   return /^\+\d{8,15}$/.test(cleaned) ? cleaned : undefined;
 };
 
@@ -52,17 +47,14 @@ const mapAdminAuthErrorToHttps = (err) => {
   if (code === "auth/user-not-found")
     throw new HttpsError("not-found", "USER_NOT_FOUND");
 
-  // 👇 IMPORTANTÍSIMO: si es interno, mandamos detalles reales
   throw new HttpsError("internal", "INTERNAL_ERROR", {
     adminCode: code,
     adminMessage: err?.message || String(err),
   });
 };
 
-/* ================== Ping ================== */
 exports.ping = onCall(async () => ({ ok: true, ts: Date.now() }));
 
-/* ================== Crear usuario (Auth) ================== */
 exports.adminCreateUser = onCall(async (request) => {
   try {
     const data = request.data || {};
@@ -73,13 +65,9 @@ exports.adminCreateUser = onCall(async (request) => {
 
     const phoneRaw = (data.phone || "").trim();
     const phoneE164 = toE164OrUndef(phoneRaw);
-
-    // Validaciones (estas DEVUELVEN invalid-argument, NO 500)
     if (!isEmail(email)) throw new HttpsError("invalid-argument", "INVALID_EMAIL");
     if (!password || password.length < 6) throw new HttpsError("invalid-argument", "TOO_SHORT");
     if (!displayName) throw new HttpsError("invalid-argument", "MISSING_NAME");
-
-    // Si escribió teléfono pero es inválido => error claro
     if (phoneRaw && !phoneE164) throw new HttpsError("invalid-argument", "INVALID_PHONE");
 
     logger.info("adminCreateUser payload", {
@@ -94,7 +82,7 @@ exports.adminCreateUser = onCall(async (request) => {
       email,
       password,
       displayName,
-      phoneNumber: phoneE164, // ✅ válido o undefined
+      phoneNumber: phoneE164,
       disabled: false,
     });
 
@@ -106,7 +94,6 @@ exports.adminCreateUser = onCall(async (request) => {
   }
 });
 
-/* ================== Actualizar usuario (Auth) ================== */
 exports.adminUpdateUser = onCall(async (request) => {
   try {
     const data = request.data || {};
@@ -133,8 +120,6 @@ exports.adminUpdateUser = onCall(async (request) => {
       const phoneE164 = toE164OrUndef(phoneRaw);
 
       if (phoneRaw && !phoneE164) throw new HttpsError("invalid-argument", "INVALID_PHONE");
-
-      // vacío => undefined (borra teléfono)
       patch.phoneNumber = phoneE164;
     }
 
@@ -149,7 +134,6 @@ exports.adminUpdateUser = onCall(async (request) => {
   }
 });
 
-/* ================== Eliminar usuario (Auth) ================== */
 exports.adminDeleteUser = onCall(async (request) => {
   try {
     const data = request.data || {};

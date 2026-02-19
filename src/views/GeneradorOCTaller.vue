@@ -826,7 +826,7 @@ const calcularAprobador = () => {
   const empresa = String(empresaSeleccionada.value || "").toLowerCase();
   if (empresa.includes("xtreme")) {
     if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
-    else if (totalCLP <= 5000000) aprobadorSugerido.value = "Juan Cubillos";
+    else if (totalCLP <= 5000000) aprobadorSugerido.value = "Alejandro Candia";
     else aprobadorSugerido.value = "Alejandro Candia";
   } else {
     aprobadorSugerido.value = "";
@@ -1416,7 +1416,6 @@ const cargarSiguienteNumero = async () => {
   }
 };
 
-/* ====== Equipos: carga 1 vez + búsqueda local multi-campo ====== */
 const busquedaEquipo = ref("");
 const cargandoEquipos = ref(false);
 const resultadosEquipos = ref([]);

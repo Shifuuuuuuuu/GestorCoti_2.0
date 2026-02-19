@@ -327,9 +327,6 @@ function markSeenTaller() {
   recomputeSolpesUnread();
 }
 
-/* =========================
-   BADGE: Aprobación OC
-========================= */
 const unreadAprobEmpresa = ref(0);
 const unreadAprobTaller = ref(0);
 
@@ -449,13 +446,6 @@ function markSeenAprobTaller() {
   recomputeAprobUnread();
 }
 
-/* =========================
-   ✅ NUEVO: BADGE SOPORTES (WhatsApp)
-   - Admin only
-   - Colección: soportes
-   - Solo estatus == "Pendiente"
-   - Cuenta "no vistos" desde la última vez que entraste a SoporteGestion
-========================= */
 const unreadSoportes = ref(0);
 const soportesTimes = ref([]);
 const soportesIds = ref(new Set());
@@ -480,7 +470,6 @@ function triggerBounceSoportes() {
 }
 
 function getMsFromSoporte(d) {
-  // tu doc trae created_at y updated_at
   const ms = tsToMs(d?.created_at) || tsToMs(d?.updated_at);
   return ms || 0;
 }
@@ -501,9 +490,6 @@ function markSeenSoportes() {
   recomputeSoportesUnread();
 }
 
-/* =========================
-   WATCH: marcar visto al entrar
-========================= */
 watch(
   () => route.name,
   (name) => {
@@ -515,7 +501,6 @@ watch(
       if (name === "AprobacionOC") markSeenAprobEmpresa();
       if (name === "AprobacionOCTaller") markSeenAprobTaller();
     }
-    // ✅ Soportes: cuando entras a SoporteGestion, se marca visto y desaparece el badge
     if (isAdminRole.value) {
       if (name === "SoporteGestion") markSeenSoportes();
     }
@@ -523,9 +508,6 @@ watch(
   { immediate: true }
 );
 
-/* =========================
-   SUBSCRIPTIONS
-========================= */
 let unsubSolpesEmp = null;
 let unsubSolpesTal = null;
 let unsubAprobEmp = null;
@@ -598,7 +580,6 @@ function startAllBadges() {
   ).trim();
   const myNorm = normalize(myNameRaw);
 
-  /* ===== SOLPED badges (Editor) ===== */
   if (isEditorRole.value && myNorm) {
     unsubSolpesEmp = onSnapshot(
       query(collection(db, "solpes"), where("estatus", "==", "Pendiente")),
@@ -669,7 +650,6 @@ function startAllBadges() {
     );
   }
 
-  /* ===== Aprobación OC badges ===== */
   if (canSeeAprobBadges.value && aprobStatusesEmpresa.value.length) {
     const since = getStartOfTodayMs();
 
@@ -751,8 +731,6 @@ function startAllBadges() {
       (err) => console.error("[BADGE] ordenes_oc_taller error:", err)
     );
   }
-
-  /* ===== ✅ Soportes badge (Admin WhatsApp) ===== */
   if (isAdminRole.value) {
     unsubSoportes = onSnapshot(
       query(collection(db, "soportes"), where("estatus", "==", "Pendiente")),
@@ -767,12 +745,10 @@ function startAllBadges() {
         soportesIds.value = newIds;
         soportesTimes.value = docs.map(getMsFromSoporte).filter(Boolean);
 
-        // si estás viendo SoporteGestion -> se marca visto y badge queda 0
         if (isViewingSoporteGestion.value) {
           if (docs.length) markSeenSoportes();
           unreadSoportes.value = 0;
         } else {
-          // notificación si llegan nuevos (no en el primer load)
           if (added.length && !isFirstLoad) {
             playNotif();
             triggerBounceSoportes();
@@ -784,7 +760,6 @@ function startAllBadges() {
     );
   }
 
-  // tick: mantiene “hoy” para solpes/aprob; y reevalúa soportes por si cambia el seen
   tickTimer = window.setInterval(() => {
     const since = getStartOfTodayMs();
 
@@ -796,7 +771,6 @@ function startAllBadges() {
     aprobTallerTimes.value = aprobTallerTimes.value.filter((ms) => ms >= since);
     recomputeAprobUnread();
 
-    // soportes: no filtramos por día, solo por "seen"
     recomputeSoportesUnread();
   }, 60 * 1000);
 }
@@ -837,7 +811,6 @@ watch(
     </div>
 
     <nav class="sidebar-nav">
-      <!-- EMPRESA -->
       <div v-if="empresaMenu.length" class="group">
         <div class="group-title">Empresa</div>
 
@@ -853,8 +826,6 @@ watch(
           >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
-
-            <!-- 🔴 Badge Historial SOLPED (Empresa) -->
             <span
               v-if="isEditorRole && it.name === 'historial-solped' && unreadEmpresa > 0"
               class="ms-auto notif-badge"
@@ -863,8 +834,6 @@ watch(
             >
               {{ unreadEmpresa }}
             </span>
-
-            <!-- 🔵 Badge Aprobación OC (Empresa) -->
             <span
               v-if="canSeeAprobBadges && it.name === 'AprobacionOC' && unreadAprobEmpresa > 0"
               class="ms-auto notif-badge"
@@ -876,8 +845,6 @@ watch(
           </a>
         </template>
       </div>
-
-      <!-- TALLER -->
       <div v-if="tallerMenu.length" class="group">
         <div class="group-title">Taller</div>
 
@@ -893,8 +860,6 @@ watch(
           >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
-
-            <!-- 🔴 Badge Historial SOLPED (Taller) -->
             <span
               v-if="isEditorRole && it.name === 'HistorialSolpedTaller' && unreadTaller > 0"
               class="ms-auto notif-badge"
@@ -903,8 +868,6 @@ watch(
             >
               {{ unreadTaller }}
             </span>
-
-            <!-- 🔵 Badge Aprobación OC (Taller) -->
             <span
               v-if="canSeeAprobBadges && it.name === 'AprobacionOCTaller' && unreadAprobTaller > 0"
               class="ms-auto notif-badge"
@@ -916,8 +879,6 @@ watch(
           </a>
         </template>
       </div>
-
-      <!-- RECEPCIÓN -->
       <div v-if="recepcionMenu.length" class="group">
         <div class="group-title">Recepción</div>
         <template v-for="(it, i) in recepcionMenu" :key="'r-' + i">
@@ -933,8 +894,6 @@ watch(
           </a>
         </template>
       </div>
-
-      <!-- ADMIN -->
       <div v-if="adminMenu.length" class="group">
         <div class="group-title">Admin</div>
         <template v-for="(it, i) in adminMenu" :key="'a-' + i">
@@ -948,8 +907,6 @@ watch(
           >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
-
-            <!-- ✅ Badge SoporteGestion (Admin WhatsApp) -->
             <span
               v-if="isAdminRole && it.name === 'SoporteGestion' && unreadSoportes > 0"
               class="ms-auto notif-badge"

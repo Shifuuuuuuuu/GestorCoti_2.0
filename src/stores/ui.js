@@ -4,24 +4,20 @@ import { db } from "@/stores/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { useAuthStore } from "@/stores/authService";
 
-const LOCAL_KEY_STYLE   = "ui.menuStyle"; // 'navbar' | 'sidebar'
-const LOCAL_KEY_THEME   = "ui.theme";     // 'light' | 'dark'
-const LOCAL_KEY_PRIMARY = "ui.primary";   // clave de PRIMARY_MAP
+const LOCAL_KEY_STYLE   = "ui.menuStyle";
+const LOCAL_KEY_THEME   = "ui.theme";
+const LOCAL_KEY_PRIMARY = "ui.primary";
 
-// Paletas con 3 tonos (base, d1, d2) para mapear a tus variables --xt-red, --xt-red-d1, --xt-red-d2
 const PRIMARY_MAP = {
-  // Existentes
-  turquesa: { base: "#0d9488", d1: "#0b776d", d2: "#075a53" }, // teal
+  turquesa: { base: "#0d9488", d1: "#0b776d", d2: "#075a53" },
   azul:     { base: "#2563eb", d1: "#1e4fc2", d2: "#173d96" },
   verde:    { base: "#16a34a", d1: "#14833e", d2: "#0f6230" },
   rojo:     { base: "#c62828", d1: "#b71c1c", d2: "#8e1515" },
   amarillo: { base: "#f59e0b", d1: "#c47e08", d2: "#915e06" },
   rosado:   { base: "#db2777", d1: "#b01f61", d2: "#88184d" },
-  celeste:  { base: "#06b6d4", d1: "#0891b2", d2: "#0e7490" }, // cyan claro
+  celeste:  { base: "#06b6d4", d1: "#0891b2", d2: "#0e7490" },
   violeta:  { base: "#7c3aed", d1: "#622fbc", d2: "#4a248c" },
   naranjo:  { base: "#f97316", d1: "#c75c12", d2: "#98460e" },
-
-  // NUEVOS
   gris:     { base: "#6b7280", d1: "#4b5563", d2: "#374151" },
   negro:    { base: "#111827", d1: "#0b1220", d2: "#060a12" },
   lima:     { base: "#84cc16", d1: "#65a30d", d2: "#4d7c0f" },
@@ -41,7 +37,7 @@ export const useUIStore = defineStore("ui", {
   state: () => ({
     menuStyle: localStorage.getItem(LOCAL_KEY_STYLE) || "navbar",
     theme:     localStorage.getItem(LOCAL_KEY_THEME) || "light",
-    primary:   localStorage.getItem(LOCAL_KEY_PRIMARY) || "rojo", // por defecto rojo
+    primary:   localStorage.getItem(LOCAL_KEY_PRIMARY) || "rojo",
     saving: false,
     isSidebarOpen: false,
   }),
@@ -54,12 +50,9 @@ export const useUIStore = defineStore("ui", {
   },
   actions: {
     initUI() {
-      // tema
       const t = localStorage.getItem(LOCAL_KEY_THEME);
       if (t === "dark" || t === "light") this.theme = t;
       this.applyTheme(this.theme);
-
-      // primario
       const p = localStorage.getItem(LOCAL_KEY_PRIMARY);
       if (p && PRIMARY_MAP[p]) this.primary = p;
       this.applyPrimary(this.primary);
@@ -69,21 +62,15 @@ export const useUIStore = defineStore("ui", {
       const html = document.documentElement;
       html.classList.remove("theme-dark", "theme-light");
       html.classList.add(theme === "dark" ? "theme-dark" : "theme-light");
-
-      // 🔑 Clave para que Bootstrap 5.3+ cambie sus tokens (fondo, texto, etc.)
       html.setAttribute("data-bs-theme", theme === "dark" ? "dark" : "light");
     },
 
     applyPrimary(primaryKey) {
       const pal = PRIMARY_MAP[primaryKey] || PRIMARY_MAP.rojo;
       const root = document.documentElement;
-
-      // mapea a tus variables existentes (reutilizadas en componentes)
       root.style.setProperty("--xt-red",    pal.base);
       root.style.setProperty("--xt-red-d1", pal.d1);
       root.style.setProperty("--xt-red-d2", pal.d2);
-
-      // utilidades base
       root.style.setProperty("--xt-white",    "#ffffff");
       root.style.setProperty("--xt-white-75", "rgba(255,255,255,.75)");
       root.style.setProperty("--xt-white-60", "rgba(255,255,255,.6)");

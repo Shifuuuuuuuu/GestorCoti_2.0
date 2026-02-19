@@ -2,7 +2,6 @@
 <template>
   <div class="historial-page">
     <div class="container py-4 py-md-5">
-      <!-- Top bar -->
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
         <button class="btn btn-outline-secondary btn-sm" @click="volver" aria-label="Volver">
           <i class="bi bi-arrow-left" aria-hidden="true"></i>
@@ -39,8 +38,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Error global -->
       <div
         v-if="error"
         class="alert-pro alert-dismissible fade show d-flex align-items-start gap-2 mb-3"
@@ -53,8 +50,6 @@
         </div>
         <button type="button" class="btn-close btn-close-white" @click="error=''" aria-label="Cerrar"></button>
       </div>
-
-      <!-- Buscador exacto -->
     <div class="card card-elevated mb-3" aria-labelledby="lbl-busqueda-exacta">
       <div class="card-header d-flex align-items-center justify-content-between">
         <div id="lbl-busqueda-exacta" class="fw-semibold">
@@ -112,8 +107,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Chips filtros activos -->
       <div class="d-flex flex-wrap align-items-center gap-2 mb-2" v-if="hasActiveFilters">
         <small class="text-secondary">Filtros:</small>
 
@@ -158,8 +151,6 @@
 
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
       </div>
-
-      <!-- Segmento por empresa -->
       <div class="mb-3" role="tablist" aria-label="Filtro por empresa">
         <div class="btn-group flex-wrap">
           <button class="btn btn-sm" :class="empresaSegmento==='todas' ? 'btn-primary' : 'btn-outline-primary'" @click="setEmpresaSeg('todas')">Todas</button>
@@ -170,7 +161,6 @@
       </div>
 
       <div class="row">
-        <!-- Listado -->
         <div class="col-12" :class="showSidebar ? 'col-lg-9' : 'col-lg-12'">
           <div v-if="loading" class="loading-global" role="status" aria-live="polite">
             <div class="spinner-border me-2" role="status" aria-hidden="true"></div>
@@ -178,7 +168,6 @@
           </div>
 
           <template v-else>
-            <!-- Paginación superior pegajosa -->
             <nav v-if="totalPages > 1" class="mt-3 sticky-pager" aria-label="Paginación">
               <ul class="pagination justify-content-center mb-1">
                 <li class="page-item" :class="{disabled: page===1}">
@@ -246,8 +235,6 @@
 
                   <div class="d-flex align-items-center gap-2 flex-shrink-0">
                     <span class="badge" :style="estadoChipStyle(s)">{{ s.estatus }}</span>
-
-                    <!-- Dropdown ESTADO (con corte de burbujeo + boundary/strategy) -->
                     <div v-if="canChangeStatus" class="dropdown" @click.stop>
                       <button
                         class="btn btn-sm btn-outline-secondary dropdown-toggle"
@@ -313,10 +300,7 @@
                     </button>
                   </div>
                 </div>
-
-                <!-- Detalle expandido -->
                 <div v-if="solpeExpandidaId===s.id" class="card-body" :id="`solpe-detalle-${s.id}`">
-                  <!-- Ítems -->
                   <div class="fw-semibold mb-2">🛠 Ítems asociados</div>
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
@@ -361,8 +345,6 @@
                             </span>
                           </td>
                           <td class="text-end d-none d-sm-table-cell">
-                            <!-- Dropdown ÍTEM (corte de burbujeo + position-static) -->
-                              <!-- Antes: class="dropdown position-static"  ... data-bs-display="static" data-bs-boundary="viewport" -->
                               <div v-if="canChangeStatus" class="dropdown dropdown-keep" @click.stop>
                                 <button
                                   class="btn btn-sm btn-outline-secondary dropdown-toggle"
@@ -392,8 +374,6 @@
                       </tbody>
                     </table>
                   </div>
-
-                  <!-- Comentarios -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">💬 Comentarios</label>
@@ -420,8 +400,6 @@
                       <button class="btn btn-primary" :disabled="!(s.nuevoComentario && s.nuevoComentario.trim())" @click="agregarComentario(s)">Enviar</button>
                     </div>
                   </div>
-
-                  <!-- 📎 Autorizaciones -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">📎 Documentos Adjuntos</label>
@@ -456,8 +434,6 @@
                             <span v-if="file.size"> · {{ (file.size/1024/1024).toFixed(2) }} MB</span>
                           </div>
                         </div>
-
-                        <!-- Acciones -->
                         <div class="d-flex gap-2">
                           <a
                             v-if="file.canView"
@@ -484,8 +460,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- 🧾 Cotizaciones vinculadas -->
                   <div class="mt-4">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label mb-0">🧾 Cotizaciones vinculadas</label>
@@ -517,12 +491,9 @@
                       </div>
                     </div>
                   </div>
-
-                </div> <!-- /card-body -->
+                </div>
               </div>
             </div>
-
-            <!-- Vacío -->
             <div v-if="displayList.length===0" class="ghost-wrap" role="status" aria-live="polite">
               <div class="ghost" aria-hidden="true">
                 <div class="ghost-eyes"></div>
@@ -535,8 +506,6 @@
 
           </template>
         </div>
-
-        <!-- Sidebar filtros (sticky en desktop) -->
         <aside
           v-if="showSidebar"
           id="filters-aside"
@@ -581,8 +550,6 @@
                 </select>
                 <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
               </div>
-
-              <!-- Centros -->
               <div class="mb-3">
                 <label class="form-label">Centro de costo (código)</label>
                 <input class="form-control mb-2" v-model="centroPickerSearch" placeholder="Buscar código o nombre…">
@@ -599,8 +566,6 @@
                 </div>
                 <small class="text-secondary d-block mt-1">Puedes seleccionar varios (máx. 10).</small>
               </div>
-
-              <!-- Usuario (generador) -->
               <div class="mb-1 d-flex align-items-center justify-content-between">
                 <label class="form-label mb-0">Usuario (Generador)</label>
                 <small v-if="tempUsuarioSelSet.size" class="text-secondary">{{ tempUsuarioSelSet.size }} seleccionados</small>
@@ -618,8 +583,6 @@
                   <label class="form-check-label" :for="'u_'+u.id">{{ u.fullName }}</label>
                 </div>
               </div>
-
-              <!-- Flags -->
               <div class="mb-3">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" id="chkOnlyMine"
@@ -646,14 +609,9 @@
         </aside>
       </div>
     </div>
-
-    <!-- Offcanvas filtros (móvil / tablet) -->
     <transition name="oc">
       <div v-if="showFiltersMobile" class="oc-wrap d-lg-none" @keydown.esc="closeFiltersMobile">
-        <!-- backdrop -->
         <div class="oc-backdrop" @click="closeFiltersMobile"></div>
-
-        <!-- panel -->
         <div
           class="oc-panel"
           role="dialog"
@@ -672,8 +630,6 @@
           </div>
 
           <div class="oc-body">
-            <!-- Fecha -->
-
             <div class="mb-3">
               <label class="form-label">Fecha</label>
               <div class="row g-2">
@@ -695,9 +651,6 @@
                 </div>
               </div>
             </div>
-
-
-            <!-- Estado -->
             <div class="mb-3">
               <label class="form-label">Estado</label>
               <select class="form-select" multiple v-model="filtroEstatus">
@@ -705,8 +658,6 @@
               </select>
               <small class="text-secondary">Puedes seleccionar varios (máx. 10).</small>
             </div>
-
-            <!-- Centros -->
             <div class="mb-3">
               <label class="form-label">Centro de costo (código)</label>
               <input class="form-control mb-2" v-model="centroPickerSearch" placeholder="Buscar código o nombre…">
@@ -723,8 +674,6 @@
               </div>
               <small class="text-secondary d-block mt-1">Puedes seleccionar varios (máx. 10).</small>
             </div>
-
-            <!-- Usuario (generador) -->
             <div class="mb-1 d-flex align-items-center justify-content-between">
               <label class="form-label mb-0">Usuario (Generador)</label>
               <small v-if="tempUsuarioSelSet.size" class="text-secondary">{{ tempUsuarioSelSet.size }} seleccionados</small>
@@ -742,8 +691,6 @@
                 <label class="form-check-label" :for="'m_u_'+u.id">{{ u.fullName }}</label>
               </div>
             </div>
-
-            <!-- Flags -->
             <div class="mb-3">
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="m_chkOnlyMine"
@@ -758,8 +705,6 @@
                 <label class="form-check-label" for="m_chkOnlyDirected">Ver sólo dirigidas a mí</label>
               </div>
             </div>
-
-            <!-- Tamaño de página -->
             <div class="mb-0">
               <label class="form-label">Tamaño de página</label>
               <select class="form-select" v-model.number="pageSize">
@@ -770,8 +715,6 @@
         </div>
       </div>
     </transition>
-
-    <!-- Botón flotante filtros (móvil) -->
     <button
       class="btn btn-primary floating-filters-btn d-lg-none"
       @click="toggleFiltersResponsive"
@@ -780,8 +723,6 @@
     >
       <i class="bi bi-funnel" aria-hidden="true"></i>
     </button>
-
-    <!-- Toasts -->
     <div class="toast-stack" aria-live="polite" aria-atomic="true">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
         <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'" aria-hidden="true"></i>
@@ -789,8 +730,6 @@
         <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)" aria-label="Cerrar notificación"></button>
       </div>
     </div>
-
-    <!-- Modal imagen -->
     <div v-if="showImgModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.6);" @keydown.esc="showImgModal=false">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
@@ -808,8 +747,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ========= MODAL EDICIÓN SOLPED ========= -->
     <div v-if="showEditModal" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.55);" @keydown.esc="cerrarEditar">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -823,7 +760,6 @@
 
           <div class="modal-body">
             <div class="row g-3">
-              <!-- Empresa -->
               <div class="col-12 col-md-4">
                 <label class="form-label">Empresa</label>
                 <select class="form-select" v-model="editForm.empresa" disabled>
@@ -833,22 +769,16 @@
                 </select>
                 <div class="form-text">La empresa no se puede cambiar en edición.</div>
               </div>
-
-              <!-- Tipo SOLPED -->
               <div class="col-12 col-md-4">
                 <label class="form-label">Tipo SOLPED</label>
                 <select class="form-select" v-model="editForm.tipo_solped">
                   <option v-for="t in tiposSolped" :key="t" :value="t">{{ t }}</option>
                 </select>
               </div>
-
-              <!-- Número SOLPED (solo lectura) -->
               <div class="col-12 col-md-4">
                 <label class="form-label">N° SOLPED</label>
                 <input class="form-control" :value="editForm.numero_solpe" disabled>
               </div>
-
-              <!-- Centro de costo (SOLO ASIGNADOS) -->
               <div class="col-12 col-md-4">
                 <label class="form-label">Centro de costo (código)</label>
 
@@ -874,8 +804,6 @@
 
                 <div class="form-text">Solo se muestran contratos asignados a tu usuario.</div>
               </div>
-
-              <!-- Nombre Centro de Costo (NO EDITABLE, SOLO AUTO) -->
               <div class="col-12 col-md-8">
                 <label class="form-label">Nombre Centro de Costo</label>
                 <input
@@ -885,13 +813,10 @@
                 />
                 <div class="form-text">Se autocompleta según el centro seleccionado.</div>
               </div>
-              <!-- Nombre SOLPED -->
               <div class="col-12">
                 <label class="form-label">Nombre SOLPED</label>
                 <input class="form-control" v-model="editForm.nombre_solped" maxlength="140">
               </div>
-
-              <!-- Dirigido a (por empresa) -->
               <div class="col-12 col-md-6">
                 <label class="form-label">Dirigido a (cotizadores)</label>
 
@@ -925,7 +850,6 @@
                   </span>
                 </div>
               </div>
-              <!-- Ítems -->
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Ítems</label>
@@ -984,8 +908,8 @@
                 </div>
               </div>
 
-            </div><!-- row -->
-          </div><!-- body -->
+            </div>
+          </div>
 
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" @click="cerrarEditar">Cancelar</button>
@@ -996,7 +920,7 @@
           </div>
         </div>
       </div>
-    </div><!-- /MODAL -->
+    </div>
   </div>
 </template>
 

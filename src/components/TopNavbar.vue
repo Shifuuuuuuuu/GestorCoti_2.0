@@ -203,7 +203,6 @@ function bindCollapseEvents() {
   el.addEventListener("hidden.bs.collapse", onHidden);
 }
 
-/* ---------- lifecycle ---------- */
 onMounted(() => {
   setBodyScrollLocked(false);
 

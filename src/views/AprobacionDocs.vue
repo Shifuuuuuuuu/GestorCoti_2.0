@@ -2,7 +2,6 @@
 <template>
   <div class="container-fluid py-2 aprobacion-docs">
 
-    <!-- Busy overlay -->
     <div v-if="busy.on" class="busy-overlay">
       <div class="busy-card shadow">
         <div class="d-flex align-items-center gap-3">
@@ -31,8 +30,6 @@
       </div>
       <button class="btn btn-sm btn-outline-dark" @click="dismissNoLotesNotice">OK</button>
     </div>
-
-    <!-- Header compacto (para ganar pantalla) -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 topbar">
       <div class="min-w-0">
         <h4 class="mb-0">Aprobación Documental</h4>
@@ -82,7 +79,6 @@
     </div>
 
     <div v-else class="row g-2 align-items-stretch layout-row">
-      <!-- Sidebar comparativas (más angosto) -->
       <div v-if="showSidebar" class="col-12 col-lg-2">
         <div class="card shadow-sm h-100 sidebar-card">
           <div class="card-header d-flex align-items-center justify-content-between py-2">
@@ -159,8 +155,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Visor comparativo (casi pantalla completa) -->
       <div :class="showSidebar ? 'col-12 col-lg-10' : 'col-12'">
         <div class="card shadow-sm h-100 viewer-root">
           <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between py-2">
@@ -207,7 +201,6 @@
             </div>
           </div>
 
-          <!-- padding mínimo + altura máxima -->
           <div class="card-body p-1">
             <div v-if="!currentCmp" class="text-muted text-center py-5">
               Selecciona una comparativa para visualizar y aprobar/rechazar.
@@ -217,7 +210,6 @@
               <Transition name="fade-fast">
                 <div :key="currentCmp.id" class="cmp-block">
                   <div class="row g-1 mb-1">
-                    <!-- LEFT -->
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
                         <div class="viewer-top d-flex justify-content-between align-items-center">
@@ -270,8 +262,6 @@
                         <div v-else class="text-muted text-center py-5">Sin documento</div>
                       </div>
                     </div>
-
-                    <!-- RIGHT -->
                     <div class="col-12 col-md-6">
                       <div class="viewer-card border rounded">
                         <div class="viewer-top d-flex justify-content-between align-items-center">
@@ -338,7 +328,6 @@
       </div>
     </div>
 
-    <!-- Modal Rechazo -->
     <div class="modal fade" ref="rejectModalEl" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -542,7 +531,7 @@ function normCmpEstado(s) {
   if (v === "pendiente") return "pendiente";
   if (v === "aprobado") return "aprobado";
   if (v === "rechazado") return "rechazado";
-  return v; // por si inventas otro estado
+  return v;
 }
 
 const lotesActivos = computed(() => {
@@ -740,11 +729,7 @@ function getPanEls(from) {
 function onPanStart(ev, from) {
   const { src } = getPanEls(from);
   if (!src) return;
-
-  // Solo mouse principal o touch/pen
   if (ev.pointerType === "mouse" && ev.button !== 0) return;
-
-  // Evita iniciar drag cuando clickean botones/enlaces
   const tag = String(ev.target?.tagName || "").toLowerCase();
   if (tag === "a" || tag === "button" || tag === "input" || tag === "textarea") return;
 
@@ -1472,8 +1457,6 @@ async function completeCurrentLoteAndAdvance() {
 
   try {
     setBusy(true, "Finalizando lote…", "Verificando que no queden pendientes", 10);
-
-    // ✅ Trae todas las comparaciones del lote y verifica en JS
     const snap = await getDocs(collection(db, "lotes_docs", loteId, "comparaciones"));
 
     const stillPending = snap.docs.some((d) => {
@@ -1536,7 +1519,6 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
   cursor: grabbing;
 }
 
-/* Evita selección de texto durante drag (global) */
 :global(body.no-select) {
   user-select: none !important;
 }

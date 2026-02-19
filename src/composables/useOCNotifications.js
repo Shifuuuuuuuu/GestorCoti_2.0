@@ -12,28 +12,26 @@ export function useOCNotifications() {
   const loaded = ref(false)
 
   const unsubList = []
-  const lastStatus = new Map() // key: docId -> { estatus, idOc, empresa, centro, total }
+  const lastStatus = new Map()
 
   function pushByStatus(docId, data) {
     const est = String(data.estatus || '').trim()
-    const ocId = data.id ?? '—' // número visible si lo tienes en el doc
+    const ocId = data.id ?? '—'
     const empresa = data.empresa || '—'
     const total = Number(data.precioTotalConIVA || 0).toLocaleString('es-CL')
 
     const subtitle = `OC N° ${ocId} · ${empresa}`
     const body = `Total: ${total}`
 
-    // Ruta directa al detalle por docId (coincide con /oc/:id)
     const to = docId ? { name: 'oc-detalle', params: { id: docId } } : null
 
     const basePayload = {
       title: '',
       subtitle,
       body,
-      // claves para ToastCenterOC (Opción B)
-      docId,     // <-- Firestore doc id
-      ocId,      // <-- número visible (opcional)
-      to,        // <-- fallback directo
+      docId,
+      ocId,
+      to,
     }
 
     if (/^aprobado/i.test(est)) {
@@ -55,7 +53,7 @@ export function useOCNotifications() {
       collection(db, 'ordenes_oc'),
       where(field, '==', value),
       orderBy('fechaSubida', 'desc'),
-      limit(50) // evita cargar demasiado
+      limit(50)
     )
 
     const unsub = onSnapshot(
@@ -69,13 +67,10 @@ export function useOCNotifications() {
             const prev = lastStatus.get(id)?.estatus
             const now = data.estatus
             if (prev && now && prev !== now) {
-              // hubo cambio de estado => push toast
               pushByStatus(id, data)
             }
           })
         }
-
-        // Actualiza cache local de estado
         snap.docs.forEach((d) => {
           const data = d.data() || {}
           lastStatus.set(d.id, {
@@ -106,8 +101,6 @@ export function useOCNotifications() {
     loaded.value = false
     lastStatus.clear()
   }
-
-  // Inicia/renueva listeners cuando cambie el usuario
   watch(
     () => auth.user,
     (u) => {
@@ -117,9 +110,8 @@ export function useOCNotifications() {
       const fullName = (auth?.profile?.fullName || u.displayName || '').trim()
       const uid = u.uid
 
-      // Montamos listeners según lo que guardes en 'ordenes_oc'
-      if (fullName) startFor('responsable', fullName)      // por nombre visible
-      startFor('responsable', uid)                      // por UID
+      if (fullName) startFor('responsable', fullName)
+      startFor('responsable', uid)
     },
     { immediate: true }
   )

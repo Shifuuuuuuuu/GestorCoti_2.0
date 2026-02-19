@@ -1,21 +1,16 @@
 <!-- src/views/Soporte.vue -->
 <template>
   <div class="soporte-page container py-4 py-md-5">
-    <!-- Header -->
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
       <h1 class="h5 fw-semibold mb-0 order-2 order-md-1">Soporte</h1>
       <button class="btn btn-outline-secondary btn-sm order-1 order-md-2 ms-auto" @click="volver">
         <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Volver</span>
       </button>
     </div>
-
-    <!-- Alerta de error -->
     <div v-if="error" class="alert alert-danger d-flex justify-content-between align-items-start">
       <div class="me-3">{{ error }}</div>
       <button class="btn-close" @click="error=''"></button>
     </div>
-
-    <!-- Formulario de ticket -->
     <div class="card card-elevated mb-4">
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div class="fw-semibold">Crear ticket</div>
@@ -66,12 +61,8 @@
         </div>
       </div>
     </div>
-
-    <!-- Historial del usuario -->
     <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
       <h2 class="h6 fw-semibold mb-0">Mi historial de soporte</h2>
-
-      <!-- Controles de filtro/search: stack en móvil -->
       <div class="d-flex flex-column flex-sm-row gap-2 ms-sm-auto w-100 w-sm-auto">
         <select class="form-select form-select-sm w-100 w-sm-auto" v-model="filtroEstado">
           <option value="">Todos</option>
@@ -145,8 +136,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ===== Visor fullscreen (imágenes) ===== -->
     <transition name="viewer">
       <div v-if="viewerOpen" class="viewer-wrap" @keydown.esc="closeViewer" tabindex="0">
         <div class="viewer-backdrop" @click="closeViewer"></div>
@@ -191,7 +180,6 @@
         </div>
       </div>
     </transition>
-    <!-- ===== FIN visor ===== -->
   </div>
 </template>
 
@@ -259,7 +247,6 @@ export default {
       fileName.value = f ? f.name : "";
     };
 
-    /* ===== Visor fullscreen ===== */
     const viewerOpen = ref(false);
     const viewerUrl = ref("");
     const viewerName = ref("");
@@ -269,7 +256,6 @@ export default {
       viewerName.value = "Adjunto";
       viewerOpen.value = !!viewerUrl.value;
       zoom.value = 1;
-      // foco para cerrar con ESC
       setTimeout(() => { document.querySelector('.viewer-wrap')?.focus(); }, 0);
     };
     const closeViewer = () => { viewerOpen.value = false; viewerUrl.value = ""; zoom.value = 1; };
@@ -330,7 +316,6 @@ export default {
 
         await addDoc(collection(db, "soportes"), payload);
 
-        // limpiar
         form.value = { tipo: "", asunto: "", descripcion: "" };
         file.value = null;
         fileName.value = "";
@@ -360,8 +345,6 @@ export default {
         nombre: auth?.user?.displayName || "",
         email: auth?.user?.email || ""
       };
-
-      // Suscripción en tiempo real a los tickets del usuario
       const qy = query(
         collection(db, "soportes"),
         where("uid", "==", my.value.uid || "__none__"),
@@ -387,7 +370,6 @@ export default {
       error, sending, form, onPickFile, fileName, canSend, enviarTicket,
       tickets, loading, estados, filtroEstado, q,
       listadoFiltrado, formatDateTime, expandId, toggleExpand, openImg, badgeClass,
-      // visor
       viewerOpen, viewerUrl, viewerName, closeViewer, zoomIn, zoomOut, resetZoom, toggleZoom, zoom
     };
   }
@@ -410,14 +392,11 @@ export default {
 
 .break-any{ word-break: break-word; overflow-wrap: anywhere; }
 .minw-0{ min-width: 0; }
-
-/* Responsive helpers */
 @media (max-width: 576px){
-  .w-md-auto{ width: auto; } /* noop en XS */
+  .w-md-auto{ width: auto; }
   .w-100-xs{ width: 100%!important; }
 }
 
-/* ===== Visor Fullscreen (modal/lightbox) ===== */
 .viewer-enter-active, .viewer-leave-active { transition: opacity .18s ease; }
 .viewer-enter-from, .viewer-leave-to { opacity: 0; }
 
@@ -446,7 +425,6 @@ export default {
   background: #0b0f14;
 }
 
-/* Imagen */
 .viewer-img-wrap{
   width: 100%; height: 100%;
   display: grid; place-items: center; overflow: auto;
@@ -458,8 +436,6 @@ export default {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
 }
-
-/* Móvil: panel fullscreen */
 @media (max-width: 576px){
   .viewer-panel{
     width: 100vw; height: 100vh; border-radius: 0;
@@ -467,6 +443,5 @@ export default {
   .viewer-title{ max-width: 50vw; }
 }
 
-/* Cursor utilitario */
 :root { --cur-ptr: pointer; }
 </style>

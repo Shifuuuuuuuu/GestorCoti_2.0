@@ -4,12 +4,9 @@
   <div class="auth-bg">
     <div class="container min-vh-100 d-flex align-items-center">
       <div class="row w-100 justify-content-center g-4">
-
-        <!-- Panel visual / texto (md+) -->
         <div class="col-lg-6 d-none d-lg-block">
           <div class="hero card-ghost p-4 p-xl-5 h-100 d-flex">
             <div class="w-100">
-              <!-- Carrusel solo-imagen -->
               <div class="brand-carousel mb-4">
                 <transition name="fade" mode="out-in">
                   <img
@@ -35,12 +32,9 @@
             </div>
           </div>
         </div>
-
-        <!-- Card login -->
         <div class="col-12 col-md-10 col-lg-5">
           <div class="card auth-card shadow-lg border-0">
             <div class="card-body p-4 p-md-5">
-              <!-- Encabezado -->
               <div class="text-center mb-4">
                 <div class="logo-ring mb-3">
                   <img :src="currentImage.src" :class="['brand-logo', currentImage.size]" alt="Logo activo" />
@@ -48,16 +42,11 @@
                 <h2 class="h4 fw-semibold mb-1">Iniciar sesión</h2>
                 <p class="text-muted mb-0">Usa tu correo corporativo.</p>
               </div>
-
-              <!-- Alerta global -->
               <div v-if="error" class="alert alert-danger d-flex align-items-center" role="alert">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 <div>{{ error }}</div>
               </div>
-
-              <!-- Form -->
               <form ref="formRef" class="needs-validation" novalidate @submit.prevent="handleSubmit">
-                <!-- Email -->
                 <div class="mb-3">
                   <label class="form-label">Correo electrónico</label>
                   <input
@@ -71,8 +60,6 @@
                   />
                   <div class="invalid-feedback">Ingresa un correo válido.</div>
                 </div>
-
-                <!-- Password -->
                 <div class="mb-2">
                   <label class="form-label d-flex justify-content-between align-items-center">
                     <span>Contraseña</span>
@@ -101,16 +88,12 @@
                     <div class="invalid-feedback">La contraseña es obligatoria.</div>
                   </div>
                 </div>
-
-                <!-- Checks -->
                 <div class="d-flex flex-column gap-2 my-3">
                   <div class="form-check">
                     <input id="keep" class="form-check-input" type="checkbox" v-model="keep" />
                     <label class="form-check-label" for="keep">Mantener sesión</label>
                   </div>
                 </div>
-
-                <!-- Submit -->
                 <div class="d-grid mt-3">
                   <button class="btn btn-primary btn-lg" type="submit" :disabled="cargando">
                     <span v-if="!cargando">Ingresar</span>
@@ -123,8 +106,6 @@
               </form>
             </div>
           </div>
-
-          <!-- Modal Reset simple -->
           <div v-if="showReset" class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
             <div class="modal-dialog modal-dialog-centered">
               <div class="modal-content border-0 shadow">
@@ -160,9 +141,9 @@
             </div>
           </div>
 
-        </div><!-- col -->
-      </div><!-- row -->
-    </div><!-- container -->
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -173,32 +154,24 @@ import { useAuthStore } from "../stores/authService";
 import { db } from "../stores/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
-/** ---- Assets carrusel ----
- * Coloca estos archivos en: src/assets/
- * - Xtreme Hormigoenes y mortero clear.png
- * - Logo Xtreme Mining.png
- * - Logo XT Servicios Transparente.png
- */
 const imgHormigon = new URL("../assets/Xtreme Hormigoenes y mortero clear.png", import.meta.url).href;
 const imgMining   = new URL("../assets/Logo Xtreme Mining.png", import.meta.url).href;
 const imgServicios= new URL("../assets/Logo XT Servicios Transparente.png", import.meta.url).href;
 
-/** Asignamos tamaño por imagen */
 const carouselImgs = [
-  { src: imgHormigon,  size: "sm" }, // Hormigones (grande)
-  { src: imgMining,    size: "sm" }, // Mining   (más chico)
-  { src: imgServicios, size: "sm" }, // Servicios(más chico)
+  { src: imgHormigon,  size: "sm" },
+  { src: imgMining,    size: "sm" },
+  { src: imgServicios, size: "sm" },
 ];
 
 const carouselIndex  = ref(0);
 const currentImage   = computed(() => carouselImgs[carouselIndex.value]);
 
-/* Rotación automática */
 let carouselTimer = null;
 onMounted(() => {
   carouselTimer = setInterval(() => {
     carouselIndex.value = (carouselIndex.value + 1) % carouselImgs.length;
-  }, 3000); // cambia cada 3s
+  }, 3000);
 });
 onBeforeUnmount(() => {
   if (carouselTimer) clearInterval(carouselTimer);
@@ -206,8 +179,6 @@ onBeforeUnmount(() => {
 
 const router = useRouter();
 const auth = useAuthStore();
-
-/* ---- Estado UI ---- */
 const email = ref(auth.rememberedEmail || "");
 const password = ref("");
 const remember = ref(!!auth.rememberedEmail);
@@ -215,15 +186,11 @@ const keep = ref(auth.keepSession);
 const mostrarPass = ref(false);
 const cargando = ref(false);
 const error = computed(() => auth.error);
-
-/* ---- Validaciones ---- */
 const formRef = ref(null);
 const tried = ref(false);
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const validEmail = computed(() => emailRegex.test(email.value));
 const validForm = computed(() => validEmail.value && !!password.value);
-
-/* ---- Reset ---- */
 const showReset = ref(false);
 const emailReset = ref(email.value);
 const enviandoReset = ref(false);
@@ -232,44 +199,34 @@ const errorReset = ref("");
 const intentReset = ref(false);
 const validResetEmail = computed(() => emailRegex.test(emailReset.value || ""));
 
-/* ---- Helpers perfil / rutas ---- */
-/** Usa SIEMPRE la misma colección que authService -> "Usuarios" (con U mayúscula) */
 const COLLECTION = "Usuarios";
 
 const fetchProfile = async (uid, userEmail) => {
-  // 1) por UID
   const byUid = await getDoc(doc(db, COLLECTION, uid));
   if (byUid.exists()) return { id: byUid.id, ...byUid.data() };
-
-  // 2) por email
   const q = query(collection(db, COLLECTION), where("email", "==", userEmail));
   const snap = await getDocs(q);
   if (!snap.empty) {
     const d = snap.docs[0];
     return { id: d.id, ...d.data() };
   }
-  return { email: userEmail }; // fallback mínimo
+  return { email: userEmail };
 };
 
 const routeFor = (profile) => {
-  // role puede venir como string, array o con separadores tipo "Aprobador/Editor"
   const raw =
     profile?.role ?? profile?.rol ?? profile?.roleName ?? profile?.perfil ?? "";
   const roleStr = Array.isArray(raw) ? raw.join(" ") : String(raw);
-
-  // Normalizamos: minúsculas + sin tildes + separadores unificados
   const role = roleStr
     .toLowerCase()
     .normalize("NFD").replace(/\p{Diacritic}/gu, "")
     .replace(/[\/,|]+/g, " ")
-    .replace(/[_-]+/g, " ")          // ✅ NUEVO: soporta "Recepcion_OC" / "recepcion-oc"
+    .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
   const fullName = (profile?.fullName || profile?.nombre || "").toLowerCase();
   const mail     = (profile?.email || "").toLowerCase();
-
-  // Taller CM por rol, nombre o correo
   const isTallerCM =
     role.includes("taller cm") ||
     fullName.includes("taller cm") ||
@@ -331,7 +288,7 @@ const handleSubmit = async () => {
     } else if (target?.path) {
       await router.push(target.path);
     } else {
-      await router.push({ name: "solped" }); // fallback que existe en tu router
+      await router.push({ name: "solped" });
     }
   } catch (e) {
     const code = e?.code || e?.message || "Error al iniciar sesión";
@@ -372,15 +329,12 @@ const enviarReset = async () => {
 .auth-bg {
   min-height: 100vh;
 }
-
-/* Tarjeta translúcida (glass) */
 .auth-card {
   border-radius: 18px;
   backdrop-filter: blur(7px);
   background: rgba(255,255,255,0.9);
 }
 
-/* Panel lateral */
 .card-ghost {
   border-radius: 18px;
   border-color: rgba(var(--bs-success-rgb), var(--bs-border-opacity)) !important;
@@ -388,12 +342,8 @@ const enviarReset = async () => {
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(2,6,23,0.08);
 }
-
-/* Lista de features */
 .hero-list { margin: 0; padding-left: 1.2rem; color: #64748b; }
 .hero-list li { margin-bottom: .5rem; }
-
-/* Carrusel imagen sola */
 .brand-carousel {
   height: 100px;
   display: grid;
@@ -404,11 +354,8 @@ const enviarReset = async () => {
   object-fit: contain;
   filter: drop-shadow(0 6px 10px rgba(2,6,23,0.12));
 }
-/* Tamaños diferenciados (carrusel) */
-.brand-slide.lg { max-height: 96px; } /* Hormigones grande */
-.brand-slide.sm { max-height: 60px; } /* Mining y Servicios más chicas */
-
-/* Logo circular de la card */
+.brand-slide.lg { max-height: 96px; }
+.brand-slide.sm { max-height: 60px; }
 .logo-ring {
   width: 84px;
   height: 84px;
@@ -427,11 +374,9 @@ const enviarReset = async () => {
   border-radius: 50%;
   display: block;
 }
-/* Tamaños diferenciados (logo) */
-.brand-logo.lg { width: 78px; height: 78px; padding: 10px; } /* Hormigones */
-.brand-logo.sm { width: 56px; height: 56px; padding: 8px; }  /* Mining/Servicios más chicas */
+.brand-logo.lg { width: 78px; height: 78px; padding: 10px; }
+.brand-logo.sm { width: 56px; height: 56px; padding: 8px; }
 
-/* Inputs y foco */
 .form-control, .form-select, .input-group .btn {
   background-color: #fff;
   border-color: #e5e7eb;
@@ -443,17 +388,14 @@ const enviarReset = async () => {
   box-shadow: 0 0 0 .25rem rgba(99,102,241,.15);
 }
 
-/* Botón primario degradado Xtreme */
 .btn-primary {
   background-image: linear-gradient(135deg, #e11d48, #ef4444 40%, #f97316);
   border: none;
 }
 .btn-primary:hover { filter: brightness(1.06); }
 
-/* Modal */
 .modal-content { border-radius: 14px; }
 
-/* Transición fade del carrusel */
 .fade-enter-active, .fade-leave-active { transition: opacity .5s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

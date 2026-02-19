@@ -28,8 +28,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Segmentos -->
         <div class="mb-3">
           <div class="btn-group flex-wrap gap-1">
             <button
@@ -51,8 +49,6 @@
             >
               🛠 SOLPED Taller
             </button>
-
-            <!-- ✅ NUEVO -->
             <button
               class="btn"
               :class="segmento==='general' ? 'btn-primary' : 'btn-outline-primary'"
@@ -64,8 +60,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Filtro empresa (solo segmento empresa) -->
         <div class="mb-3" v-if="segmento==='empresa'">
           <div class="btn-group flex-wrap gap-1">
             <button class="btn" :class="empresaSegmento==='todas' ? 'btn-secondary' : 'btn-outline-secondary'" @click="setEmpresaSeg('todas')" :disabled="isLoading">Todas</button>
@@ -74,8 +68,6 @@
             <button class="btn" :class="empresaSegmento==='Xtreme Hormigones' ? 'btn-secondary' : 'btn-outline-secondary'" @click="setEmpresaSeg('Xtreme Hormigones')" :disabled="isLoading">🧱 Hormigones</button>
           </div>
         </div>
-
-        <!-- Filtros (desktop) -->
         <div class="card mb-4 d-none d-md-block">
           <div class="card-body">
             <div class="row g-2 align-items-end">
@@ -99,8 +91,6 @@
                   <option v-for="opt in centroCostoOptions" :key="'cc-'+opt" :value="opt">{{ opt }}</option>
                 </select>
               </div>
-
-              <!-- En General ocultamos contrato/cc (porque mezcla ambas) -->
               <div class="col-12 col-md-2">
                 <label class="form-label">Estatus SOLPED</label>
                 <select class="form-select" v-model="filtroEstatusSolped" @change="onFiltroChange" :disabled="isLoading">
@@ -309,8 +299,6 @@
               <div class="card-body chart-fixed-h"><canvas ref="cConteoContratoH"></canvas></div>
             </div>
           </div>
-
-          <!-- ✅ NUEVO: Top contratos por SOLPED dirigidas a editores (dirigidoA) -->
           <div class="col-12" v-if="segmento==='empresa' || segmento==='general'">
             <div class="card shadow-sm border-0">
               <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -613,17 +601,12 @@ const kpiCardsExtra = computed(() => ([
   { t: `Rechazo OC (mes)`, v: kpisExtra.value.rechazoPct, isPct: true, s: 'OC rechazadas / total' },
   { t: `Comentarios (taller)`, v: kpisExtra.value.comentariosTallerMes, s: 'Solo Taller/General' },
 ]));
-
-/* ====== Datos auxiliares ====== */
 const topHoy = ref([]);
 
 const ocTipoAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
 const ocTipoSolpedAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
-
-/* ✅ NUEVO payload para desglose por usuario/estatus */
 const ocStatusByUserPayload = ref({ users: [], rows: [], datasets: [] });
 
-/* ✅ NUEVO: Top contratos por SOLPED dirigidas a editores (dirigidoA) */
 const editorDirigidoASelect = ref(localStorage.getItem("xt_dash_editor_dirigidoA") || "");
 watch(editorDirigidoASelect, (v) => {
   try { localStorage.setItem("xt_dash_editor_dirigidoA", v || ""); } catch(e) {console.log(e)}
@@ -645,8 +628,6 @@ const editorContratosRows = computed(() => {
 const editorContratosTotals = computed(() => {
   return editorContratosAggPayload.value?.totals || { totalSolpes: 0, uniqueContratos: 0 };
 });
-
-/* ====== Refs charts ====== */
 const cTopCreadores = ref(null);
 const cTopOC = ref(null);
 const cGastoContratoH = ref(null);
@@ -665,7 +646,6 @@ const cOcTipoMontoPie = ref(null);
 const cOcTipoSolpedCountPie = ref(null);
 const cOcTipoSolpedMontoPie = ref(null);
 
-/* ✅ NUEVO */
 const cOcStatusByUser = ref(null);
 
 let charts = {
@@ -783,7 +763,6 @@ function _normTxt(v='') {
   return String(v || "").normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase();
 }
 
-/* ====== Canon de estatus OC ====== */
 function canonOcStatus(raw) {
   const n = _normTxt(raw || "");
   if (!n) return "Pendiente de Aprobación";
@@ -801,7 +780,6 @@ function canonOcStatus(raw) {
   return "Pendiente de Aprobación";
 }
 
-/* ====== Utils OC/SOLPED ====== */
 function ocMonto(o) {
   if (!o) return 0;
   if (typeof o.precioTotalConIVA === "number") return o.precioTotalConIVA;
@@ -892,7 +870,6 @@ function ocTipoSolped(o, solIndexAllByNumero) {
   return nums.length ? "Sin tipo SOLPED" : "Sin SOLPED";
 }
 
-/* ✅ NUEVO: SOLPED completado-like (incluye cotizado parcial/completado) */
 function solIsCompletedLike(sol) {
   const canon = canonSolpedStatus(sol?.estatus || sol?.estado || "");
   const n = _normTxt(canon);
@@ -920,7 +897,6 @@ function canonSolpedStatus(raw) {
   return txt;
 }
 
-/* ====== Catálogos (rápidos) ====== */
 const CATALOG_TTL_MS = 12 * 60 * 60 * 1000;
 function catKey() { return `dashCatV2:${segmento.value}`; }
 function getCatalogCache() {
@@ -989,7 +965,6 @@ async function cargarCatalogosRapidos() {
   }
 }
 
-/* ✅ Helpers: dirigidoA + contrato + agregación por editores */
 function solDirigidoAList(sol) {
   const da = sol?.dirigidoA;
   if (Array.isArray(da)) return da.map(x => String(x || "").trim()).filter(Boolean);
@@ -1073,17 +1048,14 @@ function buildEditorContratosAgg(solList, editorsArr) {
   };
 }
 
-/* ====== VS payload ====== */
 const vsEditorsPayload = ref({ labels: [], aprobadas: [], subidas: [] });
 
-/* ====== Helper: chunks para queries IN ====== */
 function chunkArray(arr, size=10) {
   const out = [];
   for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
   return out;
 }
 
-/* ====== Cargar dashboard ====== */
 async function cargarTodo(force=false) {
   isLoading.value = true;
   lastError.value = "";
@@ -1466,8 +1438,6 @@ async function cargarTodo(force=false) {
     } catch (e) {
       console.warn("No se pudo cargar Usuarios (role=editor). VS quedará vacío.", e);
     }
-
-    /* ✅ NUEVO: Top contratos por SOLPED dirigidas a editores (dirigidoA) */
     let editorContratosAgg = { editors: [], topAll: [], perEditorTop: {}, totals: { totalSolpes: 0, uniqueContratos: 0 } };
     try {
       const solEmpresaOnly = (solMes || []).filter(s =>
@@ -1563,8 +1533,6 @@ async function cargarTodo(force=false) {
         rows,
         datasets: datasetsStatus,
       },
-
-      /* ✅ NUEVO */
       editorContratosAgg,
     };
 
@@ -1772,8 +1740,6 @@ function pintarDesdePayload(p){
   ocTipoSolpedAggPayload.value = p.ocTipoSolpedAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
 
   ocStatusByUserPayload.value = p.ocStatusByUser || { users: [], rows: [], datasets: [] };
-
-  /* ✅ NUEVO */
   editorContratosAggPayload.value = p.editorContratosAgg || {
     editors: [],
     topAll: [],
@@ -1877,7 +1843,6 @@ canvas{ width:100% !important; height:100% !important; display:block; }
   z-index: 1;
 }
 
-/* Loading UX */
 .loading-overlay {
   position: absolute;
   inset: 0;
@@ -1900,7 +1865,6 @@ canvas{ width:100% !important; height:100% !important; display:block; }
 .fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* Offcanvas filtros móvil */
 .offcanvas-backdrop{
   position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
   background: rgba(0,0,0,.45);

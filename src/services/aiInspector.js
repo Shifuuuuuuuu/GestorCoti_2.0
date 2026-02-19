@@ -1,9 +1,7 @@
 // src/services/aiInspector.js
 import { geminiModel } from "@/stores/firebase";
 
-/** Mantengo el export para tu UI, pero ahora no es necesario */
 export function resetAiChat() {
-  // Stateless: no hay chat persistente
 }
 
 function fileToBase64(file) {
@@ -146,7 +144,6 @@ Esquema JSON (obligatorio):
     parts.push({ inlineData: { data: b64, mimeType: f.type } });
   }
 
-  // ✅ Stateless: no chat, no mezcla preguntas anteriores
   const result = await geminiModel.generateContent(parts);
   let text = result.response.text();
 

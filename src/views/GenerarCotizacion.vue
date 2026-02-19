@@ -316,8 +316,6 @@
         </div>
       </div>
     </div>
-
-    <!-- HISTORIAL -->
     <div class="modal fade" tabindex="-1" ref="histModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -404,8 +402,6 @@
         </div>
       </div>
     </div>
-
-    <!-- MODAL ACCIONES -->
     <div class="modal fade" tabindex="-1" ref="actModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -618,8 +614,6 @@
         </div>
       </div>
     </div>
-
-    <!-- MODAL ELIMINAR -->
     <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
@@ -1618,8 +1612,6 @@ async function buildPdf(data) {
 
   const tableX = M;
   const tableW = innerW;
-
-  // ✅ columnas con DTO%
   const colDesc = Math.floor(tableW * 0.50);
   const colQty  = Math.floor(tableW * 0.10);
   const colUnit = Math.floor(tableW * 0.16);

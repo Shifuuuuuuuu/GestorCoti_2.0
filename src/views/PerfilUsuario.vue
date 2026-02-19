@@ -3,8 +3,6 @@
 <template>
   <div class="perfil-page">
     <div class="container py-4 py-md-5">
-
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3">
         <h1 class="h4 fw-semibold mb-0">Mi perfil</h1>
         <button class="btn btn-outline-secondary btn-sm" @click="recargar" :disabled="cargando">
@@ -13,7 +11,6 @@
       </div>
 
       <div class="row g-3">
-        <!-- Columna izquierda: avatar -->
         <div class="col-12 col-lg-4">
           <div class="card h-100">
             <div class="card-header">
@@ -54,8 +51,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Columna derecha: datos -->
         <div class="col-12 col-lg-8">
           <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -71,7 +66,6 @@
 
               <div v-else>
                 <div class="row g-3">
-                  <!-- Solo edición: fullName, rut, phone -->
                   <div class="col-12 col-md-6">
                     <label class="form-label">Nombre completo</label>
                     <input class="form-control" v-model.trim="perfil.fullName" placeholder="Nombre y apellido" />
@@ -86,8 +80,6 @@
                     <label class="form-label">Teléfono</label>
                     <input class="form-control" v-model.trim="perfil.phone" placeholder="+569..." />
                   </div>
-
-                  <!-- Solo lectura -->
                   <div class="col-12 col-md-6">
                     <label class="form-label">Correo</label>
                     <input class="form-control" :value="perfil.email || '—'" readonly />
@@ -111,15 +103,11 @@
               </div>
             </div>
           </div>
-
-          <!-- Historial técnico (opcional) -->
           <div class="text-secondary small mt-2" v-if="perfil.updatedAt">
             Última actualización: {{ fmtFecha(perfil.updatedAt) }}
           </div>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -161,11 +149,10 @@ const perfil   = reactive<Perfil>({});
 
 const storage = getStorage();
 
-const fallbackAvatar = 'https://ui-avatars.com/api/?name=User&background=EEE&color=7C3AED&bold=true'; // puedes cambiar por tu placeholder
+const fallbackAvatar = 'https://ui-avatars.com/api/?name=User&background=EEE&color=7C3AED&bold=true';
 const previewURL = ref<string | null>(null);
 let archivoSeleccionado: File | null = null;
 
-/** Toasts */
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2600) => {
   const id = Date.now()+Math.random();
@@ -174,7 +161,6 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2600) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
-/** Fechas legibles */
 const fmtFecha = (f:any) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : (f ? new Date(f) : null));
@@ -183,7 +169,6 @@ const fmtFecha = (f:any) => {
   } catch { return '—'; }
 };
 
-/** Cargar perfil del usuario autenticado */
 const cargar = async () => {
   cargando.value = true;
   try {
@@ -228,7 +213,6 @@ const cargar = async () => {
 
 onMounted(cargar);
 
-/** UI helpers */
 const recargar = () => cargar();
 const descartar = () => {
   Object.assign(perfil, JSON.parse(JSON.stringify(original)));
@@ -236,7 +220,6 @@ const descartar = () => {
   archivoSeleccionado = null;
 };
 
-/** Selector de archivo */
 const abrirSelector = () => {
   const el = document.getElementById('fileInput') as HTMLInputElement | null;
   el?.click();
@@ -247,7 +230,6 @@ const onFileSelected = (e: Event) => {
   if (!files || !files[0]) return;
   const f = files[0];
 
-  // Validaciones simples
   const okType = /^image\/(png|jpe?g|webp)$/i.test(f.type || '');
   if (!okType) { addToast('warning','Solo se permiten imágenes PNG/JPG/WebP.'); return; }
 
@@ -255,23 +237,19 @@ const onFileSelected = (e: Event) => {
   if (f.size > maxMB * 1024 * 1024) { addToast('warning', `La imagen excede ${maxMB} MB.`); return; }
 
   archivoSeleccionado = f;
-  // Preview local
   const reader = new FileReader();
   reader.onload = () => { previewURL.value = String(reader.result || ''); };
   reader.readAsDataURL(f);
 };
 
 const quitarImagen = async () => {
-  // Solo resetea en UI; si deseas borrar del storage inmediatamente, descomenta bloque “deleteObject”
   previewURL.value = null;
   archivoSeleccionado = null;
   perfil.photoURL = null;
 };
 
-/** Subir imagen a Storage y devolver URL */
 const subirImagenSiCorresponde = async (uid: string): Promise<string | null> => {
   if (!archivoSeleccionado) {
-    // Si al quitar imagen se dejó en null, deja null; si no, conserva la actual
     return perfil.photoURL === null ? null : (original.photoURL || null);
   }
 
@@ -283,13 +261,6 @@ const subirImagenSiCorresponde = async (uid: string): Promise<string | null> => 
     await uploadBytes(refStorage, archivoSeleccionado);
     const url = await getDownloadURL(refStorage);
 
-    // (Opcional) Eliminar imagen anterior si existía y está en tu bucket
-    // if (original.photoURL && original.photoURL.includes('firebasestorage')) {
-    //   try {
-    //     const prevRef = sref(storage, new URL(original.photoURL).pathname.replace('/v0/b/<TU_BUCKET>/o/', ''));
-    //     await deleteObject(prevRef);
-    //   } catch {}
-    // }
 
     return url;
   } catch (e) {
@@ -301,11 +272,8 @@ const subirImagenSiCorresponde = async (uid: string): Promise<string | null> => 
   }
 };
 
-/** Guardar cambios permitidos (fullName, rut, phone, photoURL) */
 const guardar = async () => {
   if (guardando.value) return;
-
-  // Validaciones mínimas
   if (!perfil.fullName?.trim()) { addToast('warning','Ingresa tu nombre completo.'); return; }
   if (perfil.phone && !/^\+?\d{7,15}$/.test(perfil.phone)) { addToast('warning','Teléfono inválido.'); return; }
   if (perfil.rut && !/^[0-9.kK\-\.]+$/.test(perfil.rut)) { addToast('warning','RUT con formato inválido.'); return; }
@@ -326,8 +294,6 @@ const guardar = async () => {
     };
 
     await updateDoc(doc(db, 'Usuarios', uid), updatePayload);
-
-    // Sincronizar UI / original
     Object.assign(original, { ...original, ...updatePayload, photoURL: urlFinal });
     Object.assign(perfil, JSON.parse(JSON.stringify(original)));
     previewURL.value = null;

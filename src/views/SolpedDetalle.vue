@@ -2,7 +2,6 @@
 <template>
   <div class="solped-detalle-page">
     <div class="container py-4 py-md-5">
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3">
         <button class="btn btn-outline-secondary btn-sm" @click="volver">
           <i class="bi bi-arrow-left"></i> Volver
@@ -14,8 +13,6 @@
 
         <div />
       </div>
-
-      <!-- Loading / Error del documento principal -->
       <div v-if="loadingDoc" class="text-center py-5">
         <div class="spinner-border" role="status"></div>
         <div class="mt-2">Cargando SOLPED…</div>
@@ -25,7 +22,6 @@
       </div>
 
       <div v-else>
-        <!-- Card resumen -->
         <div class="card mb-3">
           <div class="card-header d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
@@ -83,8 +79,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Adjuntos (desde docData.autorizaciones[]) -->
         <div class="card mb-3" v-if="Array.isArray(adjuntos) && adjuntos.length">
           <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold">📎 Documentos adjuntos</span>
@@ -137,14 +131,10 @@
                       {{ previewOpen[i] ? 'Ocultar visor' : 'Ver en visor' }}
                     </button>
                   </div>
-
-                  <!-- Visor inline -->
                   <div v-if="previewOpen[i]" class="mt-3">
-                    <!-- PDF -->
                     <div v-if="isPDF(f)" class="ratio ratio-16x9">
                       <iframe :src="f.url + '#toolbar=0'" style="border:none;"></iframe>
                     </div>
-                    <!-- Imagen -->
                     <div v-else-if="isImage(f)" class="text-center">
                       <img :src="f.url" :alt="f.nombre || 'imagen'" class="img-fluid rounded shadow-sm" style="max-height:480px;object-fit:contain;">
                     </div>
@@ -155,7 +145,6 @@
           </div>
         </div>
 
-        <!-- Si no hay adjuntos -->
         <div class="card mb-3" v-else>
           <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold">📎 Documentos adjuntos</span>
@@ -165,8 +154,6 @@
             No hay adjuntos en esta SOLPED.
           </div>
         </div>
-
-        <!-- Cotizaciones vinculadas -->
         <div class="card mb-3">
           <div class="card-header d-flex align-items-center justify-content-between">
             <span class="fw-semibold">🧾 Cotizaciones vinculadas</span>
@@ -174,7 +161,6 @@
           </div>
 
           <div class="card-body p-0">
-            <!-- Skeleton rápido -->
             <div v-if="cargandoCots" class="p-3">
               <div class="placeholder-glow">
                 <div class="placeholder col-12 mb-2" style="height:18px"></div>
@@ -231,14 +217,11 @@
             </div>
           </div>
         </div>
-
-        <!-- Ítems -->
         <div class="card mb-3">
           <div class="card-header">
             <span class="fw-semibold">📦 Ítems solicitados</span>
           </div>
           <div class="card-body">
-            <!-- Skeleton rápido -->
             <div v-if="cargandoItems" class="placeholder-glow">
               <div class="placeholder col-12 mb-2" style="height:18px"></div>
               <div class="placeholder col-11 mb-2" style="height:18px"></div>
@@ -294,8 +277,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Historial de estados -->
         <div class="card">
           <div class="card-header">
             <span class="fw-semibold">🕒 Historial de estados</span>
@@ -345,11 +326,8 @@ const router = useRouter();
 const loadingDoc = ref(true);
 const error      = ref('');
 const docData    = ref(null);
-
-/** Adjuntos (visor inline por índice) */
 const previewOpen = ref({});
 
-/** Mostrar/ocultar visor de un adjunto */
 const togglePreview = (i) => {
   previewOpen.value[i] = !previewOpen.value[i];
 };
@@ -367,9 +345,8 @@ const volver = () => router.back();
 const numeroSolpe = computed(() => docData.value?.numero_solpe ?? docData.value?.numero_solped ?? '');
 const empresaDoc  = computed(() => (docData.value?.empresa || '').toString().trim());
 
-/** Guard de concurrencia para abortar resultados tardíos */
 let loadToken = 0;
-onBeforeUnmount(() => { loadToken++; }); // invalida tareas al salir
+onBeforeUnmount(() => { loadToken++; });
 const prettyFecha = (f) => {
   try {
     if (f?.toDate) return f.toDate().toLocaleString('es-CL',{dateStyle:'medium', timeStyle:'short'});
@@ -378,7 +355,6 @@ const prettyFecha = (f) => {
   } catch(e) { console.error(e); }
   return '—';
 };
-/** Normaliza nombre de empresa a una llave simple */
 const normalizeCompany = (raw = '') => {
   const s = String(raw || '').normalize('NFD').replace(/\p{Diacritic}/gu,'').toUpperCase();
   if (s.includes('MINGI')) return 'MINGI';
@@ -387,12 +363,11 @@ const normalizeCompany = (raw = '') => {
   return s || 'GENERAL';
 };
 
-/** Variantes para numero_solped (num, "num", "0num") */
 const numeroCandidates = (numLike) => {
   const n = Number(numLike || 0);
   const s = String(numLike || '').trim();
   const sNoZeros = String(n);
-  const sZeroPad = sNoZeros.length === 3 ? '0' + sNoZeros : sNoZeros; // ej: 633 -> "0633"
+  const sZeroPad = sNoZeros.length === 3 ? '0' + sNoZeros : sNoZeros;
   return Array.from(new Set([n, s, sNoZeros, sZeroPad]));
 };
 
@@ -408,7 +383,6 @@ const ocCollectionsForEmpresa = computed(() => {
 
 const volverRouteId = computed(() => String(route.params.id || ''));
 
-/* ===== Carga principal (rápida) ===== */
 onMounted(async () => {
   const myToken = ++loadToken;
   try {
@@ -419,7 +393,6 @@ onMounted(async () => {
       return;
     }
 
-    // 1) Trae DOC principal primero
     const dref = doc(db, 'solpes', String(id));
     const snap = await getDoc(dref);
     if (!snap.exists()) {
@@ -428,15 +401,10 @@ onMounted(async () => {
       return;
     }
 
-    if (myToken !== loadToken) return; // abortado
+    if (myToken !== loadToken) return;
     docData.value = { __docId: snap.id, ...snap.data() };
-
-    // items (si están dentro del doc) dejan de "cargar"
     cargandoItems.value = false;
-
     loadingDoc.value = false;
-
-    // 2) En paralelo: historial + cotizaciones
     await Promise.allSettled([
       cargarHistorial(dref, myToken),
       cargarCotizacionesVinculadas(myToken),
@@ -451,7 +419,6 @@ onMounted(async () => {
 const cargarHistorial = async (dref, token) => {
   cargandoHistorial.value = true;
   try {
-    // preferir query ordenada (si no hay índice, fallback)
     let docsList = [];
     try {
       const qy = query(collection(dref, 'historialEstados'), orderBy('fecha', 'desc'));
@@ -462,7 +429,7 @@ const cargarHistorial = async (dref, token) => {
       docsList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       docsList.sort((a, b) => dateLikeToMillis(b?.fecha) - dateLikeToMillis(a?.fecha));
     }
-    if (token !== loadToken) return; // abortado
+    if (token !== loadToken) return;
     historial.value = docsList;
   } catch (e) {
     console.error('Error historialEstados:', e);
@@ -473,12 +440,6 @@ const cargarHistorial = async (dref, token) => {
   }
 };
 
-/**
- * Búsqueda rápida y paralela:
- * 1) Lanza en paralelo queries por solpedId en colecciones preferidas. Si encuentra resultados, se salta la fase por número.
- * 2) Si no encontró, lanza en paralelo queries por múltiples campos de número con variantes (633, "633", "0633", …).
- * 3) Filtro por empresa en cliente si el doc trae empresa.
- */
 const cargarCotizacionesVinculadas = async (token) => {
   cargandoCots.value = true;
   try {
@@ -502,11 +463,7 @@ const cargarCotizacionesVinculadas = async (token) => {
       }
       resultadosMap.set(snapDoc.id, row);
     };
-
-    // Colecciones candidatas
     const collections = ocCollectionsForEmpresa.value.map(name => collection(db, name));
-
-    // ---- FASE 1: solpedId (paralela) ----
     const idPromises = [];
     for (const colRef of collections) {
       for (const field of FIELDS_BY_ID) {
@@ -518,16 +475,12 @@ const cargarCotizacionesVinculadas = async (token) => {
       }
     }
     await Promise.allSettled(idPromises);
-
-    // Si ya encontró algo por ID, usamos eso y salimos rápido
     if (resultadosMap.size > 0) {
       if (token !== loadToken) return;
       cotizaciones.value = Array.from(resultadosMap.values())
         .sort((a, b) => dateLikeToMillis(b?.fechaSubida || b?.created_at || b?.createdAt) - dateLikeToMillis(a?.fechaSubida || a?.created_at || a?.createdAt));
       return;
     }
-
-    // ---- FASE 2: por número (paralela) ----
     const numPromises = [];
     for (const colRef of collections) {
       for (const field of FIELDS_BY_NUM) {
@@ -554,7 +507,6 @@ const cargarCotizacionesVinculadas = async (token) => {
   }
 };
 
-// ====== Adjuntos (desde docData.autorizaciones) ======
 const adjuntos = computed(() => {
   const arr = Array.isArray(docData.value?.autorizaciones) ? docData.value.autorizaciones : [];
   return arr
@@ -613,7 +565,6 @@ const fmtBytes = (bytes) => {
   return `${v} ${u[i]}`;
 };
 
-// ===== Derivados / helpers =====
 const itemsOrdenados = computed(() => {
   const arr = Array.isArray(docData.value?.items) ? [...docData.value.items] : [];
   arr.sort((a, b) => (a.item ?? 0) - (b.item ?? 0));
@@ -677,7 +628,6 @@ const itemEstadoBadge = (e) => {
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
-/** Link al detalle de OC/cotización (ajústalo a tu router) */
 const linkOC = (c) => {
   return { name: 'oc-detalle', params: { id: c.__docId }, query: { from: 'solped', solped: volverRouteId.value } };
 };
@@ -688,7 +638,6 @@ const linkOC = (c) => {
   min-height:100vh;
 }
 
-/* thumbs */
 .thumb-img{
   width: 84px;
   height: 56px;
@@ -701,7 +650,6 @@ const linkOC = (c) => {
   transition: transform .15s ease;
 }
 
-/* Timeline simple */
 .timeline{
   position: relative;
   margin: 0;
@@ -728,7 +676,7 @@ const linkOC = (c) => {
   width:12px;
   height:12px;
   border-radius:50%;
-  background:#ef4444; /* rojo corporativo */
+  background:#ef4444;
   border:2px solid #fff;
   box-shadow:0 0 0 2px #e5e7eb;
 }
@@ -738,11 +686,9 @@ const linkOC = (c) => {
   padding:.5rem .75rem;
 }
 
-/* Adjuntos */
 .list-group-item .bi {
   vertical-align: -0.1rem;
 }
 
-/* Bootstrap placeholders look nicer with rounded corners */
 .placeholder { border-radius: .5rem; }
 </style>

@@ -4,12 +4,10 @@
   <div class="equipos-admin-page">
     <div class="container py-4 py-md-5">
 
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
         <h1 class="h5 h4-sm fw-semibold mb-0">Administrar equipos</h1>
 
         <div class="d-flex align-items-stretch gap-2 flex-wrap">
-          <!-- Botón Filtros solo en < md -->
           <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
             <i class="bi bi-sliders2 me-1"></i> Filtros
           </button>
@@ -25,8 +23,6 @@
             <span class="d-none d-sm-inline">Recargar</span>
             <span class="d-inline d-sm-none">Reload</span>
           </button>
-
-          <!-- Importar Excel/CSV -->
           <input ref="fileInput" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onFilePicked">
           <button class="btn btn-success" @click="pedirArchivo" :disabled="importando">
             <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
@@ -36,8 +32,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Progreso importación -->
       <div v-if="importando" class="alert alert-info d-flex align-items-center mb-3">
         <div class="me-3 spinner-border spinner-border-sm" role="status"></div>
         <div class="flex-grow-1">
@@ -47,8 +41,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Filtros (solo ≥ md) -->
       <div class="card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
@@ -72,8 +64,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Tabla -->
       <div class="card">
         <div class="card-header bg-white d-flex align-items-center justify-content-between">
           <div class="fw-semibold">Equipos</div>
@@ -115,8 +105,6 @@
 
                     <td class="fw-semibold text-nowrap">
                       <div class="text-truncate" style="max-width:120px;">{{ e.codigo || '—' }}</div>
-
-                      <!-- XS: resumen -->
                       <div class="small text-secondary d-md-none mt-1">
                         <div class="d-flex flex-wrap gap-2">
                           <span><strong>Int:</strong> {{ e.numero_interno || '—' }}</span>
@@ -195,8 +183,6 @@
                 </tbody>
               </table>
             </div>
-
-            <!-- Paginación -->
             <div class="card-footer bg-white">
               <nav class="overflow-auto">
                 <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
@@ -216,8 +202,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Offcanvas crear/editar -->
       <div v-if="offOpen" class="offcanvas-backdrop" @click.self="cerrarOff">
         <div class="offcanvas-panel">
           <div class="offcanvas-header">
@@ -303,8 +287,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Offcanvas Filtros (solo móviles) -->
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
@@ -336,7 +318,6 @@
         </div>
       </div>
 
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2"
@@ -348,8 +329,6 @@
       </div>
 
     </div>
-
-    <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -420,7 +399,6 @@ type Equipo = {
   numero_motor?: string;
 };
 
-/* ===== Estado general ===== */
 const cargando = ref(true);
 const equipos = ref<Equipo[]>([]);
 
@@ -437,7 +415,6 @@ const form = ref<Partial<Equipo>>({});
 const accionando = ref(false);
 const idEnAccion = ref<string | null>(null);
 
-/* ===== Toasts ===== */
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) => {
   const id = Date.now()+Math.random();
@@ -446,7 +423,6 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
-/* ===== Formateos ===== */
 const fmtFecha = (f:any) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : (f ? new Date(f) : null));
@@ -455,7 +431,6 @@ const fmtFecha = (f:any) => {
   } catch { return '—'; }
 };
 
-/* ===== Carga de equipos ===== */
 const cargarEquipos = async () => {
   cargando.value = true;
   try {
@@ -477,8 +452,6 @@ const cargarEquipos = async () => {
         modelo: data.modelo || '',
         numero_chasis: data.numero_chasis || '',
         tipo_equipo: data.tipo_equipo || '',
-
-        // ✅ internos + motor (compat camelCase)
         numero_interno: data.numero_interno || data.numeroInterno || '',
         numero_motor: data.numero_motor || data.numeroMotor || '',
       });
@@ -502,7 +475,6 @@ const cargarEquipos = async () => {
 };
 onMounted(cargarEquipos);
 
-/* ===== Filtros y paginado ===== */
 const clasificaciones = computed(() => {
   const set = new Set<string>();
   equipos.value.forEach(e => { if (e.clasificacion1) set.add(e.clasificacion1); });
@@ -554,7 +526,6 @@ const visiblePages = computed(() => {
 const goToPage = (n:number) => { if (n>=1 && n<=totalPaginas.value) paginaActual.value = n; };
 const limpiarFiltros = () => { busqueda.value=''; filtroClasificacion.value=''; paginaActual.value=1; };
 
-/* ===== CRUD manual ===== */
 const abrirCrear = () => {
   esEdicion.value = false;
   form.value = {
@@ -581,10 +552,8 @@ const abrirEditar = (e:Equipo) => {
 
 const cerrarOff = () => { offOpen.value = false; };
 
-/* ===== Offcanvas filtros (móvil) ===== */
 const toggleFiltros = (v:boolean) => { filtrosOpen.value = !!v; };
 
-/* ===== Validación y Guardado ===== */
 const validarForm = () => {
   if (!form.value.codigo?.trim()) { addToast('warning','Ingresa el código.'); return false; }
   if (!form.value.equipo?.trim()) { addToast('warning','Ingresa la descripción del equipo.'); return false; }
@@ -637,7 +606,6 @@ const guardar = async () => {
   }
 };
 
-/* ===== Modal de confirmación de borrado ===== */
 const confirmOpen = ref(false);
 const confirmRow  = ref<Equipo | null>(null);
 const eliminando  = ref(false);
@@ -664,8 +632,6 @@ async function confirmarEliminar(){
     idEnAccion.value = null;
   }
 }
-
-/* ====== IMPORTADOR MASIVO (Excel/CSV) ====== */
 const fileInput = ref<HTMLInputElement|null>(null);
 const importando = ref(false);
 const importMsg = ref('');
@@ -679,13 +645,10 @@ function onFilePicked(e: Event){
   importarExcel(file).finally(()=>{ if (input) input.value = ''; });
 }
 
-/* Normalizadores y utilidades */
 const normTxt = (s:any) => String(s ?? '')
   .toString()
   .normalize('NFD').replace(/\p{Diacritic}/gu,'')
   .trim();
-
-// clave para headers: colapsa espacios / saltos de línea / underscores
 const normKey = (s:any) => normTxt(s)
   .toLowerCase()
   .replace(/[\r\n\t]+/g, ' ')
@@ -726,8 +689,6 @@ function mapRow(raw:any){
     for (const h of headerKeys){
       const nh = normKey(h);
       if (keys.includes(nh)) return raw[h];
-
-      // fallback: compara sin espacios (por si viene "NUMEROINTERNO")
       const nh2 = nh.replace(/\s+/g,'');
       if (keys.some(x => x.replace(/\s+/g,'') === nh2)) return raw[h];
     }
@@ -765,7 +726,6 @@ function mapRow(raw:any){
   };
 }
 
-/* Upsert con relleno "No hay información" en vacíos */
 async function importarExcel(file: File){
   try{
     importando.value = true;
@@ -779,8 +739,6 @@ async function importarExcel(file: File){
     const rows:any[] = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
 
     if (!rows.length){ addToast('warning','El archivo está vacío.'); return; }
-
-    // Debug: headers reales detectados
     console.log('Headers detectados:', Object.keys(rows[0] || {}));
 
     const parsed = rows.map(mapRow)
@@ -797,8 +755,6 @@ async function importarExcel(file: File){
     if (conMotor === 0){
       addToast('warning','No se detectó "NUMERO DE MOTOR" en el Excel. Revisa el encabezado.', 4500);
     }
-
-    // Índices de existentes
     importMsg.value = 'Cargando datos existentes…';
     importPct.value = 10;
 
@@ -813,8 +769,6 @@ async function importarExcel(file: File){
       if (c) byCodigo.set(c, x);
       if (ch) byChasis.set(ch, x);
     });
-
-    // Firestore batch limit = 500 ops
     const total = parsed.length;
     let done = 0;
     const chunkSize = 450;
@@ -913,7 +867,6 @@ async function importarExcel(file: File){
   .h4-sm{ font-size: 1.35rem; }
 }
 
-/* Offcanvas lateral derecho */
 .offcanvas-backdrop{
   position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
   background: rgba(0,0,0,.45);
@@ -936,7 +889,6 @@ async function importarExcel(file: File){
 .offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
 
-/* Modal genérico */
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1090; display: grid; place-items: center; padding: 1rem;
@@ -953,7 +905,6 @@ async function importarExcel(file: File){
 .vmodal-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-/* Toasts */
 .toast-stack{
   position: fixed; right: 12px; bottom: 12px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -967,14 +918,12 @@ async function importarExcel(file: File){
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono del modal de eliminación */
 .confirm-icon{
   width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
   background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-/* Tabla responsive */
 .table td, .table th{ vertical-align: middle; }
 .table-responsive thead th{
   z-index: 1; border-bottom: 1px solid var(--bs-border-color);
@@ -985,7 +934,6 @@ async function importarExcel(file: File){
 }
 .pagination .page-link{ min-width: 34px; text-align:center; }
 
-/* Progreso import */
 .progress { background: #f1f5f9; }
 .progress-bar { background: #16a34a; }
 </style>

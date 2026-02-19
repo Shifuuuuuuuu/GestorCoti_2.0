@@ -54,7 +54,6 @@ const safeToasts = computed(() =>
       let _to = null
       if (t.to) {
         try {
-          // resolvemos y validamos que sea una ruta válida
           const r = router.resolve(t.to)
           if (r?.href) _to = t.to
         } catch (e) {

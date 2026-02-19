@@ -3,13 +3,9 @@
 <template>
   <div class="admin-oc-page">
     <div class="container py-4">
-      <!-- Header -->
       <div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
         <h1 class="h5 h4-md fw-semibold mb-0">Admin · Órdenes OC</h1>
-
-        <!-- Desktop / Tablet: filtros + acciones -->
         <div class="d-none d-md-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto ms-md-3">
-          <!-- Buscador (ID doc o id numérico) -->
           <div class="input-group minw-280">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
             <input
@@ -27,8 +23,6 @@
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
-
-          <!-- Botón Filtros (abre offcanvas) -->
           <button class="btn btn-outline-primary" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
             <span
@@ -42,8 +36,6 @@
             <i class="bi bi-plus-lg me-1"></i> Nueva OC
           </button>
         </div>
-
-        <!-- Móvil: botones -->
         <div class="d-flex d-md-none w-100 gap-2">
           <button class="btn btn-outline-secondary flex-fill" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
@@ -58,8 +50,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Chips de filtros activos / búsqueda -->
       <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <small class="text-secondary">Filtros activos:</small>
 
@@ -82,8 +72,6 @@
           Limpiar todo
         </button>
       </div>
-
-      <!-- Card contenedora -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
@@ -92,8 +80,6 @@
               paginación desactivada
             </span>
           </div>
-
-          <!-- Buscar móvil (compacto) -->
           <div class="d-flex d-md-none gap-2">
             <div class="input-group input-group-sm">
               <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -109,8 +95,6 @@
             </button>
           </div>
         </div>
-
-        <!-- Vista tabla (≥ md) -->
         <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
             <thead>
@@ -140,7 +124,6 @@
                   <div class="fw-semibold text-truncate">
                     {{ r.centroCostoNombre || r.nombre_centro_costo || r.centroCosto || r.numero_contrato || '—' }}
                   </div>
-                  <!-- Fecha visible en móvil (oculta en md) -->
                   <div class="small text-secondary d-md-none mt-1">
                     <i class="bi bi-calendar3 me-1"></i>{{ prettyTS(r.fechaSubida) }}
                   </div>
@@ -150,7 +133,6 @@
                 <td class="d-none d-lg-table-cell">{{ r.empresa || '—' }}</td>
                 <td class="d-none d-md-table-cell">{{ prettyTS(r.fechaSubida) }}</td>
                 <td>
-                  <!-- Acciones desktop -->
                   <div class="d-none d-sm-inline-flex btn-group btn-group-sm">
                     <button class="btn btn-outline-primary" title="Editar" @click="abrirEditor(r)">
                       <i class="bi bi-pencil-square"></i>
@@ -162,7 +144,6 @@
                       <i class="bi bi-file-earmark-pdf"></i>
                     </button>
                   </div>
-                  <!-- Acciones móvil -->
                   <div class="dropdown d-inline d-sm-none">
                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">
                       Acciones
@@ -179,8 +160,6 @@
             </tbody>
           </table>
         </div>
-
-        <!-- Vista cards (xs-sm) -->
         <div class="d-block d-md-none">
           <div v-if="cargando" class="text-center py-4">
             <div class="spinner-border" role="status"></div>
@@ -219,8 +198,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Paginación -->
         <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0 flex-wrap gap-1">
@@ -237,8 +214,6 @@
           </nav>
         </div>
       </div>
-
-      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -247,8 +222,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas Filtros -->
     <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
@@ -257,7 +230,6 @@
         </div>
         <div class="offcanvas-body">
           <div class="row g-3">
-            <!-- Buscador -->
             <div class="col-12">
               <label class="form-label">Buscar OC</label>
               <div class="input-group">
@@ -278,8 +250,6 @@
                 </button>
               </div>
             </div>
-
-            <!-- Estatus -->
             <div class="col-12 col-sm-6">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="filtroEstatus" @change="aplicarFiltros">
@@ -287,8 +257,6 @@
                 <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
-
-            <!-- Responsable -->
             <div class="col-12 col-sm-6">
               <label class="form-label">Responsable</label>
               <select class="form-select" v-model="filtroResponsable" @change="aplicarFiltros">
@@ -304,8 +272,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Offcanvas Editor -->
     <div v-if="editorAbierto" class="offcanvas-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
@@ -315,13 +281,11 @@
 
         <div class="offcanvas-body">
           <div class="row g-3">
-            <!-- Básicos -->
             <div class="col-6 col-md-2">
               <label class="form-label">ID</label>
               <input class="form-control" v-model.number="edit.id" type="number" min="0">
             </div>
 
-            <!-- FECHAS NO EDITABLES -->
             <div class="col-12 col-md-5">
               <label class="form-label">Fecha subida</label>
               <input type="text" class="form-control" :value="prettyTS(edit.fechaSubida)" disabled>
@@ -344,7 +308,6 @@
               </select>
             </div>
 
-            <!-- Centro de costo -->
             <div class="col-12 col-md-6">
               <label class="form-label">Centro Costo (código)</label>
               <input class="form-control" v-model="edit.centroCosto" placeholder="CASAMATRIZ">
@@ -353,8 +316,6 @@
               <label class="form-label">Centro Costo (nombre)</label>
               <input class="form-control" v-model="edit.centroCostoNombre" placeholder="CASA MATRIZ">
             </div>
-
-            <!-- Responsable / Aprobaciones -->
             <div class="col-12 col-md-4">
               <label class="form-label">Responsable</label>
               <select class="form-select" v-model="edit.responsable">
@@ -366,8 +327,6 @@
               <label class="form-label">Aprobador sugerido</label>
               <input class="form-control" v-model="edit.aprobadorSugerido" placeholder="Juan Cubillos">
             </div>
-
-            <!-- Asociación SOLPED -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between">
                 <label class="form-label fw-semibold mb-0">Asociar SOLPED (Pendiente / Parcial)</label>
@@ -418,8 +377,6 @@
                 <span v-else-if="!solpedsFiltradas.length" class="text-secondary">No hay SOLPEDs pendientes/parciales.</span>
               </div>
             </div>
-
-            <!-- Campos misceláneos -->
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="edit.tipo_solped" placeholder="Sin SOLPED / REPUESTOS / ...">
@@ -428,8 +385,6 @@
               <label class="form-label">Tipo compra</label>
               <input class="form-control" v-model="edit.tipoCompra" placeholder="stock / emergencia / ...">
             </div>
-
-            <!-- Económicos -->
             <div class="col-6 col-md-3">
               <label class="form-label">Moneda</label>
               <input class="form-control" v-model="edit.moneda" placeholder="CLP">
@@ -438,8 +393,6 @@
               <label class="form-label">Total c/ IVA</label>
               <input class="form-control" v-model.number="edit.precioTotalConIVA" type="number" min="0">
             </div>
-
-            <!-- Comentario / Destino -->
             <div class="col-12 col-md-6">
               <label class="form-label">Destino compra</label>
               <input class="form-control" v-model="edit.destinoCompra" placeholder="">
@@ -448,8 +401,6 @@
               <label class="form-label">Comentario</label>
               <textarea class="form-control" rows="2" v-model="edit.comentario" placeholder="Notas / observaciones"></textarea>
             </div>
-
-            <!-- Archivo OC (único) -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivo OC (único)</div>
@@ -486,8 +437,6 @@
                 <div v-else class="list-group-item text-secondary small">Sin archivo OC.</div>
               </div>
             </div>
-
-            <!-- Archivos Storage (múltiples) -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivos en Storage</div>
@@ -529,8 +478,6 @@
                 Nota: el botón “Eliminar” solo quita el link del documento (no borra el archivo del Storage).
               </div>
             </div>
-
-            <!-- Historial -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Historial</div>
@@ -573,8 +520,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal NUEVA OC -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
@@ -586,8 +531,6 @@
               <label class="form-label">ID</label>
               <input class="form-control" v-model.number="nuevo.id" type="number" min="0">
             </div>
-
-            <!-- Fecha subida - solo lectura; se guarda con serverTimestamp() -->
             <div class="col-6 col-md-5">
               <label class="form-label">Fecha subida</label>
               <input type="text" class="form-control" :value="prettyTS(new Date())" disabled>
@@ -652,8 +595,6 @@
               <label class="form-label">Comentario</label>
               <textarea class="form-control" rows="2" v-model="nuevo.comentario"></textarea>
             </div>
-
-            <!-- Cargar archivoOC inicial -->
             <div class="col-12">
               <label class="form-label">Archivo OC (PDF/imagen)</label>
               <div class="d-flex gap-2 flex-wrap">
@@ -672,8 +613,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Adjuntos múltiples -->
             <div class="col-12">
               <label class="form-label">Archivos Storage (múltiples)</label>
               <div class="d-flex gap-2 flex-wrap">
@@ -705,8 +644,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal CONFIRMAR ELIMINACIÓN -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -757,7 +694,6 @@ import {
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-/* ========== Helpers de fecha ========== */
 const prettyTS = (v) => {
   if (!v) return "—";
   if (v instanceof Timestamp) return v.toDate().toISOString().replace("T", " ").replace("Z", "");
@@ -767,7 +703,6 @@ const prettyTS = (v) => {
   return String(v);
 };
 
-/* ========== Clon UI que preserva Timestamp/Date/FieldValue ========== */
 function cloneForUI(x) {
   if (x === null || typeof x !== "object") return x;
   if (x instanceof Date || x instanceof Timestamp) return x;
@@ -777,7 +712,6 @@ function cloneForUI(x) {
   return out;
 }
 
-/* ========== Clon seguro para Firestore (preserva Timestamp/FieldValue y omite _previewFecha) ========== */
 function safeCloneFirestore(x) {
   if (x === null || typeof x !== "object") return x;
   if (x instanceof Date || x instanceof Timestamp) return x;
@@ -790,7 +724,6 @@ function safeCloneFirestore(x) {
   return out;
 }
 
-/* ---------- Constantes ---------- */
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
   "Solicitado","Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
@@ -799,22 +732,18 @@ const RESPONSABLES_OPC = [
   "Luis Orellana","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez","Juan Cubillos"
 ];
 
-/* ---------- Estado listado & paginación ---------- */
 const rows = ref([]);
 const cargando = ref(true);
 const currentPage = ref(1);
 const hasNextPage = ref(false);
-const pageCursors = ref([]); // guarda cursor (QueryDocumentSnapshot) de la página anterior
+const pageCursors = ref([]);
 let unsubList = null;
 
-/* Búsqueda / Filtros */
 const buscarTexto = ref("");
 const busquedaActiva = ref(false);
 const filtroEstatus = ref("");
 const filtroResponsable = ref("");
 let unsubSearch = null;
-
-/* ---------- Toasts ---------- */
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2600) => {
   const id = Date.now() + Math.random();
@@ -822,8 +751,6 @@ const addToast = (type, text, timeout = 2600) => {
   setTimeout(() => closeToast(id), timeout);
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
-
-/* ---------- Utils ---------- */
 const badgeClass = (estatus) => {
   const s = (estatus || "").toLowerCase();
   if (s.includes("complet") || s.includes("aprob") || s.includes("recep")) return "bg-success-subtle text-success-emphasis";
@@ -832,8 +759,6 @@ const badgeClass = (estatus) => {
   if (s.includes("solicit")) return "bg-warning-subtle text-warning-emphasis";
   return "bg-secondary-subtle text-secondary-emphasis";
 };
-
-/* ---------- Filtros móvil/desktop (offcanvas) ---------- */
 const mobileFiltersOpen = ref(false);
 const hasActiveFilters = computed(() => !!filtroEstatus.value || !!filtroResponsable.value);
 const totalFiltrosActivos = computed(() => (filtroEstatus.value ? 1 : 0) + (filtroResponsable.value ? 1 : 0));
@@ -848,7 +773,6 @@ function limpiarFiltros(){
   else aplicarFiltros();
 }
 
-/* ---------- Paginación (tiempo real) ---------- */
 const visiblePageButtons = computed(() => {
   const maxButtons = 7;
   const maxReach = currentPage.value + (hasNextPage.value ? 2 : 1);
@@ -921,12 +845,9 @@ function goToPage(n){
 }
 function aplicarFiltros(){ currentPage.value = 1; subscribePage(1); }
 
-/* ---------- Buscar por ID doc o id numérico ---------- */
 async function onBuscar(){
   const raw = (buscarTexto.value ?? "").trim();
   if (!raw) { limpiarBusqueda(); return; }
-
-  // ID numérico exacto
   const num = parseInt(raw, 10);
   if (!isNaN(num) && String(num) === raw) {
     if (unsubList) { unsubList(); unsubList = null; }
@@ -956,7 +877,6 @@ async function onBuscar(){
     return;
   }
 
-  // ID de documento
   if (raw.length >= 8) {
     if (unsubList) { unsubList(); unsubList = null; }
     if (unsubSearch) { unsubSearch(); unsubSearch = null; }
@@ -988,7 +908,6 @@ function limpiarBusqueda(){
   subscribePage(1);
 }
 
-/* ---------- Inputs File refs + triggers ---------- */
 const inputArchivoOCEl = ref(null);
 const inputArchivosStorageEl = ref(null);
 const inputArchivoOCNuevoEl = ref(null);
@@ -996,7 +915,7 @@ const inputArchivosStorageNuevoEl = ref(null);
 
 const triggerPicker = (el) => {
   if (!el) return;
-  el.value = ""; // permite seleccionar el mismo archivo otra vez
+  el.value = "";
   el.click();
 };
 
@@ -1005,13 +924,12 @@ function openArchivosStoragePicker(){ triggerPicker(inputArchivosStorageEl.value
 function openArchivoOCNuevoPicker(){ triggerPicker(inputArchivoOCNuevoEl.value); }
 function openArchivosStorageNuevoPicker(){ triggerPicker(inputArchivosStorageNuevoEl.value); }
 
-/* ---------- Editor (offcanvas) ---------- */
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
 const guardando = ref(false);
 
-// Archivo OC (único) - edición
+
 const archivoOCFile = ref(null);
 function onArchivoOC(e){
   const f = (e.target.files || [])[0];
@@ -1019,13 +937,12 @@ function onArchivoOC(e){
 }
 function borrarArchivoOC(){ edit.value.archivoOC = null; }
 
-// Archivos Storage (múltiples) - edición
+
 const nuevosStorageFiles = ref([]);
 function onArchivosStorage(e){ nuevosStorageFiles.value = Array.from(e.target.files || []); }
 function eliminarArchivoStorage(ix){ edit.value.archivosStorage.splice(ix, 1); }
 
-/* ====== ASOCIAR SOLPED ====== */
-const SOLPEDS_COL = "solpes"; // cambia si tu colección tiene otro nombre
+const SOLPEDS_COL = "solpes";
 const cargandoSolpeds = ref(false);
 const guardandoSolped = ref(false);
 const solpeds = ref([]);
@@ -1124,7 +1041,6 @@ async function quitarAsociacionSolped(){
   }
 }
 
-/* ---------- Abrir/Cerrar editor ---------- */
 function abrirEditor(row){
   seleccion.value = row;
 
@@ -1139,8 +1055,8 @@ function abrirEditor(row){
     destinoCompra: row.destinoCompra ?? "",
     empresa: row.empresa ?? "Xtreme Servicio",
     estatus: row.estatus ?? "Solicitado",
-    fechaAprobacion: row.fechaAprobacion ?? null, // NO editable al guardar
-    fechaSubida: row.fechaSubida ?? null,         // NO editable al guardar
+    fechaAprobacion: row.fechaAprobacion ?? null,
+    fechaSubida: row.fechaSubida ?? null,
     historial: Array.isArray(row.historial) ? row.historial : [],
     id: row.id ?? null,
     moneda: row.moneda ?? "CLP",
@@ -1183,15 +1099,12 @@ function cerrarEditor(){
   solpedSeleccionId.value = "";
 }
 
-/* ---------- Guardar Edición ---------- */
 async function guardarEdicion() {
   if (!seleccion.value) return;
   guardando.value = true;
   try {
     const idDoc = seleccion.value.__id;
     const dref = doc(db, "ordenes_oc", idDoc);
-
-    // Reemplazar archivo OC
     if (archivoOCFile.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${idDoc}/oc_enviada_${Date.now()}_${archivoOCFile.value.name}`;
@@ -1206,8 +1119,6 @@ async function guardarEdicion() {
       };
       archivoOCFile.value = null;
     }
-
-    // Adjuntos múltiples
     if (nuevosStorageFiles.value?.length) {
       const storage = getStorage();
       const uploads = [];
@@ -1222,8 +1133,6 @@ async function guardarEdicion() {
       edit.value.archivosStorage.push(...uploads);
       nuevosStorageFiles.value = [];
     }
-
-    // Normalizaciones
     if (typeof edit.value.id === "string") {
       const n = parseInt(edit.value.id, 10);
       edit.value.id = isNaN(n) ? null : n;
@@ -1242,8 +1151,6 @@ async function guardarEdicion() {
     }
 
     const payload = safeCloneFirestore(edit.value);
-
-    // No tocar estas fechas
     delete payload.fechaSubida;
     delete payload.fechaAprobacion;
 
@@ -1258,7 +1165,6 @@ async function guardarEdicion() {
   }
 }
 
-/* ---------- Historial ---------- */
 function agregarHistorial(){
   if (!Array.isArray(edit.value.historial)) edit.value.historial = [];
   edit.value.historial.push({
@@ -1270,7 +1176,6 @@ function agregarHistorial(){
 }
 function eliminarHistorial(ix){ edit.value.historial.splice(ix, 1); }
 
-/* ---------- Modal confirm delete ---------- */
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -1292,7 +1197,6 @@ async function confirmarEliminar(){
   }
 }
 
-/* ---------- Crear nueva OC ---------- */
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
@@ -1368,8 +1272,6 @@ async function crearNueva(){
     });
 
     const dref = await addDoc(collection(db, "ordenes_oc"), payload);
-
-    // archivoOC único
     if (archivoOCNuevo.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${dref.id}/oc_enviada_${Date.now()}_${archivoOCNuevo.value.name}`;
@@ -1385,8 +1287,6 @@ async function crearNueva(){
         }
       });
     }
-
-    // adjuntos múltiples
     if (previewArchivosStorageNuevo.value.length) {
       const storage = getStorage();
       const uploads = [];
@@ -1410,14 +1310,12 @@ async function crearNueva(){
   }
 }
 
-/* ---------- Acciones auxiliares ---------- */
 function verArchivoOC(row){
   const url = row?.archivoOC?.url;
   if (!url) { addToast("warning", "Esta OC no tiene archivoOC aún."); return; }
   window.open(url, "_blank");
 }
 
-/* ---------- Lifecycle ---------- */
 onMounted(() => { subscribePage(1); });
 onBeforeUnmount(() => {
   if (unsubList) unsubList();
@@ -1431,19 +1329,17 @@ onBeforeUnmount(() => {
   --oc-radius: 14px;
 }
 
-/* Helpers responsivos */
+
 .h4-md { font-size: 1.25rem; }
 @media (min-width: 768px){ .h4-md { font-size: 1.5rem; } }
 
 .minw-280{ min-width: 280px; }
 
-/* Truncados bonitos en tabla */
 .text-truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 576px){
   .text-truncate { max-width: 180px; }
 }
 
-/* -------- Offcanvas (filtros/editor) -------- */
 .offcanvas-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   display: grid; place-items: end; z-index: 1080;
@@ -1469,7 +1365,7 @@ onBeforeUnmount(() => {
   to{ transform: translateX(0); opacity:1; }
 }
 
-/* Modal genérico */
+
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1080; display: grid; place-items: center; padding: 1rem;
@@ -1487,7 +1383,7 @@ onBeforeUnmount(() => {
 .vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
 .vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-/* Toasts */
+
 .toast-stack{
   position: fixed; right: 16px; bottom: 16px; z-index: 1200;
   display: flex; flex-direction: column; gap: 10px;
@@ -1501,7 +1397,6 @@ onBeforeUnmount(() => {
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-/* Icono modal eliminación */
 .confirm-icon{
   width: 38px; height: 38px;
   border-radius: 10px;
