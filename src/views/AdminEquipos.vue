@@ -17,7 +17,11 @@
             <span class="d-none d-sm-inline">Agregar equipo</span>
             <span class="d-inline d-sm-none">Agregar</span>
           </button>
-
+          <button class="btn btn-outline-success" @click="exportarExcelFaltantes" :disabled="cargando || !equipos.length">
+            <i class="bi bi-download me-1"></i>
+            <span class="d-none d-sm-inline">Excel faltantes</span>
+            <span class="d-inline d-sm-none">Faltantes</span>
+          </button>
           <button class="btn btn-outline-secondary" @click="cargarEquipos">
             <i class="bi bi-arrow-clockwise me-1"></i>
             <span class="d-none d-sm-inline">Recargar</span>
@@ -430,7 +434,228 @@ const fmtFecha = (f:any) => {
     return d.toLocaleString('es-CL', { dateStyle:'short', timeStyle:'short' });
   } catch { return '—'; }
 };
+const CAMPOS_AUDITORIA = [
+  { key: 'codigo', label: 'Código' },
+  { key: 'numero_interno', label: 'N° Interno' },
+  { key: 'numero_motor', label: 'N° Motor' },
+  { key: 'ano', label: 'Año' },
+  { key: 'equipo', label: 'Equipo' },
+  { key: 'marca', label: 'Marca' },
+  { key: 'modelo', label: 'Modelo' },
+  { key: 'clasificacion1', label: 'Clasificación' },
+  { key: 'tipo_equipo', label: 'Tipo de equipo' },
+  { key: 'numero_chasis', label: 'N° Chasis' },
+  { key: 'localizacion', label: 'Localización' },
+] as const;
 
+const textoNormalizado = (v: any) =>
+  String(v ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+
+const esCampoVacio = (valor: any, key?: string) => {
+  if (valor === null || valor === undefined) return true;
+
+  if (key === 'ano') {
+    if (valor === '' || Number.isNaN(Number(valor))) return true;
+    const n = Number(valor);
+    return !Number.isFinite(n) || n <= 0;
+  }
+
+  const t = textoNormalizado(valor);
+
+  if (!t) return true;
+
+  const placeholders = new Set([
+    'no hay informacion',
+    'no hay información',
+    'sin informacion',
+    'sin información',
+    'n/a',
+    'na',
+    '-',
+    '--',
+    's/i',
+  ]);
+
+  return placeholders.has(t);
+};
+
+const valorParaExcel = (v: any) => {
+  if (v === null || v === undefined) return '';
+  return String(v);
+};
+
+const setSheetCols = (ws: XLSX.WorkSheet, widths: number[]) => {
+  ws['!cols'] = widths.map((w) => ({ wch: w }));
+};
+
+const crearHojaDesdeJson = (rows: any[], widths: number[] = []) => {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  if (rows.length > 0) {
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+  }
+  if (widths.length) setSheetCols(ws, widths);
+  return ws;
+};
+
+const exportarExcelFaltantes = () => {
+  try {
+    const base = equipos.value;
+
+    if (!base.length) {
+      addToast('warning', 'No hay equipos para exportar.');
+      return;
+    }
+
+    const resumenCampo = new Map<string, number>();
+    const matrizRows: any[] = [];
+    const detalleRows: any[] = [];
+
+    for (const e of base) {
+      const faltantes: string[] = [];
+      const estadoCampos: Record<string, string> = {};
+
+      for (const campo of CAMPOS_AUDITORIA) {
+        const valor = (e as any)[campo.key];
+        const falta = esCampoVacio(valor, campo.key);
+        estadoCampos[`Estado - ${campo.label}`] = falta ? 'FALTA' : 'OK';
+
+        if (falta) {
+          faltantes.push(campo.label);
+          resumenCampo.set(campo.label, (resumenCampo.get(campo.label) || 0) + 1);
+
+          detalleRows.push({
+            'Tipo de equipo': esCampoVacio(e.tipo_equipo) ? 'Sin tipo' : valorParaExcel(e.tipo_equipo),
+            'Clasificación': esCampoVacio(e.clasificacion1) ? 'Sin clasificación' : valorParaExcel(e.clasificacion1),
+            'Equipo': valorParaExcel(e.equipo),
+            'Código': valorParaExcel(e.codigo),
+            'Campo faltante': campo.label,
+            'N° Interno': valorParaExcel(e.numero_interno),
+            'N° Motor': valorParaExcel(e.numero_motor),
+            'N° Chasis': valorParaExcel(e.numero_chasis),
+            'Marca': valorParaExcel(e.marca),
+            'Modelo': valorParaExcel(e.modelo),
+            'Año': valorParaExcel(e.ano),
+            'Localización': valorParaExcel(e.localizacion),
+          });
+        }
+      }
+      if (faltantes.length > 0) {
+        const tipo = esCampoVacio(e.tipo_equipo) ? 'Sin tipo' : valorParaExcel(e.tipo_equipo);
+        const clasif = esCampoVacio(e.clasificacion1) ? 'Sin clasificación' : valorParaExcel(e.clasificacion1);
+
+        matrizRows.push({
+          'Grupo': `${tipo} | ${clasif}`,
+          'Tipo de equipo': tipo,
+          'Clasificación': clasif,
+          'Equipo': valorParaExcel(e.equipo),
+          'Código': valorParaExcel(e.codigo),
+          'N° Interno': valorParaExcel(e.numero_interno),
+          'N° Motor': valorParaExcel(e.numero_motor),
+          'N° Chasis': valorParaExcel(e.numero_chasis),
+          'Marca': valorParaExcel(e.marca),
+          'Modelo': valorParaExcel(e.modelo),
+          'Año': valorParaExcel(e.ano),
+          'Localización': valorParaExcel(e.localizacion),
+          'Cantidad faltantes': faltantes.length,
+          'Campos faltantes': faltantes.join(' | '),
+          ...estadoCampos,
+        });
+      }
+    }
+
+    if (!matrizRows.length) {
+      addToast('success', 'No hay faltantes. Todos los equipos están completos ✅');
+      return;
+    }
+    matrizRows.sort((a, b) =>
+      a['Tipo de equipo'].localeCompare(b['Tipo de equipo']) ||
+      a['Clasificación'].localeCompare(b['Clasificación']) ||
+      b['Cantidad faltantes'] - a['Cantidad faltantes'] ||
+      a['Equipo'].localeCompare(b['Equipo']) ||
+      a['Código'].localeCompare(b['Código'])
+    );
+
+    detalleRows.sort((a, b) =>
+      a['Tipo de equipo'].localeCompare(b['Tipo de equipo']) ||
+      a['Clasificación'].localeCompare(b['Clasificación']) ||
+      a['Campo faltante'].localeCompare(b['Campo faltante']) ||
+      a['Equipo'].localeCompare(b['Equipo'])
+    );
+
+    const resumenRows = Array.from(resumenCampo.entries())
+      .map(([campo, cantidad]) => ({ 'Campo faltante': campo, 'Cantidad': cantidad }))
+      .sort((a, b) => b['Cantidad'] - a['Cantidad'] || a['Campo faltante'].localeCompare(b['Campo faltante']));
+    const wb = XLSX.utils.book_new();
+    const wsMatriz = XLSX.utils.json_to_sheet(matrizRows);
+    if (wsMatriz['!ref']) {
+      const range = XLSX.utils.decode_range(wsMatriz['!ref']);
+      wsMatriz['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+    }
+    wsMatriz['!cols'] = [
+      { wch: 40 },
+      { wch: 24 },
+      { wch: 28 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 10 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 60 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 15 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 18 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsMatriz, 'Auditoria faltantes');
+
+    const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
+    if (wsResumen['!ref']) {
+      const range = XLSX.utils.decode_range(wsResumen['!ref']);
+      wsResumen['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+    }
+    wsResumen['!cols'] = [{ wch: 30 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+    const wsDetalle = XLSX.utils.json_to_sheet(detalleRows);
+    if (wsDetalle['!ref']) {
+      const range = XLSX.utils.decode_range(wsDetalle['!ref']);
+      wsDetalle['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+    }
+    wsDetalle['!cols'] = [
+      { wch: 22 }, { wch: 28 }, { wch: 28 }, { wch: 16 }, { wch: 22 },
+      { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 14 },
+      { wch: 10 }, { wch: 20 }, { wch: 28 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsDetalle, 'Detalle por faltante');
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const fileName = `auditoria_equipos_faltantes_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    addToast('success', `Excel generado con ${matrizRows.length} equipos con faltantes.`);
+  } catch (err) {
+    console.error(err);
+    addToast('danger', 'No se pudo generar el Excel de auditoría.');
+  }
+};
 const cargarEquipos = async () => {
   cargando.value = true;
   try {

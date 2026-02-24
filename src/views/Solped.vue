@@ -336,6 +336,9 @@
                       </div>
                     </div>
                     <div class="badge-wrap mt-2">
+                      <span v-if="eq.numero_interno" class="badge text-bg-light border">
+                        <i class="bi bi-123 me-1"></i>{{ eq.numero_interno }}
+                      </span>
                       <span v-if="eq.clasificacion1" class="badge text-bg-light border">
                         <i class="bi bi-tag me-1"></i>{{ eq.clasificacion1 }}
                       </span>
@@ -811,6 +814,8 @@ export default {
         .toLowerCase()
         .replace(/\s+/g, " ")
         .trim();
+    const normEqCompact = (s) =>
+    normEq(s).replace(/[^a-z0-9]/g, "");
     function lev(a, b) {
       a = String(a || "").slice(0, 64);
       b = String(b || "").slice(0, 64);
@@ -831,10 +836,36 @@ export default {
     }
 
     const variantesDe = (s) => {
-      const t = String(s || "").trim();
-      const v = normEq(t);
+      const raw = String(s || "").trim();
+      const v = normEq(raw);
+      const compact = normEqCompact(raw);
+
       const start = v ? v.charAt(0).toUpperCase() + v.slice(1) : "";
-      return [...new Set([t, v, t.toUpperCase(), start])].filter(Boolean);
+
+      const out = new Set([
+        raw,
+        v,
+        raw.toUpperCase(),
+        start,
+      ]);
+
+      const m = compact.match(/^([a-z]+)(\d+)$/i);
+      if (m) {
+        const letras = m[1];
+        out.add(letras);
+        out.add(letras.toUpperCase());
+        out.add(letras + "-");
+        out.add(letras.toUpperCase() + "-");
+        out.add(letras + " ");
+        out.add(letras.toUpperCase() + " ");
+      }
+      const tokens = v.split(/\s+/).filter(Boolean);
+      if (tokens[0] && tokens[0].length >= 2) {
+        out.add(tokens[0]);
+        out.add(tokens[0].toUpperCase());
+      }
+
+      return [...out].filter(Boolean);
     };
     const adaptEquipo = (raw, _id) => ({
       _id: _id || raw.id || raw._id || String(Math.random()),
@@ -844,34 +875,55 @@ export default {
       localizacion: String(raw.localizacion || raw.ubicacion || raw.location || ""),
       marca: String(raw.marca || raw.brand || ""),
       modelo: String(raw.modelo || raw.model || ""),
-      numero_chasis: String(raw.numero_chasis || raw.chasis || raw.vin || raw.numeroSerie || raw.n_serie || "")
+      numero_chasis: String(raw.numero_chasis || raw.chasis || raw.vin || raw.numeroSerie || raw.n_serie || ""),
+      numero_interno: String(raw.numero_interno || raw.n_interno || raw.patente || ""),
+      tipo_equipo: String(raw.tipo_equipo || raw.tipo || "")
     });
     function scoreEquipo(e, qNorm) {
-      const vals = [
-        e.codigo,
-        e.equipo,
-        e.marca,
-        e.modelo,
-        e.numero_chasis,
-        e.localizacion,
-        e.clasificacion1
-      ]
-        .filter(Boolean)
-        .map((v) => normEq(v));
+      const qCompact = normEqCompact(qNorm);
 
-      if (vals.includes(qNorm)) return 1000;
+      const fields = [
+        { key: "numero_interno", w: 1200 },
+        { key: "codigo", w: 1000 },
+        { key: "equipo", w: 800 },
+        { key: "marca", w: 650 },
+        { key: "modelo", w: 650 },
+        { key: "numero_chasis", w: 900 },
+        { key: "localizacion", w: 500 },
+        { key: "clasificacion1", w: 450 }
+      ];
 
-      const crit = ["codigo", "numero_chasis", "equipo", "marca", "modelo"].map((k) => normEq(e[k] || ""));
-      if (crit.some((v) => v && v.startsWith(qNorm))) return 700;
-      if (vals.some((v) => v && v.includes(qNorm))) return 400;
+      let best = 0;
 
-      const near = crit.reduce((best, v) => Math.min(best, lev(v, qNorm)), 9);
-      if (near <= 2) return 300 - near * 50;
+      for (const f of fields) {
+        const raw = e[f.key] || "";
+        if (!raw) continue;
 
-      return 0;
+        const v = normEq(raw);
+        const c = normEqCompact(raw);
+
+        if (v === qNorm) best = Math.max(best, f.w);
+        if (c && qCompact && c === qCompact) best = Math.max(best, f.w + 80);
+        if (v.startsWith(qNorm)) best = Math.max(best, f.w - 120);
+        if (c && qCompact && c.startsWith(qCompact)) best = Math.max(best, f.w - 80);
+        if (v.includes(qNorm)) best = Math.max(best, f.w - 260);
+        if (c && qCompact && c.includes(qCompact)) best = Math.max(best, f.w - 180);
+        const dist = lev(c || v, qCompact || qNorm);
+        if (dist <= 2) best = Math.max(best, 260 - dist * 50);
+      }
+
+      return best;
     }
-
-    const camposBusqueda = ["clasificacion1", "codigo", "equipo", "localizacion", "marca", "modelo", "numero_chasis"];
+    const camposBusqueda = [
+      "numero_interno",
+      "clasificacion1",
+      "codigo",
+      "equipo",
+      "localizacion",
+      "marca",
+      "modelo",
+      "numero_chasis"
+    ];
 
     const clearEquiposSearch = () => {
       equiposError.value = "";
@@ -966,7 +1018,7 @@ export default {
           });
           await Promise.all(promesas);
         };
-        const criticos = ["codigo", "numero_chasis", "equipo", "marca", "modelo"];
+        const criticos = ["numero_interno", "codigo", "numero_chasis", "equipo", "marca", "modelo"];
         const secundarios = camposBusqueda.filter((c) => !criticos.includes(c));
 
         await Promise.all(criticos.map(perCampo));
@@ -984,6 +1036,7 @@ export default {
             ? rankeados
             : acumulado.filter((e) => {
                 const vals = [
+                  e.numero_interno,
                   e.codigo,
                   e.equipo,
                   e.marca,
@@ -994,7 +1047,12 @@ export default {
                 ]
                   .filter(Boolean)
                   .map((v) => normEq(v));
-                return vals.some((v) => v.includes(qNorm));
+                const qCompact = normEqCompact(qNorm);
+                return vals.some((v) => {
+                  const n = normEq(v);
+                  const c = normEqCompact(v);
+                  return n.includes(qNorm) || (qCompact && c.includes(qCompact));
+                });
               });
 
         const out = finales.slice(0, 200);
