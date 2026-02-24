@@ -311,8 +311,6 @@
               <label class="form-label">Empresa</label>
               <select class="form-select" v-model="edit.empresa">
                 <option>Xtreme Servicio</option>
-                <option>Xtreme Servicios</option>
-                <option>Xtreme Mining</option>
               </select>
             </div>
             <div class="col-12 col-md-3">
@@ -663,8 +661,6 @@
               <label class="form-label">Empresa</label>
               <select class="form-select" v-model="nuevo.empresa">
                 <option>Xtreme Servicio</option>
-                <option>Xtreme Servicios</option>
-                <option>Xtreme Mining</option>
               </select>
             </div>
             <div class="col-md-3">
@@ -937,14 +933,11 @@ import { useRouter } from "vue-router";
 
 const PAGE_SIZE = 10;
 const ESTATUS_OPC = [
-  "Solicitado",
+  "Pendiente",
+  "Rechazado",
   "Cotizado Parcial",
   "Cotizado Completado",
-  "Completado",
-  "Rechazado",
-  "Pendiente",
-  "OC enviada a proveedor",
-  "Cotizando - Revisión Guillermo"
+  "OC enviada a proveedor"
 ];
 const COTIZADORES_OPCIONES = [
   "Guillermo Manzor",

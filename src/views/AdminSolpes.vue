@@ -695,10 +695,11 @@
             <div class="col-md-3">
               <label class="form-label">Estado</label>
               <select class="form-select" v-model="itemForm.estado">
-                <option>Pendiente</option>
-                <option>Parcial</option>
-                <option>Completado</option>
-                <option>Revisión</option>
+                <option>pendiente</option>
+                <option>parcial</option>
+                <option>completado</option>
+                <option>revisión</option>
+                <option>rechazado</option>
               </select>
             </div>
 
@@ -776,21 +777,14 @@ import {
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const ESTATUS_OPC = [
-  "Solicitado",
-  "Cotizando",
-  "Cotizando Parcial",
-  "Cotizado Parcial",
-  "Cotizando Completado",
-  "Cotizado parcial",
-  "Revisión",
-  "Cotizado Completado",
-  "Rechazado",
   "Pendiente",
-  "Parcial",
+  "Revisión",
+  "Rechazado",
+  "Cotizado Parcial",
+  "Cotizado Completado",
   "OC enviada a proveedor",
-  "Completado",
 ];
 const DIRIGIDO_OPCIONES = [
   "Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez", "Cindy Quiroga"

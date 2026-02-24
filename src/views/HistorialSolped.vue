@@ -249,10 +249,10 @@
                       </button>
                       <ul class="dropdown-menu dropdown-menu-end" @click.stop>
                         <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Parcial')">Parcial</button></li>
                         <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
+                        <li><button class="dropdown-item" @click="setStatus(s,'Cotizado Parcial')">Cotizado Parcial</button></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Completado')">Completado</button></li>
+                        <li><button class="dropdown-item" @click="setStatus(s,'Cotizado Completado')">Cotizado Completado</button></li>
                       </ul>
                     </div>
 
@@ -357,12 +357,11 @@
                                   Cambiar ítem
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" @click.stop>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'rechazado')">Rechazado</button></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">Pendiente</button></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'revisión')">Revisión</button></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'en bodega')">En bodega</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'rechazado')">rechazado</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">pendiente</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'revisión')">revisión</button></li>
                                   <li><hr class="dropdown-divider"></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">Completado</button></li>
+                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">completado</button></li>
                                 </ul>
                               </div>
 

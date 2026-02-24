@@ -724,12 +724,11 @@ function safeCloneFirestore(x) {
   return out;
 }
 
-const PAGE_SIZE = 10;
-const ESTATUS_OPC = [
-  "Solicitado","Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
+const PAGE_SIZE = 20;
+const ESTATUS_OPC = ["Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
 ];
 const RESPONSABLES_OPC = [
-  "Luis Orellana","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez","Juan Cubillos"
+  "Cindy Quiroga","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
 ];
 
 const rows = ref([]);

@@ -878,12 +878,12 @@ function fromLocalInputValue(val){
   return isNaN(d.getTime()) ? null : d;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const ESTATUS_OPC = [
-  "Solicitado","Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
+  "Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
 ];
 const RESPONSABLES_OPC = [
-  "Luis Orellana","Guillermo Manzor","María José Ballesteros","Juan Cubillos"
+  "Cindy Quiroga","Guillermo Manzor","María José Ballesteros"
 ];
 
 
