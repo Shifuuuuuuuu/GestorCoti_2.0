@@ -5,7 +5,7 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
       <div>
         <h1 class="h4 fw-semibold mb-1">Generador de Certificados</h1>
-        <div class="text-muted small">Mantención / Operatividad · Vista previa · Guarda en Firestore + PDF</div>
+        <div class="text-muted small">Mantención / Operatividad / Torque · Vista previa · Guarda en Firestore + PDF</div>
 
         <div v-if="isEditing" class="mt-2">
           <span class="badge text-bg-warning text-dark border">
@@ -42,7 +42,7 @@
             <div class="d-flex align-items-center justify-content-between mb-2">
               <div class="fw-semibold">Formulario</div>
               <span class="badge text-bg-light border">
-                {{ form.tipo === "MANTENCION" ? "Certificado de Mantención" : "Certificado de Operatividad" }}
+                {{ tipoLabelForm }}
               </span>
             </div>
 
@@ -53,8 +53,10 @@
                 <select v-model="form.tipo" class="form-select" @change="onTipoChange">
                   <option value="MANTENCION">MANTENCIÓN</option>
                   <option value="OPERATIVIDAD">OPERATIVIDAD</option>
+                  <option value="TORQUE">TORQUE</option>
                 </select>
               </div>
+
               <div class="col-12">
                 <label class="form-label">Unidad de lectura</label>
                 <select v-model="form.unidadLectura" class="form-select">
@@ -83,6 +85,9 @@
                 <input class="form-control" :value="displayNumero" disabled />
                 <div class="form-text" v-if="isEditing">
                   Estás editando: se mantiene el número del certificado.
+                </div>
+                <div class="form-text" v-else-if="form.tipo === 'TORQUE'">
+                  Contador TORQUE independiente (inicia en <b>192</b> si no existe).
                 </div>
               </div>
             </div>
@@ -131,6 +136,7 @@
                 <span class="spinner-border spinner-border-sm me-2"></span> Cargando equipos…
               </div>
             </div>
+
             <div v-if="selectedEquipo" class="alert alert-light border small mb-3">
               <div class="fw-semibold">Equipo seleccionado</div>
               <div class="text-muted">
@@ -142,6 +148,7 @@
             </div>
 
             <hr class="my-3" />
+
             <div v-if="form.tipo === 'MANTENCION'">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-semibold">Datos Mantención</div>
@@ -190,6 +197,38 @@
                 </div>
               </div>
             </div>
+            <div v-else-if="form.tipo === 'TORQUE'">
+              <div class="fw-semibold">Datos Torque</div>
+
+              <div class="row g-2 mt-1">
+                <div class="col-6">
+                  <label class="form-label">Última OT (torque)</label>
+                  <input v-model.trim="form.ultimaOtTorque" class="form-control" placeholder="53868" />
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label">Fecha última OT (torque)</label>
+                  <input v-model="form.fechaUltimaOtTorque" type="date" class="form-control" @input="recalcTorque" />
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label">Lectura en OT ({{ unidad }})</label>
+                  <input v-model="form.lecturaOtTorqueRaw" class="form-control" placeholder="14171" />
+                  <div class="form-text">Se usa en el párrafo de “última revisión de torque”.</div>
+                </div>
+
+                <div class="col-6">
+                  <label class="form-label">Lectura actual ({{ unidad }})</label>
+                  <input v-model="form.kmActualRaw" class="form-control" placeholder="14171" />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Próximo Torque (fecha)</label>
+                  <input v-model="form.proximoTorqueFecha" type="date" class="form-control" />
+                  <div class="form-text">Auto: fecha última OT + <b>3 meses</b> (puedes editar).</div>
+                </div>
+              </div>
+            </div>
 
             <div v-else>
               <div class="fw-semibold">Datos Operatividad</div>
@@ -221,6 +260,7 @@
           </div>
         </div>
       </div>
+
       <div class="col-12 col-lg-7">
         <div class="card shadow-sm border-0">
           <div class="card-body">
@@ -258,7 +298,7 @@
               </div>
 
               <div class="text-center my-4">
-                <div class="cert-title">CERTIFICADO DE {{ form.tipo === "MANTENCION" ? "MANTENCIÓN" : "OPERATIVIDAD" }}</div>
+                <div class="cert-title">CERTIFICADO DE {{ tipoLabelTitle }}</div>
               </div>
 
               <div class="cert-body">
@@ -269,7 +309,6 @@
                   <b class="px-2 py-1 border rounded bg-light">{{ form.numeroInterno || "—" }}</b>,
                   {{ cuerpoPrincipal }}
                 </p>
-
                 <div v-if="form.tipo === 'MANTENCION' && !form.equipoNuevo" class="mt-3">
                   <p class="mb-2">
                     Su última mantención realizada <b>{{ fechaUltimaOtFmt }}</b>
@@ -288,6 +327,17 @@
                   </p>
                 </div>
 
+                <div v-if="form.tipo === 'TORQUE'" class="mt-3">
+                  <p class="mb-2">
+                    Su última revisión de torque, realizada el día <b>{{ fechaUltimaTorqueFmt }}</b>
+                    a los <b>{{ lecturaOtTorqueFmt }}</b> {{ unidad }} y registrada con la orden de trabajo
+                    <b>{{ form.ultimaOtTorque || "—" }}</b>.
+                    Consta que la unidad se encuentra correctamente torqueada de acuerdo a manual de fabricante.
+                  </p>
+                  <p class="mb-3">
+                    Los valores de torque aplicados, se detallan en la tabla adjunta.
+                  </p>
+                </div>
                 <div v-if="form.tipo === 'OPERATIVIDAD'" class="mt-3">
                   <p class="mb-2">
                     Se constata el estado: <b>{{ form.estadoOperatividad }}</b>
@@ -322,9 +372,21 @@
                     <div class="col-12 col-md-6">
                       <div class="d-flex justify-content-between border rounded px-2 py-1"><span>* Lectura actual:</span><b>{{ kmActualFmt }} {{ unidad }}</b></div>
                     </div>
+
                     <div class="col-12 col-md-6" v-if="form.tipo === 'MANTENCION'">
                       <div class="d-flex justify-content-between border rounded px-2 py-1"><span>* Próxima Mantención:</span><b>{{ proximaMantencionFmt }} {{ unidad }}</b></div>
                     </div>
+
+                    <div class="col-12 col-md-6" v-if="form.tipo === 'TORQUE'">
+                      <div class="d-flex justify-content-between border rounded px-2 py-1"><span>* Próximo Torque:</span><b>{{ proximoTorqueFmt }}</b></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="form.tipo === 'TORQUE'" class="mt-4">
+                  <div class="torque-box">
+                    <img :src="torqueTablaSrc" class="torque-img" alt="Tabla de torque por equipo" />
+                    <div class="small text-muted mt-1">Tabla referencial de torque (adjunta al certificado).</div>
                   </div>
                 </div>
 
@@ -346,11 +408,11 @@
         </div>
 
         <div v-if="saveOk" class="alert alert-success mt-3">
-          ✅ Certificado guardado/actualizado en Firestore.
-          <span v-if="lastSavedId" class="small text-muted">ID: {{ lastSavedId }}</span>
+          ✅ Certificado guardado/actualizado.
         </div>
       </div>
     </div>
+
     <div class="modal fade" tabindex="-1" ref="histModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -406,7 +468,7 @@
                     </td>
                     <td class="small">{{ fmtDMY(c.fechaEmisionStr) }}</td>
                     <td class="fw-semibold">
-                      <span class="badge" :class="c.tipo === 'MANTENCION' ? 'text-bg-primary' : 'text-bg-success'">
+                      <span class="badge" :class="tipoBadgeClass(c.tipo)">
                         {{ c.tipo || "—" }}
                       </span>
                     </td>
@@ -456,6 +518,7 @@
         </div>
       </div>
     </div>
+
     <div class="modal fade" tabindex="-1" ref="delModalEl" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
@@ -515,11 +578,13 @@ import logoMiningImg from "../assets/Logo Xtreme Mining.png";
 import firmaImg from "../assets/firma_juan_cubillos.png";
 import timbreOperativoImg from "../assets/timbre_operativo.png";
 import timbreCheckImg from "../assets/timbre_check.png";
+import torqueTablaImg from "../assets/Torque_equipos.png";
 
 const logoMiningSrc = logoMiningImg;
 const firmaSrc = firmaImg;
 const timbreOperativoSrc = timbreOperativoImg;
 const timbreCheckSrc = timbreCheckImg;
+const torqueTablaSrc = torqueTablaImg;
 
 const DATABASE_ID = "rollback-2025-10-25";
 
@@ -533,6 +598,80 @@ const app = getApp();
 const db = getFirestore(app, DATABASE_ID);
 
 const ciudad = "Santiago";
+
+function norm(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const INTERVALOS_PREVENTIVOS = [
+  { key: "MIXER PERFIL BAJO", unit: "Hrs", interval: 250, anyOf: ["mixer perfil bajo"] },
+  { key: "CAMION MIXER", unit: "Hrs", interval: 500, anyOf: ["camion mixer", "mixer camion"] },
+
+  { key: "TRACTO CAMION", unit: "Km", interval: 20000, anyOf: ["tracto camion", "tracto"] },
+  { key: "CAMIONETA", unit: "Km", interval: 10000, anyOf: ["camioneta", "pickup"] },
+
+  { key: "TORNADO S2", unit: "Hrs", interval: 250, anyOf: ["tornado s2", "tornado"] },
+  { key: "GENERADOR", unit: "Hrs", interval: 250, anyOf: ["generador", "genset"] },
+  { key: "GRUA HORQUILLA", unit: "Hrs", interval: 250, anyOf: ["grua horquilla", "horquilla", "montacarga", "forklift"] },
+  { key: "CARRO BOMBA", unit: "Hrs", interval: 500, anyOf: ["carro bomba"] },
+  { key: "MINI CARGADOR", unit: "Hrs", interval: 250, anyOf: ["mini cargador", "minicargador", "skid"] },
+  { key: "RETRO EXCAVADORA", unit: "Hrs", interval: 250, anyOf: ["retro excavadora", "retroexcavadora"] },
+  { key: "CAMION PLUMA", unit: "Km", interval: 10000, anyOf: ["camion pluma", "pluma"] },
+  { key: "MANIPULADOR TELESCOPIO", unit: "Hrs", interval: 250, allOf: ["manipulador", "telescopio"] },
+
+  { key: "CAMION TOLVA", unit: "Km", interval: 10000, anyOf: ["camion tolva", "tolva"] },
+  { key: "CARGADOR FRONTAL", unit: "Hrs", interval: 400, anyOf: ["cargador frontal"] },
+  { key: "ALJIBE", unit: "Km", interval: 10000, anyOf: ["aljibe"] },
+  { key: "ACUÑADOR", unit: "Hrs", interval: 100, anyOf: ["acuñador", "acunador"] },
+];
+
+function inferIntervalFromEquipo(equipoDoc) {
+  const hay = norm(
+    [
+      equipoDoc?.tipo_equipo,
+      equipoDoc?.tipoEquipo,
+      equipoDoc?.equipo,
+      equipoDoc?.modelo,
+      equipoDoc?.marca,
+    ].filter(Boolean).join(" ")
+  );
+
+  if (!hay) return null;
+
+  for (const rule of INTERVALOS_PREVENTIVOS) {
+    if (rule.allOf?.length) {
+      const ok = rule.allOf.every((t) => hay.includes(norm(t)));
+      if (ok) return rule;
+    }
+    if (rule.anyOf?.length) {
+      const ok = rule.anyOf.some((p) => hay.includes(norm(p)));
+      if (ok) return rule;
+    }
+  }
+  return null;
+}
+
+function applyPreventiveDefaultsFromSelectedEquipo() {
+  if (!selectedEquipo.value) return;
+
+
+  if (isEditing.value) return;
+
+  const rule = inferIntervalFromEquipo(selectedEquipo.value);
+  if (!rule) return;
+
+  form.value.unidadLectura = rule.unit;
+  form.value.intervaloRaw = String(rule.interval);
+
+  recalcMantencion();
+}
+
 
 
 const histModalEl = ref(null);
@@ -559,18 +698,18 @@ const saving = ref(false);
 const saveOk = ref(false);
 const saveErr = ref("");
 const lastSavedId = ref("");
+const lastSavedNumero = ref(null);
 
 const previewRef = ref(null);
 
 const loadingCounter = ref(false);
 const counterNext = ref(null);
-const counterDocId = ref(null);
 
+const globalCounterDocId = ref(null);
 
 const isEditing = ref(false);
 const editingId = ref(null);
 const editingNumero = ref(null);
-
 
 const histLoading = ref(false);
 const histErr = ref("");
@@ -578,6 +717,25 @@ const histSearch = ref("");
 const histList = ref([]);
 
 const histCount = computed(() => histList.value.length);
+
+function tipoBadgeClass(tipo) {
+  if (tipo === "MANTENCION") return "text-bg-primary";
+  if (tipo === "OPERATIVIDAD") return "text-bg-success";
+  if (tipo === "TORQUE") return "text-bg-warning text-dark";
+  return "text-bg-secondary";
+}
+
+const tipoLabelForm = computed(() => {
+  if (form.value.tipo === "MANTENCION") return "Certificado de Mantención";
+  if (form.value.tipo === "OPERATIVIDAD") return "Certificado de Operatividad";
+  return "Certificado de Torque";
+});
+
+const tipoLabelTitle = computed(() => {
+  if (form.value.tipo === "MANTENCION") return "MANTENCIÓN";
+  if (form.value.tipo === "OPERATIVIDAD") return "OPERATIVIDAD";
+  return "TORQUE";
+});
 
 function openHistorial() {
   histErr.value = "";
@@ -632,7 +790,6 @@ async function loadHistorial() {
   }
 }
 
-
 const delId = ref(null);
 const delNumero = ref(null);
 const delBusy = ref(false);
@@ -673,7 +830,6 @@ async function confirmDelete() {
   }
 }
 
-
 const todayISO = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -681,6 +837,18 @@ const todayISO = () => {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 };
+
+function addMonthsISO(iso, months) {
+  if (!iso) return "";
+  const [y, m, d] = String(iso).split("-").map((x) => Number(x));
+  if (!y || !m || !d) return "";
+  const dt = new Date(y, m - 1, d);
+  dt.setMonth(dt.getMonth() + Number(months || 0));
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
 
 const form = ref({
   tipo: "MANTENCION",
@@ -697,7 +865,6 @@ const form = ref({
   tipoEquipo: "",
   numeroChasis: "",
   numeroMotor: "",
-
   equipoNuevo: false,
   ultimaOt: "",
   fechaUltimaOt: "",
@@ -708,6 +875,10 @@ const form = ref({
   estadoOperatividad: "Operativo",
   fechaInspeccion: todayISO(),
   observaciones: "",
+  ultimaOtTorque: "",
+  fechaUltimaOtTorque: "",
+  lecturaOtTorqueRaw: "",
+  proximoTorqueFecha: "",
 });
 
 const unidad = computed(() => form.value.unidadLectura || "Km");
@@ -716,14 +887,6 @@ function extraerCodigoDesdeString(str) {
   if (!str) return "";
   const m = String(str).match(/\[([^\]]+)\]\s*$/);
   return m?.[1] || "";
-}
-
-function norm(s) {
-  return String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim();
 }
 
 const equiposFiltrados = computed(() => {
@@ -762,8 +925,10 @@ function seleccionarEquipo(e) {
   form.value.tipoEquipo = e.tipo_equipo || "";
   form.value.numeroChasis = e.numero_chasis || "";
   form.value.numeroMotor = e.numero_motor || e.numeroMotor || "";
+  applyPreventiveDefaultsFromSelectedEquipo();
 
   recalcMantencion();
+  recalcTorque();
 }
 
 async function loadEquiposCache() {
@@ -805,13 +970,27 @@ function recalcMantencion() {
   }
 }
 
-function onTipoChange() {
+function recalcTorque() {
+  if (form.value.tipo !== "TORQUE") return;
+  const base = form.value.fechaUltimaOtTorque;
+  if (!base) return;
+  form.value.proximoTorqueFecha = addMonthsISO(base, 3);
+}
+
+async function onTipoChange() {
   saveOk.value = false;
   saveErr.value = "";
 
   if (!isEditing.value) form.value.numero = null;
 
   if (form.value.tipo === "OPERATIVIDAD") form.value.equipoNuevo = false;
+  applyPreventiveDefaultsFromSelectedEquipo();
+
+  if (!isEditing.value) {
+    await cargarProximoNumero();
+  }
+
+  recalcTorque();
 }
 
 const fechaEmisionFmt = computed(() => fmtDMY(form.value.fechaEmision));
@@ -822,13 +1001,11 @@ const kmOtFmt = computed(() => fmtCL(parseIntLoose(form.value.kmOtRaw)));
 const kmActualFmt = computed(() => fmtCL(parseIntLoose(form.value.kmActualRaw)));
 const proximaMantencionFmt = computed(() => fmtCL(parseIntLoose(form.value.proximaMantencionRaw)));
 
+const fechaUltimaTorqueFmt = computed(() => fmtDMY(form.value.fechaUltimaOtTorque));
+const lecturaOtTorqueFmt = computed(() => fmtCL(parseIntLoose(form.value.lecturaOtTorqueRaw)));
+const proximoTorqueFmt = computed(() => fmtDMY(form.value.proximoTorqueFecha));
+
 const cuerpoPrincipal = computed(() => {
-  if (form.value.tipo === "OPERATIVIDAD") {
-    return "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
-  }
-  if (form.value.equipoNuevo) {
-    return "aún no cumple con el kilometraje para poder realizar la primera mantención programada.";
-  }
   return "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
 });
 
@@ -845,10 +1022,21 @@ const canSave = computed(() => {
       if (!Number.isFinite(parseIntLoose(form.value.kmOtRaw)) || parseIntLoose(form.value.kmOtRaw) <= 0) return false;
     }
     if (!Number.isFinite(parseIntLoose(form.value.kmActualRaw)) || parseIntLoose(form.value.kmActualRaw) <= 0) return false;
-  } else {
+  }
+
+  if (form.value.tipo === "TORQUE") {
+    if (!form.value.ultimaOtTorque) return false;
+    if (!form.value.fechaUltimaOtTorque) return false;
+    if (!Number.isFinite(parseIntLoose(form.value.lecturaOtTorqueRaw)) || parseIntLoose(form.value.lecturaOtTorqueRaw) <= 0) return false;
+    if (!Number.isFinite(parseIntLoose(form.value.kmActualRaw)) || parseIntLoose(form.value.kmActualRaw) <= 0) return false;
+    if (!form.value.proximoTorqueFecha) return false;
+  }
+
+  if (form.value.tipo === "OPERATIVIDAD") {
     if (!form.value.fechaInspeccion) return false;
     if (!form.value.estadoOperatividad) return false;
   }
+
   return true;
 });
 
@@ -863,40 +1051,45 @@ const displayNumero = computed(() => {
 });
 
 
-async function resolveCounterDocId() {
-  if (counterDocId.value) return counterDocId.value;
+async function resolveCounterDocIdByTipo(tipo) {
+  if (tipo === "TORQUE") return "torque";
+
+  if (globalCounterDocId.value) return globalCounterDocId.value;
 
   const colRef = collection(db, "counters_certificados");
   const snap = await getDocs(query(colRef, limit(1)));
 
   if (!snap.empty) {
-    counterDocId.value = snap.docs[0].id;
-    return counterDocId.value;
+    globalCounterDocId.value = snap.docs[0].id;
+    return globalCounterDocId.value;
   }
 
-  counterDocId.value = "global";
-  return counterDocId.value;
+  globalCounterDocId.value = "global";
+  return globalCounterDocId.value;
 }
 
 async function cargarProximoNumero() {
   loadingCounter.value = true;
   try {
-    const id = await resolveCounterDocId();
+    const id = await resolveCounterDocIdByTipo(form.value.tipo);
     const ref = doc(db, "counters_certificados", id);
 
     const snap = await getDoc(ref);
-    const raw = snap.exists() ? Number(snap.data()?.next) : 1;
-    const nextVal = Number.isFinite(raw) && raw >= 1 ? raw : 1;
+
+    let fallback = 1;
+    if (form.value.tipo === "TORQUE") fallback = 192;
+
+    const raw = snap.exists() ? Number(snap.data()?.next) : fallback;
+    const nextVal = Number.isFinite(raw) && raw >= 1 ? raw : fallback;
 
     counterNext.value = nextVal;
   } catch (e) {
     console.error(e);
-    counterNext.value = 1;
+    counterNext.value = form.value.tipo === "TORQUE" ? 192 : 1;
   } finally {
     loadingCounter.value = false;
   }
 }
-
 
 function buildPayload(numeroAsignado) {
   const payload = {
@@ -919,9 +1112,7 @@ function buildPayload(numeroAsignado) {
 
     firmante: { ...FIRMANTE },
 
-    texto: {
-      cuerpoPrincipal: cuerpoPrincipal.value,
-    },
+    texto: { cuerpoPrincipal: cuerpoPrincipal.value },
 
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -937,7 +1128,9 @@ function buildPayload(numeroAsignado) {
       intervalo: parseIntLoose(form.value.intervaloRaw),
       proximaMantencion: parseIntLoose(form.value.proximaMantencionRaw),
     };
-  } else {
+  }
+
+  if (form.value.tipo === "OPERATIVIDAD") {
     payload.operatividad = {
       estado: form.value.estadoOperatividad || "",
       fechaInspeccionStr: form.value.fechaInspeccion || "",
@@ -945,9 +1138,19 @@ function buildPayload(numeroAsignado) {
     };
   }
 
+  if (form.value.tipo === "TORQUE") {
+    payload.torque = {
+      ultimaOt: form.value.ultimaOtTorque || "",
+      fechaUltimaOtStr: form.value.fechaUltimaOtTorque || "",
+      lecturaOt: parseIntLoose(form.value.lecturaOtTorqueRaw),
+      lecturaActual: parseIntLoose(form.value.kmActualRaw),
+      proximoTorqueStr: form.value.proximoTorqueFecha || "",
+      intervaloMeses: 3,
+    };
+  }
+
   return payload;
 }
-
 
 function safeFilePart(str) {
   return String(str || "")
@@ -957,7 +1160,11 @@ function safeFilePart(str) {
 }
 
 function buildPdfFilename() {
-  const prefix = form.value.tipo === "MANTENCION" ? "C.MANTENCION" : "C.OPERATIVIDAD";
+  const prefix =
+    form.value.tipo === "MANTENCION" ? "C.MANTENCION"
+    : form.value.tipo === "OPERATIVIDAD" ? "C.OPERATIVIDAD"
+    : "C.TORQUE";
+
   const codigoEquipo = safeFilePart(form.value.numeroInterno || form.value.codigo || "SIN-CODIGO");
   const fecha = safeFilePart(fmtDMY(form.value.fechaEmision || todayISO()));
   return `${prefix} ${codigoEquipo} ${fecha}.pdf`;
@@ -985,6 +1192,8 @@ function modelFromDoc(data) {
   const eq = data?.equipoSnapshot || {};
   const mant = data?.mantencion || {};
   const op = data?.operatividad || {};
+  const tq = data?.torque || {};
+
   return {
     tipo: data?.tipo || "MANTENCION",
     fechaEmision: data?.fechaEmisionStr || todayISO(),
@@ -997,7 +1206,6 @@ function modelFromDoc(data) {
     tipoEquipo: eq.tipoEquipo || "",
     numeroChasis: eq.numeroChasis || "",
     numeroMotor: eq.numeroMotor || "",
-
     equipoNuevo: !!mant.equipoNuevo,
     ultimaOt: mant.ultimaOt || "",
     fechaUltimaOt: mant.fechaUltimaOtStr || "",
@@ -1005,10 +1213,13 @@ function modelFromDoc(data) {
     kmActualRaw: Number.isFinite(mant.lecturaActual) ? String(mant.lecturaActual) : "",
     intervaloRaw: Number.isFinite(mant.intervalo) ? String(mant.intervalo) : "10000",
     proximaMantencionRaw: Number.isFinite(mant.proximaMantencion) ? String(mant.proximaMantencion) : "",
-
     estadoOperatividad: op.estado || "Operativo",
     fechaInspeccion: op.fechaInspeccionStr || todayISO(),
     observaciones: op.observaciones || "",
+    ultimaOtTorque: tq.ultimaOt || "",
+    fechaUltimaOtTorque: tq.fechaUltimaOtStr || "",
+    lecturaOtTorqueRaw: Number.isFinite(tq.lecturaOt) ? String(tq.lecturaOt) : "",
+    proximoTorqueFecha: tq.proximoTorqueStr || "",
 
     cuerpoPrincipal: data?.texto?.cuerpoPrincipal || "",
   };
@@ -1039,6 +1250,11 @@ function modelFromForm() {
     estadoOperatividad: form.value.estadoOperatividad,
     fechaInspeccion: form.value.fechaInspeccion,
     observaciones: form.value.observaciones,
+
+    ultimaOtTorque: form.value.ultimaOtTorque,
+    fechaUltimaOtTorque: form.value.fechaUltimaOtTorque,
+    lecturaOtTorqueRaw: form.value.lecturaOtTorqueRaw,
+    proximoTorqueFecha: form.value.proximoTorqueFecha,
 
     cuerpoPrincipal: cuerpoPrincipal.value,
   };
@@ -1101,6 +1317,17 @@ async function buildPdfBytesFromModel(model, numero) {
     return y;
   };
 
+  let sig = null;
+  const sigW = 170;
+  let sigH = 0;
+  if (firmaSrc) {
+    const sigBytes = await fetchAsArrayBuffer(firmaSrc);
+    sig = String(firmaSrc).toLowerCase().includes(".png")
+      ? await pdfDoc.embedPng(sigBytes)
+      : await pdfDoc.embedJpg(sigBytes);
+    sigH = (sig.height / sig.width) * sigW;
+  }
+
   page.drawRectangle({
     x: M,
     y: M,
@@ -1109,12 +1336,13 @@ async function buildPdfBytesFromModel(model, numero) {
     borderColor,
     borderWidth: 1.0,
   });
+
   {
     const isOp = m.tipo === "OPERATIVIDAD";
-    const isMant = m.tipo === "MANTENCION";
+    const isMantOrTorque = m.tipo === "MANTENCION" || m.tipo === "TORQUE";
     let stampSrc = null;
     if (isOp) stampSrc = timbreOperativoSrc;
-    if (isMant) stampSrc = timbreCheckSrc;
+    if (isMantOrTorque) stampSrc = timbreCheckSrc;
 
     if (stampSrc) {
       const stampBytes = await fetchAsArrayBuffer(stampSrc);
@@ -1127,7 +1355,6 @@ async function buildPdfBytesFromModel(model, numero) {
       const stampY = M + 22;
 
       const opacity = isOp ? 0.34 : 0.28;
-
       page.drawImage(stamp, { x: stampX, y: stampY, width: stampW, height: stampH, opacity });
     }
   }
@@ -1154,7 +1381,11 @@ async function buildPdfBytesFromModel(model, numero) {
 
   y -= (logoMiningH + 24);
 
-  const tipoTxt = m.tipo === "MANTENCION" ? "MANTENCIÓN" : "OPERATIVIDAD";
+  const tipoTxt =
+    m.tipo === "MANTENCION" ? "MANTENCIÓN"
+    : m.tipo === "OPERATIVIDAD" ? "OPERATIVIDAD"
+    : "TORQUE";
+
   drawCentered(`CERTIFICADO DE ${tipoTxt}`, y, 12.5, bold, dark);
   y -= 32;
 
@@ -1165,10 +1396,7 @@ async function buildPdfBytesFromModel(model, numero) {
   const placa = m.patente || "—";
   const interno = m.numeroInterno || "—";
 
-  const cuerpoOperatividad =
-    "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
-
-  const cuerpo = m.cuerpoPrincipal || (m.tipo === "OPERATIVIDAD" ? cuerpoOperatividad : cuerpoOperatividad);
+  const cuerpo = m.cuerpoPrincipal || "se encuentra con sus mantenciones y revisiones al día según la pauta del fabricante, encontrándose en condiciones para operar con normalidad en minería.";
 
   const intro =
     `Xtreme Mining Ltda. Mediante el presente documento, certifica que el equipo identificado con la placa ${placa} ` +
@@ -1184,7 +1412,7 @@ async function buildPdfBytesFromModel(model, numero) {
     const fechaUlt = fmtDMY(m.fechaUltimaOt);
 
     const p1 =
-      `Su última mantención realizada el ${fechaUlt} a los ${lecturaOT}${unidadLocal} y registrada con la orden de trabajo ` +
+      `Su última mantención realizada el ${fechaUlt} a los ${lecturaOT} ${unidadLocal} y registrada con la orden de trabajo ` +
       `${ultimaOT}. Constata que la unidad se encuentra en condición estándar, tanto en su parte mecánica, hidráulica y estructural.`;
 
     y = drawWrappedBlockLeft(p1, y, bodySize, blockW, lineH, font, dark);
@@ -1215,11 +1443,29 @@ async function buildPdfBytesFromModel(model, numero) {
     }
   }
 
+  if (m.tipo === "TORQUE") {
+    const lecturaOT = fmtCL(parseIntLoose(m.lecturaOtTorqueRaw));
+    const ultimaOT = m.ultimaOtTorque || "—";
+    const fechaUlt = fmtDMY(m.fechaUltimaOtTorque);
+
+    const p1 =
+      `Su última revisión de torque, realizada el día ${fechaUlt} a los ${lecturaOT} ${unidadLocal} y registrada con la orden de trabajo ` +
+      `${ultimaOT}. Consta que la unidad se encuentra correctamente torqueada de acuerdo a manual de fabricante.`;
+
+    y = drawWrappedBlockLeft(p1, y, bodySize, blockW, lineH, font, dark);
+    y -= 10;
+
+    const p2 = "Los valores de torque aplicados, se detallan en la tabla adjunta.";
+    y = drawWrappedBlockLeft(p2, y, bodySize, blockW, lineH, font, dark);
+    y -= 18;
+  }
+
   drawCentered("Detalles del equipo", y, 10.5, bold, dark);
   y -= 18;
 
-  const lectura = fmtCL(parseIntLoose(m.kmActualRaw));
-  const prox = fmtCL(parseIntLoose(m.proximaMantencionRaw));
+  const lecturaActual = fmtCL(parseIntLoose(m.kmActualRaw));
+  const proxMant = fmtCL(parseIntLoose(m.proximaMantencionRaw));
+  const proxTorque = fmtDMY(m.proximoTorqueFecha);
 
   const rowsAll = [
     ["* Marca:", m.marca || "—"],
@@ -1228,9 +1474,12 @@ async function buildPdfBytesFromModel(model, numero) {
     ["* N° Chasis:", m.numeroChasis || "—"],
     ["* N° Motor:", m.numeroMotor || "—"],
     ["* N° Interno:", m.numeroInterno || "—"],
-    ["* Lectura actual:", `${lectura}${lectura === "—" ? "" : ` ${unidadLocal}`}`],
+    ["* Lectura actual:", `${lecturaActual}${lecturaActual === "—" ? "" : ` ${unidadLocal}`}`],
     ...(m.tipo === "MANTENCION"
-      ? [["* Próxima Mantención:", `${prox}${prox === "—" ? "" : ` ${unidadLocal}`}`]]
+      ? [["* Próxima Mantención:", `${proxMant}${proxMant === "—" ? "" : ` ${unidadLocal}`}`]]
+      : []),
+    ...(m.tipo === "TORQUE"
+      ? [["* Próximo Torque:", proxTorque || "—"]]
       : []),
   ];
 
@@ -1278,6 +1527,39 @@ async function buildPdfBytesFromModel(model, numero) {
   }
 
   const signLineY = M + 120;
+  if (m.tipo === "TORQUE") {
+    try {
+      const imgBytes = await fetchAsArrayBuffer(torqueTablaSrc);
+      const img = await pdfDoc.embedPng(imgBytes);
+
+      const MAX_W = Math.min(420, blockW);
+      const MAX_H = 210;
+
+      const reservedBottomY = signLineY + 12 + (sigH || 0) + 10;
+
+      const rawW = MAX_W;
+      const rawH = (img.height / img.width) * rawW;
+
+      const availableH = Math.max(60, y - reservedBottomY);
+
+      const scale = Math.min(1, MAX_W / rawW, MAX_H / rawH, availableH / rawH);
+
+      const drawW = rawW * scale;
+      const drawH = rawH * scale;
+
+      const x = (width - drawW) / 2;
+      const imgY = y - drawH;
+
+      if (imgY >= reservedBottomY - 2) {
+        page.drawImage(img, { x, y: imgY, width: drawW, height: drawH });
+        y = imgY - 18;
+      }
+    } catch (e) {
+      console.error("No se pudo incrustar Torque_equipos.png en PDF:", e);
+      y -= 6;
+    }
+  }
+
   page.drawLine({
     start: { x: width / 2 - 105, y: signLineY },
     end: { x: width / 2 + 105, y: signLineY },
@@ -1285,15 +1567,7 @@ async function buildPdfBytesFromModel(model, numero) {
     color: rgb(0.6, 0.6, 0.6),
   });
 
-  if (firmaSrc) {
-    const sigBytes = await fetchAsArrayBuffer(firmaSrc);
-    const sig = String(firmaSrc).toLowerCase().includes(".png")
-      ? await pdfDoc.embedPng(sigBytes)
-      : await pdfDoc.embedJpg(sigBytes);
-
-    const sigW = 170;
-    const sigH = (sig.height / sig.width) * sigW;
-
+  if (sig) {
     page.drawImage(sig, {
       x: (width - sigW) / 2,
       y: signLineY + 12,
@@ -1309,15 +1583,39 @@ async function buildPdfBytesFromModel(model, numero) {
   return await pdfDoc.save();
 }
 
-
 async function generarPdfSolo() {
   if (!hasPreview.value) return;
-
   const numeroTemp = displayNumero.value === "—" ? "SN" : displayNumero.value;
   const bytes = await buildPdfBytesFromModel(modelFromForm(), numeroTemp);
   downloadPdf(bytes, buildPdfFilename());
 }
 
+function limpiarDatosCertificadosManteniendoEquipo() {
+
+  form.value.equipoNuevo = false;
+  form.value.ultimaOt = "";
+  form.value.fechaUltimaOt = "";
+  form.value.kmOtRaw = "";
+  form.value.kmActualRaw = "";
+  form.value.proximaMantencionRaw = "";
+  form.value.estadoOperatividad = "Operativo";
+  form.value.fechaInspeccion = todayISO();
+  form.value.observaciones = "";
+
+  form.value.ultimaOtTorque = "";
+  form.value.fechaUltimaOtTorque = "";
+  form.value.lecturaOtTorqueRaw = "";
+  form.value.proximoTorqueFecha = "";
+
+  form.value.fechaEmision = todayISO();
+
+  form.value.numero = null;
+
+  applyPreventiveDefaultsFromSelectedEquipo();
+
+  recalcMantencion();
+  recalcTorque();
+}
 
 async function guardarCertificado() {
   if (saving.value) return;
@@ -1325,6 +1623,7 @@ async function guardarCertificado() {
   saveOk.value = false;
   saveErr.value = "";
   lastSavedId.value = "";
+  lastSavedNumero.value = null;
 
   try {
     if (isEditing.value && editingId.value) {
@@ -1337,6 +1636,7 @@ async function guardarCertificado() {
       await updateDoc(doc(db, "certificados", editingId.value), payload);
 
       lastSavedId.value = editingId.value;
+      lastSavedNumero.value = numero;
       saveOk.value = true;
 
       const bytes = await buildPdfBytesFromModel(modelFromForm(), numero);
@@ -1345,21 +1645,21 @@ async function guardarCertificado() {
       await loadHistorial();
       return;
     }
-
     const certificadosRef = collection(db, "certificados");
-    const id = await resolveCounterDocId();
-    const counterRef = doc(db, "counters_certificados", id);
+    const counterId = await resolveCounterDocIdByTipo(form.value.tipo);
+    const counterRef = doc(db, "counters_certificados", counterId);
 
     const result = await runTransaction(db, async (tx) => {
       const counterSnap = await tx.get(counterRef);
 
-      const nextRaw = counterSnap.exists() ? Number(counterSnap.data()?.next) : 1;
-      const nextVal = Number.isFinite(nextRaw) && nextRaw >= 1 ? nextRaw : 1;
+      const fallback = form.value.tipo === "TORQUE" ? 192 : 1;
+      const nextRaw = counterSnap.exists() ? Number(counterSnap.data()?.next) : fallback;
+      const nextVal = Number.isFinite(nextRaw) && nextRaw >= 1 ? nextRaw : fallback;
 
       const numeroAsignado = nextVal;
       const nextToStore = nextVal + 1;
 
-      tx.set(counterRef, { next: nextToStore, updatedAt: serverTimestamp() }, { merge: true });
+      tx.set(counterRef, { next: nextToStore, updatedAt: serverTimestamp(), tipo: form.value.tipo }, { merge: true });
 
       const newDocRef = doc(certificadosRef);
       const payload = buildPayload(numeroAsignado);
@@ -1367,16 +1667,16 @@ async function guardarCertificado() {
 
       return { id: newDocRef.id, numero: numeroAsignado, next: nextToStore };
     });
-
-    form.value.numero = result.numero;
-    counterNext.value = result.next;
     lastSavedId.value = result.id;
+    lastSavedNumero.value = result.numero;
     saveOk.value = true;
-
     const bytes = await buildPdfBytesFromModel(modelFromForm(), result.numero);
     downloadPdf(bytes, buildPdfFilename());
 
     await loadHistorial();
+    counterNext.value = result.next;
+    limpiarDatosCertificadosManteniendoEquipo();
+    await cargarProximoNumero();
   } catch (err) {
     console.error(err);
     saveErr.value = "Error guardando/actualizando o generando PDF. Revisa consola y reglas/permisos de Firestore.";
@@ -1384,7 +1684,6 @@ async function guardarCertificado() {
     saving.value = false;
   }
 }
-
 
 async function editarDesdeHistorial(c) {
   try {
@@ -1396,6 +1695,7 @@ async function editarDesdeHistorial(c) {
 
     const data = snap.data() || {};
     const m = modelFromDoc(data);
+
     isEditing.value = true;
     editingId.value = c.id;
     editingNumero.value = data.numero || c.numero || null;
@@ -1412,7 +1712,6 @@ async function editarDesdeHistorial(c) {
     form.value.tipoEquipo = m.tipoEquipo || "";
     form.value.numeroChasis = m.numeroChasis || "";
     form.value.numeroMotor = m.numeroMotor || "";
-
     form.value.equipoNuevo = !!m.equipoNuevo;
     form.value.ultimaOt = m.ultimaOt || "";
     form.value.fechaUltimaOt = m.fechaUltimaOt || "";
@@ -1420,10 +1719,14 @@ async function editarDesdeHistorial(c) {
     form.value.kmActualRaw = m.kmActualRaw || "";
     form.value.intervaloRaw = m.intervaloRaw || "10000";
     form.value.proximaMantencionRaw = m.proximaMantencionRaw || "";
-
     form.value.estadoOperatividad = m.estadoOperatividad || "Operativo";
     form.value.fechaInspeccion = m.fechaInspeccion || todayISO();
     form.value.observaciones = m.observaciones || "";
+    form.value.ultimaOtTorque = m.ultimaOtTorque || "";
+    form.value.fechaUltimaOtTorque = m.fechaUltimaOtTorque || "";
+    form.value.lecturaOtTorqueRaw = m.lecturaOtTorqueRaw || "";
+    form.value.proximoTorqueFecha = m.proximoTorqueFecha || "";
+
     const equipoId = data.equipoId || null;
     const found = equipoId ? equiposCache.value.find((x) => x.id === equipoId) : null;
     if (found) {
@@ -1433,6 +1736,7 @@ async function editarDesdeHistorial(c) {
     }
 
     recalcMantencion();
+    recalcTorque();
 
     closeHistorial();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1455,7 +1759,12 @@ async function reDescargarCertificado(c) {
     const model = modelFromDoc(data);
 
     const bytes = await buildPdfBytesFromModel(model, numero);
-    const prefix = model.tipo === "MANTENCION" ? "C.MANTENCION" : "C.OPERATIVIDAD";
+
+    const prefix =
+      model.tipo === "MANTENCION" ? "C.MANTENCION"
+      : model.tipo === "OPERATIVIDAD" ? "C.OPERATIVIDAD"
+      : "C.TORQUE";
+
     const codigoEquipo = safeFilePart(model.numeroInterno || "SIN-CODIGO");
     const fecha = safeFilePart(fmtDMY(model.fechaEmision || todayISO()));
     const filename = `${prefix} ${codigoEquipo} ${fecha}.pdf`;
@@ -1466,7 +1775,6 @@ async function reDescargarCertificado(c) {
     alert("No se pudo generar el PDF. Revisa consola.");
   }
 }
-
 
 function scrollToPreview() {
   const el = previewRef.value;
@@ -1484,7 +1792,6 @@ function resetAll() {
   form.value.numero = null;
   form.value.tipo = "MANTENCION";
   form.value.unidadLectura = "Km";
-
   form.value.equipoNuevo = false;
   form.value.ultimaOt = "";
   form.value.fechaUltimaOt = "";
@@ -1495,6 +1802,10 @@ function resetAll() {
   form.value.estadoOperatividad = "Operativo";
   form.value.fechaInspeccion = todayISO();
   form.value.observaciones = "";
+  form.value.ultimaOtTorque = "";
+  form.value.fechaUltimaOtTorque = "";
+  form.value.lecturaOtTorqueRaw = "";
+  form.value.proximoTorqueFecha = "";
 
   form.value.fechaEmision = todayISO();
 
@@ -1509,6 +1820,7 @@ function resetAll() {
   saveOk.value = false;
   saveErr.value = "";
   lastSavedId.value = "";
+  lastSavedNumero.value = null;
 
   cargarProximoNumero();
 }
@@ -1543,5 +1855,20 @@ onMounted(async () => {
 .cert-footer {
   border-top: 1px dashed rgba(0,0,0,.2);
   padding-top: 10px;
+}
+
+.torque-box{
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fafafa;
+}
+.torque-img{
+  width: 100%;
+  max-height: 260px;
+  height: auto;
+  object-fit: contain;
+  display:block;
+  border-radius: 10px;
 }
 </style>

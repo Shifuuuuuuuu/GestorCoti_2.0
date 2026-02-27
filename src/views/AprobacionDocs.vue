@@ -191,11 +191,11 @@
                 <i class="bi bi-arrow-left-right me-1"></i>Intercambiar
               </button>
 
-              <button class="btn btn-danger btn-sm" :disabled="!canReject" @click="openRejectModal">
+              <button class="btn btn-danger btn-sm" :disabled="!canReject || busy.on || actionLock" @click="openRejectModal">
                 <i class="bi bi-x-circle me-1"></i>Rechazar
               </button>
 
-              <button class="btn btn-success btn-sm" :disabled="!canApprove" @click="approveOnly">
+              <button class="btn btn-success btn-sm" :disabled="!canApprove || busy.on || actionLock" @click="approveOnly">
                 <i class="bi bi-check2-circle me-1"></i>Aprobar
               </button>
             </div>
@@ -380,7 +380,11 @@
 
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn btn-danger" :disabled="!canReject || !finalRejectReason.trim()" @click="rejectComparison">
+            <button
+              class="btn btn-danger"
+              :disabled="!canReject || !finalRejectReason.trim() || busy.on || actionLock"
+              @click="rejectComparison"
+            >
               Rechazar
             </button>
           </div>
@@ -405,8 +409,9 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
-  addDoc,
+  setDoc,
   getDocs,
+  getDoc,
 } from "firebase/firestore";
 
 import { useAuthStore } from "@/stores/authService";
@@ -434,7 +439,9 @@ function setBusy(on, label = "", hint = "", progress = null) {
 }
 
 const noLotesNotice = ref("");
-function dismissNoLotesNotice() { noLotesNotice.value = ""; }
+function dismissNoLotesNotice() {
+  noLotesNotice.value = "";
+}
 
 const listTab = ref("pendiente");
 
@@ -460,6 +467,9 @@ let cmpsReady = false;
 let autoMatchRunning = false;
 
 const finishingLote = ref(false);
+const actionLock = ref(false);
+const pendingAdvancePairKey = ref("");
+const pendingAdvanceTargetId = ref("");
 
 const rejectModalEl = ref(null);
 let rejectModal = null;
@@ -543,21 +553,37 @@ const hasAnyActiveLote = computed(() => lotesActivos.value.length > 0);
 function cmpOtherId(c) {
   return c?.otherId || c?.facturaId || c?.guiaId || "";
 }
+
+function cmpPairKey(c) {
+  return `${c?.ocId || ""}__${cmpOtherId(c) || ""}`;
+}
+
+function getPendingTwinCmpIds(baseCmp) {
+  const key = cmpPairKey(baseCmp);
+  return cmps.value
+    .filter((c) => cmpPairKey(c) === key && normCmpEstado(c.estado) === "pendiente")
+    .map((c) => c.id);
+}
+
 function otherTipo(c) {
   return c?.otherTipo || (c?.facturaId ? "factura" : c?.guiaId ? "guia" : "factura");
 }
+
 function ocNumero(c) {
   const oc = docsById.value.get(c?.ocId || "");
   return oc?.numero || "";
 }
+
 function ocNombreArchivo(c) {
   const oc = docsById.value.get(c?.ocId || "");
   return oc?.archivo?.name || "";
 }
+
 function otherNombreArchivo(c) {
   const od = docsById.value.get(cmpOtherId(c));
   return od?.archivo?.name || "";
 }
+
 function needsAttention(c) {
   const oc = docsById.value.get(c?.ocId || "");
   const od = docsById.value.get(cmpOtherId(c));
@@ -575,7 +601,6 @@ const rechazadasFiltradas = computed(() =>
 );
 
 let _finalizeTimer = 0;
-
 function scheduleFinalizeCheck() {
   if (_finalizeTimer) clearTimeout(_finalizeTimer);
   _finalizeTimer = setTimeout(() => {
@@ -583,16 +608,13 @@ function scheduleFinalizeCheck() {
   }, 250);
 }
 
-
 const currentList = computed(() => {
   if (listTab.value === "aprobado") return aprobadasFiltradas.value;
   if (listTab.value === "rechazado") return rechazadasFiltradas.value;
   return pendientesFiltradas.value;
 });
 
-const currentCmp = computed(
-  () => cmps.value.find((x) => x.id === selectedCmpId.value) || null
-);
+const currentCmp = computed(() => cmps.value.find((x) => x.id === selectedCmpId.value) || null);
 
 const currentOc = computed(() => {
   const c = currentCmp.value;
@@ -607,12 +629,12 @@ const currentOther = computed(() => {
 });
 
 const otherDocRefOcText = computed(() => {
-  const c  = currentCmp.value;
+  const c = currentCmp.value;
   const od = currentOther.value;
   const oc = currentOc.value;
 
   const fromCmp = c?.matchedRefOc || "";
-  const ref   = od?.deteccion?.refOc || "";
+  const ref = od?.deteccion?.refOc || "";
   const cand0 = od?.deteccion?.ocCandidates?.[0]?.value || "";
   const raw = fromCmp || ref || cand0 || oc?.numero || "";
 
@@ -624,7 +646,6 @@ function swapSides() {
   sideSwap.value = !sideSwap.value;
 }
 
-
 function docViewUrl(d) {
   if (!d) return "";
   if (d.tipo === "oc") return d?.firmado?.url || d?.archivo?.url || "";
@@ -635,11 +656,7 @@ const ocUrl = computed(() => docViewUrl(currentOc.value));
 const otherUrl = computed(() => docViewUrl(currentOther.value));
 
 const leftTitle = computed(() =>
-  sideSwap.value
-    ? otherTipo(currentCmp.value) === "factura"
-      ? "Factura"
-      : "Guía"
-    : "OC"
+  sideSwap.value ? (otherTipo(currentCmp.value) === "factura" ? "Factura" : "Guía") : "OC"
 );
 const rightTitle = computed(() =>
   sideSwap.value ? "OC" : otherTipo(currentCmp.value) === "factura" ? "Factura" : "Guía"
@@ -651,6 +668,7 @@ function isImageUrl(url) {
   const base = String(url || "").toLowerCase().split("?")[0];
   return /\.(png|jpe?g|webp|gif|bmp)$/i.test(base);
 }
+
 function isImageDoc(d) {
   const ct = d?.archivo?.contentType || d?.archivo?.mimeType || d?.archivo?.type || "";
   if (ct && String(ct).startsWith("image/")) return true;
@@ -670,7 +688,7 @@ const rightIsImage = computed(() => isImageDoc(rightDoc.value));
 
 const canApprove = computed(() => {
   if (!currentCmp.value) return false;
-  if ((currentCmp.value.estado || "pendiente") !== "pendiente") return false;
+  if (normCmpEstado(currentCmp.value.estado) !== "pendiente") return false;
 
   const oc = currentOc.value;
   const other = currentOther.value;
@@ -684,7 +702,7 @@ const canApprove = computed(() => {
 
 const canReject = computed(() => {
   if (!currentCmp.value) return false;
-  return (currentCmp.value.estado || "pendiente") === "pendiente";
+  return normCmpEstado(currentCmp.value.estado) === "pendiente";
 });
 
 const zoom = ref(1.3);
@@ -709,6 +727,7 @@ let _rightRenderToken = 0;
 
 let _syncLock = false;
 let _rafSync = 0;
+
 const pan = ref({
   active: false,
   from: "left",
@@ -730,6 +749,7 @@ function onPanStart(ev, from) {
   const { src } = getPanEls(from);
   if (!src) return;
   if (ev.pointerType === "mouse" && ev.button !== 0) return;
+
   const tag = String(ev.target?.tagName || "").toLowerCase();
   if (tag === "a" || tag === "button" || tag === "input" || tag === "textarea") return;
 
@@ -744,7 +764,9 @@ function onPanStart(ev, from) {
 
   try {
     src.setPointerCapture(ev.pointerId);
-  } catch (e) {console.log(e)}
+  } catch (e) {
+    console.log(e);
+  }
 
   src.classList.add("is-panning");
   document.body.classList.add("no-select");
@@ -776,7 +798,6 @@ function onPanMove(ev) {
   try {
     src.scrollLeft = nextLeft;
     src.scrollTop = nextTop;
-
     dst.scrollLeft = nextLeft;
     dst.scrollTop = nextTop;
   } finally {
@@ -796,7 +817,9 @@ function onPanEnd() {
 
   try {
     if (src && pan.value.pointerId != null) src.releasePointerCapture(pan.value.pointerId);
-  } catch (e) {console.log(e)}
+  } catch (e) {
+    console.log(e);
+  }
 
   pan.value.active = false;
   pan.value.pointerId = null;
@@ -806,13 +829,13 @@ function onPanEnd() {
   window.removeEventListener("pointercancel", onPanEnd);
 }
 
-
 const pdfCache = new Map();
 
 function clearPdfHost(host) {
   if (!host) return;
   host.innerHTML = "";
 }
+
 async function waitForHost(refEl, tokenOk, tries = 30) {
   for (let i = 0; i < tries; i++) {
     if (!tokenOk()) return null;
@@ -833,6 +856,7 @@ function getScrollRatios(el) {
     rx: el.scrollLeft / maxX,
   };
 }
+
 function setScrollRatios(el, { rx, ry }) {
   if (!el) return;
   const maxY = Math.max(1, el.scrollHeight - el.clientHeight);
@@ -881,11 +905,7 @@ async function renderPdfInto({ hostEl, url, tokenOk, onProgress, fitZoom = 1 }) 
 
   clearPdfHost(hostEl);
 
-  const containerW =
-    hostEl.clientWidth ||
-    hostEl.parentElement?.clientWidth ||
-    820;
-
+  const containerW = hostEl.clientWidth || hostEl.parentElement?.clientWidth || 820;
   const dpr = getDpr();
   const pdf = await getPdfDoc(url);
   const total = pdf.numPages || 1;
@@ -904,12 +924,10 @@ async function renderPdfInto({ hostEl, url, tokenOk, onProgress, fitZoom = 1 }) 
     const canvas = document.createElement("canvas");
     canvas.style.width = `${Math.floor(viewport.width)}px`;
     canvas.style.height = `${Math.floor(viewport.height)}px`;
-
     canvas.width = Math.floor(viewport.width * dpr);
     canvas.height = Math.floor(viewport.height * dpr);
 
     const ctx = canvas.getContext("2d", { alpha: false });
-
     hostEl.appendChild(canvas);
 
     const renderCtx = {
@@ -935,7 +953,6 @@ watch([leftUrl, leftIsImage, zoom, () => currentCmp.value?.id], async () => {
   _leftRenderToken++;
 
   const url = leftUrl.value;
-
   leftLoading.value = !!url;
   clearPdfHost(leftPdfHost.value);
 
@@ -979,7 +996,6 @@ watch([leftUrl, leftIsImage, zoom, () => currentCmp.value?.id], async () => {
     }
   } catch (e) {
     console.warn("PDF left render error:", e);
-
     pdfCache.delete(url);
 
     if (tokenOk()) {
@@ -991,14 +1007,12 @@ watch([leftUrl, leftIsImage, zoom, () => currentCmp.value?.id], async () => {
   }
 });
 
-
 watch([rightUrl, rightIsImage, zoom, () => currentCmp.value?.id], async () => {
   rightError.value = "";
   rightProgress.value = null;
   _rightRenderToken++;
 
   const url = rightUrl.value;
-
   rightLoading.value = !!url;
   clearPdfHost(rightPdfHost.value);
 
@@ -1053,29 +1067,25 @@ watch([rightUrl, rightIsImage, zoom, () => currentCmp.value?.id], async () => {
   }
 });
 
-
 onMounted(() => {
   rejectModal = new bootstrap.Modal(rejectModalEl.value);
 
-  unsubLotes = onSnapshot(
-    query(collection(db, "lotes_docs"), orderBy("createdAt", "desc")),
-    (snap) => {
-      lotes.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  unsubLotes = onSnapshot(query(collection(db, "lotes_docs"), orderBy("createdAt", "desc")), (snap) => {
+    lotes.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      if (!selectedLoteId.value) {
-        const routeLote = route?.params?.loteId ? String(route.params.loteId) : "";
-        const fallback = routeLote || lotesActivos.value[0]?.id || "";
-        selectedLoteId.value = fallback;
+    if (!selectedLoteId.value) {
+      const routeLote = route?.params?.loteId ? String(route.params.loteId) : "";
+      const fallback = routeLote || lotesActivos.value[0]?.id || "";
+      selectedLoteId.value = fallback;
 
-        if (selectedLoteId.value) onChangeLote();
-      } else {
-        const cur = lotes.value.find((l) => l.id === selectedLoteId.value);
-        if (cur && normEstado(cur.estado) === "revision_completada") {
-          switchToNextActiveLoteOrNotice("El lote actual ya fue marcado como revisión completada.");
-        }
+      if (selectedLoteId.value) onChangeLote();
+    } else {
+      const cur = lotes.value.find((l) => l.id === selectedLoteId.value);
+      if (cur && normEstado(cur.estado) === "revision_completada") {
+        switchToNextActiveLoteOrNotice("El lote actual ya fue marcado como revisión completada.");
       }
     }
-  );
+  });
 });
 
 onBeforeUnmount(() => {
@@ -1083,13 +1093,15 @@ onBeforeUnmount(() => {
   if (unsubDocs) unsubDocs();
   if (unsubCmps) unsubCmps();
   if (_rafSync) cancelAnimationFrame(_rafSync);
+  if (_finalizeTimer) clearTimeout(_finalizeTimer);
+
   clearPdfHost(leftPdfHost.value);
   clearPdfHost(rightPdfHost.value);
+
   window.removeEventListener("pointermove", onPanMove);
   window.removeEventListener("pointerup", onPanEnd);
   window.removeEventListener("pointercancel", onPanEnd);
   document.body.classList.remove("no-select");
-
 });
 
 function onChangeLote() {
@@ -1099,6 +1111,7 @@ function onChangeLote() {
   cmps.value = [];
   selectedCmpId.value = "";
   listTab.value = "pendiente";
+  clearQueuedAdvance();
 
   docsReady = false;
   cmpsReady = false;
@@ -1108,10 +1121,7 @@ function onChangeLote() {
   if (unsubCmps) unsubCmps();
 
   unsubDocs = onSnapshot(
-    query(
-      collection(db, "lotes_docs", selectedLoteId.value, "docs"),
-      orderBy("createdAt", "desc")
-    ),
+    query(collection(db, "lotes_docs", selectedLoteId.value, "docs"), orderBy("createdAt", "desc")),
     (snap) => {
       docs.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       docsReady = true;
@@ -1123,16 +1133,11 @@ function onChangeLote() {
   );
 
   unsubCmps = onSnapshot(
-    query(
-      collection(db, "lotes_docs", selectedLoteId.value, "comparaciones"),
-      orderBy("updatedAt", "desc")
-    ),
+    query(collection(db, "lotes_docs", selectedLoteId.value, "comparaciones"), orderBy("updatedAt", "desc")),
     (snap) => {
       cmps.value = snap.docs.map((d) => {
         const data = d.data();
-        const updatedAtText = data?.updatedAt?.toDate
-          ? data.updatedAt.toDate().toLocaleString()
-          : "";
+        const updatedAtText = data?.updatedAt?.toDate ? data.updatedAt.toDate().toLocaleString() : "";
         return { id: d.id, ...data, updatedAtText };
       });
       cmpsReady = true;
@@ -1145,13 +1150,63 @@ function onChangeLote() {
 }
 
 function autoPickIfNone() {
-  if (selectedCmpId.value) return;
+  if (selectedCmpId.value) {
+    const exists = cmps.value.some((x) => x.id === selectedCmpId.value);
+    if (exists) return;
+    selectedCmpId.value = "";
+  }
+
   const first = pendientesFiltradas.value[0];
   if (first) selectedCmpId.value = first.id;
 }
 
 function selectCmp(id) {
   selectedCmpId.value = id;
+}
+
+function getNextPendingCandidateId(currentId, excludePairKey = "") {
+  const list = pendientesFiltradas.value;
+  if (!list.length) return "";
+
+  const idx = list.findIndex((x) => x.id === currentId);
+
+  if (idx >= 0) {
+    for (let step = 1; step <= list.length; step++) {
+      const cand = list[(idx + step) % list.length];
+      if (!cand) continue;
+      if (cand.id === currentId) continue;
+      if (excludePairKey && cmpPairKey(cand) === excludePairKey) continue;
+      return cand.id;
+    }
+  }
+
+  const first = list.find((x) => x.id !== currentId && (!excludePairKey || cmpPairKey(x) !== excludePairKey));
+  return first?.id || "";
+}
+
+function queueAdvanceAfterAction(cmp) {
+  const pairKey = cmpPairKey(cmp);
+  pendingAdvancePairKey.value = pairKey;
+  pendingAdvanceTargetId.value = getNextPendingCandidateId(cmp.id, pairKey);
+}
+
+function applyQueuedAdvance() {
+  const pendientes = pendientesFiltradas.value;
+
+  if (pendingAdvanceTargetId.value && pendientes.some((x) => x.id === pendingAdvanceTargetId.value)) {
+    selectedCmpId.value = pendingAdvanceTargetId.value;
+  } else {
+    selectedCmpId.value = pendientes[0]?.id || "";
+  }
+
+  listTab.value = "pendiente";
+  pendingAdvancePairKey.value = "";
+  pendingAdvanceTargetId.value = "";
+}
+
+function clearQueuedAdvance() {
+  pendingAdvancePairKey.value = "";
+  pendingAdvanceTargetId.value = "";
 }
 
 function normNumber(n) {
@@ -1173,9 +1228,7 @@ function buildOcIndex() {
     const ref = normNumber(d?.deteccion?.refOc);
     if (ref) values.add(ref);
 
-    const candidates = Array.isArray(d?.deteccion?.ocCandidates)
-      ? d.deteccion.ocCandidates
-      : [];
+    const candidates = Array.isArray(d?.deteccion?.ocCandidates) ? d.deteccion.ocCandidates : [];
     for (const c of candidates) {
       const v = normNumber(c?.value);
       if (v) values.add(v);
@@ -1198,21 +1251,19 @@ function buildUsedSets() {
   return { usedOther };
 }
 
-function numbersForOther(doc) {
+function numbersForOther(docData) {
   const nums = [];
 
-  const ref = normNumber(doc?.deteccion?.refOc);
+  const ref = normNumber(docData?.deteccion?.refOc);
   if (ref) nums.push(ref);
 
-  const candidates = Array.isArray(doc?.deteccion?.ocCandidates)
-    ? doc.deteccion.ocCandidates
-    : [];
+  const candidates = Array.isArray(docData?.deteccion?.ocCandidates) ? docData.deteccion.ocCandidates : [];
   for (const c of candidates) {
     const v = normNumber(c?.value);
     if (v && !nums.includes(v)) nums.push(v);
   }
 
-  const selfNum = normNumber(doc.numero);
+  const selfNum = normNumber(docData.numero);
   if (selfNum && !nums.includes(selfNum)) nums.push(selfNum);
 
   return nums;
@@ -1224,7 +1275,6 @@ async function autoMatchComparisons() {
 
   const ocIndex = buildOcIndex();
   const { usedOther } = buildUsedSets();
-
   const nuevosPairs = [];
 
   for (const d of docs.value) {
@@ -1240,29 +1290,33 @@ async function autoMatchComparisons() {
 
     for (const n of nums) {
       const oc = ocIndex.get(n);
-      if (oc && (oc.estado || "pendiente") !== "pendiente") continue;
-      if (oc) {
-        chosenOc = oc;
-        matchedValue = n;
-        break;
-      }
+      if (!oc) continue;
+      if ((oc.estado || "pendiente") !== "pendiente") continue;
+
+      chosenOc = oc;
+      matchedValue = n;
+      break;
     }
 
     if (!chosenOc) continue;
 
-    const exists = cmps.value.some(
-      (c) => c.ocId === chosenOc.id && cmpOtherId(c) === d.id
-    );
-    if (exists) continue;
+
+    const existsInMemory = cmps.value.some((c) => c.ocId === chosenOc.id && cmpOtherId(c) === d.id);
+    if (existsInMemory) continue;
 
     nuevosPairs.push({ oc: chosenOc, other: d, matchedValue });
     usedOther.add(d.id);
   }
 
   for (const pair of nuevosPairs) {
-    await addDoc(
-      collection(db, "lotes_docs", selectedLoteId.value, "comparaciones"),
-      {
+    const cmpId = `${pair.oc.id}__${pair.other.id}`;
+    const cmpRef = doc(db, "lotes_docs", selectedLoteId.value, "comparaciones", cmpId);
+
+    try {
+      const existsSnap = await getDoc(cmpRef);
+      if (existsSnap.exists()) continue;
+
+      await setDoc(cmpRef, {
         ocId: pair.oc.id,
         otherId: pair.other.id,
         otherTipo: pair.other.tipo || "factura",
@@ -1273,8 +1327,15 @@ async function autoMatchComparisons() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
-      }
-    );
+      });
+    } catch (e) {
+      console.error("Error creando comparación auto-match:", {
+        cmpId,
+        ocId: pair.oc.id,
+        otherId: pair.other.id,
+        error: e,
+      });
+    }
   }
 }
 
@@ -1282,6 +1343,7 @@ function maybeAutoMatch() {
   if (!selectedLoteId.value) return;
   if (!docsReady || !cmpsReady) return;
   if (autoMatchRunning) return;
+  if (busy.value.on || actionLock.value || finishingLote.value) return;
 
   autoMatchRunning = true;
   autoMatchComparisons()
@@ -1291,9 +1353,26 @@ function maybeAutoMatch() {
     });
 }
 
+watch(
+  () => cmps.value.map((c) => `${c.id}:${normCmpEstado(c.estado)}`).join("|"),
+  () => {
+    if (!pendingAdvancePairKey.value) return;
+
+    const stillPendingSamePair = cmps.value.some(
+      (c) => cmpPairKey(c) === pendingAdvancePairKey.value && normCmpEstado(c.estado) === "pendiente"
+    );
+
+    if (!stillPendingSamePair) {
+      applyQueuedAdvance();
+    }
+  },
+  { flush: "post" }
+);
+
 function selectAllRejectReasons() {
   rejectSelected.value = [...rejectPresets];
 }
+
 function clearRejectReasons() {
   rejectSelected.value = [];
   rejectCustom.value = "";
@@ -1307,34 +1386,55 @@ function openRejectModal() {
 
 async function approveOnly() {
   if (!canApprove.value) return;
+  if (actionLock.value) return;
+
+  const loteId = selectedLoteId.value;
+  if (!loteId) {
+    alert("No hay lote seleccionado.");
+    return;
+  }
+
+  actionLock.value = true;
 
   const cmp = currentCmp.value;
   const oc = currentOc.value;
   const other = currentOther.value;
 
+  if (!cmp) {
+    actionLock.value = false;
+    return;
+  }
+
+  const twinCmpIds = getPendingTwinCmpIds(cmp);
+  queueAdvanceAfterAction(cmp);
+
   try {
     setBusy(true, "Aprobando…", "Marcando estados en Firestore", 35);
 
-    await updateDoc(
-      doc(db, "lotes_docs", selectedLoteId.value, "comparaciones", cmp.id),
-      {
-        estado: "aprobado",
-        comentario: (cmp?.comentario || "").toString(),
-        aprobado: { at: serverTimestamp(), by: actorName.value },
-        updatedAt: serverTimestamp(),
-        updatedBy: actorName.value,
-      }
+    const cmpIdsToApprove = twinCmpIds.length ? twinCmpIds : [cmp.id];
+
+    await Promise.all(
+      cmpIdsToApprove.map((cmpId) =>
+        updateDoc(doc(db, "lotes_docs", loteId, "comparaciones", cmpId), {
+          estado: "aprobado",
+          comentario: (cmp?.comentario || "").toString(),
+          aprobado: { at: serverTimestamp(), by: actorName.value },
+          updatedAt: serverTimestamp(),
+          updatedBy: actorName.value,
+        })
+      )
     );
 
     if (oc?.id) {
-      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", oc.id), {
+      await updateDoc(doc(db, "lotes_docs", loteId, "docs", oc.id), {
         estado: "aprobado",
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
       });
     }
+
     if (other?.id) {
-      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", other.id), {
+      await updateDoc(doc(db, "lotes_docs", loteId, "docs", other.id), {
         estado: "aprobado",
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
@@ -1342,22 +1442,40 @@ async function approveOnly() {
     }
 
     setBusy(true, "Listo ✅", "Avanzando a la siguiente pendiente…", 100);
-    animateAdvance(cmp.id);
     scheduleFinalizeCheck();
   } catch (err) {
+    clearQueuedAdvance();
     console.error(err);
     alert("Error aprobando: " + (err?.message || String(err)));
   } finally {
     setTimeout(() => setBusy(false), 350);
+    actionLock.value = false;
   }
 }
 
 async function rejectComparison() {
   if (!canReject.value || !finalRejectReason.value.trim()) return;
+  if (actionLock.value) return;
+
+  const loteId = selectedLoteId.value;
+  if (!loteId) {
+    alert("No hay lote seleccionado.");
+    return;
+  }
+
+  actionLock.value = true;
 
   const cmp = currentCmp.value;
   const oc = currentOc.value;
   const other = currentOther.value;
+
+  if (!cmp) {
+    actionLock.value = false;
+    return;
+  }
+
+  const twinCmpIds = getPendingTwinCmpIds(cmp);
+  queueAdvanceAfterAction(cmp);
 
   rejectModal.hide();
 
@@ -1366,31 +1484,35 @@ async function rejectComparison() {
   try {
     setBusy(true, "Rechazando…", "Guardando motivo y actualizando estados", 15);
 
-    await updateDoc(
-      doc(db, "lotes_docs", selectedLoteId.value, "comparaciones", cmp.id),
-      {
-        estado: "rechazado",
-        comentario: motivo,
-        rechazado: {
-          at: serverTimestamp(),
-          by: actorName.value,
-          motivo: motivo,
-        },
-        updatedAt: serverTimestamp(),
-        updatedBy: actorName.value,
-      }
+    const cmpIdsToReject = twinCmpIds.length ? twinCmpIds : [cmp.id];
+
+    await Promise.all(
+      cmpIdsToReject.map((cmpId) =>
+        updateDoc(doc(db, "lotes_docs", loteId, "comparaciones", cmpId), {
+          estado: "rechazado",
+          comentario: motivo,
+          rechazado: {
+            at: serverTimestamp(),
+            by: actorName.value,
+            motivo,
+          },
+          updatedAt: serverTimestamp(),
+          updatedBy: actorName.value,
+        })
+      )
     );
 
     if (other?.id) {
-      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", other.id), {
+      await updateDoc(doc(db, "lotes_docs", loteId, "docs", other.id), {
         estado: "rechazado",
         rechazo: { motivo, at: serverTimestamp(), by: actorName.value },
         updatedAt: serverTimestamp(),
         updatedBy: actorName.value,
       });
     }
+
     if (oc?.id) {
-      await updateDoc(doc(db, "lotes_docs", selectedLoteId.value, "docs", oc.id), {
+      await updateDoc(doc(db, "lotes_docs", loteId, "docs", oc.id), {
         estado: "rechazado",
         rechazo: { motivo, at: serverTimestamp(), by: actorName.value },
         updatedAt: serverTimestamp(),
@@ -1399,47 +1521,25 @@ async function rejectComparison() {
     }
 
     setBusy(true, "Listo ✅", "Avanzando a la siguiente pendiente…", 100);
-    animateAdvance(cmp.id);
     scheduleFinalizeCheck();
   } catch (err) {
+    clearQueuedAdvance();
     console.error(err);
     alert("Error rechazando: " + (err?.message || String(err)));
   } finally {
     setTimeout(() => setBusy(false), 350);
+    actionLock.value = false;
   }
-}
-
-function animateAdvance(currentId) {
-  const list = pendientesFiltradas.value;
-  if (!list.length) {
-    selectedCmpId.value = "";
-    listTab.value = "pendiente";
-    return;
-  }
-
-  const idx = list.findIndex((x) => x.id === currentId);
-  if (idx >= 0) {
-    for (let step = 1; step <= list.length; step++) {
-      const cand = list[(idx + step) % list.length];
-      if (cand && cand.id !== currentId) {
-        selectedCmpId.value = cand.id;
-        return;
-      }
-    }
-  }
-
-  const first = list.find((x) => x.id !== currentId) || null;
-  selectedCmpId.value = first ? first.id : "";
-  if (!first) listTab.value = "pendiente";
 }
 
 watch(
-  () => [selectedLoteId.value, loadingData.value, autoMatchRunning, pendientesFiltradas.value.length],
-  ([loteId, isLoading, isAutoMatching, pendingCount]) => {
+  () => [selectedLoteId.value, loadingData.value, autoMatchRunning, pendientesFiltradas.value.length, actionLock.value],
+  ([loteId, isLoading, isAutoMatching, pendingCount, isActionLocked]) => {
     if (!loteId) return;
     if (isLoading) return;
     if (isAutoMatching) return;
     if (finishingLote.value) return;
+    if (isActionLocked) return;
 
     if (pendingCount === 0) {
       scheduleFinalizeCheck();
@@ -1447,18 +1547,18 @@ watch(
   }
 );
 
-
 async function completeCurrentLoteAndAdvance() {
   const loteId = selectedLoteId.value;
   if (!loteId) return;
-
   if (finishingLote.value) return;
+  if (actionLock.value) return;
+
   finishingLote.value = true;
 
   try {
     setBusy(true, "Finalizando lote…", "Verificando que no queden pendientes", 10);
-    const snap = await getDocs(collection(db, "lotes_docs", loteId, "comparaciones"));
 
+    const snap = await getDocs(collection(db, "lotes_docs", loteId, "comparaciones"));
     const stillPending = snap.docs.some((d) => {
       const data = d.data() || {};
       return normCmpEstado(data.estado) === "pendiente";
@@ -1494,6 +1594,8 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
   if (next?.id) {
     noLotesNotice.value = messageWhenSwitch || "";
     selectedLoteId.value = next.id;
+
+    if (busy.value.on || actionLock.value) return;
     onChangeLote();
     return;
   }
@@ -1503,6 +1605,7 @@ async function switchToNextActiveLoteOrNotice(messageWhenSwitch) {
   cmps.value = [];
   selectedCmpId.value = "";
   listTab.value = "pendiente";
+  clearQueuedAdvance();
 
   noLotesNotice.value = "No hay lotes de docs pendientes para revisar.";
 }
