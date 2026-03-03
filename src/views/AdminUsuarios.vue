@@ -24,6 +24,8 @@
           </button>
         </div>
       </div>
+
+      <!-- Filtros escritorio -->
       <div class="card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
@@ -54,6 +56,8 @@
           </div>
         </div>
       </div>
+
+      <!-- Tabla -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">Usuarios</div>
@@ -118,6 +122,7 @@
                         {{ u.email || '—' }}
                       </div>
                     </td>
+
                     <td class="d-none d-md-table-cell">
                       <div class="d-flex flex-wrap gap-1">
                         <span
@@ -139,7 +144,8 @@
                       <span class="badge bg-secondary-subtle text-secondary-emphasis">
                         {{ u.role || '—' }}
                       </span>
-                      <div class="small text-secondary mt-1" v-if="(u.menuPerms?.allow?.length || 0) > 0 || (u.menuPerms?.deny?.length || 0) > 0">
+                      <div class="small text-secondary mt-1"
+                           v-if="(u.menuPerms?.allow?.length || 0) > 0 || (u.menuPerms?.deny?.length || 0) > 0">
                         <span class="me-2" v-if="(u.menuPerms?.allow?.length || 0) > 0">
                           <i class="bi bi-shield-check me-1"></i>Permitido: {{ u.menuPerms.allow.length }}
                         </span>
@@ -149,8 +155,9 @@
                       </div>
                     </td>
 
-                    <td class="d-none d-lg-table-cell">{{ u.phone || '—' }}</td>
+                    <td class="d-none d-lg-table-cell">{{ fmtPhone(u.phone) }}</td>
                     <td class="d-none d-lg-table-cell">{{ u.rut || '—' }}</td>
+
                     <td class="d-none d-xl-table-cell">
                       <div v-if="(u.centrosAsignados||[]).length===0" class="text-secondary small">—</div>
                       <div v-else class="d-flex flex-wrap gap-1">
@@ -199,6 +206,7 @@
 
               </table>
             </div>
+
             <div class="card-footer">
               <nav class="overflow-auto">
                 <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
@@ -222,6 +230,8 @@
           </div>
         </div>
       </div>
+
+      <!-- Offcanvas crear/editar -->
       <div v-if="offOpen" class="offcanvas-backdrop" @click.self="cerrarOff">
         <div class="offcanvas-panel">
           <div class="offcanvas-header">
@@ -241,21 +251,62 @@
                 <input class="form-control" type="email" v-model="form.email" placeholder="email@dominio.com" />
               </div>
 
+              <!-- ✅ Password show/hide -->
               <div class="col-12" v-if="!esEdicion">
                 <label class="form-label">Contraseña (solo para crear en Auth)</label>
-                <input class="form-control" type="password" v-model="form.password" placeholder="Mín. 6 caracteres" />
+                <div class="input-group">
+                  <input
+                    class="form-control"
+                    :type="showPassword ? 'text' : 'password'"
+                    v-model="form.password"
+                    placeholder="Mín. 6 caracteres"
+                    autocomplete="new-password"
+                  />
+                  <button class="btn btn-outline-secondary" type="button" @click="showPassword = !showPassword">
+                    <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                  </button>
+                </div>
                 <div class="form-text">No se guarda en Firestore.</div>
               </div>
 
+              <!-- ✅ Teléfono CL -->
               <div class="col-12 col-sm-6">
-                <label class="form-label">Teléfono</label>
-                <input class="form-control" v-model="form.phone" placeholder="+569..." />
+                <label class="form-label">Teléfono (Celular CL)</label>
+                <input
+                  class="form-control"
+                  type="tel"
+                  inputmode="numeric"
+                  autocomplete="tel"
+                  :class="phoneClass"
+                  :value="form.phone"
+                  @input="onPhoneInput"
+                  placeholder="+56 9 1234 5678"
+                />
+                <div v-if="phoneStatus === false" class="invalid-feedback d-block">
+                  Teléfono inválido. Usa formato CL: +56 9 1234 5678.
+                </div>
+                <div v-else class="form-text">
+                  Se normaliza a E.164: <strong>{{ phoneE164 || '—' }}</strong>
+                </div>
               </div>
 
+              <!-- ✅ RUT con formato + validación -->
               <div class="col-12 col-sm-6">
                 <label class="form-label">RUT</label>
-                <input class="form-control" v-model="form.rut" placeholder="99.999.999-9" />
+                <input
+                  class="form-control"
+                  inputmode="text"
+                  autocomplete="off"
+                  :class="rutClass"
+                  :value="form.rut"
+                  @input="onRutInput"
+                  placeholder="12.345.678-5"
+                />
+                <div v-if="rutStatus === false" class="invalid-feedback d-block">
+                  RUT inválido (DV no coincide).
+                </div>
               </div>
+
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Empresas</label>
@@ -303,6 +354,8 @@
                 </select>
               </div>
 
+              <!-- (todo tu bloque de permisos + contratos igual que antes) -->
+              <!-- ===== PERMISOS MENU ===== -->
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Permisos de menú</label>
@@ -416,6 +469,8 @@
                   </div>
                 </div>
               </div>
+
+              <!-- ===== CONTRATOS ===== -->
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Contratos asignados</label>
@@ -488,6 +543,8 @@
           </div>
         </div>
       </div>
+
+      <!-- Offcanvas filtros móvil -->
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
@@ -524,6 +581,8 @@
           </div>
         </div>
       </div>
+
+      <!-- Toasts -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2"
@@ -535,6 +594,8 @@
       </div>
 
     </div>
+
+    <!-- Confirm modal -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -560,7 +621,7 @@
               <strong>{{ (confirmRow?.empresas||[]).join(', ') || '—' }}</strong>
             </li>
             <li><span class="text-secondary">Rol:</span> <strong>{{ confirmRow?.role || '—' }}</strong></li>
-            <li><span class="text-secondary">Teléfono:</span> <strong>{{ confirmRow?.phone || '—' }}</strong></li>
+            <li><span class="text-secondary">Teléfono:</span> <strong>{{ fmtPhone(confirmRow?.phone) }}</strong></li>
             <li><span class="text-secondary">RUT:</span> <strong>{{ confirmRow?.rut || '—' }}</strong></li>
           </ul>
         </div>
@@ -581,11 +642,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { db, app } from '../stores/firebase';
-import {
-  collection, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp
-} from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const centrosCosto = {
@@ -602,16 +661,16 @@ const centrosCosto = {
   "22368": "CONTRATO 22368 SUM HORMIGON DET",
   "28662": "CONTRATO 28662 CARPETAS",
   "29207": "CONTRATO 29207 MINERIA",
-  "23302": "CONTRATO MANTENCIÓN Y REPARACIÓN DE INFRAESTRUCTURA DAND",
+  "23302": "CONTRATO 23302",
   "SANJOAQUIN": "SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN",
   "CANECHE": "CONTRATO TALLER CANECHE",
   "30-10-11": "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM",
-  '10-10-20': 'TALLER SAN BERNARDO',
-  '31155': 'DIVISION ANDINA 4600031155',
-  '23302':'CONTRATO 23302'
+  "10-10-20": "TALLER SAN BERNARDO",
+  "31155": "DIVISION ANDINA 4600031155"
 };
 const ccLista = Object.entries(centrosCosto).map(([key, label]) => ({ key, label }));
 const nombreContrato = (k) => centrosCosto[k] || k;
+
 const FUNCTIONS_REGION = 'southamerica-west1';
 const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor',"Recepcion_OC","CargadorDoc"];
 const empresasDisponibles = ['Xtreme Servicio', 'Xtreme Mining', 'Xtreme Hormigones'];
@@ -648,13 +707,151 @@ const MENU_KEYS = [
   { key: 'AiInspectorView', label: 'Chatbot', group: 'General' },
 ];
 
-const permGroups = computed(() => {
-  const set = new Set(MENU_KEYS.map(x => x.group));
-  return Array.from(set);
-});
+const permGroups = computed(() => Array.from(new Set(MENU_KEYS.map(x => x.group))));
 const labelFromKey = (k) => MENU_KEYS.find(x => x.key === k)?.label || k;
 
+/** =========================
+ *  ✅ Responsive helper (paginación)
+ * ========================= */
+const isSmallScreen = ref(false);
+let mql = null;
+const onMqlChange = (e) => { isSmallScreen.value = !!e.matches; };
 
+onMounted(() => {
+  mql = window.matchMedia?.('(max-width: 576px)') || null;
+  if (mql) {
+    isSmallScreen.value = mql.matches;
+    if (mql.addEventListener) mql.addEventListener('change', onMqlChange);
+    else mql.addListener(onMqlChange);
+  }
+  cargarUsuarios();
+});
+
+onBeforeUnmount(() => {
+  if (!mql) return;
+  if (mql.removeEventListener) mql.removeEventListener('change', onMqlChange);
+  else mql.removeListener(onMqlChange);
+});
+
+/** =========================
+ *  ✅ Formateos: Teléfono CL + RUT
+ * ========================= */
+const digitsOnly = (s) => String(s || '').replace(/\D/g, '');
+const cleanRut = (v) => String(v || '').toUpperCase().replace(/[^0-9K]/g, '');
+
+const rutDV = (body) => {
+  let sum = 0;
+  let mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += Number(body[i]) * mul;
+    mul = (mul === 7) ? 2 : (mul + 1);
+  }
+  const res = 11 - (sum % 11);
+  if (res === 11) return '0';
+  if (res === 10) return 'K';
+  return String(res);
+};
+
+const formatRut = (v) => {
+  const s = cleanRut(v);
+  if (s.length <= 1) return s;
+  const body = s.slice(0, -1);
+  const dv = s.slice(-1);
+  let out = '';
+  let c = 0;
+  for (let i = body.length - 1; i >= 0; i--) {
+    out = body[i] + out;
+    c++;
+    if (c % 3 === 0 && i !== 0) out = '.' + out;
+  }
+  return `${out}-${dv}`;
+};
+
+const isRutValid = (rut) => {
+  const s = cleanRut(rut);
+  if (s.length < 2) return false;
+  const body = s.slice(0, -1);
+  const dv = s.slice(-1);
+  if (!/^\d+$/.test(body)) return false;
+  return rutDV(body) === dv;
+};
+
+const normalizePhoneCL = (input) => {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+
+  // Si viene con +, dejamos solo + y dígitos
+  if (raw.startsWith('+')) {
+    const d = digitsOnly(raw);
+    return d ? `+${d}` : '';
+  }
+
+  const d = digitsOnly(raw);
+
+  // 9 dígitos (celular sin código) => +56
+  if (d.length === 9 && d.startsWith('9')) return `+56${d}`;
+
+  // 11 dígitos 569xxxxxxxx => +569xxxxxxxx
+  if (d.length === 11 && d.startsWith('569')) return `+${d}`;
+
+  return '';
+};
+
+const formatPhoneCLUI = (input) => {
+  const e164 = normalizePhoneCL(input);
+  if (!e164) return String(input || '').trim();
+
+  // +56912345678 => +56 9 1234 5678
+  if (e164.startsWith('+569') && e164.length === 12) {
+    const rest = e164.slice(4); // 8 dígitos
+    return `+56 9 ${rest.slice(0,4)} ${rest.slice(4)}`;
+  }
+  // +56 + 9 dígitos => (igual dejamos razonable)
+  if (e164.startsWith('+56') && e164.length === 12) {
+    const local = e164.slice(3); // 9 dígitos
+    return `+56 ${local[0]} ${local.slice(1,5)} ${local.slice(5)}`;
+  }
+  return e164;
+};
+
+const onRutInput = (ev) => {
+  const v = ev?.target?.value ?? '';
+  form.value.rut = formatRut(v);
+};
+
+const onPhoneInput = (ev) => {
+  const v = ev?.target?.value ?? '';
+  form.value.phone = formatPhoneCLUI(v);
+};
+
+const phoneE164 = computed(() => normalizePhoneCL(form.value.phone));
+const phoneStatus = computed(() => {
+  if (!String(form.value.phone || '').trim()) return null;
+  return !!phoneE164.value;
+});
+const phoneClass = computed(() => ({
+  'is-valid': phoneStatus.value === true,
+  'is-invalid': phoneStatus.value === false
+}));
+
+const rutStatus = computed(() => {
+  if (!String(form.value.rut || '').trim()) return null;
+  return isRutValid(form.value.rut);
+});
+const rutClass = computed(() => ({
+  'is-valid': rutStatus.value === true,
+  'is-invalid': rutStatus.value === false
+}));
+
+const fmtPhone = (v) => {
+  const s = String(v || '').trim();
+  if (!s) return '—';
+  return formatPhoneCLUI(s);
+};
+
+/** =========================
+ *  Estado / filtros / paginado
+ * ========================= */
 const cargando = ref(true);
 const usuarios = ref([]);
 
@@ -668,6 +865,8 @@ const offOpen = ref(false);
 const esEdicion = ref(false);
 const filtrosOpen = ref(false);
 
+const showPassword = ref(false);
+
 const form = ref({
   uid:'', email:'', fullName:'', phone:'', rut:'', role:'', password:'',
   empresas: [],
@@ -678,8 +877,6 @@ const form = ref({
 const accionando = ref(false);
 const accionandoContratos = ref(false);
 const uidEnAccion = ref(null);
-
-const sanitizePhone = (s) => String(s || '').trim().replace(/[^\d+]/g, '');
 
 const normalizeMenuPerms = (mp) => {
   const obj = mp && typeof mp === 'object' ? mp : {};
@@ -721,7 +918,6 @@ const seleccionarTodosVisibles = () => {
   form.value.centrosAsignados = Array.from(set);
 };
 
-
 const permSearchAllow = ref('');
 const permSearchDeny = ref('');
 
@@ -733,7 +929,6 @@ const permsAllowFilteredByGroup = (group) => {
     .filter(p => !denySet.has(p.key))
     .filter(p => !q || normalizar(p.label).includes(q) || normalizar(p.key).includes(q));
 };
-
 const permsDenyFilteredByGroup = (group) => {
   const q = normalizar(permSearchDeny.value);
   const allowSet = new Set(form.value.menuPerms.allow || []);
@@ -742,7 +937,6 @@ const permsDenyFilteredByGroup = (group) => {
     .filter(p => !allowSet.has(p.key))
     .filter(p => !q || normalizar(p.label).includes(q) || normalizar(p.key).includes(q));
 };
-
 
 const toggleAllow = (key, checked) => {
   const k = String(key);
@@ -753,7 +947,6 @@ const toggleAllow = (key, checked) => {
   form.value.menuPerms.allow = Array.from(allow);
   form.value.menuPerms.deny  = Array.from(deny);
 };
-
 const toggleDeny = (key, checked) => {
   const k = String(key);
   const allow = new Set(form.value.menuPerms.allow || []);
@@ -763,15 +956,8 @@ const toggleDeny = (key, checked) => {
   form.value.menuPerms.allow = Array.from(allow);
   form.value.menuPerms.deny  = Array.from(deny);
 };
-
-const removeAllow = (k) => {
-  const key = String(k);
-  form.value.menuPerms.allow = (form.value.menuPerms.allow || []).filter(x => x !== key);
-};
-const removeDeny = (k) => {
-  const key = String(k);
-  form.value.menuPerms.deny = (form.value.menuPerms.deny || []).filter(x => x !== key);
-};
+const removeAllow = (k) => { form.value.menuPerms.allow = (form.value.menuPerms.allow || []).filter(x => x !== String(k)); };
+const removeDeny  = (k) => { form.value.menuPerms.deny  = (form.value.menuPerms.deny  || []).filter(x => x !== String(k)); };
 
 const limpiarDeny = () => { form.value.menuPerms.deny = []; };
 const limpiarPermisosMenu = () => {
@@ -779,26 +965,26 @@ const limpiarPermisosMenu = () => {
   permSearchAllow.value = '';
   permSearchDeny.value = '';
 };
-
 function selectAllAllow() {
   const deny = new Set(form.value.menuPerms.deny || []);
   const allow = new Set(form.value.menuPerms.allow || []);
-
-  for (const p of MENU_KEYS) {
-    if (!deny.has(p.key)) allow.add(p.key);
-  }
+  for (const p of MENU_KEYS) if (!deny.has(p.key)) allow.add(p.key);
   form.value.menuPerms.allow = Array.from(allow);
 }
 function selectAllDeny() {
   const allow = new Set(form.value.menuPerms.allow || []);
   const deny = new Set(form.value.menuPerms.deny || []);
-
-  for (const p of MENU_KEYS) {
-    if (!allow.has(p.key)) deny.add(p.key);
-  }
+  for (const p of MENU_KEYS) if (!allow.has(p.key)) deny.add(p.key);
   form.value.menuPerms.deny = Array.from(deny);
 }
-
+function seleccionarAllowBasico() {
+  // ejemplo básico (ajusta a tu gusto)
+  const basico = ['solped','historial-solped','historial-oc'];
+  const deny = new Set(form.value.menuPerms.deny || []);
+  const allow = new Set(form.value.menuPerms.allow || []);
+  for (const k of basico) if (!deny.has(k)) allow.add(k);
+  form.value.menuPerms.allow = Array.from(allow);
+}
 
 const toasts = ref([]);
 const addToast = (type, text, timeout=2800) => {
@@ -807,7 +993,6 @@ const addToast = (type, text, timeout=2800) => {
   setTimeout(()=>closeToast(id), timeout);
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
-
 
 const fmtFecha = (f) => {
   try {
@@ -826,14 +1011,13 @@ const mapFunctionsError = (e) => {
     return `Error interno (${det.adminCode}): ${det.adminMessage || 'Sin detalle'}`;
   }
 
-  const key = msg;
-  if (key === 'TOO_SHORT') return 'La contraseña debe tener al menos 6 caracteres.';
-  if (key === 'INVALID_EMAIL') return 'Email inválido.';
-  if (key === 'MISSING_NAME') return 'Falta el nombre.';
-  if (key === 'EMAIL_IN_USE') return 'El email ya está en uso.';
-  if (key === 'USER_NOT_FOUND') return 'El usuario no existe.';
-  if (key === 'INVALID_PHONE') return 'Teléfono inválido. Usa formato +56912345678 (sin espacios).';
-  if (key === 'MISSING_UID') return 'Falta UID.';
+  if (msg === 'TOO_SHORT') return 'La contraseña debe tener al menos 6 caracteres.';
+  if (msg === 'INVALID_EMAIL') return 'Email inválido.';
+  if (msg === 'MISSING_NAME') return 'Falta el nombre.';
+  if (msg === 'EMAIL_IN_USE') return 'El email ya está en uso.';
+  if (msg === 'USER_NOT_FOUND') return 'El usuario no existe.';
+  if (msg === 'INVALID_PHONE') return 'Teléfono inválido. Usa formato +56 9 1234 5678.';
+  if (msg === 'MISSING_UID') return 'Falta UID.';
 
   if (code.includes('already-exists')) return 'El email ya está en uso.';
   if (code.includes('invalid-argument')) return 'Datos inválidos. Revisa los campos.';
@@ -841,9 +1025,8 @@ const mapFunctionsError = (e) => {
   if (code.includes('unauthenticated')) return 'Debes iniciar sesión para esta acción.';
   if (code.includes('permission-denied')) return 'No tienes permisos para esta acción.';
 
-  return `Error de servidor: ${key || code || 'desconocido'}`;
+  return `Error de servidor: ${msg || code || 'desconocido'}`;
 };
-
 
 const cargarUsuarios = async () => {
   cargando.value = true;
@@ -883,7 +1066,6 @@ const cargarUsuarios = async () => {
     cargando.value = false;
   }
 };
-onMounted(cargarUsuarios);
 
 const filtrados = computed(() => {
   const q = (busqueda.value || '').trim().toLowerCase();
@@ -900,14 +1082,14 @@ const filtrados = computed(() => {
     return okNombre && okRol && okEmp;
   });
 });
+
 const totalPaginas = computed(() => Math.max(1, Math.ceil(filtrados.value.length / pageSize)));
 const paginado = computed(() => {
   const start = (paginaActual.value - 1) * pageSize;
   return filtrados.value.slice(start, start + pageSize);
 });
 const visiblePages = computed(() => {
-  const isSmall = window.matchMedia && window.matchMedia('(max-width: 576px)').matches;
-  const maxButtons = isSmall ? 5 : 7;
+  const maxButtons = isSmallScreen.value ? 5 : 7;
   const pages = [];
   let start = Math.max(1, paginaActual.value - Math.floor(maxButtons/2));
   let end = Math.min(totalPaginas.value, start + maxButtons - 1);
@@ -918,9 +1100,9 @@ const visiblePages = computed(() => {
 const goToPage = (n) => { if (n<1 || n>totalPaginas.value) return; paginaActual.value = n; };
 const limpiarFiltros = () => { busqueda.value=''; rolFiltro.value=''; empresaFiltro.value=''; paginaActual.value=1; };
 
-
 const abrirCrear = () => {
   esEdicion.value = false;
+  showPassword.value = false;
   form.value = {
     email:'', fullName:'', role:'', phone:'', rut:'', password:'', uid:'',
     empresas: [],
@@ -935,12 +1117,13 @@ const abrirCrear = () => {
 
 const abrirEditar = (u) => {
   esEdicion.value = true;
+  showPassword.value = false;
   form.value = {
     uid: u.uid,
     email: u.email || '',
     fullName: u.fullName || '',
-    phone: u.phone || '',
-    rut: u.rut || '',
+    phone: formatPhoneCLUI(u.phone || ''),
+    rut: formatRut(u.rut || ''),
     role: u.role || '',
     password: '',
     empresas: Array.isArray(u.empresas) ? [...u.empresas] : [],
@@ -954,9 +1137,7 @@ const abrirEditar = (u) => {
 };
 
 const cerrarOff = () => { offOpen.value = false; };
-
 const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
-
 
 const functions = getFunctions(app, FUNCTIONS_REGION);
 const cfCreate = httpsCallable(functions, 'adminCreateUser');
@@ -965,16 +1146,32 @@ const cfDelete = httpsCallable(functions, 'adminDeleteUser');
 
 const validar = () => {
   const data = form.value;
+
   if (!data.fullName?.trim()) { addToast('warning','Ingresa el nombre completo.'); return false; }
   if (!data.email?.trim())    { addToast('warning','Ingresa el email.'); return false; }
+
   if (!Array.isArray(data.empresas) || data.empresas.length === 0) {
     addToast('warning','Selecciona al menos una empresa.');
     return false;
   }
+
   if (!esEdicion.value && (!data.password || data.password.length < 6)) {
     addToast('warning','La contraseña debe tener al menos 6 caracteres.');
     return false;
   }
+
+  // ✅ Teléfono opcional, pero si hay texto debe ser válido
+  if (String(data.phone || '').trim() && !phoneE164.value) {
+    addToast('warning','Teléfono inválido. Usa formato +56 9 1234 5678.');
+    return false;
+  }
+
+  // ✅ RUT opcional, pero si hay texto debe ser válido
+  if (String(data.rut || '').trim() && rutStatus.value === false) {
+    addToast('warning','RUT inválido.');
+    return false;
+  }
+
   if (!data.role) { addToast('warning','Selecciona un rol.'); return false; }
   return true;
 };
@@ -985,13 +1182,18 @@ const guardar = async () => {
   accionando.value = true;
 
   try {
+    const phone = phoneE164.value || ''; // E164 o vacío
+
     if (!esEdicion.value) {
-      const resp = await cfCreate({
+      // ✅ payload sin phone si está vacío (evita crasheos en Admin SDK)
+      const payload = {
         email: data.email,
         password: data.password,
         displayName: data.fullName,
-        phone: sanitizePhone(data.phone)
-      });
+        ...(phone ? { phone } : {})
+      };
+
+      const resp = await cfCreate(payload);
 
       const uid = resp?.data?.uid;
       if (!uid) { addToast('danger','No llegó UID desde la función.'); return; }
@@ -1000,8 +1202,8 @@ const guardar = async () => {
         uid,
         email: data.email,
         fullName: data.fullName,
-        phone: data.phone || '',
-        rut: data.rut || '',
+        phone: phone || '',
+        rut: formatRut(data.rut || ''),
         role: data.role || '',
         empresas: Array.isArray(data.empresas) ? data.empresas : [],
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
@@ -1013,18 +1215,20 @@ const guardar = async () => {
     } else {
       const uid = data.uid;
 
-      await cfUpdate({
+      const payload = {
         uid,
         email: data.email,
         displayName: data.fullName,
-        phone: sanitizePhone(data.phone)
-      });
+        ...(phone ? { phone } : {}) // ✅ solo si hay phone válido
+      };
+
+      await cfUpdate(payload);
 
       await updateDoc(doc(db, 'Usuarios', uid), {
         email: data.email,
         fullName: data.fullName,
-        phone: data.phone || '',
-        rut: data.rut || '',
+        phone: phone || '',
+        rut: formatRut(data.rut || ''),
         role: data.role || '',
         empresas: Array.isArray(data.empresas) ? data.empresas : [],
         centrosAsignados: Array.isArray(data.centrosAsignados) ? data.centrosAsignados : [],
@@ -1037,11 +1241,11 @@ const guardar = async () => {
     await cargarUsuarios();
     offOpen.value = false;
   } catch (e) {
-    console.error('CALLABLE ERROR =>', {
-      code: e?.code,
-      message: e?.message,
-      details: e?.details
-    });
+    // ✅ Log MUCHO más útil (para pillar el 500 real)
+    console.error('CALLABLE ERROR RAW:', e);
+    console.error('CALLABLE ERROR DATA:', JSON.stringify({
+      code: e?.code, message: e?.message, details: e?.details
+    }, null, 2));
     addToast('danger', mapFunctionsError(e));
   } finally {
     accionando.value = false;
@@ -1059,13 +1263,21 @@ const guardarSoloFirestore = async () => {
     addToast('warning','Selecciona al menos una empresa.');
     return;
   }
+  if (String(form.value.phone || '').trim() && !phoneE164.value) {
+    addToast('warning','Teléfono inválido. Usa formato +56 9 1234 5678.');
+    return;
+  }
+  if (String(form.value.rut || '').trim() && rutStatus.value === false) {
+    addToast('warning','RUT inválido.');
+    return;
+  }
 
   try {
     accionandoContratos.value = true;
     await updateDoc(doc(db, 'Usuarios', uid), {
       fullName: form.value.fullName || '',
-      phone: form.value.phone || '',
-      rut: form.value.rut || '',
+      phone: phoneE164.value || '',
+      rut: formatRut(form.value.rut || ''),
       role: form.value.role || '',
       empresas: Array.isArray(form.value.empresas) ? form.value.empresas : [],
       centrosAsignados: Array.isArray(form.value.centrosAsignados) ? form.value.centrosAsignados : [],
@@ -1077,8 +1289,8 @@ const guardarSoloFirestore = async () => {
       usuarios.value[idx] = {
         ...usuarios.value[idx],
         fullName: form.value.fullName || '',
-        phone: form.value.phone || '',
-        rut: form.value.rut || '',
+        phone: phoneE164.value || '',
+        rut: formatRut(form.value.rut || ''),
         role: form.value.role || '',
         empresas: [...form.value.empresas],
         centrosAsignados: [...form.value.centrosAsignados],
@@ -1094,7 +1306,6 @@ const guardarSoloFirestore = async () => {
     accionandoContratos.value = false;
   }
 };
-
 
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
@@ -1123,11 +1334,10 @@ async function confirmarEliminar(){
     addToast('success','Usuario eliminado.');
     cerrarConfirm();
   } catch (e) {
-    console.error('CALLABLE ERROR =>', {
-      code: e?.code,
-      message: e?.message,
-      details: e?.details
-    });
+    console.error('CALLABLE ERROR RAW:', e);
+    console.error('CALLABLE ERROR DATA:', JSON.stringify({
+      code: e?.code, message: e?.message, details: e?.details
+    }, null, 2));
 
     const msg = mapFunctionsError(e);
 
@@ -1159,7 +1369,6 @@ async function confirmarEliminar(){
   .h4-sm{ font-size: 1.35rem; }
 }
 
-
 .offcanvas-backdrop{
   position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
   background: rgba(0,0,0,.45);
@@ -1175,6 +1384,12 @@ async function confirmarEliminar(){
   animation: slideIn .18s ease-out both;
 }
 .offcanvas-panel-sm{ width: 420px; max-width: 96vw; }
+
+@media (max-width: 576px){
+  .offcanvas-panel{ width: 100vw; max-width: 100vw; border-radius: 0; }
+  .offcanvas-panel-sm{ width: 100vw; max-width: 100vw; border-radius: 0; }
+}
+
 @keyframes slideIn { from{ transform: translateX(20px); opacity:0 } to{ transform:none; opacity:1 } }
 
 .offcanvas-header, .offcanvas-footer{
@@ -1182,7 +1397,6 @@ async function confirmarEliminar(){
 }
 .offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
-
 
 .empresa-box{
   max-height: 140px;
@@ -1192,7 +1406,6 @@ async function confirmarEliminar(){
   padding: .35rem .5rem;
   background: var(--bs-secondary-bg);
 }
-
 .contratos-box{
   max-height: 260px;
   overflow: auto;
@@ -1230,7 +1443,6 @@ async function confirmarEliminar(){
   border-top: 0;
 }
 
-
 .vmodal-backdrop{
   position: fixed; inset: 0; background: rgba(0,0,0,.45);
   z-index: 1090; display: grid; place-items: center; padding: 1rem;
@@ -1259,7 +1471,6 @@ async function confirmarEliminar(){
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-
 .confirm-icon{
   width: 38px; height: 38px; border-radius: 10px;
   display: grid; place-items: center;
@@ -1268,13 +1479,11 @@ async function confirmarEliminar(){
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-
 .table td, .table th{ vertical-align: middle; }
 .table-responsive thead th{
   z-index: 1;
   border-bottom: 1px solid var(--bs-border-color);
 }
-
 .pagination .page-link{ min-width: 34px; text-align:center; }
 
 @media (max-width: 576px){

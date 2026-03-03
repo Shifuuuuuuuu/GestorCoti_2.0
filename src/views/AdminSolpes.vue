@@ -34,6 +34,7 @@
           </button>
         </div>
       </div>
+
       <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
         <small class="text-secondary">Filtros activos:</small>
 
@@ -58,6 +59,7 @@
           Búsqueda por número activa
         </span>
       </div>
+
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
@@ -77,6 +79,7 @@
             </button>
           </div>
         </div>
+
         <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
             <thead class="table-light">
@@ -173,6 +176,7 @@
             </div>
           </div>
         </div>
+
         <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0">
@@ -195,6 +199,7 @@
           </nav>
         </div>
       </div>
+
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -203,6 +208,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Mobile Filters -->
     <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
@@ -243,6 +250,7 @@
                 <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
+
             <div class="col-12 col-sm-6">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <label class="form-label mb-0 fw-semibold">
@@ -277,6 +285,7 @@
                 </button>
               </div>
             </div>
+
             <div class="col-12">
               <label class="form-label">Fecha</label>
               <input class="form-control" type="date" v-model="filtroFecha">
@@ -290,6 +299,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Editor -->
     <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel editor-panel">
         <div class="offcanvas-header editor-header">
@@ -324,6 +335,7 @@
                 <option v-for="s in ESTATUS_OPC" :key="'ed-'+s" :value="s">{{ s }}</option>
               </select>
             </div>
+
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
 
@@ -349,6 +361,7 @@
                 </div>
               </div>
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Usuario</label>
               <input class="form-control" v-model="edit.usuario" placeholder="Ej: ADMIN">
@@ -361,6 +374,7 @@
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="edit.nombre_solped">
             </div>
+
             <div class="col-12">
               <label class="form-label mb-1">Dirigido A</label>
               <div class="d-flex flex-wrap gap-2">
@@ -370,28 +384,81 @@
                 </label>
               </div>
             </div>
+
+            <!-- ✅ MULTI ADJUNTOS (con campos nombre/tamano/tipo/url/comentarios) -->
             <div class="col-12">
-              <label class="form-label">Documento de autorización</label>
-              <div class="d-flex gap-2 flex-wrap">
+              <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
+
+              <div class="d-flex gap-2 flex-wrap align-items-center">
                 <input
                   ref="inputAutorizacionEditEl"
                   id="inputAutorizacionEdit"
                   type="file"
                   class="d-none"
+                  multiple
                   accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivoAutorizacionEdit"
+                  @change="onArchivosAutorizacionEdit"
                 >
                 <button class="btn btn-outline-secondary" @click="abrirSelectorAutorizacionEdit">
-                  <i class="bi bi-paperclip me-1"></i> Seleccionar archivo
+                  <i class="bi bi-paperclip me-1"></i> Agregar archivos
                 </button>
-                <div class="small text-secondary" v-if="edit.autorizacion_nombre">
-                  Actual: <strong>{{ edit.autorizacion_nombre }}</strong>
+
+                <span class="badge text-bg-light border" v-if="(edit.autorizaciones?.length || 0) > 0">
+                  <i class="bi bi-folder2-open me-1"></i> {{ edit.autorizaciones.length }} adjunto(s)
+                </span>
+
+                <span class="badge text-bg-warning border" v-if="archivosAutorizacionEdit.length">
+                  <i class="bi bi-cloud-upload me-1"></i> {{ archivosAutorizacionEdit.length }} para subir
+                </span>
+              </div>
+
+              <div class="mt-2" v-if="(edit.autorizaciones?.length || 0) > 0">
+                <div class="small text-secondary mb-1">Actuales:</div>
+                <div class="list-group">
+                  <div class="list-group-item py-2"
+                       v-for="(a, i) in edit.autorizaciones"
+                       :key="(a.url || a.nombre || 'adj') + '-' + i">
+                    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <div class="small">
+                          <div class="fw-semibold text-truncate" style="max-width: 520px;">
+                            {{ a.nombre || 'archivo' }}
+                          </div>
+                          <div class="text-secondary">
+                            <span v-if="a.tipo">{{ a.tipo }}</span>
+                            <span v-if="a.tamano"> · {{ prettyBytes(a.tamano) }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="d-flex gap-2">
+                        <a v-if="a.url" :href="a.url" target="_blank" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-box-arrow-up-right me-1"></i> Ver
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger" @click="removeAdjuntoEdit(i)">
+                          <i class="bi bi-x-lg me-1"></i> Quitar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div v-if="edit.autorizacion_url" class="mt-2">
-                <a :href="edit.autorizacion_url" target="_blank" class="small">Ver documento</a>
+
+              <div class="mt-2" v-if="archivosAutorizacionEdit.length">
+                <div class="small text-secondary mb-1">Por subir (se agregan al guardar):</div>
+                <div class="d-flex flex-wrap gap-2">
+                  <span class="badge rounded-pill text-bg-warning border"
+                        v-for="(f, idx) in archivosAutorizacionEdit"
+                        :key="f.name + f.size + f.lastModified">
+                    {{ f.name }}
+                    <button class="btn btn-sm btn-link text-dark ms-1 p-0 align-baseline" @click="removePendingEdit(idx)">×</button>
+                  </span>
+                </div>
               </div>
             </div>
+
+            <!-- Ítems -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Ítems</div>
@@ -446,6 +513,7 @@
                   </tbody>
                 </table>
               </div>
+
               <div class="d-block d-sm-none">
                 <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
                 <div class="list-group list-group-flush">
@@ -480,6 +548,8 @@
               </div>
 
             </div>
+
+            <!-- Historial -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Historial de Estados</div>
@@ -511,6 +581,7 @@
                   Sin historial.
                 </div>
               </div>
+
               <div class="card">
                 <div class="card-body">
                   <div class="row g-2">
@@ -555,6 +626,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Nueva -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
@@ -584,6 +657,7 @@
                 <option v-for="s in ESTATUS_OPC" :key="'nw-'+s" :value="s">{{ s }}</option>
               </select>
             </div>
+
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
 
@@ -623,6 +697,7 @@
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="nuevo.nombre_solped">
             </div>
+
             <div class="col-12">
               <label class="form-label mb-1">Dirigido A</label>
               <div class="d-flex flex-wrap gap-2">
@@ -632,28 +707,47 @@
                 </label>
               </div>
             </div>
+
+            <!-- ✅ MULTI ADJUNTOS NUEVA -->
             <div class="col-12">
-              <label class="form-label">Autorización (PDF / imagen / Excel)</label>
-              <div class="d-flex gap-2 flex-wrap">
+              <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
+              <div class="d-flex gap-2 flex-wrap align-items-center">
                 <input
                   ref="inputAutorizacionNuevoEl"
                   id="inputAutorizacionNuevo"
                   type="file"
                   class="d-none"
+                  multiple
                   accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivoAutorizacionNuevo"
+                  @change="onArchivosAutorizacionNuevo"
                 >
                 <button class="btn btn-secondary" @click="abrirSelectorAutorizacionNuevo">
-                  <i class="bi bi-paperclip me-1"></i> Seleccionar archivo
+                  <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
                 </button>
-                <div class="small text-secondary" v-if="nuevo.autorizacion_nombre">
-                  Seleccionado: <strong>{{ nuevo.autorizacion_nombre }}</strong>
+
+                <span class="badge text-bg-warning border" v-if="archivosAutorizacionNuevo.length">
+                  {{ archivosAutorizacionNuevo.length }} seleccionado(s)
+                </span>
+              </div>
+
+              <div class="mt-2" v-if="archivosAutorizacionNuevo.length">
+                <div class="d-flex flex-wrap gap-2">
+                  <span class="badge rounded-pill text-bg-warning border"
+                        v-for="(f, idx) in archivosAutorizacionNuevo"
+                        :key="f.name + f.size + f.lastModified">
+                    {{ f.name }}
+                    <button class="btn btn-sm btn-link text-dark ms-1 p-0 align-baseline" @click="removePendingNuevo(idx)">×</button>
+                  </span>
                 </div>
               </div>
-            </div>
 
+              <div class="form-text mt-1">
+                Se subirán al crear la SOLPED.
+              </div>
+            </div>
           </div>
         </div>
+
         <div class="vmodal-footer">
           <button class="btn btn-secondary" @click="cerrarModalNueva">Cancelar</button>
           <button class="btn btn-primary" :disabled="creando" @click="crearNueva">
@@ -663,6 +757,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Item -->
     <div v-if="modalItem" class="vmodal-backdrop" @click.self="cerrarModalItem">
       <div class="vmodal" style="max-width: 720px;">
         <div class="vmodal-header">
@@ -726,6 +822,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Confirm Delete -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -772,7 +870,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { db } from "../stores/firebase";
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, addDoc, updateDoc, deleteDoc, Timestamp,getDocs
+  doc, addDoc, updateDoc, deleteDoc, Timestamp, getDocs
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
@@ -808,9 +906,9 @@ const centrosCosto = {
   "SANJOAQUIN": "SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN",
   "CANECHE": "CONTRATO TALLER CANECHE",
   "30-10-11": "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM",
-  '10-10-20': 'TALLER SAN BERNARDO',
-  '31155': 'DIVISION ANDINA 4600031155',
-  '23302':'CONTRATO 23302'
+  "10-10-20": "TALLER SAN BERNARDO",
+  "31155": "DIVISION ANDINA 4600031155",
+  "23302": "CONTRATO 23302"
 };
 const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}));
 
@@ -826,7 +924,6 @@ let unsubList = null;
 const buscarNumero = ref("");
 const busquedaActiva = ref(false);
 let unsubSearch = null;
-
 
 const filtroFecha = ref("");
 const filtroUsuario = ref("");
@@ -855,7 +952,6 @@ async function cargarUsuariosCreadoras({ force = false } = {}) {
   if (usuariosLoadedOnce.value && !force) return;
 
   usuariosLoading.value = true;
-
   try {
     const set = new Set();
     let cursor = null;
@@ -947,6 +1043,139 @@ const visiblePageButtons = computed(() => {
   return pages;
 });
 
+/** =========================
+ * ✅ Adjuntos (formato EXACTO)
+ * autorizaciones: [{nombre,tamano,tipo,url,comentarios:[]}]
+ * storage: solped_adjuntos/<Empresa>_<numero_solpe>/<ts>/<archivo>
+ * ========================= */
+const inputAutorizacionEditEl = ref(null);
+const inputAutorizacionNuevoEl = ref(null);
+
+const archivosAutorizacionEdit = ref([]);  // Files pendientes edición
+const archivosAutorizacionNuevo = ref([]); // Files pendientes nueva
+
+function abrirSelectorAutorizacionEdit(){ inputAutorizacionEditEl.value?.click(); }
+function abrirSelectorAutorizacionNuevo(){ inputAutorizacionNuevoEl.value?.click(); }
+
+function uniqFilesMerge(prev, filesToAdd){
+  const map = new Map();
+  for (const f of prev) map.set(`${f.name}-${f.size}-${f.lastModified}`, f);
+  for (const f of filesToAdd) map.set(`${f.name}-${f.size}-${f.lastModified}`, f);
+  return Array.from(map.values());
+}
+function onArchivosAutorizacionEdit(e){
+  const list = Array.from(e?.target?.files || []);
+  if (!list.length) return;
+  archivosAutorizacionEdit.value = uniqFilesMerge(archivosAutorizacionEdit.value, list);
+  if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
+}
+function onArchivosAutorizacionNuevo(e){
+  const list = Array.from(e?.target?.files || []);
+  if (!list.length) return;
+  archivosAutorizacionNuevo.value = uniqFilesMerge(archivosAutorizacionNuevo.value, list);
+  if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
+}
+function removePendingEdit(idx){ archivosAutorizacionEdit.value.splice(idx, 1); }
+function removePendingNuevo(idx){ archivosAutorizacionNuevo.value.splice(idx, 1); }
+
+function removeAdjuntoEdit(i){
+  const arr = Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : [];
+  arr.splice(i, 1);
+  edit.value.autorizaciones = arr;
+}
+
+function prettyBytes(bytes){
+  try{
+    const b = Number(bytes || 0);
+    if (!b) return "0 B";
+    const units = ["B","KB","MB","GB"];
+    let v = b;
+    let i = 0;
+    while (v >= 1024 && i < units.length-1){ v/=1024; i++; }
+    return `${v.toFixed(i===0?0:1)} ${units[i]}`;
+  }catch{
+    return "";
+  }
+}
+
+// "Xtreme Servicio" => "Xtreme_Servicio"
+function slugEmpresa(emp){
+  return String(emp || "Empresa")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^\w\-]/g, "");
+}
+function safeFileName(name){
+  return String(name || "archivo")
+    .replace(/[^\w.\-() ]+/g, "_")
+    .trim();
+}
+
+// lee adjuntos existentes (acepta tu formato exacto + compat)
+function normalizeAdjuntosFromRow(row){
+  const arr = Array.isArray(row?.autorizaciones) ? row.autorizaciones : [];
+
+  // si viene con el formato exacto: {nombre,tamano,tipo,url,comentarios}
+  if (arr.length) {
+    return arr.map(a => ({
+      nombre: a?.nombre ?? a?.name ?? "archivo",
+      tamano: Number(a?.tamano ?? a?.size ?? 0) || 0,
+      tipo: a?.tipo ?? a?.contentType ?? "",
+      url: a?.url ?? a?.downloadURL ?? null,
+      comentarios: Array.isArray(a?.comentarios) ? a.comentarios : []
+    }));
+  }
+
+  // compat con campos viejos sueltos
+  if (row?.autorizacion_url || row?.autorizacion_nombre) {
+    return [{
+      nombre: row.autorizacion_nombre || "autorizacion",
+      tamano: Number(row.autorizacion_size ?? 0) || 0,
+      tipo: row.autorizacion_contentType || "",
+      url: row.autorizacion_url || null,
+      comentarios: []
+    }];
+  }
+
+  return [];
+}
+
+// sube N archivos y retorna maps con {nombre,tamano,tipo,url,comentarios:[]}
+async function uploadAdjuntos({ solpeId, empresa, numero_solpe }, files){
+  if (!files?.length) return [];
+  const storage = getStorage();
+
+  const empresaSlug = slugEmpresa(empresa);
+  const folio = (numero_solpe != null && numero_solpe !== "" && !isNaN(Number(numero_solpe)))
+    ? String(Number(numero_solpe))
+    : String(solpeId);
+
+  const baseFolder = `solped_adjuntos/${empresaSlug}_${folio}`;
+  const batchFolder = `${Date.now()}`;
+
+  const results = [];
+  for (const f of files) {
+    const fileName = safeFileName(f.name);
+    const path = `${baseFolder}/${batchFolder}/${fileName}`;
+
+    const sRef = sref(storage, path);
+    const up = await uploadBytes(sRef, f);
+    const url = await getDownloadURL(up.ref);
+
+    results.push({
+      nombre: f.name || fileName,
+      tamano: Number(f.size || 0),
+      tipo: f.type || "",
+      url,
+      comentarios: []
+    });
+  }
+  return results;
+}
+
+/** =========================
+ * Subs / Listado / Filtros (igual)
+ * ========================= */
 function cleanupSubs(){
   if (unsubList){ unsubList(); unsubList=null; }
   if (unsubSearch){ unsubSearch(); unsubSearch=null; }
@@ -957,11 +1186,7 @@ function cleanupSubs(){
 
 function cargarUsuarios(){
   try{
-    const qy = query(
-      collection(db, "solpes"),
-      orderBy("usuario"),
-      limit(500)
-    );
+    const qy = query(collection(db, "solpes"), orderBy("usuario"), limit(500));
     unsubUsuarios = onSnapshot(qy, (snap) => {
       const set = new Set();
       snap.forEach(d => {
@@ -1096,12 +1321,7 @@ function buildFilterQuery(){
     wh.push(where("estatus","in", filtroEstatus.value));
   }
 
-  return query(
-    collection(db, "solpes"),
-    ...wh,
-    order,
-    limit(120)
-  );
+  return query(collection(db, "solpes"), ...wh, order, limit(120));
 }
 
 function aplicarFiltros(){
@@ -1149,10 +1369,8 @@ const badgeClass = (estatus) => {
   const s = ((estatus || '') + '').toLowerCase();
   if (s.includes('complet'))   return 'bg-success-subtle text-success-emphasis';
   if (s.includes('cotiz'))     return 'bg-info-subtle text-info-emphasis';
-  if (s.includes('rechaz') || s.includes('escala'))
-                               return 'bg-danger-subtle text-danger-emphasis';
-  if (s.includes('revisión') || s.includes('revision'))
-                               return 'bg-warning-subtle text-warning-emphasis';
+  if (s.includes('rechaz') || s.includes('escala')) return 'bg-danger-subtle text-danger-emphasis';
+  if (s.includes('revisión') || s.includes('revision')) return 'bg-warning-subtle text-warning-emphasis';
   if (s.includes('pendiente')) return 'bg-secondary-subtle text-secondary-emphasis';
   if (s.includes('parcial'))   return 'bg-primary-subtle text-primary-emphasis';
   if (s.includes('proveedor')) return 'bg-dark-subtle text-dark-emphasis';
@@ -1165,9 +1383,9 @@ function mobileApplyFilters(){
   mobileFiltersOpen.value = false;
 }
 
-const inputAutorizacionEditEl = ref(null);
-const inputAutorizacionNuevoEl = ref(null);
-
+/** =========================
+ * Editor / Nueva / Historial (solo cambiamos adjuntos)
+ * ========================= */
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
@@ -1176,24 +1394,10 @@ const guardando = ref(false);
 const selectedCentroEditKey = ref("");
 const selectedCentroEditName = ref("");
 
-const archivoAutorizacionEdit = ref(null);
-
 const historialEstadosLive = ref([]);
 let unsubHistorial = null;
 const guardandoHist = ref(false);
-const histForm = ref({
-  fechaInput: "",
-  estatus: "",
-  comentario: "",
-  usuario: ""
-});
-
-function abrirSelectorAutorizacionEdit(){
-  inputAutorizacionEditEl.value?.click();
-}
-function abrirSelectorAutorizacionNuevo(){
-  inputAutorizacionNuevoEl.value?.click();
-}
+const histForm = ref({ fechaInput: "", estatus: "", comentario: "", usuario: "" });
 
 function setCentroFromKey(targetObj, key){
   if (!key || !centrosCosto[key]) {
@@ -1210,7 +1414,6 @@ function setCentroFromName(targetObj, name){
   setCentroFromKey(targetObj, key);
   return key;
 }
-
 
 function onCentroEditKeyChange(){
   setCentroFromKey(edit.value, selectedCentroEditKey.value);
@@ -1264,7 +1467,7 @@ function pickRowDate(row){
       const d = new Date(row.fecha_str);
       if (!isNaN(d.getTime())) return d;
     }
-  }catch(e){console.log(e)}
+  }catch(e){ console.log(e) }
   return null;
 }
 
@@ -1280,8 +1483,9 @@ function abrirEditor(row){
     __fecha_ts: originalTs,
     __fecha_str: originalStr,
 
-    autorizacion_nombre: row.autorizacion_nombre ?? null,
-    autorizacion_url: row.autorizacion_url ?? null,
+    // ✅ adjuntos en formato exacto
+    autorizaciones: normalizeAdjuntosFromRow(row),
+
     dirigidoA: Array.isArray(row.dirigidoA) ? [...row.dirigidoA] : [],
     empresa: row.empresa ?? "Xtreme Servicio",
     estatus: row.estatus ?? "Pendiente",
@@ -1308,7 +1512,8 @@ function abrirEditor(row){
   resetHistForm();
 
   editorAbierto.value = true;
-  archivoAutorizacionEdit.value = null;
+  archivosAutorizacionEdit.value = [];
+  if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
 }
 
 const irADetalle = (row) => {
@@ -1321,7 +1526,7 @@ function cerrarEditor(){
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
-  archivoAutorizacionEdit.value = null;
+  archivosAutorizacionEdit.value = [];
   selectedCentroEditKey.value = "";
   selectedCentroEditName.value = "";
   if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
@@ -1331,18 +1536,22 @@ function cerrarEditor(){
 async function guardarEdicion(){
   if (!seleccion.value) return;
   guardando.value = true;
+
   try {
     const id = seleccion.value.__id;
     const dref = doc(db, "solpes", id);
 
-    if (archivoAutorizacionEdit.value) {
-      const storage = getStorage();
-      const path = `solpes/${id}/autorizacion/${Date.now()}_${archivoAutorizacionEdit.value.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, archivoAutorizacionEdit.value);
-      const url = await getDownloadURL(up.ref);
-      edit.value.autorizacion_url = url;
-      edit.value.autorizacion_nombre = archivoAutorizacionEdit.value.name;
+    // ✅ Subir nuevos adjuntos
+    if (archivosAutorizacionEdit.value.length) {
+      const added = await uploadAdjuntos({
+        solpeId: id,
+        empresa: edit.value.empresa,
+        numero_solpe: edit.value.numero_solpe
+      }, archivosAutorizacionEdit.value);
+
+      const current = Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : [];
+      edit.value.autorizaciones = [...current, ...added];
+      archivosAutorizacionEdit.value = [];
     }
 
     if (typeof edit.value.numero_solpe === "string") {
@@ -1360,9 +1569,17 @@ async function guardarEdicion(){
     const fecha_str = (edit.value.__fecha_str ?? seleccion.value.fecha_str ?? seleccion.value.fecha ?? "") || "";
     const fecha_ts  = (edit.value.__fecha_ts ?? seleccion.value.fecha_ts) ?? null;
 
+    const autorizaciones = Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : [];
+    const firstAdj = autorizaciones[0] || null;
+
     const payload = {
-      autorizacion_nombre: edit.value.autorizacion_nombre ?? null,
-      autorizacion_url: edit.value.autorizacion_url ?? null,
+      // ✅ EXACTO como tu ejemplo
+      autorizaciones,
+
+      // ✅ compat (primer adjunto)
+      autorizacion_nombre: firstAdj?.nombre ?? null,
+      autorizacion_url: firstAdj?.url ?? null,
+
       dirigidoA: Array.isArray(edit.value.dirigidoA) ? edit.value.dirigidoA : [],
       empresa: edit.value.empresa ?? "Xtreme Servicio",
       estatus: edit.value.estatus ?? "Pendiente",
@@ -1376,7 +1593,8 @@ async function guardarEdicion(){
 
       fecha_str,
       fecha: fecha_str,
-      ...(fecha_ts ? { fecha_ts } : {})
+      ...(fecha_ts ? { fecha_ts } : {}),
+      updated_at: Timestamp.now()
     };
 
     await updateDoc(dref, payload);
@@ -1390,6 +1608,7 @@ async function guardarEdicion(){
   }
 }
 
+/** ===== Modal Nueva ===== */
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
@@ -1397,12 +1616,12 @@ const nuevo = ref({});
 const selectedCentroNuevoKey = ref("");
 const selectedCentroNuevoName = ref("");
 
-const archivoAutorizacionNuevo = ref(null);
-
 function defaultNueva(){
   return {
+    autorizaciones: [],
     autorizacion_nombre: null,
     autorizacion_url: null,
+
     dirigidoA: [],
     empresa: "Xtreme Servicio",
     estatus: "Pendiente",
@@ -1420,7 +1639,7 @@ function abrirModalNueva(){
   nuevo.value = defaultNueva();
   selectedCentroNuevoKey.value = "";
   selectedCentroNuevoName.value = "";
-  archivoAutorizacionNuevo.value = null;
+  archivosAutorizacionNuevo.value = [];
   if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
   modalNueva.value = true;
 }
@@ -1433,19 +1652,6 @@ function onCentroNuevoKeyChange(){
 function onCentroNuevoNameChange(){
   const key = setCentroFromName(nuevo.value, selectedCentroNuevoName.value);
   selectedCentroNuevoKey.value = key;
-}
-
-function onArchivoAutorizacionEdit(e){
-  const f = (e.target.files || [])[0];
-  if (!f) return;
-  archivoAutorizacionEdit.value = f;
-  edit.value.autorizacion_nombre = f.name;
-}
-function onArchivoAutorizacionNuevo(e){
-  const f = (e.target.files || [])[0];
-  if (!f) return;
-  archivoAutorizacionNuevo.value = f;
-  nuevo.value.autorizacion_nombre = f.name;
 }
 
 async function crearNueva(){
@@ -1461,9 +1667,11 @@ async function crearNueva(){
     const fecha_str = toCLString(picked);
     const fecha_ts = Timestamp.fromDate(picked);
 
-    const payload = {
-      autorizacion_nombre: nuevo.value.autorizacion_nombre ?? null,
-      autorizacion_url: nuevo.value.autorizacion_url ?? null,
+    const payloadBase = {
+      autorizaciones: [],
+      autorizacion_nombre: null,
+      autorizacion_url: null,
+
       dirigidoA: Array.isArray(nuevo.value.dirigidoA) ? nuevo.value.dirigidoA : [],
       empresa: nuevo.value.empresa ?? "Xtreme Servicio",
       estatus: nuevo.value.estatus ?? "Pendiente",
@@ -1476,21 +1684,29 @@ async function crearNueva(){
       usuario: nuevo.value.usuario ?? "",
       fecha_str,
       fecha: fecha_str,
-      fecha_ts
+      fecha_ts,
+      createdAt: Timestamp.now()
     };
 
-    const docRef = await addDoc(collection(db, "solpes"), payload);
+    const docRef = await addDoc(collection(db, "solpes"), payloadBase);
 
-    if (archivoAutorizacionNuevo.value) {
-      const storage = getStorage();
-      const path = `solpes/${docRef.id}/autorizacion/${Date.now()}_${archivoAutorizacionNuevo.value.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, archivoAutorizacionNuevo.value);
-      const url = await getDownloadURL(up.ref);
+    if (archivosAutorizacionNuevo.value.length) {
+      const added = await uploadAdjuntos({
+        solpeId: docRef.id,
+        empresa: nuevo.value.empresa,
+        numero_solpe: nuevo.value.numero_solpe
+      }, archivosAutorizacionNuevo.value);
+
+      const firstAdj = added[0] || null;
+
       await updateDoc(doc(db, "solpes", docRef.id), {
-        autorizacion_nombre: archivoAutorizacionNuevo.value.name,
-        autorizacion_url: url
+        autorizaciones: added,
+        autorizacion_nombre: firstAdj?.nombre ?? null,
+        autorizacion_url: firstAdj?.url ?? null,
+        updated_at: Timestamp.now()
       });
+    } else {
+      await updateDoc(doc(db, "solpes", docRef.id), { updated_at: Timestamp.now() });
     }
 
     addToast("success", "SOLPED creada.");
@@ -1503,6 +1719,7 @@ async function crearNueva(){
   }
 }
 
+/** ===== Historial ===== */
 async function guardarHistorial(){
   if (!seleccion.value?.__id) return;
   try{
@@ -1535,6 +1752,7 @@ async function eliminarHistorialDoc(hid){
   }
 }
 
+/** ===== Confirm Delete ===== */
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -1550,17 +1768,12 @@ function cerrarConfirm(){
 }
 async function confirmarEliminar(){
   if (!confirmRow.value?.__id) return;
-
   const id = confirmRow.value.__id;
-
   try {
     eliminando.value = true;
-
     await deleteDoc(doc(db, "solpes", id));
-
     confirmOpen.value = false;
     confirmRow.value = null;
-
     addToast("success", "SOLPED eliminada.");
   } catch (e) {
     console.error(e);
@@ -1570,6 +1783,7 @@ async function confirmarEliminar(){
   }
 }
 
+/** ===== Items (igual que antes) ===== */
 const modalItem = ref(false);
 const isEditItem = ref(false);
 const itemIndex = ref(-1);
@@ -1642,6 +1856,11 @@ async function guardarItemForm(){
   }
 }
 
+function eliminarItem(idx){
+  edit.value.items.splice(idx, 1);
+}
+
+/** ===== Fechas display ===== */
 function toCL(date) {
   try {
     return new Date(date).toLocaleString("es-CL", {
@@ -1657,10 +1876,8 @@ function toCL(date) {
     return "";
   }
 }
-
 function asDateAny(v) {
   if (!v) return null;
-
   if (typeof v?.toDate === "function") {
     const d = v.toDate();
     return isNaN(d.getTime()) ? null : d;
@@ -1674,27 +1891,15 @@ function asDateAny(v) {
     const d = new Date(v.seconds * 1000);
     return isNaN(d.getTime()) ? null : d;
   }
-
   return null;
 }
-
 function displayDate(row) {
-  const d =
-    asDateAny(row?.fecha_ts) ||
-    asDateAny(row?.fecha_str) ||
-    asDateAny(row?.fecha);
-
+  const d = asDateAny(row?.fecha_ts) || asDateAny(row?.fecha_str) || asDateAny(row?.fecha);
   return d ? toCL(d) : "—";
 }
-
 function prettyFecha(v) {
   const d = asDateAny(v);
   return d ? toCL(d) : "—";
-}
-
-
-function eliminarItem(idx){
-  edit.value.items.splice(idx, 1);
 }
 
 onMounted(() => { subscribePage(1); });
@@ -1705,7 +1910,6 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .admin-solpes-page{
   min-height:100vh;
 }
-
 .minw-220{ min-width: 220px; }
 
 .toolbar-item .form-control,
@@ -1741,14 +1945,8 @@ onBeforeUnmount(() => { cleanupSubs(); });
   from{ transform: translateX(20px); opacity:.0; }
   to{ transform: translateX(0); opacity:1; }
 }
-
 @media (max-width: 575.98px){
   .list-group-item{ border-left: 0; border-right: 0; }
-}
-
-@keyframes slideInRight{
-  from{ transform: translateX(24px); opacity: .0; }
-  to{ transform: translateX(0); opacity: 1; }
 }
 
 .vmodal-backdrop{
@@ -1789,11 +1987,16 @@ onBeforeUnmount(() => { cleanupSubs(); });
   color: #fff; font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
-
 .table td, .table th { vertical-align: middle; }
-.text-truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 576px){
-  .text-truncate { max-width: 180px; }
+
+.text-truncate-2{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.btn-danger:hover{ filter: brightness(0.95); }
+.text-truncate-3{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 </style>

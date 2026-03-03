@@ -149,6 +149,7 @@
 
             <hr class="my-3" />
 
+            <!-- MANTENCIÓN -->
             <div v-if="form.tipo === 'MANTENCION'">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="fw-semibold">Datos Mantención</div>
@@ -197,24 +198,63 @@
                 </div>
               </div>
             </div>
+
+            <!-- TORQUE -->
             <div v-else-if="form.tipo === 'TORQUE'">
-              <div class="fw-semibold">Datos Torque</div>
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="fw-semibold">Datos Torque</div>
+
+                <!-- ✅ NUEVO: Equipo nuevo torque -->
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="nuevoTorque"
+                    v-model="form.torqueEquipoNuevo"
+                    @change="onTorqueNuevoChange"
+                  />
+                  <label class="form-check-label small" for="nuevoTorque">Equipo nuevo (sin torque aún)</label>
+                </div>
+              </div>
 
               <div class="row g-2 mt-1">
                 <div class="col-6">
                   <label class="form-label">Última OT (torque)</label>
-                  <input v-model.trim="form.ultimaOtTorque" class="form-control" placeholder="53868" />
+                  <input
+                    v-model.trim="form.ultimaOtTorque"
+                    class="form-control"
+                    placeholder="53868"
+                    :disabled="form.torqueEquipoNuevo"
+                  />
                 </div>
 
                 <div class="col-6">
                   <label class="form-label">Fecha última OT (torque)</label>
-                  <input v-model="form.fechaUltimaOtTorque" type="date" class="form-control" @input="recalcTorque" />
+                  <input
+                    v-model="form.fechaUltimaOtTorque"
+                    type="date"
+                    class="form-control"
+                    @input="recalcTorque"
+                    :disabled="form.torqueEquipoNuevo"
+                  />
                 </div>
 
                 <div class="col-6">
                   <label class="form-label">Lectura en OT ({{ unidad }})</label>
-                  <input v-model="form.lecturaOtTorqueRaw" class="form-control" placeholder="14171" />
-                  <div class="form-text">Se usa en el párrafo de “última revisión de torque”.</div>
+                  <input
+                    v-model="form.lecturaOtTorqueRaw"
+                    class="form-control"
+                    placeholder="14171"
+                    :disabled="form.torqueEquipoNuevo"
+                  />
+                  <div class="form-text">
+                    <template v-if="!form.torqueEquipoNuevo">
+                      Se usa en el párrafo de “última revisión de torque”.
+                    </template>
+                    <template v-else>
+                      Equipo nuevo: no registra OT/lectura de torque aún.
+                    </template>
+                  </div>
                 </div>
 
                 <div class="col-6">
@@ -225,11 +265,19 @@
                 <div class="col-12">
                   <label class="form-label">Próximo Torque (fecha)</label>
                   <input v-model="form.proximoTorqueFecha" type="date" class="form-control" />
-                  <div class="form-text">Auto: fecha última OT + <b>3 meses</b> (puedes editar).</div>
+                  <div class="form-text">
+                    <template v-if="form.torqueEquipoNuevo">
+                      Auto: <b>fecha emisión + 3 meses</b> (puedes editar).
+                    </template>
+                    <template v-else>
+                      Auto: fecha última OT + <b>3 meses</b> (puedes editar).
+                    </template>
+                  </div>
                 </div>
               </div>
             </div>
 
+            <!-- OPERATIVIDAD -->
             <div v-else>
               <div class="fw-semibold">Datos Operatividad</div>
               <div class="row g-2 mt-1">
@@ -309,6 +357,8 @@
                   <b class="px-2 py-1 border rounded bg-light">{{ form.numeroInterno || "—" }}</b>,
                   {{ cuerpoPrincipal }}
                 </p>
+
+                <!-- MANTENCIÓN -->
                 <div v-if="form.tipo === 'MANTENCION' && !form.equipoNuevo" class="mt-3">
                   <p class="mb-2">
                     Su última mantención realizada <b>{{ fechaUltimaOtFmt }}</b>
@@ -327,7 +377,8 @@
                   </p>
                 </div>
 
-                <div v-if="form.tipo === 'TORQUE'" class="mt-3">
+                <!-- ✅ TORQUE normal -->
+                <div v-if="form.tipo === 'TORQUE' && !form.torqueEquipoNuevo" class="mt-3">
                   <p class="mb-2">
                     Su última revisión de torque, realizada el día <b>{{ fechaUltimaTorqueFmt }}</b>
                     a los <b>{{ lecturaOtTorqueFmt }}</b> {{ unidad }} y registrada con la orden de trabajo
@@ -338,6 +389,17 @@
                     Los valores de torque aplicados, se detallan en la tabla adjunta.
                   </p>
                 </div>
+
+                <!-- ✅ TORQUE equipo nuevo -->
+                <div v-if="form.tipo === 'TORQUE' && form.torqueEquipoNuevo" class="mt-3">
+                  <p class="mb-2">
+                    Se señala que el equipo es nuevo, por lo cual no registra aún una orden de trabajo de revisión de torque.
+                    Se programa su próxima revisión para el día <b>{{ proximoTorqueFmt }}</b>.
+                    Consta que la unidad se encuentra en condiciones para operar y que los valores de torque referenciales se indican en la tabla adjunta.
+                  </p>
+                </div>
+
+                <!-- OPERATIVIDAD -->
                 <div v-if="form.tipo === 'OPERATIVIDAD'" class="mt-3">
                   <p class="mb-2">
                     Se constata el estado: <b>{{ form.estadoOperatividad }}</b>
@@ -413,6 +475,7 @@
       </div>
     </div>
 
+    <!-- MODALES (igual que tu código) -->
     <div class="modal fade" tabindex="-1" ref="histModalEl" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
@@ -659,8 +722,6 @@ function inferIntervalFromEquipo(equipoDoc) {
 
 function applyPreventiveDefaultsFromSelectedEquipo() {
   if (!selectedEquipo.value) return;
-
-
   if (isEditing.value) return;
 
   const rule = inferIntervalFromEquipo(selectedEquipo.value);
@@ -671,8 +732,6 @@ function applyPreventiveDefaultsFromSelectedEquipo() {
 
   recalcMantencion();
 }
-
-
 
 const histModalEl = ref(null);
 const delModalEl = ref(null);
@@ -865,6 +924,8 @@ const form = ref({
   tipoEquipo: "",
   numeroChasis: "",
   numeroMotor: "",
+
+  // Mantención
   equipoNuevo: false,
   ultimaOt: "",
   fechaUltimaOt: "",
@@ -872,9 +933,14 @@ const form = ref({
   kmActualRaw: "",
   intervaloRaw: "10000",
   proximaMantencionRaw: "",
+
+  // Operatividad
   estadoOperatividad: "Operativo",
   fechaInspeccion: todayISO(),
   observaciones: "",
+
+  // Torque
+  torqueEquipoNuevo: false,                // ✅ NUEVO
   ultimaOtTorque: "",
   fechaUltimaOtTorque: "",
   lecturaOtTorqueRaw: "",
@@ -925,6 +991,7 @@ function seleccionarEquipo(e) {
   form.value.tipoEquipo = e.tipo_equipo || "";
   form.value.numeroChasis = e.numero_chasis || "";
   form.value.numeroMotor = e.numero_motor || e.numeroMotor || "";
+
   applyPreventiveDefaultsFromSelectedEquipo();
 
   recalcMantencion();
@@ -934,7 +1001,7 @@ function seleccionarEquipo(e) {
 async function loadEquiposCache() {
   loadingEquipos.value = true;
   try {
-    const q = query(collection(db, "equipos"), orderBy("actualizado", "desc"), limit(650));
+    const q = query(collection(db, "equipos"), orderBy("actualizado", "desc"), limit(1000));
     const snap = await getDocs(q);
     equiposCache.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   } finally {
@@ -970,11 +1037,32 @@ function recalcMantencion() {
   }
 }
 
+/** ✅ Ajustado: si torqueEquipoNuevo => base = fechaEmision */
 function recalcTorque() {
   if (form.value.tipo !== "TORQUE") return;
-  const base = form.value.fechaUltimaOtTorque;
-  if (!base) return;
+
+  const base = form.value.torqueEquipoNuevo
+    ? form.value.fechaEmision
+    : form.value.fechaUltimaOtTorque;
+
+  if (!base) {
+    // evita quedar con fecha vieja
+    form.value.proximoTorqueFecha = "";
+    return;
+  }
   form.value.proximoTorqueFecha = addMonthsISO(base, 3);
+}
+
+/** ✅ NUEVO: al activar "equipo nuevo" en torque limpiamos campos OT torque */
+function onTorqueNuevoChange() {
+  if (form.value.tipo !== "TORQUE") return;
+
+  if (form.value.torqueEquipoNuevo) {
+    form.value.ultimaOtTorque = "";
+    form.value.fechaUltimaOtTorque = "";
+    form.value.lecturaOtTorqueRaw = "";
+  }
+  recalcTorque();
 }
 
 async function onTipoChange() {
@@ -984,6 +1072,12 @@ async function onTipoChange() {
   if (!isEditing.value) form.value.numero = null;
 
   if (form.value.tipo === "OPERATIVIDAD") form.value.equipoNuevo = false;
+
+  // ✅ Si salgo de TORQUE, apago flag de torque nuevo (para no contaminar otros tipos)
+  if (form.value.tipo !== "TORQUE") {
+    form.value.torqueEquipoNuevo = false;
+  }
+
   applyPreventiveDefaultsFromSelectedEquipo();
 
   if (!isEditing.value) {
@@ -1025,9 +1119,13 @@ const canSave = computed(() => {
   }
 
   if (form.value.tipo === "TORQUE") {
-    if (!form.value.ultimaOtTorque) return false;
-    if (!form.value.fechaUltimaOtTorque) return false;
-    if (!Number.isFinite(parseIntLoose(form.value.lecturaOtTorqueRaw)) || parseIntLoose(form.value.lecturaOtTorqueRaw) <= 0) return false;
+    // ✅ NUEVO: si torqueEquipoNuevo no exigimos OT/fecha/lectura OT torque
+    if (!form.value.torqueEquipoNuevo) {
+      if (!form.value.ultimaOtTorque) return false;
+      if (!form.value.fechaUltimaOtTorque) return false;
+      if (!Number.isFinite(parseIntLoose(form.value.lecturaOtTorqueRaw)) || parseIntLoose(form.value.lecturaOtTorqueRaw) <= 0) return false;
+    }
+
     if (!Number.isFinite(parseIntLoose(form.value.kmActualRaw)) || parseIntLoose(form.value.kmActualRaw) <= 0) return false;
     if (!form.value.proximoTorqueFecha) return false;
   }
@@ -1049,7 +1147,6 @@ const displayNumero = computed(() => {
 
   return "—";
 });
-
 
 async function resolveCounterDocIdByTipo(tipo) {
   if (tipo === "TORQUE") return "torque";
@@ -1140,6 +1237,7 @@ function buildPayload(numeroAsignado) {
 
   if (form.value.tipo === "TORQUE") {
     payload.torque = {
+      equipoNuevo: !!form.value.torqueEquipoNuevo,   // ✅ NUEVO
       ultimaOt: form.value.ultimaOtTorque || "",
       fechaUltimaOtStr: form.value.fechaUltimaOtTorque || "",
       lecturaOt: parseIntLoose(form.value.lecturaOtTorqueRaw),
@@ -1206,6 +1304,7 @@ function modelFromDoc(data) {
     tipoEquipo: eq.tipoEquipo || "",
     numeroChasis: eq.numeroChasis || "",
     numeroMotor: eq.numeroMotor || "",
+
     equipoNuevo: !!mant.equipoNuevo,
     ultimaOt: mant.ultimaOt || "",
     fechaUltimaOt: mant.fechaUltimaOtStr || "",
@@ -1213,9 +1312,12 @@ function modelFromDoc(data) {
     kmActualRaw: Number.isFinite(mant.lecturaActual) ? String(mant.lecturaActual) : "",
     intervaloRaw: Number.isFinite(mant.intervalo) ? String(mant.intervalo) : "10000",
     proximaMantencionRaw: Number.isFinite(mant.proximaMantencion) ? String(mant.proximaMantencion) : "",
+
     estadoOperatividad: op.estado || "Operativo",
     fechaInspeccion: op.fechaInspeccionStr || todayISO(),
     observaciones: op.observaciones || "",
+
+    torqueEquipoNuevo: !!tq.equipoNuevo, // ✅ NUEVO
     ultimaOtTorque: tq.ultimaOt || "",
     fechaUltimaOtTorque: tq.fechaUltimaOtStr || "",
     lecturaOtTorqueRaw: Number.isFinite(tq.lecturaOt) ? String(tq.lecturaOt) : "",
@@ -1251,6 +1353,7 @@ function modelFromForm() {
     fechaInspeccion: form.value.fechaInspeccion,
     observaciones: form.value.observaciones,
 
+    torqueEquipoNuevo: !!form.value.torqueEquipoNuevo, // ✅ NUEVO
     ultimaOtTorque: form.value.ultimaOtTorque,
     fechaUltimaOtTorque: form.value.fechaUltimaOtTorque,
     lecturaOtTorqueRaw: form.value.lecturaOtTorqueRaw,
@@ -1444,20 +1547,32 @@ async function buildPdfBytesFromModel(model, numero) {
   }
 
   if (m.tipo === "TORQUE") {
-    const lecturaOT = fmtCL(parseIntLoose(m.lecturaOtTorqueRaw));
-    const ultimaOT = m.ultimaOtTorque || "—";
-    const fechaUlt = fmtDMY(m.fechaUltimaOtTorque);
+    // ✅ NUEVO: texto distinto si equipo nuevo torque
+    if (m.torqueEquipoNuevo) {
+      const prox = fmtDMY(m.proximoTorqueFecha);
+      const pNewTq =
+        `Se señala que el equipo es nuevo, por lo cual no registra aún una orden de trabajo de revisión de torque. ` +
+        `Se programa su próxima revisión para el día ${prox || "—"}. ` +
+        `Consta que la unidad se encuentra en condiciones para operar y que los valores de torque referenciales se indican en la tabla adjunta.`;
 
-    const p1 =
-      `Su última revisión de torque, realizada el día ${fechaUlt} a los ${lecturaOT} ${unidadLocal} y registrada con la orden de trabajo ` +
-      `${ultimaOT}. Consta que la unidad se encuentra correctamente torqueada de acuerdo a manual de fabricante.`;
+      y = drawWrappedBlockLeft(pNewTq, y, bodySize, blockW, lineH, font, dark);
+      y -= 18;
+    } else {
+      const lecturaOT = fmtCL(parseIntLoose(m.lecturaOtTorqueRaw));
+      const ultimaOT = m.ultimaOtTorque || "—";
+      const fechaUlt = fmtDMY(m.fechaUltimaOtTorque);
 
-    y = drawWrappedBlockLeft(p1, y, bodySize, blockW, lineH, font, dark);
-    y -= 10;
+      const p1 =
+        `Su última revisión de torque, realizada el día ${fechaUlt} a los ${lecturaOT} ${unidadLocal} y registrada con la orden de trabajo ` +
+        `${ultimaOT}. Consta que la unidad se encuentra correctamente torqueada de acuerdo a manual de fabricante.`;
 
-    const p2 = "Los valores de torque aplicados, se detallan en la tabla adjunta.";
-    y = drawWrappedBlockLeft(p2, y, bodySize, blockW, lineH, font, dark);
-    y -= 18;
+      y = drawWrappedBlockLeft(p1, y, bodySize, blockW, lineH, font, dark);
+      y -= 10;
+
+      const p2 = "Los valores de torque aplicados, se detallan en la tabla adjunta.";
+      y = drawWrappedBlockLeft(p2, y, bodySize, blockW, lineH, font, dark);
+      y -= 18;
+    }
   }
 
   drawCentered("Detalles del equipo", y, 10.5, bold, dark);
@@ -1527,6 +1642,7 @@ async function buildPdfBytesFromModel(model, numero) {
   }
 
   const signLineY = M + 120;
+
   if (m.tipo === "TORQUE") {
     try {
       const imgBytes = await fetchAsArrayBuffer(torqueTablaSrc);
@@ -1591,28 +1707,28 @@ async function generarPdfSolo() {
 }
 
 function limpiarDatosCertificadosManteniendoEquipo() {
-
   form.value.equipoNuevo = false;
   form.value.ultimaOt = "";
   form.value.fechaUltimaOt = "";
   form.value.kmOtRaw = "";
   form.value.kmActualRaw = "";
   form.value.proximaMantencionRaw = "";
+
   form.value.estadoOperatividad = "Operativo";
   form.value.fechaInspeccion = todayISO();
   form.value.observaciones = "";
 
+  // ✅ reset torque nuevo
+  form.value.torqueEquipoNuevo = false;
   form.value.ultimaOtTorque = "";
   form.value.fechaUltimaOtTorque = "";
   form.value.lecturaOtTorqueRaw = "";
   form.value.proximoTorqueFecha = "";
 
   form.value.fechaEmision = todayISO();
-
   form.value.numero = null;
 
   applyPreventiveDefaultsFromSelectedEquipo();
-
   recalcMantencion();
   recalcTorque();
 }
@@ -1645,6 +1761,7 @@ async function guardarCertificado() {
       await loadHistorial();
       return;
     }
+
     const certificadosRef = collection(db, "certificados");
     const counterId = await resolveCounterDocIdByTipo(form.value.tipo);
     const counterRef = doc(db, "counters_certificados", counterId);
@@ -1667,14 +1784,17 @@ async function guardarCertificado() {
 
       return { id: newDocRef.id, numero: numeroAsignado, next: nextToStore };
     });
+
     lastSavedId.value = result.id;
     lastSavedNumero.value = result.numero;
     saveOk.value = true;
+
     const bytes = await buildPdfBytesFromModel(modelFromForm(), result.numero);
     downloadPdf(bytes, buildPdfFilename());
 
     await loadHistorial();
     counterNext.value = result.next;
+
     limpiarDatosCertificadosManteniendoEquipo();
     await cargarProximoNumero();
   } catch (err) {
@@ -1712,6 +1832,7 @@ async function editarDesdeHistorial(c) {
     form.value.tipoEquipo = m.tipoEquipo || "";
     form.value.numeroChasis = m.numeroChasis || "";
     form.value.numeroMotor = m.numeroMotor || "";
+
     form.value.equipoNuevo = !!m.equipoNuevo;
     form.value.ultimaOt = m.ultimaOt || "";
     form.value.fechaUltimaOt = m.fechaUltimaOt || "";
@@ -1719,9 +1840,13 @@ async function editarDesdeHistorial(c) {
     form.value.kmActualRaw = m.kmActualRaw || "";
     form.value.intervaloRaw = m.intervaloRaw || "10000";
     form.value.proximaMantencionRaw = m.proximaMantencionRaw || "";
+
     form.value.estadoOperatividad = m.estadoOperatividad || "Operativo";
     form.value.fechaInspeccion = m.fechaInspeccion || todayISO();
     form.value.observaciones = m.observaciones || "";
+
+    // ✅ torque nuevo
+    form.value.torqueEquipoNuevo = !!m.torqueEquipoNuevo;
     form.value.ultimaOtTorque = m.ultimaOtTorque || "";
     form.value.fechaUltimaOtTorque = m.fechaUltimaOtTorque || "";
     form.value.lecturaOtTorqueRaw = m.lecturaOtTorqueRaw || "";
@@ -1792,6 +1917,7 @@ function resetAll() {
   form.value.numero = null;
   form.value.tipo = "MANTENCION";
   form.value.unidadLectura = "Km";
+
   form.value.equipoNuevo = false;
   form.value.ultimaOt = "";
   form.value.fechaUltimaOt = "";
@@ -1799,9 +1925,13 @@ function resetAll() {
   form.value.kmActualRaw = "";
   form.value.intervaloRaw = "10000";
   form.value.proximaMantencionRaw = "";
+
   form.value.estadoOperatividad = "Operativo";
   form.value.fechaInspeccion = todayISO();
   form.value.observaciones = "";
+
+  // ✅ torque nuevo reset
+  form.value.torqueEquipoNuevo = false;
   form.value.ultimaOtTorque = "";
   form.value.fechaUltimaOtTorque = "";
   form.value.lecturaOtTorqueRaw = "";

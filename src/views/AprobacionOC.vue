@@ -35,9 +35,11 @@
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
       </div>
+
       <div v-if="!rolActual && !cargando" class="alert alert-warning">
         Tu usuario no tiene bandeja de aprobación asignada (o hoy estás fuera por vacaciones/estado).
       </div>
+
       <div class="card" v-if="rolActual">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="minw-0">
@@ -70,6 +72,7 @@
                       {{ prettyEstatus(oc) }}
                     </span>
                   </div>
+
                   <div class="oc-highlight mt-2">
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <span class="oc-pill" title="Centro de costo">
@@ -99,6 +102,7 @@
                       </span>
                     </div>
                   </div>
+
                   <div class="text-body-secondary small mt-1 break-any">
                     <strong>Responsable:</strong> {{ oc.responsable || '—' }} ·
                     <strong>Subida:</strong> {{ fmtFecha(oc.fechaSubida) }}
@@ -108,6 +112,7 @@
                     <em>“{{ oc.comentario }}”</em>
                   </div>
                 </div>
+
                 <div class="col-12 col-lg-3">
                   <div class="d-grid gap-2 d-lg-flex justify-content-lg-end">
                     <button
@@ -126,6 +131,7 @@
                   </div>
                 </div>
               </div>
+
               <transition name="fade">
                 <div v-if="oc.expandido" class="mt-3">
                   <div v-if="(oc.archivosStorage||[]).length" class="mb-3">
@@ -164,6 +170,7 @@
                       </div>
                     </div>
                   </div>
+
                   <div class="mb-3">
                     <div class="fw-semibold mb-2">📝 Autorizaciones (desde SOLPED)</div>
                     <div v-if="getAuthState(oc).loading" class="text-secondary small">Cargando documentos…</div>
@@ -226,6 +233,7 @@
                       </div>
                     </template>
                   </div>
+
                   <div class="fw-semibold mb-2">📦 Ítems</div>
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
@@ -255,10 +263,12 @@
                       </tbody>
                     </table>
                   </div>
+
                   <div class="mb-2">
                     <label class="form-label">Comentario (obligatorio)</label>
                     <textarea class="form-control" rows="2" v-model="oc._comentarioAccion" placeholder="Explica tu decisión…"></textarea>
                   </div>
+
                   <div class="d-grid d-md-flex gap-2">
                     <button class="btn btn-success" :disabled="accionando" @click="aprobar(oc)">
                       <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
@@ -271,6 +281,7 @@
                       Rechazar
                     </button>
                   </div>
+
                   <div class="mt-3">
                     <div class="fw-semibold mb-2">🕓 Historial</div>
                     <ul class="list-unstyled small mb-0">
@@ -288,6 +299,7 @@
           </div>
         </div>
       </div>
+
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i
@@ -299,6 +311,7 @@
         </div>
       </div>
     </div>
+
     <transition name="oc">
       <div v-if="showFiltersMobile" class="oc-wrap d-lg-none" id="offFiltrosCustom">
         <div class="oc-backdrop" @click="closeFiltersMobile"></div>
@@ -341,6 +354,7 @@
         </div>
       </div>
     </transition>
+
     <transition name="viewer">
       <div v-if="viewerOpen" class="viewer-wrap" @keydown.esc="closeViewer" tabindex="0">
         <div class="viewer-backdrop" @click="closeOnBackdrop && closeViewer()"></div>
@@ -401,11 +415,14 @@ import {
   getDoc, addDoc, serverTimestamp
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
-const UMBRAL_PREAPROBADO = 500000;
+
+/** ✅ Modo estricto (recomendado): false = sin delegación (no presta bandejas) */
+const ENABLE_DELEGATION = false;
 
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
+
 const normalize = (s) =>
   String(s || "")
     .trim()
@@ -449,6 +466,7 @@ const actorName = computed(() => {
   );
 });
 
+/** ✅ Rangos reales: Guillermo <= 500.000, Juan <= 5.000.000, Ale infinito */
 const DEFAULT_APPROVAL_FLOW = {
   nombre: 'Flujo default',
   activo: true,
@@ -458,7 +476,7 @@ const DEFAULT_APPROVAL_FLOW = {
       nombre: 'Revisión Guillermo',
       inStatus: 'Revisión Guillermo',
       min: 0,
-      max: 250000,
+      max: 500000,
       approveTo: 'Aprobado',
       overTo: 'Preaprobado',
       activo: true,
@@ -468,7 +486,7 @@ const DEFAULT_APPROVAL_FLOW = {
       id: 'juan',
       nombre: 'Preaprobado',
       inStatus: 'Preaprobado',
-      min: 250001,
+      min: 500001,
       max: 5000000,
       approveTo: 'Aprobado',
       overTo: 'Casi Aprobado',
@@ -480,7 +498,7 @@ const DEFAULT_APPROVAL_FLOW = {
       nombre: 'Casi Aprobado',
       inStatus: 'Casi Aprobado',
       min: 5000001,
-      max: 999999999999,
+      max: 0, // 0 => infinito (lo tratamos así en la lógica)
       approveTo: 'Aprobado',
       overTo: '',
       activo: true,
@@ -499,6 +517,7 @@ const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id
 
 const userUid = ref('');
 const usuarioNombre = ref('');
+
 const rootRef = doc(db, 'configuracion', 'aprobacion_oc_taller');
 const empresasCol = collection(rootRef, 'empresas');
 const empresasCfg = ref([]);
@@ -586,14 +605,20 @@ const getStepsForOC = (oc) => {
 const findStepIndexByStatus = (steps, status) =>
   steps.findIndex(s => normStatus(s?.inStatus) === normStatus(status));
 
+/** ✅ Fallback/Delegación: configurable */
 const findFallbackIndex = (steps, idx) => {
   if (!Array.isArray(steps) || idx < 0) return -1;
+
+  // Modo estricto: NO delegar
+  if (!ENABLE_DELEGATION) {
+    return stepHasAvailableApprover(steps[idx]) ? idx : -1;
+  }
+
+  // Delegación: tu lógica original
   if (stepHasAvailableApprover(steps[idx])) return idx;
 
   const curStatus = normStatus(steps[idx]?.inStatus || steps[idx]?.nombre || '');
-  const preferNext =
-    curStatus === 'preaprobado' ||
-    curStatus.includes('preaprob');
+  const preferNext = curStatus === 'preaprobado' || curStatus.includes('preaprob');
 
   for (let d = 1; d < steps.length; d++) {
     const prev = idx - d;
@@ -801,6 +826,7 @@ const fmtFecha = (f) => {
 };
 
 const getDelegationInfo = (oc) => {
+  if (!ENABLE_DELEGATION) return null; // ✅ si es estricto, no mostramos "delegado"
   const steps = getStepsForOC(oc);
   const idx = findStepIndexByStatus(steps, oc?.estatus);
   if (idx < 0) return null;
@@ -833,7 +859,6 @@ const canActOnOC = (oc) => {
   const uidsAvail = new Set(availableApprovers(steps[f]).map(a => a.uid));
   return uidsAvail.has(uid);
 };
-
 
 const cargando = ref(true);
 const ocs = ref([]);
@@ -919,6 +944,7 @@ const subscribeOCs = () => {
     unsubsOCs.push(unsub);
   });
 };
+
 const ocsFiltradas = computed(() => {
   if (empresaFiltro.value === 'TODAS') return ocs.value;
   return ocs.value.filter(oc => String(oc._empresaKey || '') === String(empresaFiltro.value));
@@ -948,6 +974,7 @@ const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, e
     console.warn('No se pudo registrar acción de OC en historialEstados de la SOLPED:', e);
   }
 };
+
 const DEBUG = false;
 const s = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
 const dlog = (tag, payload = {}) => {
@@ -1135,28 +1162,52 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
     console.error("cerrarSolpedSiCompleta:", e);
   }
 };
-const computeNextStatusOnApprove = (steps, currentStatus, montoRaw) => {
-  const monto = parseMoneyCLP(montoRaw);
-  const cur = normStatus(currentStatus);
-  if (cur.includes("preaprob") || cur.includes("casi aprob") || cur === "aprobado") {
-    const idx = findStepIndexByStatus(steps, currentStatus);
-    if (idx < 0) return "Aprobado";
-    return String(steps[idx]?.approveTo || "Aprobado").trim() || "Aprobado";
-  }
-  if (monto > UMBRAL_PREAPROBADO) return "Preaprobado";
-  const idx0 = findStepIndexByStatus(steps, currentStatus);
-  if (idx0 < 0) return "Aprobado";
 
-  return String(steps[idx0]?.approveTo || "Aprobado").trim() || "Aprobado";
-};
-
+/** ✅ Parse robusto (si viene string con puntos/CLP/etc) */
 const parseMoneyCLP = (v) => {
-  if (typeof v === "number") return isFinite(v) ? v : 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
-
   const s = String(v).trim();
   const digits = s.replace(/[^\d]/g, "");
   return digits ? parseInt(digits, 10) : 0;
+};
+
+/** ✅ Cálculo REAL: usa min/max + overTo del step actual */
+const MAX_INF = Number.MAX_SAFE_INTEGER;
+const stepMin = (v) => Math.max(0, Number(v || 0) || 0);
+const stepMax = (v) => {
+  const n = Number(v || 0) || 0;
+  return n > 0 ? n : MAX_INF; // max<=0 => infinito
+};
+
+const computeNextStatusOnApprove = (steps, currentStatus, montoRaw) => {
+  const monto = parseMoneyCLP(montoRaw);
+  if (!monto || monto <= 0) {
+    throw new Error("Monto inválido: OC sin precioTotalConIVA (0 o vacío).");
+  }
+
+  const idx = findStepIndexByStatus(steps, currentStatus);
+  if (idx < 0) return "Aprobado";
+
+  const st = steps[idx];
+  const min = stepMin(st.min);
+  const max = stepMax(st.max);
+
+  const approveTo = String(st.approveTo || "Aprobado").trim() || "Aprobado";
+  const overTo = String(st.overTo || "").trim();
+
+  if (monto < min) {
+    throw new Error(`Monto ${monto.toLocaleString("es-CL")} < mínimo de esta etapa (${min.toLocaleString("es-CL")}).`);
+  }
+
+  if (monto > max) {
+    if (overTo) return overTo;
+    const next = steps[idx + 1]?.inStatus;
+    if (next) return String(next).trim();
+    throw new Error(`Monto excede el máximo de esta etapa (${max.toLocaleString("es-CL")}) y no hay overTo.`);
+  }
+
+  return approveTo;
 };
 
 const accionando = ref(false);
@@ -1203,9 +1254,16 @@ const aprobar = async (oc) => {
   accionando.value = true;
   try {
     const steps = getStepsForOC(oc);
-    const monto = parseMoneyCLP(oc.precioTotalConIVA);
 
-    const nuevoEstatus = computeNextStatusOnApprove(steps, oc.estatus, monto, userUid.value) || 'Aprobado';
+    // ✅ determina el siguiente estatus por rango real
+    let nuevoEstatus = "Aprobado";
+    try {
+      nuevoEstatus = computeNextStatusOnApprove(steps, oc.estatus, oc.precioTotalConIVA);
+    } catch (err) {
+      addToast("warning", err?.message || "No se pudo determinar el siguiente estado según el monto.");
+      accionando.value = false;
+      return;
+    }
 
     const nuevosItems = (oc.items || []).map((it) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
@@ -1280,14 +1338,18 @@ const rechazar = async (oc) => {
     accionando.value = false;
   }
 };
+
 onMounted(async () => {
   try {
     cargando.value = true;
+
     mqXs = window.matchMedia('(max-width: 576px)');
     updateXs();
     mqXs.addEventListener?.('change', updateXs);
+
     const uid = auth?.user?.uid || '';
     userUid.value = uid;
+
     let fullName = auth?.user?.displayName || auth?.user?.email || '';
     if (uid) {
       try {
@@ -1297,9 +1359,10 @@ onMounted(async () => {
           const d = us.data() || {};
           fullName = pickUserName(d, fullName);
         }
-      } catch(e) {console.log(e) }
+      } catch(e) { console.log(e); }
     }
     usuarioNombre.value = fullName || '';
+
     unsubEmp = onSnapshot(query(empresasCol, orderBy('nombre')), (snap) => {
       const arr = [];
       snap.forEach(snapDoc => {

@@ -25,9 +25,11 @@
           <span class="badge bg-dark-subtle text-dark-emphasis">{{ usuarioNombre || '—' }}</span>
         </div>
       </div>
+
       <div v-if="!tengoBandeja" class="alert alert-warning">
         No tienes OCs asignadas para aprobar (o el flujo de Xtreme Servicio no está configurado para ti).
       </div>
+
       <div class="card" v-if="tengoBandeja">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="fw-semibold">Órdenes encontradas (Solo Xtreme Servicio)</div>
@@ -52,6 +54,7 @@
                     <span class="fw-semibold">OC N° {{ oc.id ?? '—' }}</span>
                     <span class="badge" :class="estadoBadgeClass(oc.estatus)">{{ prettyEstatus(oc) }}</span>
                   </div>
+
                   <div class="oc-highlight mt-2">
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <span class="oc-pill" title="Centro de costo">
@@ -89,6 +92,7 @@
                     <em>“{{ oc.comentario }}”</em>
                   </div>
                 </div>
+
                 <div class="col-12 col-lg-3">
                   <div class="d-grid gap-2 d-lg-flex justify-content-lg-end">
                     <button class="btn btn-primary btn-sm" @click="oc.expandido = !oc.expandido">
@@ -105,6 +109,7 @@
                   </div>
                 </div>
               </div>
+
               <transition name="fade">
                 <div v-if="oc.expandido" class="mt-3">
                   <div v-if="(oc.archivosStorage||[]).length" class="mb-3">
@@ -134,6 +139,7 @@
                         >
                           <iframe :src="a.url" style="border:none;"></iframe>
                         </div>
+
                         <div v-else class="text-center">
                           <img
                             :src="a.url"
@@ -146,6 +152,7 @@
                       </div>
                     </div>
                   </div>
+
                   <div class="fw-semibold mb-2">📦 Ítems</div>
                   <div class="table-responsive">
                     <table class="table table-sm align-middle">
@@ -177,6 +184,7 @@
                       </tbody>
                     </table>
                   </div>
+
                   <div class="mb-2">
                     <label class="form-label">Comentario (obligatorio)</label>
                     <textarea
@@ -186,6 +194,7 @@
                       placeholder="Explica tu decisión…"
                     ></textarea>
                   </div>
+
                   <div class="d-grid d-md-flex gap-2">
                     <button class="btn btn-success" :disabled="accionando" @click="aprobar(oc)">
                       <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
@@ -198,6 +207,7 @@
                       Rechazar
                     </button>
                   </div>
+
                   <div class="mt-3">
                     <div class="fw-semibold mb-2">🕓 Historial</div>
                     <ul class="list-unstyled small mb-0">
@@ -215,6 +225,7 @@
           </div>
         </div>
       </div>
+
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i
@@ -228,6 +239,7 @@
         </div>
       </div>
     </div>
+
     <transition name="viewer">
       <div v-if="viewerOpen" class="viewer-wrap" @keydown.esc="closeViewer" tabindex="0">
         <div class="viewer-backdrop" @click="closeOnBackdrop && closeViewer()"></div>
@@ -289,22 +301,28 @@ import {
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
+const ENABLE_DELEGATION = false;
+
 const parseMoney = (v: any): number => {
   if (v == null) return 0;
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
 
   let s = String(v).trim();
   if (!s) return 0;
+
   let negative = false;
   if (s.includes('(') && s.includes(')')) {
     negative = true;
     s = s.replace(/[()]/g, '');
   }
+
   s = s
     .replace(/\s+/g, '')
     .replace(/[A-Za-z$€£¥₩₽₺₫₴₱₦₲₡₵₸₭₮₢₠₣]/g, '');
+
   s = s.replace(/[^0-9.,+-]/g, '');
   s = s.replace(/\+/g, '');
+
   if (s.includes('-')) {
     s = s.replace(/(?!^)-/g, '');
     if (s.startsWith('-')) negative = true;
@@ -315,10 +333,10 @@ const parseMoney = (v: any): number => {
 
   const lastDot = s.lastIndexOf('.');
   const lastComma = s.lastIndexOf(',');
+
   if (lastDot >= 0 && lastComma >= 0) {
     const decSep = lastDot > lastComma ? '.' : ',';
     const thouSep = decSep === '.' ? ',' : '.';
-
     s = s.split(thouSep).join('');
     s = s.replace(decSep, '.');
   } else if (lastComma >= 0) {
@@ -337,7 +355,6 @@ const parseMoney = (v: any): number => {
       s = s.split('.').join('');
       s = s.split(',').join('');
     }
-  } else {
   }
 
   const n = Number(s);
@@ -368,6 +385,7 @@ const ocMonto = (oc: any): number => {
   }
   return parseMoney(oc?.precioTotalConIVA);
 };
+
 const normalizeCompany = (raw: any) => {
   const s = String(raw || '')
     .normalize('NFD')
@@ -379,7 +397,9 @@ const normalizeCompany = (raw: any) => {
   if (s.includes('HORMIG')) return 'HORMIGONES';
   return s;
 };
+
 const isServiciosOnly = (oc: any) => normalizeCompany(oc?.empresa) === 'SERVICIOS';
+
 const normStatusKey = (x:any) => String(x || '')
   .trim()
   .normalize('NFD')
@@ -387,6 +407,7 @@ const normStatusKey = (x:any) => String(x || '')
   .toLowerCase()
   .replace(/[_-]+/g, ' ')
   .replace(/\s+/g, ' ');
+
 const router = useRouter();
 const volver = () => router.back();
 const auth = useAuthStore();
@@ -394,7 +415,9 @@ const auth = useAuthStore();
 const cargando = ref(true);
 const ocs = ref<any[]>([]);
 const usuarioNombre = ref<string>('');
+
 let _unsub: any = null;
+
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) => {
   const id = Date.now()+Math.random();
@@ -402,7 +425,12 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
   setTimeout(()=>closeToast(id), timeout);
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
-const isXs = window.matchMedia('(max-width: 576px)').matches;
+
+/** ✅ isXs reactivo */
+const isXs = ref(false);
+let mqXs: MediaQueryList | null = null;
+const updateXs = () => { isXs.value = !!mqXs?.matches; };
+
 const viewerOpen = ref(false);
 const viewerItem = ref<{url:string,tipo?:string,nombre?:string}|null>(null);
 const zoom = ref(1);
@@ -410,23 +438,28 @@ const closeOnBackdrop = true;
 
 const isPdf = (url?:string) => String(url||'').toLowerCase().endsWith('.pdf');
 const guessMime = (url?: string) => isPdf(url) ? 'application/pdf' : '';
+
 const isImage = (file:any) => {
   const t = String(file?.tipo || '');
   const u = String(file?.url || '').toLowerCase();
   return t.includes('image') || !!u.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/);
 };
+
 const openViewer = (file:{url:string,tipo?:string,nombre?:string}) => {
   viewerItem.value = file || null;
   viewerOpen.value = !!viewerItem.value;
   zoom.value = 1;
   setTimeout(()=> { (document.querySelector('.viewer-wrap') as HTMLElement|undefined)?.focus(); }, 0);
 };
+
 const closeViewer = () => { viewerOpen.value = false; viewerItem.value = null; zoom.value = 1; };
 const zoomIn = () => { zoom.value = Math.min(3, +(zoom.value + 0.25).toFixed(2)); };
 const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)); };
 const resetZoom = () => { zoom.value = 1; };
 const toggleZoom = () => { zoom.value = (zoom.value === 1 ? 2 : 1); };
+
 watch(viewerOpen, (v)=> { document.documentElement.style.overflow = v ? 'hidden' : ''; });
+
 const estadoBadgeClass = (estatus: string) => {
   const s = (estatus||'').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -437,6 +470,7 @@ const estadoBadgeClass = (estatus: string) => {
   if (s.includes('proveedor')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
+
 const badgeItem = (estado?: string) => {
   const s = (estado || 'pendiente').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
@@ -445,6 +479,7 @@ const badgeItem = (estado?: string) => {
   if (s.includes('complet')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
+
 const fmtFecha = (f:any) => {
   try {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : new Date(f));
@@ -452,6 +487,8 @@ const fmtFecha = (f:any) => {
     return d.toLocaleString('es-CL', { dateStyle:'short', timeStyle:'short' });
   } catch { return '—'; }
 };
+
+/** ======== SOLPED helpers (tal como venía) ======== */
 const sumMapNumbers = (obj: Record<string, unknown> | null | undefined): number => {
   if (!obj || typeof obj !== "object") return 0;
   return Object.values(obj).reduce<number>((acc, v) => {
@@ -501,6 +538,7 @@ const computeSolpedEstatus = (items:any[]) => {
 };
 
 const norm2 = (x:any) => String(x||'').trim().toLowerCase();
+
 const buildMatchers = (itemsSol:any[]) => {
   const idxItemNo = new Map<number, number>();
   const idxNI  = new Map<string, number>();
@@ -626,6 +664,28 @@ const ensureReservationForRevisionOC = async (oc:any) => {
     }
   } catch (e) {
     console.warn('ensureReservationForRevisionOC:', e);
+  }
+};
+
+const registrarHistorialSolpedAccionOC_Taller = async ({
+  solpedId, ocNumero, usuario, estatusOC, comentario
+}: {
+  solpedId: string, ocNumero?: number|string|null, usuario: string, estatusOC: string, comentario: string
+}) => {
+  if (!solpedId) return;
+  try {
+    const sref = doc(db, 'solped_taller', String(solpedId));
+    await addDoc(collection(sref, 'historialEstados'), {
+      origen: 'Acción OC (Taller)',
+      usuario: usuario || '—',
+      estatus: estatusOC,
+      detalle: comentario || '',
+      comentario: comentario || '',
+      ocNumero: ocNumero ?? null,
+      fecha: serverTimestamp()
+    });
+  } catch (e) {
+    console.warn('No se pudo registrar acción de OC (taller) en historialEstados:', e);
   }
 };
 
@@ -781,6 +841,8 @@ const releaseReservationInSolped = async (oc:any, usuario:string, comentario:str
     comentario: comentario || ''
   });
 };
+
+/** ======== FLUJO (Taller) ======== */
 type StepCfg = {
   id: string;
   nombre: string;
@@ -804,6 +866,7 @@ const empresaKey = 'xtreme_servicio';
 const flujoEmpresa = ref<{ nombre?: string; activo?: boolean; steps?: StepCfg[] } | null>(null);
 let _unsubFlow: any = null;
 
+/** ✅ Rangos correctos + max infinito (0) para Ale */
 const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } = {
   nombre: 'Xtreme Servicio',
   activo: true,
@@ -835,7 +898,7 @@ const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } 
       nombre: 'Casi Aprobado',
       inStatus: 'Casi Aprobado',
       min: 5000001,
-      max: 999999999999,
+      max: 0, // ✅ infinito
       approveTo: 'Aprobado',
       overTo: '',
       activo: true,
@@ -864,7 +927,7 @@ const isOnVacation = (vac:any[] | undefined) => {
 
 const stepEnabled = (st: StepCfg) => st?.activo !== false;
 
-const availableApprovers = (st: StepCfg) => {
+const availableApproversStep = (st: StepCfg) => {
   const aps = Array.isArray(st?.approvers) ? st.approvers : [];
   return aps.filter(a =>
     a?.uid &&
@@ -891,28 +954,7 @@ const stepsCfg = computed<StepCfg[]>(() => {
   }));
 });
 
-const stepOperational = (st: StepCfg) => stepEnabled(st) && availableApprovers(st).length > 0;
-
-const handlerIndexFor = (i: number) => {
-  const steps = stepsCfg.value;
-  if (!steps.length) return -1;
-  if (i < 0 || i >= steps.length) return -1;
-
-  if (stepOperational(steps[i])) return i;
-
-  const cur = normStatusKey(steps[i]?.inStatus || steps[i]?.nombre || '');
-  const preferNext = cur === 'preaprobado' || cur.includes('preaprob');
-
-  if (preferNext) {
-    for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
-    for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
-  } else {
-    for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
-    for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
-  }
-
-  return -1;
-};
+const stepOperational = (st: StepCfg) => stepEnabled(st) && availableApproversStep(st).length > 0;
 
 const statusToStepIndex = computed(() => {
   const m = new Map<string, number>();
@@ -951,6 +993,34 @@ const stepIndexFromOCStatus = (estatus:any) => {
 
 const myUid = computed(() => auth?.user?.uid || '');
 
+/** ✅ handlerIndexFor ahora respeta ENABLE_DELEGATION */
+const handlerIndexFor = (i: number) => {
+  const steps = stepsCfg.value;
+  if (!steps.length) return -1;
+  if (i < 0 || i >= steps.length) return -1;
+
+  // Modo estricto: sin delegación
+  if (!ENABLE_DELEGATION) {
+    return stepOperational(steps[i]) ? i : -1;
+  }
+
+  // Delegación (tu lógica original)
+  if (stepOperational(steps[i])) return i;
+
+  const cur = normStatusKey(steps[i]?.inStatus || steps[i]?.nombre || '');
+  const preferNext = cur === 'preaprobado' || cur.includes('preaprob');
+
+  if (preferNext) {
+    for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
+    for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
+  } else {
+    for (let k = i - 1; k >= 0; k--) if (stepOperational(steps[k])) return k;
+    for (let k = i + 1; k < steps.length; k++) if (stepOperational(steps[k])) return k;
+  }
+
+  return -1;
+};
+
 const iHandleStep = (stepIndex: number) => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
@@ -959,7 +1029,7 @@ const iHandleStep = (stepIndex: number) => {
   const h = handlerIndexFor(stepIndex);
   if (h < 0) return false;
 
-  return availableApprovers(steps[h]).some(a => a.uid === uid);
+  return availableApproversStep(steps[h]).some(a => a.uid === uid);
 };
 
 const estadosObjetivo = computed<string[]>(() => {
@@ -974,7 +1044,7 @@ const estadosObjetivo = computed<string[]>(() => {
     const h = handlerIndexFor(idx);
     if (h < 0) return;
 
-    const isMine = availableApprovers(steps[h]).some(a => a.uid === uid);
+    const isMine = availableApproversStep(steps[h]).some(a => a.uid === uid);
     if (isMine) out.push(st.inStatus);
   });
 
@@ -985,6 +1055,7 @@ const estatusFiltrado = computed(() => estadosObjetivo.value.join(' / '));
 const tengoBandeja = computed(() => estadosObjetivo.value.length > 0);
 
 const delegacionesBadge = computed(() => {
+  if (!ENABLE_DELEGATION) return [];
   const steps = stepsCfg.value;
   const uid = myUid.value;
   if (!uid || !steps.length) return [];
@@ -997,7 +1068,7 @@ const delegacionesBadge = computed(() => {
     const ownOps = stepOperational(st);
     if (ownOps) return;
 
-    const iAmHandler = availableApprovers(steps[h]).some(a => a.uid === uid);
+    const iAmHandler = availableApproversStep(steps[h]).some(a => a.uid === uid);
     if (!iAmHandler) return;
 
     const fromName = (st.nombre || st.inStatus || `Etapa #${idx+1}`).trim();
@@ -1012,45 +1083,13 @@ const prettyEstatus = (oc:any) => {
   const idx = stepIndexFromOCStatus(oc?.estatus);
   if (idx < 0) return oc?.estatus || '—';
 
+  if (!ENABLE_DELEGATION) return oc?.estatus || '—';
+
   const h = handlerIndexFor(idx);
   if (h >= 0 && h !== idx && iHandleStep(idx)) {
     return `${oc?.estatus || '—'} (delegado)`;
   }
   return oc?.estatus || '—';
-};
-
-const computeNextStatusAutoSkip = (oc:any) => {
-  const steps = stepsCfg.value;
-  const uid = myUid.value;
-  const monto = ocMonto(oc);
-
-  let idx = stepIndexFromOCStatus(oc?.estatus);
-  if (idx < 0) return String(oc?.estatus || 'Aprobado');
-
-  const visited = new Set<number>();
-
-  for (let hop = 0; hop < 8; hop++) {
-    if (idx < 0 || idx >= steps.length) break;
-    if (visited.has(idx)) break;
-    visited.add(idx);
-
-    const st = steps[idx];
-    const max = Number(st.max ?? 0);
-    const overTo = String(st.overTo || '').trim();
-    const approveTo = String(st.approveTo || 'Aprobado').trim();
-
-    const next = (overTo && monto > max) ? overTo : approveTo;
-
-    const nextIdx = stepIndexFromOCStatus(next);
-    if (nextIdx < 0) return next;
-
-    if (uid && iHandleStep(nextIdx)) {
-      idx = nextIdx;
-      continue;
-    }
-    return next;
-  }
-  return 'Aprobado';
 };
 
 const canActOnOC = (oc:any) => {
@@ -1060,38 +1099,69 @@ const canActOnOC = (oc:any) => {
   return iHandleStep(idx);
 };
 
-const guardMaxByStep = (oc:any) => {
-  const idx = stepIndexFromOCStatus(oc?.estatus);
-  if (idx < 0) return { ok: true as const };
-
-  const st = stepsCfg.value[idx];
-  const monto = ocMonto(oc);
-  const max = Number(st?.max ?? 0);
-  const overTo = String(st?.overTo || '').trim();
-  return { ok: true as const };
+/** ✅ Cálculo real: min/max + overTo (max<=0 infinito), error si monto inválido */
+const MAX_INF = Number.MAX_SAFE_INTEGER;
+const stepMin = (v:any) => Math.max(0, Number(v || 0) || 0);
+const stepMax = (v:any) => {
+  const n = Number(v || 0) || 0;
+  return n > 0 ? n : MAX_INF;
 };
-const registrarHistorialSolpedAccionOC_Taller = async ({
-  solpedId, ocNumero, usuario, estatusOC, comentario
-}: {
-  solpedId: string, ocNumero?: number|string|null, usuario: string, estatusOC: string, comentario: string
-}) => {
-  if (!solpedId) return;
-  try {
-    const sref = doc(db, 'solped_taller', String(solpedId));
-    await addDoc(collection(sref, 'historialEstados'), {
-      origen: 'Acción OC (Taller)',
-      usuario: usuario || '—',
-      estatus: estatusOC,
-      detalle: comentario || '',
-      comentario: comentario || '',
-      ocNumero: ocNumero ?? null,
-      fecha: serverTimestamp()
-    });
-  } catch (e) {
-    console.warn('No se pudo registrar acción de OC (taller) en historialEstados:', e);
+
+const nextStatusFromStep = (idx:number, monto:number) => {
+  const steps = stepsCfg.value;
+  const st = steps[idx];
+  const min = stepMin(st.min);
+  const max = stepMax(st.max);
+  const approveTo = String(st.approveTo || 'Aprobado').trim() || 'Aprobado';
+  const overTo = String(st.overTo || '').trim();
+
+  if (!monto || monto <= 0) throw new Error('Monto inválido: OC sin total (0 o vacío).');
+  if (monto < min) throw new Error(`Monto ${monto.toLocaleString('es-CL')} < mínimo de la etapa (${min.toLocaleString('es-CL')}).`);
+
+  if (monto > max) {
+    if (overTo) return overTo;
+    const fallbackNext = steps[idx + 1]?.inStatus;
+    if (fallbackNext) return String(fallbackNext).trim();
+    throw new Error(`Monto excede el máximo (${max.toLocaleString('es-CL')}) y no hay overTo.`);
   }
+  return approveTo;
 };
 
+/** ✅ Auto-skip opcional: solo si ENABLE_DELEGATION=true */
+const computeNextStatusAutoSkip = (oc:any) => {
+  const steps = stepsCfg.value;
+  const uid = myUid.value;
+  const monto = ocMonto(oc);
+
+  let idx = stepIndexFromOCStatus(oc?.estatus);
+  if (idx < 0) return 'Aprobado';
+
+  const visited = new Set<number>();
+
+  for (let hop = 0; hop < 8; hop++) {
+    if (idx < 0 || idx >= steps.length) break;
+    if (visited.has(idx)) break;
+    visited.add(idx);
+
+    const next = nextStatusFromStep(idx, monto);
+    const nextIdx = stepIndexFromOCStatus(next);
+
+    // En modo estricto NO saltamos etapas automáticamente
+    if (!ENABLE_DELEGATION) return next;
+
+    // En modo delegación, si el siguiente estado también lo manejo yo, saltamos
+    if (uid && nextIdx >= 0 && iHandleStep(nextIdx)) {
+      idx = nextIdx;
+      continue;
+    }
+
+    return next;
+  }
+
+  return 'Aprobado';
+};
+
+/** ======== Acciones UI ======== */
 const accionando = ref(false);
 
 const irASolped = (oc:any) => {
@@ -1103,6 +1173,7 @@ const irASolped = (oc:any) => {
   try { router.push({ name: 'SolpedTallerDetalle', params: { id } }); }
   catch { router.push(`/solped-taller/${id}`); }
 };
+
 const solicitarAclaracion = async (oc:any) => {
   if (accionando.value) return;
 
@@ -1113,7 +1184,6 @@ const solicitarAclaracion = async (oc:any) => {
 
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de solicitar aclaración.'); return; }
-
   if (!canActOnOC(oc)) { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
 
   accionando.value = true;
@@ -1153,13 +1223,18 @@ const aprobar = async (oc:any) => {
 
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de aprobar.'); return; }
-
   if (!canActOnOC(oc)) { addToast('warning','No puedes aprobar este estado.'); return; }
-  const guard = guardMaxByStep(oc);
 
   accionando.value = true;
   try {
-    const nuevoEstatus = computeNextStatusAutoSkip(oc);
+    let nuevoEstatus = 'Aprobado';
+    try {
+      nuevoEstatus = computeNextStatusAutoSkip(oc);
+    } catch (err:any) {
+      addToast('warning', err?.message || 'No se pudo determinar el siguiente estado según el monto.');
+      accionando.value = false;
+      return;
+    }
 
     const nuevosItems = (oc.items || []).map((it:any) =>
       (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
@@ -1213,7 +1288,6 @@ const rechazar = async (oc:any) => {
 
   const comentario = (oc._comentarioAccion || '').trim();
   if (!comentario) { addToast('warning', 'Escribe un comentario antes de rechazar.'); return; }
-
   if (!canActOnOC(oc)) { addToast('warning','No puedes rechazar este estado.'); return; }
 
   accionando.value = true;
@@ -1245,6 +1319,7 @@ const rechazar = async (oc:any) => {
   }
 };
 
+/** ======== Suscripción OCs ======== */
 const expandStatusVariants = (s: string) => {
   const raw = String(s || '').trim();
   const key = normStatusKey(raw);
@@ -1285,6 +1360,7 @@ const expandStatusVariants = (s: string) => {
 
   return Array.from(out).filter(Boolean);
 };
+
 const subscribeOCs = (targets: string[]) => {
   if (_unsub) { _unsub(); _unsub = null; }
   ocs.value = [];
@@ -1314,7 +1390,6 @@ const subscribeOCs = (targets: string[]) => {
 
     snap.forEach(d => {
       const data:any = d.data();
-
       if (normalizeCompany(data?.empresa) !== 'SERVICIOS') return;
 
       const archivos = Array.isArray(data.archivosStorage)
@@ -1377,6 +1452,10 @@ const pickUserName = (u:any = {}, fallback = '') => {
 
 onMounted(async () => {
   try {
+    mqXs = window.matchMedia('(max-width: 576px)');
+    updateXs();
+    mqXs.addEventListener?.('change', updateXs);
+
     const uid = auth?.user?.uid;
     let fullName = auth?.user?.displayName || auth?.user?.email || '';
     if (uid) {
@@ -1416,6 +1495,11 @@ onMounted(async () => {
 onBeforeUnmount(()=> {
   if (_unsub) _unsub();
   if (_unsubFlow) _unsubFlow();
+
+  mqXs?.removeEventListener?.('change', updateXs);
+  mqXs = null;
+
+  document.documentElement.style.overflow = '';
 });
 </script>
 
@@ -1437,6 +1521,7 @@ onBeforeUnmount(()=> {
 .toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
 .toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
 .btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
+
 .oc-highlight{
   padding: .65rem .75rem;
   border: 1px solid var(--bs-border-color);

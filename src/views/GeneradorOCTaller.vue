@@ -323,22 +323,28 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <tr v-for="it in itemsSolped" :key="it.__tempId">
+                        <tr v-for="it in itemsSolped" :key="it.__k">
                           <td>{{ it.item }}</td>
                           <td class="w-50">{{ it.descripcion }}</td>
                           <td class="text-center">{{ it.cantidad }}</td>
                           <td class="text-center fw-semibold">{{ it.__restan }}</td>
                           <td>
-                            <input
-                              type="number"
-                              class="form-control form-control-sm"
-                              min="0"
-                              :max="it.__restan"
-                              v-model.number="it.cantidad_para_cotizar"
-                              @input="clampCantidad(it)"
-                              @blur="clampCantidad(it)"
-                            />
-                            <div class="form-text">Disponible: {{ it.__restan }}</div>
+                          <input
+                            type="number"
+                            class="form-control form-control-sm"
+                            :class="{ 'is-invalid': it.__invalid }"
+                            min="0"
+                            :max="it.__restan"
+                            v-model.number="it.cantidad_para_cotizar"
+                            @input="clampCantidad(it)"
+                            @blur="clampCantidad(it)"
+                          />
+                          <div class="form-text">
+                            Disponible: {{ it.__restan }}
+                          </div>
+                          <div v-if="it.__invalid" class="invalid-feedback d-block">
+                            Se ajustó al máximo permitido.
+                          </div>
                           </td>
                         </tr>
                       </tbody>
@@ -561,8 +567,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
-  collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  serverTimestamp, onSnapshot, Timestamp, getCountFromServer
+  collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc,
+  serverTimestamp, onSnapshot, Timestamp, getCountFromServer, runTransaction
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -624,7 +630,134 @@ const tipoCambioUSD = 950;
 const tipoCambioEUR = 1050;
 
 const mostrarEquipos = ref(false);
+const nnum = (v, def = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+};
 
+const normalizePlain = (s) =>
+  String(s || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+function sumMapNumbers(obj) {
+  if (!obj || typeof obj !== "object") return 0;
+  return Object.values(obj).reduce((acc, v) => acc + nnum(v, 0), 0);
+}
+
+function computeItemCounters(base) {
+  const total = nnum(base.cantidad, 0);
+
+  const cotPorOC = (base.cotPorOC && typeof base.cotPorOC === "object") ? base.cotPorOC : {};
+  const pend = (base.pendienteRevisionPorOC && typeof base.pendienteRevisionPorOC === "object")
+    ? base.pendienteRevisionPorOC
+    : {};
+
+  const aprobado = Math.min(total, sumMapNumbers(cotPorOC));
+  const reservado = Math.min(total, sumMapNumbers(pend));
+  const restan = Math.max(0, total - aprobado - reservado);
+  const comprometido = Math.min(total, aprobado + reservado);
+
+  return { total, aprobado, reservado, restan, comprometido };
+}
+
+function recomputeSolpedItemState(item) {
+  const it = { ...(item || {}) };
+  const total = nnum(it.cantidad, 0);
+
+  it.cotPorOC = (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {};
+  it.pendienteRevisionPorOC =
+    (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object")
+      ? it.pendienteRevisionPorOC
+      : {};
+
+  const { aprobado, comprometido } = computeItemCounters(it);
+
+  it.cantidad_cotizada = comprometido;
+
+  // ✅ estado_cotizacion consistente
+  if (total > 0 && aprobado >= total) it.estado_cotizacion = "completado";
+  else if (comprometido > 0) it.estado_cotizacion = "parcial";
+  else it.estado_cotizacion = "pendiente";
+
+  it.estado = it.estado_cotizacion;
+  return it;
+}
+
+// ✅ clamp con marca visual si ajustó
+const clampCantidad = (it) => {
+  const max = nnum(it.__restan, 0);
+  const raw = nnum(it.cantidad_para_cotizar, 0);
+
+  let v = raw;
+  if (v < 0) v = 0;
+  if (v > max) v = max;
+
+  it.cantidad_para_cotizar = v;
+  it.__invalid = raw !== v;
+};
+
+// ✅ selections: solo ítems con qty > 0 (evita “toques fantasma”)
+const buildSelectionsTaller = (itemsUI = []) => {
+  const out = [];
+  for (const it of itemsUI || []) {
+    clampCantidad(it);
+    const qty = nnum(it.cantidad_para_cotizar, 0);
+    if (qty <= 0) continue;
+
+    out.push({
+      item: nnum(it.item, 0),
+      __tempId: String(it.__tempId || "").trim(),
+      qty,
+    });
+  }
+  return out;
+};
+
+// ✅ items para OC: solo seleccionados
+const buildItemsOC_Taller = (itemsUI = [], selections = [], nombreUsuario = "", solpedId = "", solpedSel = null, moneda = "CLP", totalConIVA = 0) => {
+  const selByItem = new Map(selections.map(s => [nnum(s.item, 0), nnum(s.qty, 0)]));
+  const out = [];
+
+  for (const it of itemsUI || []) {
+    const itemNo = nnum(it.item, 0);
+    const qty = selByItem.get(itemNo) || 0;
+    if (qty <= 0) continue;
+
+    out.push({
+      solped_item_no: itemNo,
+      item: itemNo,
+      descripcion: it.descripcion || "",
+      codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
+      imagen_url: it.imagen_url ?? null,
+
+      cantidad: nnum(it.cantidad, 0),
+      cantidad_solicitada_oc: qty,
+      cantidad_para_cotizar: qty,
+
+      // para el OC, esto es “lo solicitado”
+      cantidad_cotizada: qty,
+
+      estado: "revision",
+      estado_cotizacion: "revision",
+
+      numero_interno: it.numero_interno || "",
+      solpedId,
+      numero_solped: solpedSel?.numero_solpe || 0,
+      tipo_solped: solpedSel?.tipo_solped || "No definido",
+      moneda,
+      precioTotalConIVA: totalConIVA,
+      responsable: nombreUsuario,
+
+      __tempId: it.__tempId || `${itemNo}-${it.descripcion}-${it.codigo_referencial || ""}`,
+    });
+  }
+
+  return out;
+};
 const archivos = ref([]);
 const abrirSelectorArchivos = () => {
   const input = document.getElementById("inputArchivo");
@@ -654,33 +787,8 @@ const eliminarArchivo = (idx) => {
   addToast("success", "Archivo eliminado.");
 };
 
-function sumMapNumbers(obj) {
-  if (!obj || typeof obj !== "object") return 0;
-  return Object.values(obj).reduce((acc, v) => acc + Number(v || 0), 0);
-}
-function computeItemCounters(base) {
-  const total = Number(base.cantidad || 0);
-  const aprobado = Math.min(total, sumMapNumbers(base.cotPorOC));
-  const reservado = Math.min(total, sumMapNumbers(base.pendienteRevisionPorOC));
-  const restan = Math.max(0, total - aprobado - reservado);
-  const comprometido = Math.min(total, aprobado + reservado);
-  return { total, aprobado, reservado, restan, comprometido };
-}
-function recomputeSolpedItemState(item) {
-  const it = { ...(item || {}) };
-  const total = Number(it.cantidad || 0);
-  it.cotPorOC = (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {};
-  it.pendienteRevisionPorOC = (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {};
-  const aprobado = Math.min(total, sumMapNumbers(it.cotPorOC));
-  const reservado = Math.min(total, sumMapNumbers(it.pendienteRevisionPorOC));
-  const comprometido = Math.min(total, aprobado + reservado);
-  it.cantidad_cotizada = comprometido;
-  if (total > 0 && aprobado >= total) it.estado_cotizacion = "completado";
-  else if (comprometido > 0) it.estado_cotizacion = "parcial";
-  else it.estado_cotizacion = "pendiente";
-  it.estado = it.estado_cotizacion;
-  return it;
-}
+
+
 
 const solpedDisponibles = ref([]);
 const solpedSeleccionadaId = ref("");
@@ -717,14 +825,6 @@ const onToggleUsarSolped = () => {
   calcularAprobador();
 };
 
-const clampCantidad = (it) => {
-  let v = Number(it.cantidad_para_cotizar || 0);
-  const max = Number(it.__restan || 0);
-  if (v < 0) v = 0;
-  if (v > max) v = max;
-  it.cantidad_para_cotizar = v;
-};
-
 const onChangeSolped = async () => {
   if (!solpedSeleccionadaId.value) {
     solpedSeleccionada.value = null;
@@ -746,8 +846,7 @@ const onChangeSolped = async () => {
       "cotizado parcial",
       "cotizando - revision guillermo",
       "cotizando - revisión guillermo",
-      "cotizado parcial",
-      "cotizado completado"
+      "cotizado completado",
     ];
     if (!allowed.includes(st)) {
       addToast("warning", "Esta SOLPED no está en estado Pendiente / Parcial / Cotizando.");
@@ -759,8 +858,10 @@ const onChangeSolped = async () => {
     }
 
     solpedSeleccionada.value = data;
+
     centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
 
+    // (tu autorización única, la dejo igual)
     autorizacionNombre.value = data.autorizacion_nombre || null;
     autorizacionUrlRaw.value = data.autorizacion_url || null;
     const guess = String((autorizacionNombre.value || autorizacionUrlRaw.value || "")).toLowerCase();
@@ -768,25 +869,41 @@ const onChangeSolped = async () => {
     autorizacionEsImagen.value = /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(guess);
 
     const todos = Array.isArray(data.items) ? data.items : [];
-    const normalizados = todos.map((it) => {
+
+    const normalizados = todos.map((it, idx) => {
       const base = {
         ...it,
-        cantidad: Number(it.cantidad || 0),
+        item: nnum(it.item, idx + 1),
+        cantidad: nnum(it.cantidad, 0),
         cotPorOC: (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {},
         pendienteRevisionPorOC: (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {},
       };
+
       const { aprobado, reservado, restan } = computeItemCounters(base);
-      const withCounters = { ...base, __aprobado: aprobado, __reservado: reservado, __restan: restan };
-      return recomputeSolpedItemState(withCounters);
+
+      const withCounters = {
+        ...base,
+        __aprobado: aprobado,
+        __reservado: reservado,
+        __restan: restan,
+      };
+
+      const final = recomputeSolpedItemState(withCounters);
+
+      // ✅ keys estables para vue
+      final.__tempId = final.__tempId || `${final.item}-${normalizePlain(final.descripcion)}-${final.codigo_referencial || ""}`;
+      final.__k = `${final.item}|${final.__tempId}|${idx}`;
+
+      // defaults UI
+      final.cantidad_para_cotizar = 0;
+      final.__invalid = false;
+
+      return final;
     });
 
+    // ✅ filtro correcto: solo con pendiente real
     itemsSolped.value = normalizados
-      .filter((it) => Number(it.__restan || 0) > 0)
-      .map((it) => ({
-        ...it,
-        cantidad_para_cotizar: 0,
-        __tempId: it.__tempId || `${it.item}-${it.descripcion}-${it.codigo_referencial || ""}`,
-      }));
+      .filter((it) => nnum(it.__restan, 0) > 0);
 
     if (data.empresa) empresaSeleccionada.value = data.empresa;
   } catch (e) {
@@ -833,130 +950,108 @@ const calcularAprobador = () => {
   }
 };
 
-function makeOcItemFromSolpedItem(it, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel) {
-  const cantTotal = Number(it.cantidad || 0);
-  const qty = Math.max(0, Math.min(Number(it.cantidad_para_cotizar || 0), Number(it.__restan || 0), cantTotal));
 
-  return {
-    solped_item_no: Number(it.item ?? 0),
-    item: Number(it.item ?? 0),
-    descripcion: it.descripcion || "",
-    codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
-    imagen_url: it.imagen_url ?? null,
-    cantidad: cantTotal,
-    cantidad_solicitada_oc: qty,
-    cantidad_para_cotizar: qty,
-    cantidad_cotizada: qty,
-    estado: qty > 0 ? "revision" : "pendiente",
-    estado_cotizacion: qty > 0 ? "revision" : "pendiente",
-    numero_interno: numeroInternoTexto || it.numero_interno || "",
-    solpedId,
-    numero_solped: solpedSel?.numero_solpe || 0,
-    tipo_solped: solpedSel?.tipo_solped || "No definido",
-    moneda,
-    precioTotalConIVA: totalConIVA,
-    responsable,
-    __tempId: it.__tempId || `${it.item}-${it.descripcion}-${it.codigo_referencial || ""}`,
-  };
-}
 
-function mapearItemsParaOC(itemsOrigen, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel) {
-  const salida = [];
-  for (const it of (itemsOrigen || [])) {
-    const ocIt = makeOcItemFromSolpedItem(it, numeroInternoTexto, moneda, totalConIVA, responsable, solpedId, solpedSel);
-    if (Number(ocIt.cantidad_solicitada_oc || 0) > 0) salida.push(ocIt);
-  }
-  return salida;
-}
 
-async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, ocNumero, ocDocId) {
+
+async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario, ocNumero, ocDocId) {
   if (!solpedId) return;
+  if (!Array.isArray(selections) || selections.length === 0) return;
 
   const dref = doc(db, "solped_taller", solpedId);
-  const ss = await getDoc(dref);
-  if (!ss.exists()) return;
-
-  const dataSol = ss.data() || {};
-  const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
   const ocKey = String(ocNumero);
 
-  const idxByItemNo = new Map();
-  const idxByTempId = new Map();
+  await runTransaction(db, async (tx) => {
+    const ss = await tx.get(dref);
+    if (!ss.exists()) return;
 
-  originales.forEach((it, i) => {
-    const n = Number(it?.item);
-    if (Number.isFinite(n) && n > 0) idxByItemNo.set(n, i);
+    const dataSol = ss.data() || {};
+    const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-    const t = String(it?.__tempId || "").trim();
-    if (t) idxByTempId.set(t, i);
-  });
+    // index por item + tempId
+    const idxByItemNo = new Map();
+    const idxByTempId = new Map();
 
-  const actualizados = originales.map((x) => ({
-    ...x,
-    cotPorOC: (x?.cotPorOC && typeof x.cotPorOC === "object") ? x.cotPorOC : {},
-    pendienteRevisionPorOC: (x?.pendienteRevisionPorOC && typeof x.pendienteRevisionPorOC === "object") ? x.pendienteRevisionPorOC : {},
-  }));
+    originales.forEach((it, i) => {
+      const n = nnum(it?.item, 0);
+      if (n > 0) idxByItemNo.set(n, i);
 
-  const findIndexForOcItem = (ocIt) => {
-    const n = Number(ocIt?.solped_item_no ?? ocIt?.item);
-    if (Number.isFinite(n) && idxByItemNo.has(n)) return idxByItemNo.get(n);
+      const t = String(it?.__tempId || "").trim();
+      if (t) idxByTempId.set(t, i);
+    });
 
-    const t = String(ocIt?.__tempId || "").trim();
-    if (t && idxByTempId.has(t)) return idxByTempId.get(t);
+    const items = originales.map((x) => ({
+      ...x,
+      item: nnum(x.item, 0),
+      cantidad: nnum(x.cantidad, 0),
+      cotPorOC: (x?.cotPorOC && typeof x.cotPorOC === "object") ? x.cotPorOC : {},
+      pendienteRevisionPorOC:
+        (x?.pendienteRevisionPorOC && typeof x.pendienteRevisionPorOC === "object")
+          ? x.pendienteRevisionPorOC
+          : {},
+    }));
 
-    return -1;
-  };
+    const findIndex = (sel) => {
+      const itemNo = nnum(sel?.item, 0);
+      if (itemNo && idxByItemNo.has(itemNo)) return idxByItemNo.get(itemNo);
 
-  for (const ocIt of (itemsOC || [])) {
-    const idx = findIndexForOcItem(ocIt);
-    if (idx < 0) continue;
+      const t = String(sel?.__tempId || "").trim();
+      if (t && idxByTempId.has(t)) return idxByTempId.get(t);
 
-    const base = { ...actualizados[idx] };
-    base.cantidad = Number(base.cantidad || 0);
+      return -1;
+    };
 
-    const total = Number(base.cantidad || 0);
-    const aprobado = Math.min(total, sumMapNumbers(base.cotPorOC));
-    const reservado = Math.min(total, sumMapNumbers(base.pendienteRevisionPorOC));
-    const restan = Math.max(0, total - aprobado - reservado);
+    for (const sel of selections) {
+      const idx = findIndex(sel);
+      if (idx < 0) continue;
 
-    const qtyReq = Math.max(0, Number(ocIt?.cantidad_solicitada_oc || 0));
-    const qty = Math.min(qtyReq, restan, total);
+      const base = { ...items[idx] };
 
-    if (qty <= 0) {
-      actualizados[idx] = recomputeSolpedItemState(base);
-      continue;
+      const { total, restan } = computeItemCounters(base);
+      const req = Math.max(0, nnum(sel?.qty, 0));
+
+      // ✅ clamp server-side con estado actual
+      const qty = Math.min(req, restan, total);
+
+      if (qty <= 0) {
+        items[idx] = recomputeSolpedItemState(base);
+        continue;
+      }
+
+      // ✅ idempotente para este OC: set (no suma)
+      base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
+      base.pendienteRevisionPorOC[ocKey] = qty;
+
+      items[idx] = recomputeSolpedItemState(base);
     }
 
-    base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
-    base.pendienteRevisionPorOC[ocKey] = Number(base.pendienteRevisionPorOC[ocKey] || 0) + qty;
+    const finalItems = items.map((it) => recomputeSolpedItemState(it));
 
-    base.cotPorOC = (base.cotPorOC && typeof base.cotPorOC === "object") ? base.cotPorOC : {};
-    actualizados[idx] = recomputeSolpedItemState(base);
-  }
+    // estatus global
+    const tot = finalItems.length;
+    const completos = finalItems.filter((it) => {
+      const total = nnum(it.cantidad, 0);
+      const aprob = sumMapNumbers(it.cotPorOC);
+      return total > 0 && aprob >= total;
+    }).length;
 
-  const finalItems = actualizados.map((it) => recomputeSolpedItemState(it));
+    const anyApproved = finalItems.some((it) => sumMapNumbers(it.cotPorOC) > 0);
+    const anyReserved = finalItems.some((it) => sumMapNumbers(it.pendienteRevisionPorOC) > 0);
 
-  const tot = finalItems.length;
-  const completos = finalItems.filter((it) => {
-    const total = Number(it.cantidad || 0);
-    const aprob = sumMapNumbers(it.cotPorOC);
-    return total > 0 && aprob >= total;
-  }).length;
+    let nuevoEstatusSol = String(dataSol.estatus || "Pendiente");
+    if (tot > 0 && completos === tot) nuevoEstatusSol = "Cotizado Completado";
+    else if (anyApproved) nuevoEstatusSol = "Cotizado Parcial";
+    else if (anyReserved) nuevoEstatusSol = "Cotizando - Revisión Guillermo";
+    else nuevoEstatusSol = "Pendiente";
 
-  const anyApproved = finalItems.some((it) => sumMapNumbers(it.cotPorOC) > 0);
-  const anyReserved = finalItems.some((it) => sumMapNumbers(it.pendienteRevisionPorOC) > 0);
-
-  let nuevoEstatusSol = "Pendiente";
-  if (tot > 0 && completos === tot) nuevoEstatusSol = "Cotizado Completado";
-  else if (anyApproved) nuevoEstatusSol = "Cotizado Parcial";
-  else if (anyReserved) nuevoEstatusSol = "Cotizando - Revisión Guillermo";
-
-  await updateDoc(dref, {
-    items: finalItems,
-    estatus: nuevoEstatusSol,
-    updated_at: serverTimestamp(),
+    tx.update(dref, {
+      items: finalItems,
+      estatus: nuevoEstatusSol,
+      updated_at: serverTimestamp(),
+    });
   });
 
+  // historial fuera de transacción
   await addDoc(collection(db, "solped_taller", solpedId, "historialEstados"), {
     usuario: nombreUsuario,
     fecha: serverTimestamp(),
@@ -966,12 +1061,17 @@ async function actualizarSolpedTaller_postOC(solpedId, itemsOC, nombreUsuario, o
     ocNumero,
   });
 }
-
 const enviarOC = async () => {
   if (enviando.value) return;
 
+  // ✅ refresca count antes de validar bloqueo (por si cambió en vivo)
+  await refrescarAprobadasConCountTaller();
+
   if (bloqueoPorAprobadasTaller.value) {
-    addToast("warning", `Tienes ${totalAprobadasDelUsuarioTaller.value} cotizaciones del Taller en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`);
+    addToast(
+      "warning",
+      `Tienes ${totalAprobadasDelUsuarioTaller.value} cotizaciones del Taller en "Aprobado" en los últimos 2 meses. Ve al detalle y súbelas antes de continuar.`
+    );
     return;
   }
 
@@ -982,9 +1082,11 @@ const enviarOC = async () => {
   if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
   if (archivos.value.length === 0) { addToast("warning", "Debes subir al menos un archivo de cotización"); return; }
 
+  // ✅ SOLPED: solo ítems realmente cotizados
+  let selections = [];
   if (usarSolped.value && solpedSeleccionadaId.value) {
-    const hayAlgoPorCotizar = (itemsSolped.value || []).some(it => Number(it.cantidad_para_cotizar || 0) > 0);
-    if (!hayAlgoPorCotizar) {
+    selections = buildSelectionsTaller(itemsSolped.value);
+    if (!selections.length) {
       addToast("warning", "Debes ingresar cantidad a cotizar en al menos un ítem.");
       return;
     }
@@ -995,6 +1097,7 @@ const enviarOC = async () => {
   enviando.value = true;
 
   try {
+    // ✅ calcula nuevo correlativo
     const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
@@ -1004,35 +1107,49 @@ const enviarOC = async () => {
     const aprobador = aprobadorSugerido.value || "";
     const estatusInicial = "Revisión Guillermo";
 
+    // ✅ subir adjuntos
     const storage = getStorage();
     const subidos = [];
+
     for (const a of archivos.value) {
       if (!a.file || a.file.size < 100) continue;
-      const path = `ordenes_oc_taller/${newId}/${a.name}`;
+
+      const safeName = String(a.name || "archivo")
+        .replace(/[^\w.\-() ]+/g, "_")
+        .slice(0, 120);
+
+      const path = `ordenes_oc_taller/${newId}/${safeName}`;
       const sRef = sref(storage, path);
       const up = await uploadBytes(sRef, a.file);
       const url = await getDownloadURL(up.ref);
-      subidos.push({ nombre: a.name, tipo: a.tipo, url });
+
+      subidos.push({ nombre: safeName, tipo: a.tipo || a.file.type || "application/octet-stream", url });
     }
 
+    // ✅ items OC (solo seleccionados)
     let itemsFinal = [];
     if (usarSolped.value && solpedSeleccionadaId.value && solpedSeleccionada.value) {
-      itemsFinal = mapearItemsParaOC(
+      itemsFinal = buildItemsOC_Taller(
         itemsSolped.value,
-        centroCostoTexto.value,
-        monedaSeleccionada.value,
-        precioTotalConIVA.value,
+        selections,
         nombreUsuario,
         solpedSeleccionadaId.value,
-        solpedSeleccionada.value
+        solpedSeleccionada.value,
+        monedaSeleccionada.value,
+        precioTotalConIVA.value
       );
+
+      if (!itemsFinal.length) {
+        addToast("warning", "No hay ítems válidos para cotizar (revisa cantidades).");
+        return;
+      }
     }
 
     const historialEntry = {
       usuario: nombreUsuario,
       estatus: estatusInicial,
       fecha: new Date().toISOString(),
-      comentario: comentarioFinal
+      comentario: comentarioFinal,
     };
 
     const dataToSave = {
@@ -1050,23 +1167,26 @@ const enviarOC = async () => {
       moneda: monedaSeleccionada.value,
       precioTotalConIVA: precioTotalConIVA.value,
       responsable: nombreUsuario,
+
       ...(usarSolped.value && solpedSeleccionadaId.value ? {
         solpedId: solpedSeleccionadaId.value,
         numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
         tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
-        items: itemsFinal
+        items: itemsFinal,
       } : {
         tipo_solped: "Sin SOLPED",
-        items: []
-      })
+        items: [],
+      }),
     };
 
+    // ✅ crea OC
     const newRef = await addDoc(collection(db, "ordenes_oc_taller"), dataToSave);
 
+    // ✅ actualiza SOLPED con transacción (solo lo realmente cotizado)
     if (usarSolped.value && solpedSeleccionadaId.value) {
       await actualizarSolpedTaller_postOC(
         solpedSeleccionadaId.value,
-        itemsFinal,
+        selections,
         nombreUsuario,
         newId,
         newRef.id

@@ -371,22 +371,27 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <tr v-for="it in itemsSolped" :key="it.__tempId">
+                          <tr v-for="it in itemsSolped" :key="it.__k">
                             <td data-label="Ítem">{{ it.item }}</td>
                             <td data-label="Descripción" class="w-50">{{ it.descripcion }}</td>
                             <td data-label="Cant. total" class="text-center">{{ it.cantidad }}</td>
                             <td data-label="Cotizado antes" class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
                             <td data-label="Cant. a cotizar">
-                              <input
-                                type="number"
-                                class="form-control form-control-sm"
-                                min="0"
-                                :max="Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0))"
-                                v-model.number="it.cantidad_para_cotizar"
-                              />
-                              <div class="form-text">
-                                Máx: {{ Math.max(0, (it.cantidad || 0) - (it.cantidad_cotizada || 0)) }}
-                              </div>
+                            <input
+                              type="number"
+                              class="form-control form-control-sm"
+                              :class="{ 'is-invalid': it.__invalid }"
+                              min="0"
+                              :max="it.__max"
+                              v-model.number="it.cantidad_para_cotizar"
+                              @input="onInputCantidad(it)"
+                            />
+                            <div class="form-text">
+                              Máx: {{ it.__max }} · Restante: {{ it.__restante }}
+                            </div>
+                            <div v-if="it.__invalid" class="invalid-feedback d-block">
+                              Se ajustó al máximo permitido.
+                            </div>
                             </td>
                           </tr>
                         </tbody>
@@ -930,7 +935,7 @@ import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
   collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  onSnapshot, Timestamp, serverTimestamp
+  onSnapshot, Timestamp, serverTimestamp, runTransaction
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -970,6 +975,129 @@ const normalizePlain = (s) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
+const num = (v, def = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+};
+
+const itemIdentityKey = (it) => {
+  const itemN = num(it?.item, 0);
+  const ni = String(it?.numero_interno || "").trim();
+  const desc = normalizePlain(it?.descripcion || "");
+  return `${itemN}|${ni}|${desc}`;
+};
+
+const isItemCompleto = (it) => {
+  const total = num(it?.cantidad, 0);
+  const cot = num(it?.cantidad_cotizada, 0);
+  const ec = normalizePlain(it?.estado_cotizacion);
+  const ev = normalizePlain(it?.estado);
+
+  if (ec === "completo") return true;
+  if (ev === "completado") return true;
+  if (total > 0 && cot >= total) return true;
+  return false;
+};
+
+const computeEstadoItem = ({ total, antes, nueva }) => {
+  const final = antes + nueva;
+  const cappedFinal = total > 0 ? Math.min(final, total) : final;
+
+  const completo = total > 0 && cappedFinal >= total;
+  const parcial = nueva > 0 || (antes > 0 && !completo);
+
+  return {
+    finalCotizada: cappedFinal,
+    estado_cotizacion: completo ? "completo" : (parcial ? "parcial" : "ninguno"),
+    estado: completo ? "completado" : (parcial ? "parcial" : "pendiente"),
+  };
+};
+
+const clampCantidadParaCotizar = (it) => {
+  const total = num(it?.cantidad, 0);
+  const antes = num(it?.cantidad_cotizada, 0);
+  const max = Math.max(0, total - antes);
+
+  const raw = num(it?.cantidad_para_cotizar, 0);
+  const v = Math.min(Math.max(0, raw), max);
+
+  it.__max = max;
+  it.cantidad_para_cotizar = v;
+  it.__restante = Math.max(0, max - v);
+  it.__invalid = raw !== v;
+};
+
+const onInputCantidad = (it) => clampCantidadParaCotizar(it);
+
+const buildItemsSolpedForUI = (solpedItems = []) => {
+  return (solpedItems || [])
+    .map((it, idx) => {
+      const total = num(it?.cantidad, 0);
+      const antes = num(it?.cantidad_cotizada, 0);
+      const max = Math.max(0, total - antes);
+
+      const baseKey = itemIdentityKey(it);
+      return {
+        ...it,
+        item: num(it?.item, idx + 1),
+        cantidad: total,
+        cantidad_cotizada: antes,
+        cantidad_para_cotizar: 0,
+        __key: baseKey,
+        __k: `${baseKey}|${idx}`,     // ✅ key único para Vue
+        __max: max,
+        __restante: max,
+        __invalid: false,
+      };
+    })
+    .filter((it) => !isItemCompleto(it)); // ✅ aquí está el fix principal
+};
+
+const buildSelections = (itemsUI = []) => {
+  return (itemsUI || [])
+    .map((it) => {
+      clampCantidadParaCotizar(it);
+      return {
+        key: it.__key,
+        item: num(it.item, 0),
+        numero_interno: String(it.numero_interno || "").trim(),
+        descripcion: String(it.descripcion || ""),
+        cantidad_para_cotizar: num(it.cantidad_para_cotizar, 0),
+      };
+    })
+    .filter((x) => x.cantidad_para_cotizar > 0);
+};
+
+const buildItemsOCFromUI = (itemsUI = []) => {
+  const out = [];
+  for (const it of itemsUI || []) {
+    clampCantidadParaCotizar(it);
+
+    const nueva = num(it.cantidad_para_cotizar, 0);
+    if (nueva <= 0) continue;
+
+    const total = num(it.cantidad, 0);
+    const antes = num(it.cantidad_cotizada, 0);
+
+    const st = computeEstadoItem({ total, antes, nueva });
+
+    out.push({
+      item: num(it.item, 0),
+      descripcion: String(it.descripcion || ""),
+      cantidad: total,
+      cantidad_cotizada_antes: antes,
+      cantidad_para_cotizar: nueva,
+      cantidad_cotizada: st.finalCotizada,
+      codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
+      numero_interno: it.numero_interno || "",
+      imagen_url: it.imagen_url ?? null,
+      stock: num(it.stock, 0),
+      estado: st.estado,
+      estado_cotizacion: st.estado_cotizacion,
+    });
+  }
+  return out;
+};
 const esAprobadoFinal = (estatus) => {
   const k = normalizePlain(estatus);
   return k === "aprobado" || k === "aprobada";
@@ -2148,34 +2276,33 @@ const onChangeSolped = async () => {
   try {
     const dref = doc(db, "solpes", solpedSeleccionadaId.value);
     const snap = await getDoc(dref);
-    if (snap.exists()) {
-      const data = snap.data() || {};
-      solpedSeleccionada.value = data;
+    if (!snap.exists()) return;
 
-      const authArr = Array.isArray(data.autorizaciones) ? data.autorizaciones : [];
-      autorizacionesSolped.value = authArr.map((a, i) => ({
-        nombre: a?.nombre || `archivo_${i + 1}`,
-        tipo: a?.tipo || "",
-        url: a?.url || "",
-        tamano: a?.tamano || 0,
-        __k: `${a?.url || a?.nombre || i}-${Math.random()}`,
-      }));
-      autorizacionSeleccionadaIndex.value = 0;
+    const data = snap.data() || {};
+    solpedSeleccionada.value = data;
 
-      const todos = Array.isArray(data.items) ? data.items : [];
-      itemsSolped.value = todos
-        .filter((it) => (it.estado || "").toLowerCase() !== "cotizado completado")
-        .map((it) => ({
-          ...it,
-          cantidad_cotizada: Number(it.cantidad_cotizada || 0) || 0,
-          cantidad_para_cotizar: 0,
-          __tempId: `${it.item}-${it.descripcion}`,
-        }));
+    const authArr = Array.isArray(data.autorizaciones) ? data.autorizaciones : [];
+    autorizacionesSolped.value = authArr.map((a, i) => ({
+      nombre: a?.nombre || `archivo_${i + 1}`,
+      tipo: a?.tipo || "",
+      url: a?.url || "",
+      tamano: a?.tamano || 0,
+      __k: `${a?.url || a?.nombre || i}-${Math.random()}`,
+    }));
+    autorizacionSeleccionadaIndex.value = 0;
 
-      centroCosto.value = data.numero_contrato || centroCosto.value;
-      archivos.value = archivos.value.filter((a) => !a?.fromSolped);
-      calcularAprobador();
-    }
+    const todos = Array.isArray(data.items) ? data.items : [];
+    itemsSolped.value = buildItemsSolpedForUI(todos);
+
+    // ✅ set max/restante inicial
+    for (const it of itemsSolped.value) clampCantidadParaCotizar(it);
+
+    centroCosto.value = data.numero_contrato || centroCosto.value;
+
+    // limpia adjuntos copiados desde SOLPED para que el usuario decida
+    archivos.value = archivos.value.filter((a) => !a?.fromSolped);
+
+    calcularAprobador();
   } catch (e) {
     console.error(e);
   }
@@ -2252,63 +2379,67 @@ const calcularAprobador = () => {
   }) : null;
 };
 
-const mapearItemsSegunRegla = (itemsFuente) => {
-  const salida = (itemsFuente || []).map((item) => {
-    const cantidadTotal = Number(item.cantidad || 0);
-    const cantidadAntes = Number(item.cantidad_cotizada || 0);
-    const cantidadNueva = Number(item.cantidad_para_cotizar || 0);
-    const cantidadActualizada = cantidadAntes + cantidadNueva;
 
-    const estadoVisual = cantidadNueva > 0 ? "revision" : "pendiente";
-    let estadoCotizacion = "ninguno";
-    if (cantidadTotal > 0 && cantidadActualizada >= cantidadTotal) {
-      estadoCotizacion = "completo";
-    } else if (cantidadNueva > 0) {
-      estadoCotizacion = "parcial";
-    }
 
-    return {
-      ...item,
-      cantidad_cotizada: cantidadActualizada,
-      cantidad_para_cotizar: cantidadNueva,
-      estado: estadoVisual,
-      estado_cotizacion: estadoCotizacion,
-    };
-  });
-
-  return salida;
-};
-
-const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario, estatusInicial) => {
+const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, estatusInicial) => {
   if (!solpedId) return;
+  if (!Array.isArray(selections) || selections.length === 0) return;
+
   const srefDoc = doc(db, "solpes", solpedId);
-  const ss = await getDoc(srefDoc);
-  if (!ss.exists()) return;
 
-  const dataSol = ss.data() || {};
-  const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
-  const byKey = new Map(itemsRegla.map((it) => [`${it.item}-${it.descripcion}`, it]));
+  // Map rápido: key => qty
+  const selMap = new Map();
+  for (const s of selections) selMap.set(String(s.key || ""), num(s.cantidad_para_cotizar, 0));
 
-  const actualizados = originales.map((it) => {
-    const clave = `${it.item}-${it.descripcion}`;
-    const upd = byKey.get(clave);
-    if (!upd) return it;
+  await runTransaction(db, async (tx) => {
+    const ss = await tx.get(srefDoc);
+    if (!ss.exists()) return;
 
-    const ant = Number(it.cantidad_cotizada || 0);
-    const nueva = Number(upd.cantidad_para_cotizar || 0);
-    const total = Number(it.cantidad || 0);
-    const final = ant + nueva;
+    const dataSol = ss.data() || {};
+    const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-    const estadoVisual = nueva > 0 ? "revisión" : "pendiente";
-    let estadoCot = "ninguno";
-    if (total > 0 && final >= total) estadoCot = "completo";
-    else if (nueva > 0) estadoCot = "revisión";
+    const actualizados = originales.map((it) => {
+      const k = itemIdentityKey(it);
+      const nueva = selMap.get(k) || 0;
 
-    return { ...it, cantidad_cotizada: final, estado: estadoVisual, estado_cotizacion: estadoCot };
+      // ✅ si no cotizó ese ítem, NO lo toques
+      if (nueva <= 0) return it;
+
+      const total = num(it.cantidad, 0);
+      const antes = num(it.cantidad_cotizada, 0);
+
+      const st = computeEstadoItem({ total, antes, nueva });
+
+      return {
+        ...it,
+        cantidad_cotizada: st.finalCotizada,
+        estado: st.estado,
+        estado_cotizacion: st.estado_cotizacion,
+      };
+    });
+
+    const allComplete = actualizados.every((it) => {
+      const total = num(it.cantidad, 0);
+      const cot = num(it.cantidad_cotizada, 0);
+      const ec = normalizePlain(it.estado_cotizacion);
+      if (total <= 0) return true;
+      return ec === "completo" || cot >= total;
+    });
+
+    const anyCotizado = actualizados.some((it) => num(it.cantidad_cotizada, 0) > 0);
+
+    const nextEstatus = allComplete
+      ? "Cotizado Completado"
+      : (anyCotizado ? "Cotizado Parcial" : (dataSol.estatus || "Pendiente"));
+
+    tx.update(srefDoc, {
+      items: actualizados,
+      estatus: nextEstatus,
+      updated_at: serverTimestamp(),
+    });
   });
 
-  await updateDoc(srefDoc, { items: actualizados, estatus: "Cotizado parcial" });
-
+  // historial (fuera de la transacción)
   const hcoll = collection(db, "solpes", solpedId, "historialEstados");
   await addDoc(hcoll, {
     usuario: nombreUsuario || "Sistema",
@@ -2316,59 +2447,51 @@ const actualizarSolpedAsociada = async (solpedId, itemsRegla, nombreUsuario, est
     estatus: `Cotización enviada - ${estatusInicial || "Pendiente de Aprobación"}`,
   });
 };
-
 const enviarOC = async () => {
   if (enviando.value) return;
 
+  // ✅ valida límite de aprobadas (editor)
   await refrescarAprobadasConCount();
-
   if (bloqueoPorAprobadas.value) {
     const msgExtra = aprobadasState.ok
       ? `Tienes ${totalAprobadasDelUsuario.value} cotizaciones en "Aprobado" (últimos 2 meses).`
-      : `No se pudo validar el límite (índice/reglas).`;
+      : `No se pudo validar el límite (config/índice/permisos).`;
     addToast("warning", `${msgExtra} Ve al detalle y súbelas antes de continuar.`);
     return;
   }
+
+  // ✅ espera config aprobación
   if (aprobacionCfg.loading) {
     addToast("warning", "Espera un momento: cargando reglas de aprobación…");
     return;
   }
+
+  // ✅ recalcula aprobador
   calcularAprobador();
   if (aprobadorMeta.bloquea) {
     addToast("danger", "No hay aprobador disponible (inactivo/vacaciones o config no válida). No se puede enviar.");
     return;
   }
 
+  // ✅ validaciones base
   if (!centroCosto.value.trim()) { addToast("warning", "Selecciona Centro de Costo"); return; }
   if (!tipoCompra.value) { addToast("warning", "Selecciona tipo de compra"); return; }
   if (tipoCompra.value === "patente" && !destinoCompra.value.trim()) { addToast("warning", "Ingresa la patente"); return; }
   if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning", "Precio inválido"); return; }
   if (!monedaSeleccionada.value) { addToast("warning", "Selecciona moneda"); return; }
   if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
+
+  // ✅ SOLPED: arma selections (solo ítems con cantidad_para_cotizar > 0) + valida
+  let selections = [];
   if (usarSolped.value && solpedSeleccionadaId.value) {
-    const items = itemsSolped.value || [];
-    const alguno = items.some((it) => Number(it?.cantidad_para_cotizar || 0) > 0);
-    if (!alguno) {
+    selections = buildSelections(itemsSolped.value); // usa clamp interno
+    if (!selections.length) {
       addToast("warning", "Debes ingresar al menos una 'Cant. a cotizar' (mayor a 0) para enviar la cotización.");
       return;
     }
-    for (const it of items) {
-      const total = Number(it?.cantidad || 0);
-      const antes = Number(it?.cantidad_cotizada || 0);
-      const max = Math.max(0, total - antes);
-      const nueva = Number(it?.cantidad_para_cotizar || 0);
-
-      if (nueva < 0) {
-        addToast("warning", `Ítem ${it?.item ?? ""}: la cantidad a cotizar no puede ser negativa.`);
-        return;
-      }
-      if (nueva > max) {
-        addToast("warning", `Ítem ${it?.item ?? ""}: (${nueva}) supera el máximo permitido (${max}).`);
-        return;
-      }
-    }
   }
 
+  // ✅ adjuntos obligatorios
   const tieneAlMenosUnAdjunto = archivos.value.length > 0;
   if (!tieneAlMenosUnAdjunto) {
     addToast("warning", "Debes adjuntar al menos un archivo (o reutilizar el/los adjuntos de la SOLPED).");
@@ -2376,9 +2499,10 @@ const enviarOC = async () => {
   }
 
   enviando.value = true;
-  setBusy(true, "Enviando cotización…", "Subiendo archivos", 5);
+  setBusy(true, "Enviando cotización…", "Preparando datos", 5);
 
   try {
+    // ✅ nombre usuario (más confiable desde Usuarios)
     let nombreUsuario = auth?.user?.displayName || auth?.user?.email || "Desconocido";
     const uid = myUid.value;
     if (uid) {
@@ -2391,6 +2515,7 @@ const enviarOC = async () => {
 
     setBusy(true, "Enviando cotización…", "Calculando número…", 10);
 
+    // ✅ calcular newId
     const qy = query(collection(db, "ordenes_oc"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
@@ -2399,18 +2524,25 @@ const enviarOC = async () => {
     const centroFound = centrosCostoLista.value.find((c) => c.key === centroCosto.value);
     const centroNombre = centroFound?.name || "Desconocido";
 
-    const empresaElegida = (usarSolped.value && solpedSeleccionada.value?.empresa)
-      ? solpedSeleccionada.value.empresa
-      : empresaPorDefecto;
-    const estatusInicial = ESTATUS_FIJO_INICIAL;
+    const empresaElegida =
+      (usarSolped.value && solpedSeleccionada.value?.empresa)
+        ? solpedSeleccionada.value.empresa
+        : empresaPorDefecto;
 
+    const estatusInicial = ESTATUS_FIJO_INICIAL;
     const comentarioFinal = (comentario.value || "").trim();
 
+    // ✅ ítems OC: solo los que realmente se cotizan (más limpio y sin “completados fantasmas”)
     let itemsOC = [];
     if (usarSolped.value && solpedSeleccionadaId.value) {
-      itemsOC = mapearItemsSegunRegla(itemsSolped.value);
+      itemsOC = buildItemsOCFromUI(itemsSolped.value); // usa clamp interno
+      if (!itemsOC.length) {
+        addToast("warning", "No hay ítems válidos para cotizar (revisa cantidades).");
+        return;
+      }
     }
 
+    // ✅ subir adjuntos (reusa los de SOLPED sin volver a subir)
     const storage = getStorage();
     const subidos = [];
 
@@ -2421,6 +2553,8 @@ const enviarOC = async () => {
       doneAdj++;
       const pct = Math.min(90, 10 + Math.round((doneAdj / totalAdj) * 80));
       setBusy(true, "Enviando cotización…", `Subiendo adjunto ${doneAdj} de ${totalAdj}`, pct);
+
+      // reutilizado desde SOLPED
       if (a?.fromSolped && a?.url) {
         subidos.push({
           nombre: a.name,
@@ -2431,6 +2565,8 @@ const enviarOC = async () => {
         });
         continue;
       }
+
+      // upload normal
       if (!a.file || a.file.size < 100) continue;
 
       const safeName = String(a.name || "archivo")
@@ -2441,7 +2577,13 @@ const enviarOC = async () => {
       const sRef = sref(storage, path);
       const up = await uploadBytes(sRef, a.file);
       const url = await getDownloadURL(up.ref);
-      subidos.push({ nombre: safeName, tipo: a.tipo, url, origen: "upload" });
+
+      subidos.push({
+        nombre: safeName,
+        tipo: a.tipo || a.file.type || "application/octet-stream",
+        url,
+        origen: "upload",
+      });
     }
 
     setBusy(true, "Enviando cotización…", "Guardando documento en Firestore…", 95);
@@ -2466,6 +2608,7 @@ const enviarOC = async () => {
       nombre_centro_costo: centroNombre,
       moneda: monedaSeleccionada.value,
       precioTotalConIVA: precioTotalConIVA.value,
+
       aprobadorSugerido: aprobadorAsignado.value || "",
       aprobadorBase: aprobadorMeta.base || "",
       aprobadorMotivo: aprobadorMeta.motivo || "",
@@ -2477,6 +2620,7 @@ const enviarOC = async () => {
 
       empresa: empresaElegida,
       archivosStorage: subidos,
+
       ...(usarSolped.value && solpedSeleccionadaId.value ? {
         solpedId: solpedSeleccionadaId.value,
         numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
@@ -2491,15 +2635,19 @@ const enviarOC = async () => {
     const newDocId = newDocRef.id;
     await updateDoc(newDocRef, { __docId: newDocId });
 
+    // ✅ actualizar SOLPED con transacción (solo los ítems realmente cotizados)
     if (usarSolped.value && solpedSeleccionadaId.value) {
-      await actualizarSolpedAsociada(solpedSeleccionadaId.value, itemsOC, nombreUsuario, estatusInicial);
+      await actualizarSolpedAsociada(solpedSeleccionadaId.value, selections, nombreUsuario, estatusInicial);
     }
 
     setBusy(true, "Listo ✅", "Cotización enviada correctamente", 100);
     addToast("success", "Cotización enviada exitosamente.");
+
+    // ✅ reset form
     centroCosto.value = "";
     tipoCompra.value = "stock";
     destinoCompra.value = "";
+
     for (const a of archivos.value) {
       try {
         if (a?.previewUrl && !a?.fromSolped) URL.revokeObjectURL(a.previewUrl);
@@ -2517,6 +2665,7 @@ const enviarOC = async () => {
 
     precioTotalConIVA.value = 0;
     precioFormateado.value = "";
+
     aprobadorSugerido.value = "";
     aprobadorAsignado.value = "";
 
@@ -2538,6 +2687,7 @@ const enviarOC = async () => {
     aprobadorMeta.regla = null;
 
     monedaSeleccionada.value = "CLP";
+
     await cargarSiguienteNumero();
 
     const inputEl = document.getElementById("inputArchivo");
