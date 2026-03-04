@@ -600,7 +600,7 @@
               <div class="mb-0">
                 <label class="form-label">Tamaño de página</label>
                 <select class="form-select" v-model.number="pageSize" aria-label="Tamaño de página">
-                  <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
+                  <option v-for="n in [10,20,30,40,50,100,200]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
             </div>
@@ -707,7 +707,7 @@
             <div class="mb-0">
               <label class="form-label">Tamaño de página</label>
               <select class="form-select" v-model.number="pageSize">
-                <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
+                <option v-for="n in [10,20,30,40,50,100,200]" :key="n" :value="n">{{ n }}</option>
               </select>
             </div>
           </div>
@@ -1669,8 +1669,8 @@ onBeforeRouteLeave(() => {
 });
 
 const listaEstatus = [
-  'Completado','Rechazado','Solicitado','Pendiente','Preaprobado',
-  'OC enviada a proveedor','Parcial','Cotizado parcial','Cotizado Completado','Parcial, Pedido en Casa matriz','Pedido en Casa matriz'
+  'Rechazado','Pendiente',
+  'OC enviada a proveedor','Cotizado parcial','Cotizado Completado','Parcial, Pedido en Casa matriz','Pedido en Casa matriz'
 ];
 
 const prettyFecha = (f) => {
@@ -1827,52 +1827,78 @@ function disposeDropdowns() {
     _dropdownMap = new Map();
   }
 }
-const fromStr = filtroFechaDesde.value;
-const toStr   = filtroFechaHasta.value;
 const buildWhere = () => {
   const wh = [];
-  if (empresaSegmento.value !== 'todas') wh.push(where('empresa','==',empresaSegmento.value));
-  if (filtroEstatus.value.length === 1) wh.push(where('estatus','==',filtroEstatus.value[0]));
-  else if (filtroEstatus.value.length > 1) wh.push(where('estatus','in', filtroEstatus.value.slice(0,10)));
+
+  // ✅ Empresa
+  if (empresaSegmento.value !== "todas") {
+    wh.push(where("empresa", "==", empresaSegmento.value));
+  }
+
+  // ✅ Estatus
+  if (filtroEstatus.value.length === 1) {
+    wh.push(where("estatus", "==", filtroEstatus.value[0]));
+  } else if (filtroEstatus.value.length > 1) {
+    wh.push(where("estatus", "in", filtroEstatus.value.slice(0, 10)));
+  }
+
+  // ✅ Fecha (rango)
+  const fromStr = filtroFechaDesde.value;
+  const toStr = filtroFechaHasta.value;
+
   if (fromStr || toStr) {
     try {
       let start, end;
 
       if (fromStr && toStr) {
         start = new Date(`${fromStr}T00:00:00`);
-        end   = new Date(`${toStr}T23:59:59.999`);
-        if (start > end) {
-          const tmp = start;
-          start = end;
-          end = tmp;
-        }
+        end = new Date(`${toStr}T23:59:59.999`);
+        if (start > end) [start, end] = [end, start];
       } else if (fromStr) {
         start = new Date(`${fromStr}T00:00:00`);
-        end   = new Date(`${fromStr}T23:59:59.999`);
+        end = new Date(`${fromStr}T23:59:59.999`);
       } else if (toStr) {
         start = new Date(`${toStr}T00:00:00`);
-        end   = new Date(`${toStr}T23:59:59.999`);
+        end = new Date(`${toStr}T23:59:59.999`);
       }
 
-      wh.push(where('createdAt', '>=', start));
-      wh.push(where('createdAt', '<=', end));
+      wh.push(where("createdAt", ">=", start));
+      wh.push(where("createdAt", "<=", end));
     } catch (e) {
       console.error(e);
     }
   }
-  if (onlyMine.value && myFullName.value) wh.push(where('usuario','==', myFullName.value));
 
+  // ✅ Sólo mis SOLPED
+  if (onlyMine.value && myFullName.value) {
+    wh.push(where("usuario", "==", myFullName.value));
+  }
+
+  // ✅ ✅ ✅ Dirigidas a mí (TU CASO REAL: dirigidoA = [ "Nombre Apellido", ... ])
+  if (onlyDirectedToMe.value) {
+    const me = String(myFullName.value || "").trim();
+
+    // Si todavía no cargó el nombre, NO aplicamos filtro (para no devolver 0)
+    // (pero en la práctica debería estar cargado desde loadUsuarios())
+    if (me) {
+      wh.push(where("dirigidoA", "array-contains", me));
+    }
+  }
+
+  // ✅ Centro de costo
   if (selectedCentros.value.length === 1) {
-    wh.push(where('numero_contrato','==', selectedCentros.value[0]));
-  } else if (selectedCentros.value.length >=2 && selectedCentros.value.length <=10) {
-    wh.push(where('numero_contrato','in', selectedCentros.value));
+    wh.push(where("numero_contrato", "==", selectedCentros.value[0]));
+  } else if (selectedCentros.value.length >= 2 && selectedCentros.value.length <= 10) {
+    wh.push(where("numero_contrato", "in", selectedCentros.value));
   }
 
+  // ✅ Usuario (Generador)
   if (filtroUsuario.value.length === 1) {
-    wh.push(where('usuario','==', filtroUsuario.value[0]));
-  } else if (filtroUsuario.value.length >=2 && filtroUsuario.value.length <=10) {
-    wh.push(where('usuario','in', filtroUsuario.value));
+    wh.push(where("usuario", "==", filtroUsuario.value[0]));
+  } else if (filtroUsuario.value.length >= 2 && filtroUsuario.value.length <= 10) {
+    wh.push(where("usuario", "in", filtroUsuario.value));
   }
+
   return wh;
 };
 const makePageQuery = (pageNumber=1) => {
@@ -1907,9 +1933,6 @@ const subscribePage = () => {
       });
       if (onlyMine.value && myFullName.value) {
         docs = docs.filter((s) => String(s.usuario || '').trim() === myFullName.value);
-      }
-      if (onlyDirectedToMe.value) {
-        docs = docs.filter(isDirectedToMe);
       }
       if (clientCentrosOverflow.value) {
         const set = new Set(selectedCentros.value);
@@ -2805,70 +2828,112 @@ function agregarItem(){
   });
 }
 function eliminarItem(idx){ editItems.value.splice(idx,1); }
-async function guardarEdicion(){
+async function guardarEdicion() {
   if (!editForm.value?.id || savingEdit.value) return;
 
-  const refCheck = doc(db, 'solpes', editForm.value.id);
+  const refCheck = doc(db, "solpes", editForm.value.id);
   const snapCheck = await getDoc(refCheck);
   const dataCheck = snapCheck.data() || {};
+
   if (!puedeEditarSolped({ ...dataCheck, id: editForm.value.id })) {
-    addToast('danger', 'La ventana de edición expiró o no tienes permiso (sólo generador, mismo día, <=24h).');
+    addToast(
+      "danger",
+      "La ventana de edición expiró o no tienes permiso (sólo generador, mismo día, <=24h)."
+    );
     cerrarEditar();
     return;
   }
 
   savingEdit.value = true;
-  try{
-    const refd = doc(db, 'solpes', editForm.value.id);
+
+  try {
+    const refd = doc(db, "solpes", editForm.value.id);
+
+    // ✅ En tu BD: dirigidoA es ARRAY DE STRINGS (nombres)
+    const selNames = Array.from(new Set(dirigidoASelected.value || []))
+      .map((x) => String(x || "").trim())
+      .filter(Boolean);
+
+    // ✅ Extra opcional: guardar uids/emails si cotizadoresEdit viene con info (no rompe nada)
+    const listCot = Array.isArray(cotizadoresEdit.value) ? cotizadoresEdit.value : [];
+    const picked = listCot.filter((c) => selNames.includes(String(c.fullName || "").trim()));
+
+    const dirigidoA_uids = picked
+      .map((x) => String(x.uid || x.id || "").trim())
+      .filter(Boolean);
+
+    const dirigidoA_emails = picked
+      .map((x) => String(x.email || "").trim().toLowerCase())
+      .filter(Boolean);
+
     const payload = {
-      empresa: editForm.value.empresa || '',
-      numero_contrato: editForm.value.numero_contrato || '',
-      nombre_centro_costo: editForm.value.nombre_centro_costo || '',
-      tipo_solped: editForm.value.tipo_solped || '',
-      nombre_solped: editForm.value.nombre_solped || '',
-      dirigidoA: Array.from(new Set(dirigidoASelected.value || [])),
-      items: editItems.value.map(it => ({
+      empresa: editForm.value.empresa || "",
+      numero_contrato: editForm.value.numero_contrato || "",
+      nombre_centro_costo: editForm.value.nombre_centro_costo || "",
+      tipo_solped: editForm.value.tipo_solped || "",
+      nombre_solped: editForm.value.nombre_solped || "",
+
+      // ✅ ESTE ES EL IMPORTANTE (porque así está tu data hoy)
+      dirigidoA: selNames,
+
+      // ✅ opcional (queda listo para futuro)
+      dirigidoA_uids,
+      dirigidoA_emails,
+
+      items: editItems.value.map((it) => ({
         item: it.item,
-        descripcion: it.descripcion || '',
-        codigo_referencial: it.codigo_referencial || '',
+        descripcion: it.descripcion || "",
+        codigo_referencial: it.codigo_referencial || "",
         cantidad: Number(it.cantidad || 0),
-        cantidad_cotizada: it.cantidad_cotizada || '',
-        numero_interno: it.numero_interno || '',
+        cantidad_cotizada: it.cantidad_cotizada || "",
+        numero_interno: it.numero_interno || "",
         stock: Number(it.stock || 0),
-        imagen_url: it.imagen_url || '',
-        imagen_path: it.imagen_path || '',
-        imagen_url: it.imagen_url || ''
-      }))
+        imagen_url: it.imagen_url || "",
+        imagen_path: it.imagen_path || "",
+      })),
     };
+
     await updateDoc(refd, payload);
 
+    // ---- Mantener tu lógica de catálogo ----
     const now = new Date();
+
     for (const it of payload.items) {
-      const descOrig = (it.descripcion || '').trim();
+      const descOrig = (it.descripcion || "").trim();
       if (!descOrig) continue;
-      const norm = descOrig.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
-      const catRef = doc(db, 'items_catalog', norm);
+
+      const norm = descOrig
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toLowerCase();
+
+      const catRef = doc(db, "items_catalog", norm);
       const snap = await getDoc(catRef);
       const prev = snap.data();
+
       const empresas = new Set(Array.isArray(prev?.empresas) ? prev.empresas : []);
       if (payload.empresa) empresas.add(payload.empresa);
+
       const update = {
         norm,
         original: descOrig,
         empresas: Array.from(empresas),
         ultima_vez: now,
-        usos: (Number(prev?.usos)||0) + 1
+        usos: (Number(prev?.usos) || 0) + 1,
       };
+
       if (!prev) update.primera_vez = now;
+
       await setDoc(catRef, update, { merge: true });
     }
 
-    addToast('success','SOLPED actualizada');
+    addToast("success", "SOLPED actualizada");
     cerrarEditar();
     subscribePage();
-  }catch(e){console.error(e);
-    addToast('danger','No se pudo guardar la edición.');
-  }finally{
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo guardar la edición.");
+  } finally {
     savingEdit.value = false;
   }
 }

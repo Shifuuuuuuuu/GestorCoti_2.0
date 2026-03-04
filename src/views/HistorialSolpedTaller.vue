@@ -905,7 +905,7 @@ export default {
 
 
     const page = ref(1);
-    const pageSizeOptions = [10, 20, 30, 40, 50];
+    const pageSizeOptions = [10, 20, 30, 40, 50, 100, 200];
     const pageSize = ref(10);
 
     const showSidebar = ref(true);
@@ -1917,7 +1917,7 @@ export default {
       await ensureDropdownClass();
       initDropdownsIn();
     });
-    const listaEstatus = ["Completado","Rechazado","Pendiente","Parcial","Cotizado Parcial","Cotizado Completado","Parcial, Pedido en Casa matriz","Pedido en Casa matriz"];
+    const listaEstatus = ["Rechazado","Pendiente","Cotizado Parcial","Cotizado Completado","Parcial, Pedido en Casa matriz","Pedido en Casa matriz"];
     const abrirAutorizacion = (s) => { if (!s?.autorizacion_url) return; window.open(s.autorizacion_url, "_blank"); };
     const descargarAutorizacion = (s) => {
       if (!s?.autorizacion_url) return;
