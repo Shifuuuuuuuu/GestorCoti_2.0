@@ -37,6 +37,7 @@ const RecepcionOC = () => import("../views/RecepcionOC.vue");
 const AiInspectorView = () => import("../views/AiInspectorView.vue");
 const GenerarCotizacion = () => import("../views/GenerarCotizacion.vue");
 const GenerarCertificados = () => import("../views/GenerarCertificados.vue");
+const VerifyCertificado = () => import ("../views/VerifyCertificado.vue")
 
 const routes = [
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
@@ -87,6 +88,8 @@ const routes = [
 
   { path: "/generador-coti", name: "GenerarCotizacion", component: GenerarCotizacion, meta: { requiresAuth: true, menuKey: "GenerarCotizacion" } },
   { path: "/generador-certificados", name: "GenerarCertificados", component: GenerarCertificados, meta: { requiresAuth: true, menuKey: "GenerarCertificados" } },
+
+  { path: "/verify-certificado", component: VerifyCertificado},
 
   { path: "/:pathMatch(.*)*", redirect: { name: "Inicio" } },
 ];
