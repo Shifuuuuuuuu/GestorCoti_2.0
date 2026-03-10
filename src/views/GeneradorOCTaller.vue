@@ -674,19 +674,17 @@ function recomputeSolpedItemState(item) {
       ? it.pendienteRevisionPorOC
       : {};
 
-  const { aprobado, comprometido } = computeItemCounters(it);
+  const { comprometido } = computeItemCounters(it);
 
   it.cantidad_cotizada = comprometido;
 
-  // ✅ estado_cotizacion consistente
-  if (total > 0 && aprobado >= total) it.estado_cotizacion = "completado";
+  if (total > 0 && comprometido >= total) it.estado_cotizacion = "completado";
   else if (comprometido > 0) it.estado_cotizacion = "parcial";
   else it.estado_cotizacion = "pendiente";
 
   it.estado = it.estado_cotizacion;
   return it;
 }
-
 // ✅ clamp con marca visual si ajustó
 const clampCantidad = (it) => {
   const max = nnum(it.__restan, 0);
@@ -844,8 +842,6 @@ const onChangeSolped = async () => {
       "pendiente",
       "parcial",
       "cotizado parcial",
-      "cotizando - revision guillermo",
-      "cotizando - revisión guillermo",
       "cotizado completado",
     ];
     if (!allowed.includes(st)) {
@@ -961,14 +957,16 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
   const dref = doc(db, "solped_taller", solpedId);
   const ocKey = String(ocNumero);
 
-  await runTransaction(db, async (tx) => {
+  const result = await runTransaction(db, async (tx) => {
     const ss = await tx.get(dref);
-    if (!ss.exists()) return;
+    if (!ss.exists()) {
+      return { nuevoEstatusSol: "Pendiente" };
+    }
 
     const dataSol = ss.data() || {};
     const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-    // index por item + tempId
+    // Índices para encontrar ítems de forma estable
     const idxByItemNo = new Map();
     const idxByTempId = new Map();
 
@@ -1010,7 +1008,7 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
       const { total, restan } = computeItemCounters(base);
       const req = Math.max(0, nnum(sel?.qty, 0));
 
-      // ✅ clamp server-side con estado actual
+      // clamp server-side
       const qty = Math.min(req, restan, total);
 
       if (qty <= 0) {
@@ -1018,7 +1016,8 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
         continue;
       }
 
-      // ✅ idempotente para este OC: set (no suma)
+      // Se registra como pendiente de revisión de OC,
+      // pero el estado global de la SOLPED contará el comprometido total
       base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
       base.pendienteRevisionPorOC[ocKey] = qty;
 
@@ -1027,35 +1026,39 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
 
     const finalItems = items.map((it) => recomputeSolpedItemState(it));
 
-    // estatus global
+    // ✅ Estado global de SOLPED según lo comprometido total
+    // (aprobado + pendiente revisión)
     const tot = finalItems.length;
+
     const completos = finalItems.filter((it) => {
       const total = nnum(it.cantidad, 0);
-      const aprob = sumMapNumbers(it.cotPorOC);
-      return total > 0 && aprob >= total;
+      const { comprometido } = computeItemCounters(it);
+      return total > 0 && comprometido >= total;
     }).length;
 
-    const anyApproved = finalItems.some((it) => sumMapNumbers(it.cotPorOC) > 0);
-    const anyReserved = finalItems.some((it) => sumMapNumbers(it.pendienteRevisionPorOC) > 0);
+    const anyComprometido = finalItems.some((it) => {
+      const { comprometido } = computeItemCounters(it);
+      return comprometido > 0;
+    });
 
-    let nuevoEstatusSol = String(dataSol.estatus || "Pendiente");
+    let nuevoEstatusSol = "Pendiente";
     if (tot > 0 && completos === tot) nuevoEstatusSol = "Cotizado Completado";
-    else if (anyApproved) nuevoEstatusSol = "Cotizado Parcial";
-    else if (anyReserved) nuevoEstatusSol = "Cotizando - Revisión Guillermo";
-    else nuevoEstatusSol = "Pendiente";
+    else if (anyComprometido) nuevoEstatusSol = "Cotizado Parcial";
 
     tx.update(dref, {
       items: finalItems,
       estatus: nuevoEstatusSol,
       updated_at: serverTimestamp(),
     });
+
+    return { nuevoEstatusSol };
   });
 
-  // historial fuera de transacción
+  // Historial fuera de transacción
   await addDoc(collection(db, "solped_taller", solpedId, "historialEstados"), {
     usuario: nombreUsuario,
     fecha: serverTimestamp(),
-    estatus: "Cotizando - Revisión Guillermo",
+    estatus: result?.nuevoEstatusSol || "Cotizado Parcial",
     detalle: `Se subió cotización (OC Taller N° ${ocNumero})`,
     ocId: ocDocId,
     ocNumero,
@@ -1499,17 +1502,17 @@ const cargarSolpedSolicitadas = async () => {
   try {
     let arr = [];
     try {
-      const qy = query(
-        collection(db, "solped_taller"),
-        where("estatus", "in", ["Pendiente","Parcial","Cotizado Parcial","Cotizando - Revisión Guillermo","Cotizando - Revision Guillermo"])
-      );
+    const qy = query(
+      collection(db, "solped_taller"),
+      where("estatus", "in", ["Pendiente","Parcial","Cotizado Parcial","Cotizado Completado"])
+    );
       const snap = await getDocs(qy);
       arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch {
       const snap = await getDocs(collection(db, "solped_taller"));
       arr = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(x => ["pendiente","parcial","cotizado parcial","cotizando - revision guillermo","cotizando - revisión guillermo"].includes(String(x.estatus||"").trim().toLowerCase()));
+        .filter(x => ["pendiente","parcial","cotizado parcial","cotizado completado"].includes(String(x.estatus||"").trim().toLowerCase()));
     }
     solpedDisponibles.value = arr.sort((a,b) => (a.numero_solpe||0) - (b.numero_solpe||0));
   } catch (e) {

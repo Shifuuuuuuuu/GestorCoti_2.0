@@ -87,11 +87,26 @@ export function useRoleMenus() {
     );
   });
 
+  const isOnlyRecepcion = computed(() => {
+    return (
+      isRecepcion.value &&
+      !isAdmin.value &&
+      !isEditor.value &&
+      !isGenerador.value &&
+      !isAprobadorEditor.value
+    );
+  });
+
   const isCargadorDoc = computed(() => {
     return roleKey.value === "cargadordoc" || roleKey.value === "cargador_doc";
   });
+
   const canSeeRecepcionOC = computed(() => {
     return isAdmin.value || isRecepcion.value || isEditor.value;
+  });
+
+  const canSeeAdminGestionDocs = computed(() => {
+    return isAdmin.value || isCargadorDoc.value || isRecepcion.value;
   });
 
   const canSeeGenerarCotizacion = computed(() => {
@@ -109,6 +124,7 @@ export function useRoleMenus() {
     if (isTallerCMUser.value) return false;
     return isEditor.value || isGenerador.value || canSeeGenerarCotizacion.value;
   });
+
   const canSeeAprobacionDocs = computed(() => {
     if (isAdmin.value || isAlejandroCandia.value || isJuanCubillos.value) return true;
 
@@ -125,14 +141,18 @@ export function useRoleMenus() {
   const canSeeAprobacionOCTaller = computed(() => {
     return isAdmin.value || isGuillermo.value || isAprobadorEditor.value || isMariaJoseBallesteros.value;
   });
+
   function isAllowedRouteName(name) {
     const n = String(name || "");
     if (!n) return false;
 
     if (n === "GenerarCotizacion" && isTallerCMUser.value) return false;
     if (deniedSet.value.has(n)) return false;
+
     if (n === "AprobacionDocs" && canSeeAprobacionDocs.value) return true;
     if (n === "RecepcionOC" && canSeeRecepcionOC.value) return true;
+    if (n === "AdminGestionDocs" && canSeeAdminGestionDocs.value) return true;
+
     const hasAllow = (menuPerms.value.allow || []).length > 0;
     if (hasAllow && !allowedSet.value.has(n)) return false;
 
@@ -178,6 +198,10 @@ export function useRoleMenus() {
       return filterMenuByPerms(alejandroUnifiedMenu());
     }
 
+    if (isOnlyRecepcion.value) {
+      return [];
+    }
+
     let base = [];
 
     if (isAdmin.value) {
@@ -199,7 +223,6 @@ export function useRoleMenus() {
       base = [
         { name: "GeneradorOC", text: "Generador Cotización", icon: "bi-cart-plus" },
         { name: "historial-oc", text: "Historial Cotizaciones", icon: "bi-journal-text" },
-
         { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
         { name: "historial-solped", text: "Historial SOLPED", icon: "bi-clock-history" },
       ];
@@ -230,8 +253,17 @@ export function useRoleMenus() {
         icon: "bi bi-clipboard2-check",
       });
     }
-    if (canSeeRecepcionOC.value) {
+
+    if (canSeeRecepcionOC.value && !isRecepcion.value) {
       pushIfMissing(base, { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" });
+    }
+
+    if (canSeeAdminGestionDocs.value && !isRecepcion.value) {
+      pushIfMissing(base, {
+        name: "AdminGestionDocs",
+        text: "Gestor de Facturas",
+        icon: "bi bi-folder2-open",
+      });
     }
 
     return filterMenuByPerms(base);
@@ -323,6 +355,7 @@ export function useRoleMenus() {
     if (!auth?.isAuthenticated || !isRecepcion.value) return [];
     return filterMenuByPerms([
       { name: "RecepcionOC", text: "Recepción de OC", icon: "bi bi-receipt" },
+      { name: "AdminGestionDocs", text: "Gestor de Facturas", icon: "bi bi-folder2-open" },
       { name: "Soporte", text: "Soporte", icon: "bi bi-life-preserver" },
     ]);
   });
@@ -333,5 +366,6 @@ export function useRoleMenus() {
     adminMenu,
     recepcionMenu,
     canSeeRecepcionOC,
+    canSeeAdminGestionDocs,
   };
 }

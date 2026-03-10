@@ -572,7 +572,9 @@
           <div class="modal-header">
             <div class="d-flex align-items-center gap-2">
               <h5 class="modal-title mb-0">Historial de Certificados</h5>
-              <span class="badge text-bg-light border" v-if="histCount">{{ histCount }}</span>
+              <span class="badge text-bg-light border" v-if="histCount">
+                {{ histVisibleCount }}{{ histVisibleCount !== histCount ? ` / ${histCount}` : "" }}
+              </span>
             </div>
             <button type="button" class="btn-close" @click="closeHistorial"></button>
           </div>
@@ -581,7 +583,11 @@
             <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
               <div class="input-group" style="max-width: 620px;">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input class="form-control" v-model.trim="histSearch" placeholder="Buscar por N°, tipo, interno/patente, fecha…" />
+                <input
+                  class="form-control"
+                  v-model.trim="histSearch"
+                  placeholder="Buscar por N°, tipo, interno, patente, marca, modelo o fecha…"
+                />
                 <button class="btn btn-outline-secondary" @click="loadHistorial" :disabled="histLoading" type="button">
                   <span v-if="histLoading" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-arrow-clockwise me-1"></i>
@@ -589,11 +595,18 @@
                 </button>
               </div>
 
+              <select v-model="histTipoFilter" class="form-select" style="max-width: 260px;">
+                <option value="">Todos los tipos</option>
+                <option value="MANTENCION">MANTENCIÓN</option>
+                <option value="OPERATIVIDAD">OPERATIVIDAD</option>
+                <option value="TORQUE">TORQUE</option>
+                <option value="CITACION_PREVENTIVO">CITACIÓN MANT. PREVENTIVO</option>
+              </select>
+
               <div class="ms-auto d-flex gap-2">
                 <button class="btn btn-outline-secondary" @click="closeHistorial" type="button">Cerrar</button>
               </div>
             </div>
-
             <div v-if="histErr" class="alert alert-danger">{{ histErr }}</div>
 
             <div class="table-responsive">
@@ -945,9 +958,10 @@ const histLoading = ref(false);
 const histErr = ref("");
 const histSearch = ref("");
 const histList = ref([]);
+const histTipoFilter = ref("");
 
 const histCount = computed(() => histList.value.length);
-
+const histVisibleCount = computed(() => historialFiltrado.value.length);
 const qrDataUrl = ref("");
 const lastQrValue = ref("");
 
@@ -1947,6 +1961,8 @@ async function generarPdfSolo() {
 
 function openHistorial() {
   histErr.value = "";
+  histSearch.value = "";
+  histTipoFilter.value = "";
   histModal?.show();
   loadHistorial();
 }
@@ -1955,38 +1971,65 @@ function closeHistorial() {
   histModal?.hide();
 }
 const historialFiltrado = computed(() => {
-  const q = String(histSearch.value || "").toLowerCase().trim();
-  if (!q) return histList.value;
-  return histList.value.filter((c) => {
-    const n = String(c.numero || "").includes(q);
-    const tipo = String(c.tipo || "").toLowerCase().includes(q);
-    const interno = String(c.interno || "").toLowerCase().includes(q);
-    const patente = String(c.patente || "").toLowerCase().includes(q);
-    const fecha = String(c.fechaEmisionStr || "").includes(q);
-    return n || tipo || interno || patente || fecha;
+  const q = norm(histSearch.value || "");
+  const tipoSel = String(histTipoFilter.value || "").trim();
+
+  return (histList.value || []).filter((c) => {
+    const coincideTipo = !tipoSel || c.tipo === tipoSel;
+    if (!coincideTipo) return false;
+
+    if (!q) return true;
+
+    const texto = [
+      c.numero,
+      c.tipo,
+      c.interno,
+      c.patente,
+      c.fechaEmisionStr,
+      c.marca,
+      c.modelo,
+    ]
+      .map((v) => norm(v))
+      .join(" ");
+
+    return texto.includes(q);
   });
 });
 async function loadHistorial() {
   histLoading.value = true;
   histErr.value = "";
-  try {
-    const qy = query(collection(db, "certificados"), orderBy("createdAt", "desc"), limit(100));
-    const snap = await getDocs(qy);
 
-    histList.value = snap.docs.map((d) => {
+  try {
+    const snap = await getDocs(collection(db, "certificados"));
+
+    const items = snap.docs.map((d) => {
       const data = d.data() || {};
       const eq = data.equipoSnapshot || {};
+
+      const createdAtMs =
+        data.createdAt?.toMillis?.() ||
+        data.updatedAt?.toMillis?.() ||
+        0;
+
       return {
         id: d.id,
-        numero: data.numero || 0,
+        numero: Number(data.numero || 0),
         tipo: data.tipo || "",
         fechaEmisionStr: data.fechaEmisionStr || "",
         interno: eq.numeroInterno || "",
         patente: eq.patente || "",
         marca: eq.marca || "",
         modelo: eq.modelo || "",
+        createdAtMs,
       };
     });
+
+    items.sort((a, b) => {
+      if (b.createdAtMs !== a.createdAtMs) return b.createdAtMs - a.createdAtMs;
+      return (b.numero || 0) - (a.numero || 0);
+    });
+
+    histList.value = items;
   } catch (e) {
     console.error(e);
     histErr.value = "No se pudo cargar el historial. Revisa permisos/reglas y consola.";
