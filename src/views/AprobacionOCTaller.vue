@@ -426,7 +426,6 @@ const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2800) 
 };
 const closeToast = (id:number) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
 
-/** ✅ isXs reactivo */
 const isXs = ref(false);
 let mqXs: MediaQueryList | null = null;
 const updateXs = () => { isXs.value = !!mqXs?.matches; };
@@ -488,7 +487,6 @@ const fmtFecha = (f:any) => {
   } catch { return '—'; }
 };
 
-/** ======== SOLPED helpers (tal como venía) ======== */
 const sumMapNumbers = (obj: Record<string, unknown> | null | undefined): number => {
   if (!obj || typeof obj !== "object") return 0;
   return Object.values(obj).reduce<number>((acc, v) => {
@@ -842,7 +840,6 @@ const releaseReservationInSolped = async (oc:any, usuario:string, comentario:str
   });
 };
 
-/** ======== FLUJO (Taller) ======== */
 type StepCfg = {
   id: string;
   nombre: string;
@@ -866,7 +863,6 @@ const empresaKey = 'xtreme_servicio';
 const flujoEmpresa = ref<{ nombre?: string; activo?: boolean; steps?: StepCfg[] } | null>(null);
 let _unsubFlow: any = null;
 
-/** ✅ Rangos correctos + max infinito (0) para Ale */
 const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } = {
   nombre: 'Xtreme Servicio',
   activo: true,
@@ -898,7 +894,7 @@ const DEFAULT_SERVICIO_FLOW: { nombre: string; activo: true; steps: StepCfg[] } 
       nombre: 'Casi Aprobado',
       inStatus: 'Casi Aprobado',
       min: 5000001,
-      max: 0, // ✅ infinito
+      max: 0,
       approveTo: 'Aprobado',
       overTo: '',
       activo: true,
@@ -993,18 +989,14 @@ const stepIndexFromOCStatus = (estatus:any) => {
 
 const myUid = computed(() => auth?.user?.uid || '');
 
-/** ✅ handlerIndexFor ahora respeta ENABLE_DELEGATION */
 const handlerIndexFor = (i: number) => {
   const steps = stepsCfg.value;
   if (!steps.length) return -1;
   if (i < 0 || i >= steps.length) return -1;
-
-  // Modo estricto: sin delegación
   if (!ENABLE_DELEGATION) {
     return stepOperational(steps[i]) ? i : -1;
   }
 
-  // Delegación (tu lógica original)
   if (stepOperational(steps[i])) return i;
 
   const cur = normStatusKey(steps[i]?.inStatus || steps[i]?.nombre || '');
@@ -1099,7 +1091,6 @@ const canActOnOC = (oc:any) => {
   return iHandleStep(idx);
 };
 
-/** ✅ Cálculo real: min/max + overTo (max<=0 infinito), error si monto inválido */
 const MAX_INF = Number.MAX_SAFE_INTEGER;
 const stepMin = (v:any) => Math.max(0, Number(v || 0) || 0);
 const stepMax = (v:any) => {
@@ -1127,7 +1118,6 @@ const nextStatusFromStep = (idx:number, monto:number) => {
   return approveTo;
 };
 
-/** ✅ Auto-skip opcional: solo si ENABLE_DELEGATION=true */
 const computeNextStatusAutoSkip = (oc:any) => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
@@ -1146,10 +1136,8 @@ const computeNextStatusAutoSkip = (oc:any) => {
     const next = nextStatusFromStep(idx, monto);
     const nextIdx = stepIndexFromOCStatus(next);
 
-    // En modo estricto NO saltamos etapas automáticamente
     if (!ENABLE_DELEGATION) return next;
 
-    // En modo delegación, si el siguiente estado también lo manejo yo, saltamos
     if (uid && nextIdx >= 0 && iHandleStep(nextIdx)) {
       idx = nextIdx;
       continue;
@@ -1161,7 +1149,6 @@ const computeNextStatusAutoSkip = (oc:any) => {
   return 'Aprobado';
 };
 
-/** ======== Acciones UI ======== */
 const accionando = ref(false);
 
 const irASolped = (oc:any) => {
@@ -1319,7 +1306,6 @@ const rechazar = async (oc:any) => {
   }
 };
 
-/** ======== Suscripción OCs ======== */
 const expandStatusVariants = (s: string) => {
   const raw = String(s || '').trim();
   const key = normStatusKey(raw);

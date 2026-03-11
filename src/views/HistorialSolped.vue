@@ -757,7 +757,21 @@
             <button class="btn-close" @click="cerrarEditar" aria-label="Cerrar edición"></button>
           </div>
 
-          <div class="modal-body">
+          <div class="modal-body modal-edit-solped">
+            <div class="edit-hero mb-4">
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                  <h6 class="mb-1 fw-bold">Editar SOLPED #{{ editForm.numero_solpe }}</h6>
+                  <div class="small text-secondary">
+                    Actualiza datos, ítems y documentos adjuntos.
+                  </div>
+                </div>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis px-3 py-2">
+                  {{ editForm.empresa || '—' }}
+                </span>
+              </div>
+            </div>
+
             <div class="row g-3">
               <div class="col-12 col-md-4">
                 <label class="form-label">Empresa</label>
@@ -768,16 +782,19 @@
                 </select>
                 <div class="form-text">La empresa no se puede cambiar en edición.</div>
               </div>
+
               <div class="col-12 col-md-4">
                 <label class="form-label">Tipo SOLPED</label>
                 <select class="form-select" v-model="editForm.tipo_solped">
                   <option v-for="t in tiposSolped" :key="t" :value="t">{{ t }}</option>
                 </select>
               </div>
+
               <div class="col-12 col-md-4">
                 <label class="form-label">N° SOLPED</label>
                 <input class="form-control" :value="editForm.numero_solpe" disabled>
               </div>
+
               <div class="col-12 col-md-4">
                 <label class="form-label">Centro de costo (código)</label>
 
@@ -791,7 +808,6 @@
                   :disabled="!centrosDisponiblesEditCount"
                 >
                   <option value="" disabled>Selecciona centro de costo</option>
-
                   <option
                     v-for="code in centrosListaOrdenadaEdit"
                     :key="code"
@@ -803,19 +819,18 @@
 
                 <div class="form-text">Solo se muestran contratos asignados a tu usuario.</div>
               </div>
+
               <div class="col-12 col-md-8">
                 <label class="form-label">Nombre Centro de Costo</label>
-                <input
-                  class="form-control"
-                  v-model="editForm.nombre_centro_costo"
-                  readonly
-                />
+                <input class="form-control" v-model="editForm.nombre_centro_costo" readonly />
                 <div class="form-text">Se autocompleta según el centro seleccionado.</div>
               </div>
+
               <div class="col-12">
                 <label class="form-label">Nombre SOLPED</label>
                 <input class="form-control" v-model="editForm.nombre_solped" maxlength="140">
               </div>
+
               <div class="col-12 col-md-6">
                 <label class="form-label">Dirigido a (cotizadores)</label>
 
@@ -839,8 +854,7 @@
                 </div>
 
                 <div v-if="editForm.empresa && !loadingCotizadoresEdit && !cotizadoresEdit.length" class="alert alert-warning py-2 small mt-2">
-                  No hay cotizadores configurados (activos/disponibles) para <strong>{{ editForm.empresa }}</strong>.
-                  Pídele a un Admin que los configure.
+                  No hay cotizadores configurados para <strong>{{ editForm.empresa }}</strong>.
                 </div>
 
                 <div v-if="dirigidoASelected?.length" class="mt-2">
@@ -849,11 +863,106 @@
                   </span>
                 </div>
               </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label d-flex align-items-center justify-content-between">
+                  <span>Documentos adjuntos</span>
+                  <button type="button" class="btn btn-sm btn-outline-primary" @click="abrirSelectorAdjuntosEdit">
+                    <i class="bi bi-paperclip me-1"></i> Agregar archivos
+                  </button>
+                </label>
+
+                <input
+                  ref="adjuntosInputEdit"
+                  type="file"
+                  class="d-none"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                  @change="onPickAdjuntosEdit"
+                >
+
+                <div class="attachments-box p-3 rounded-3 border">
+                  <div v-if="!editAdjuntosExistentes.length && !editAdjuntosNuevos.length" class="text-secondary small">
+                    No hay archivos adjuntos cargados.
+                  </div>
+
+                  <div v-if="editAdjuntosExistentes.length" class="mb-3">
+                    <div class="small fw-semibold text-secondary mb-2">Adjuntos actuales</div>
+                    <div class="d-flex flex-column gap-2">
+                      <div
+                        v-for="(a, idx) in editAdjuntosExistentes"
+                        :key="a.__k"
+                        class="attachment-row"
+                      >
+                        <div class="d-flex align-items-center gap-2 min-w-0">
+                          <i :class="iconoAdjunto(a.tipo, a.nombre)"></i>
+                          <div class="min-w-0">
+                            <div class="fw-semibold text-truncate">{{ a.nombre }}</div>
+                            <div class="small text-secondary">
+                              {{ formatearTamano(a.tamano) }} · {{ a.tipo || 'archivo' }}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                          <a v-if="a.url" :href="a.url" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                            Ver
+                          </a>
+                          <button class="btn btn-sm btn-outline-danger" @click="quitarAdjuntoExistente(idx)">
+                            Quitar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="editAdjuntosNuevos.length">
+                    <div class="small fw-semibold text-secondary mb-2">Archivos nuevos por subir</div>
+                    <div class="d-flex flex-column gap-2">
+                      <div
+                        v-for="(a, idx) in editAdjuntosNuevos"
+                        :key="`${a.name}-${idx}`"
+                        class="attachment-row"
+                      >
+                        <div class="d-flex align-items-center gap-2 min-w-0">
+                          <i :class="iconoAdjunto(a.type, a.name)"></i>
+                          <div class="min-w-0">
+                            <div class="fw-semibold text-truncate">{{ a.name }}</div>
+                            <div class="small text-secondary">
+                              {{ formatearTamano(a.size) }}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button class="btn btn-sm btn-outline-danger" @click="quitarAdjuntoNuevo(idx)">
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="savingEdit && editUploadProgress > 0" class="mt-3">
+                    <div class="d-flex justify-content-between small mb-1">
+                      <span>Subiendo archivos…</span>
+                      <strong>{{ editUploadProgress }}%</strong>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                      <div
+                        class="progress-bar bg-primary"
+                        role="progressbar"
+                        :style="{ width: `${editUploadProgress}%` }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="col-12">
                 <div class="d-flex align-items-center justify-content-between">
                   <label class="form-label mb-0">Ítems</label>
                   <button class="btn btn-sm btn-outline-primary" @click="agregarItem()">Agregar ítem</button>
                 </div>
+
                 <div class="table-responsive mt-2">
                   <table class="table table-sm align-middle">
                     <thead class="table-light">
@@ -879,15 +988,15 @@
                         <td class="d-none d-lg-table-cell"><input class="form-control form-control-sm" v-model="it.numero_interno"></td>
                         <td class="d-none d-lg-table-cell"><input class="form-control form-control-sm" type="number" min="0" v-model.number="it.stock"></td>
                         <td class="d-none d-md-table-cell">
-                          <div class="d-flex align-items-center gap-2">
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
                             <input
-                                type="file"
-                                accept="image/*"
-                                class="form-control form-control-sm"
-                                :disabled="it._imgUploading"
-                                @change="onPickImg($event, it)"
-                              >
-                              <small v-if="it._imgUploading" class="text-secondary">Subiendo imagen…</small>
+                              type="file"
+                              accept="image/*"
+                              class="form-control form-control-sm"
+                              :disabled="it._imgUploading"
+                              @change="onPickImg($event, it)"
+                            >
+                            <small v-if="it._imgUploading" class="text-secondary">Subiendo imagen…</small>
                             <template v-if="it.imagen_referencia_base64 || it.imagen_url">
                               <button class="btn btn-sm btn-outline-danger" @click="borrarImg(it)">Quitar</button>
                             </template>
@@ -906,10 +1015,8 @@
                   </table>
                 </div>
               </div>
-
             </div>
           </div>
-
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" @click="cerrarEditar">Cancelar</button>
             <button class="btn btn-primary" :disabled="savingEdit" @click="guardarEdicion">
@@ -930,7 +1037,12 @@ import { db } from '../stores/firebase';
 import {
   collection, query, where, orderBy, limit, startAfter, onSnapshot,startAt, endAt, getDocs, getCountFromServer, doc, getDoc, updateDoc, addDoc, setDoc
 } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import {
+  ref as storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject, uploadBytes
+} from "firebase/storage";
 import { storage } from "../stores/firebase";
 import { useAuthStore } from '../stores/authService';
 import * as XLSX from 'xlsx-js-style';
@@ -944,6 +1056,11 @@ const volver = () => router.back();
 
 const showEditModal = ref(false);
 const savingEdit = ref(false);
+const editAdjuntosExistentes = ref([]);
+const editAdjuntosNuevos = ref([]);
+const editAdjuntosEliminados = ref([]);
+const editUploadProgress = ref(0);
+const adjuntosInputEdit = ref(null);
 const editItems = ref([]);
 const dirigidoASelected = ref([]);
 const editForm = ref({
@@ -1830,19 +1947,16 @@ function disposeDropdowns() {
 const buildWhere = () => {
   const wh = [];
 
-  // ✅ Empresa
   if (empresaSegmento.value !== "todas") {
     wh.push(where("empresa", "==", empresaSegmento.value));
   }
 
-  // ✅ Estatus
   if (filtroEstatus.value.length === 1) {
     wh.push(where("estatus", "==", filtroEstatus.value[0]));
   } else if (filtroEstatus.value.length > 1) {
     wh.push(where("estatus", "in", filtroEstatus.value.slice(0, 10)));
   }
 
-  // ✅ Fecha (rango)
   const fromStr = filtroFechaDesde.value;
   const toStr = filtroFechaHasta.value;
 
@@ -1869,30 +1983,24 @@ const buildWhere = () => {
     }
   }
 
-  // ✅ Sólo mis SOLPED
   if (onlyMine.value && myFullName.value) {
     wh.push(where("usuario", "==", myFullName.value));
   }
 
-  // ✅ ✅ ✅ Dirigidas a mí (TU CASO REAL: dirigidoA = [ "Nombre Apellido", ... ])
   if (onlyDirectedToMe.value) {
     const me = String(myFullName.value || "").trim();
 
-    // Si todavía no cargó el nombre, NO aplicamos filtro (para no devolver 0)
-    // (pero en la práctica debería estar cargado desde loadUsuarios())
     if (me) {
       wh.push(where("dirigidoA", "array-contains", me));
     }
   }
 
-  // ✅ Centro de costo
   if (selectedCentros.value.length === 1) {
     wh.push(where("numero_contrato", "==", selectedCentros.value[0]));
   } else if (selectedCentros.value.length >= 2 && selectedCentros.value.length <= 10) {
     wh.push(where("numero_contrato", "in", selectedCentros.value));
   }
 
-  // ✅ Usuario (Generador)
   if (filtroUsuario.value.length === 1) {
     wh.push(where("usuario", "==", filtroUsuario.value[0]));
   } else if (filtroUsuario.value.length >= 2 && filtroUsuario.value.length <= 10) {
@@ -2579,21 +2687,54 @@ const tiposSolped = [
 ];
 
 
-const sameLocalDay = (a, b) => {
-  const ax = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-  const bx = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-  return ax.getTime() === bx.getTime();
+
+const HORAS_EDICION_SOLPED = 24;
+
+const getFechaCreacionSolped = (s) => {
+  try {
+    if (s?.createdAt?.toDate) return s.createdAt.toDate();
+    if (s?.fecha_str?.toDate) return s.fecha_str.toDate();
+
+    if (s?.createdAt) {
+      const d1 = new Date(s.createdAt);
+      if (!isNaN(d1)) return d1;
+    }
+
+    if (s?.fecha_str) {
+      const d2 = new Date(s.fecha_str);
+      if (!isNaN(d2)) return d2;
+    }
+
+    if (s?.fecha) {
+      const d3 = new Date(s.fecha);
+      if (!isNaN(d3)) return d3;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 };
+
 const puedeEditarSolped = (s) => {
   if (!isGenerador.value) return false;
-  const esDueno = myFullName.value && (String(s.usuario || '').trim() === myFullName.value);
+
+  const esDueno =
+    myFullName.value &&
+    String(s?.usuario || '').trim().toLowerCase() === String(myFullName.value || '').trim().toLowerCase();
+
   if (!esDueno) return false;
-  const d = s?.fecha?.toDate ? s.fecha.toDate() : (s?.fecha ? new Date(s.fecha) : null);
-  if (!d || isNaN(d)) return false;
+
+  const fechaCreacion = getFechaCreacionSolped(s);
+  if (!fechaCreacion || isNaN(fechaCreacion.getTime())) return false;
+
   const ahora = new Date();
-  const dentro24h = (ahora.getTime() - d.getTime()) <= (24 * 60 * 60 * 1000);
-  const mismoDia = sameLocalDay(ahora, d);
-  return mismoDia && dentro24h;
+  const diffMs = ahora.getTime() - fechaCreacion.getTime();
+
+  if (diffMs < 0) return false;
+
+  const limiteMs = HORAS_EDICION_SOLPED * 60 * 60 * 1000;
+  return diffMs <= limiteMs;
 };
 function cloneSolpedForEdit(s){
   const base = JSON.parse(JSON.stringify(s || {}));
@@ -2647,7 +2788,131 @@ const normalizarAutorizaciones = (s) => {
 
   return out;
 };
+const tiposPermitidosAdjuntos = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel"
+];
 
+const extPermitidasAdjuntos = [
+  ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".doc", ".docx", ".xls", ".xlsx"
+];
+
+const esAdjuntoPermitido = (file) => {
+  const name = String(file?.name || "").toLowerCase();
+  return tiposPermitidosAdjuntos.includes(file?.type) ||
+    extPermitidasAdjuntos.some(ext => name.endsWith(ext));
+};
+
+const resetAdjuntosEdit = () => {
+  editAdjuntosExistentes.value = [];
+  editAdjuntosNuevos.value = [];
+  editAdjuntosEliminados.value = [];
+  editUploadProgress.value = 0;
+};
+
+const abrirSelectorAdjuntosEdit = () => {
+  adjuntosInputEdit.value?.click();
+};
+
+const onPickAdjuntosEdit = (ev) => {
+  const files = Array.from(ev?.target?.files || []);
+  if (ev?.target) ev.target.value = "";
+
+  if (!files.length) return;
+
+  const invalidos = files.filter(f => !esAdjuntoPermitido(f));
+  if (invalidos.length) {
+    addToast("danger", "Solo se permiten PDF, imágenes, Word y Excel.");
+    return;
+  }
+
+  const actuales = [...editAdjuntosNuevos.value];
+
+  for (const f of files) {
+    const dup = actuales.some(x =>
+      x.name === f.name &&
+      x.size === f.size &&
+      x.lastModified === f.lastModified
+    );
+    if (!dup) actuales.push(f);
+  }
+
+  editAdjuntosNuevos.value = actuales;
+  addToast("success", `${files.length} archivo(s) agregado(s).`);
+};
+
+const quitarAdjuntoNuevo = (idx) => {
+  editAdjuntosNuevos.value.splice(idx, 1);
+};
+
+const quitarAdjuntoExistente = (idx) => {
+  const file = editAdjuntosExistentes.value[idx];
+  if (!file) return;
+  editAdjuntosEliminados.value.push(file);
+  editAdjuntosExistentes.value.splice(idx, 1);
+};
+
+const iconoAdjunto = (tipo = "", nombre = "") => {
+  const t = String(tipo || "").toLowerCase();
+  const n = String(nombre || "").toLowerCase();
+
+  if (t.includes("pdf") || n.endsWith(".pdf")) return "bi bi-file-earmark-pdf text-danger";
+  if (t.includes("image") || [".png",".jpg",".jpeg",".webp"].some(x => n.endsWith(x))) return "bi bi-file-earmark-image text-primary";
+  if (n.endsWith(".xls") || n.endsWith(".xlsx")) return "bi bi-file-earmark-excel text-success";
+  if (n.endsWith(".doc") || n.endsWith(".docx")) return "bi bi-file-earmark-word text-info";
+  return "bi bi-paperclip text-secondary";
+};
+
+const formatearTamano = (bytes = 0) => {
+  const n = Number(bytes || 0);
+  if (!n) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(2)} MB`;
+};
+
+async function subirAdjuntoSolped(file, solped) {
+  const empresa = String(solped?.empresa || "empresa")
+    .replace(/\s+/g, "_")
+    .replace(/[^\w\-]/g, "");
+
+  const numero = String(solped?.numero_solpe || "sin_numero");
+  const nombre = String(file.name || "archivo").replace(/\s+/g, "_");
+
+  const path = `solped_adjuntos/${empresa}_${numero}/${Date.now()}/${nombre}`;
+  const sref = storageRef(storage, path);
+
+  return await new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(sref, file);
+
+    task.on(
+      "state_changed",
+      null,
+      (err) => reject(err),
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          resolve({
+            nombre: file.name,
+            tamano: Number(file.size || 0),
+            tipo: file.type || "application/octet-stream",
+            url,
+            path
+          });
+        } catch (e) {
+          reject(e);
+        }
+      }
+    );
+  });
+}
 const abrirEditar = async (s) => {
   try {
     if (!puedeEditarSolped(s)) {
@@ -2663,7 +2928,18 @@ const abrirEditar = async (s) => {
       ...it,
       __k: Math.random().toString(36).slice(2)
     }));
+    resetAdjuntosEdit();
 
+    editAdjuntosExistentes.value = Array.isArray(s?.autorizaciones)
+      ? s.autorizaciones.map((a, idx) => ({
+          __k: `auth_${idx}_${s.id}`,
+          nombre: a?.nombre || `archivo_${idx + 1}`,
+          tamano: Number(a?.tamano || 0),
+          tipo: a?.tipo || "",
+          url: a?.url || "",
+          path: a?.path || ""
+        }))
+      : [];
     dirigidoASelected.value = Array.isArray(s.dirigidoA)
       ? s.dirigidoA.filter(v => typeof v === 'string')
       : [];
@@ -2691,6 +2967,8 @@ const cerrarEditar = () => {
     cotizadoresEdit.value = [];
     loadingCotizadoresEdit.value = false;
   }
+
+  resetAdjuntosEdit();
 
   showEditModal.value = false;
   savingEdit.value = false;
@@ -2836,35 +3114,41 @@ async function guardarEdicion() {
   const dataCheck = snapCheck.data() || {};
 
   if (!puedeEditarSolped({ ...dataCheck, id: editForm.value.id })) {
-    addToast(
-      "danger",
-      "La ventana de edición expiró o no tienes permiso (sólo generador, mismo día, <=24h)."
-    );
+    addToast("danger", "La ventana de edición expiró o no tienes permiso para editar esta SOLPED.");
     cerrarEditar();
     return;
   }
 
   savingEdit.value = true;
+  editUploadProgress.value = 0;
 
   try {
     const refd = doc(db, "solpes", editForm.value.id);
 
-    // ✅ En tu BD: dirigidoA es ARRAY DE STRINGS (nombres)
     const selNames = Array.from(new Set(dirigidoASelected.value || []))
       .map((x) => String(x || "").trim())
       .filter(Boolean);
 
-    // ✅ Extra opcional: guardar uids/emails si cotizadoresEdit viene con info (no rompe nada)
-    const listCot = Array.isArray(cotizadoresEdit.value) ? cotizadoresEdit.value : [];
-    const picked = listCot.filter((c) => selNames.includes(String(c.fullName || "").trim()));
+    const totalFiles = editAdjuntosNuevos.value.length;
+    const nuevosAdjuntosSubidos = [];
 
-    const dirigidoA_uids = picked
-      .map((x) => String(x.uid || x.id || "").trim())
-      .filter(Boolean);
+    for (let i = 0; i < totalFiles; i++) {
+      const f = editAdjuntosNuevos.value[i];
+      const subido = await subirAdjuntoSolped(f, editForm.value);
+      nuevosAdjuntosSubidos.push(subido);
+      editUploadProgress.value = Math.round(((i + 1) / totalFiles) * 100);
+    }
 
-    const dirigidoA_emails = picked
-      .map((x) => String(x.email || "").trim().toLowerCase())
-      .filter(Boolean);
+    for (const oldFile of editAdjuntosEliminados.value) {
+      try {
+        if (oldFile?.url) {
+          const oldRef = storageRef(storage, oldFile.url);
+          await deleteObject(oldRef);
+        }
+      } catch (e) {
+        console.warn("No se pudo eliminar archivo anterior:", e);
+      }
+    }
 
     const payload = {
       empresa: editForm.value.empresa || "",
@@ -2873,12 +3157,7 @@ async function guardarEdicion() {
       tipo_solped: editForm.value.tipo_solped || "",
       nombre_solped: editForm.value.nombre_solped || "",
 
-      // ✅ ESTE ES EL IMPORTANTE (porque así está tu data hoy)
       dirigidoA: selNames,
-
-      // ✅ opcional (queda listo para futuro)
-      dirigidoA_uids,
-      dirigidoA_emails,
 
       items: editItems.value.map((it) => ({
         item: it.item,
@@ -2891,11 +3170,21 @@ async function guardarEdicion() {
         imagen_url: it.imagen_url || "",
         imagen_path: it.imagen_path || "",
       })),
+
+      autorizaciones: [
+        ...editAdjuntosExistentes.value.map((a) => ({
+          nombre: a.nombre || "",
+          tamano: Number(a.tamano || 0),
+          tipo: a.tipo || "",
+          url: a.url || "",
+          path: a.path || ""
+        })),
+        ...nuevosAdjuntosSubidos
+      ]
     };
 
     await updateDoc(refd, payload);
 
-    // ---- Mantener tu lógica de catálogo ----
     const now = new Date();
 
     for (const it of payload.items) {
@@ -2927,7 +3216,7 @@ async function guardarEdicion() {
       await setDoc(catRef, update, { merge: true });
     }
 
-    addToast("success", "SOLPED actualizada");
+    addToast("success", "SOLPED actualizada correctamente.");
     cerrarEditar();
     subscribePage();
   } catch (e) {
@@ -2935,6 +3224,7 @@ async function guardarEdicion() {
     addToast("danger", "No se pudo guardar la edición.");
   } finally {
     savingEdit.value = false;
+    editUploadProgress.value = 0;
   }
 }
 </script>
@@ -3083,5 +3373,69 @@ async function guardarEdicion() {
 
 
 .dropup .dropdown-menu{ top:auto!important; bottom:100%!important; margin-bottom:.5rem; }
+.modal-edit-solped {
+  background: linear-gradient(180deg, rgba(248,250,252,.55) 0%, rgba(255,255,255,0) 100%);
+}
 
+.edit-hero {
+  padding: 1rem 1.1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.attachments-box {
+  background: #fff;
+  min-height: 140px;
+  border-color: #e2e8f0 !important;
+}
+
+.attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .7rem .8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.modal-content {
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(15,23,42,.22);
+}
+
+.modal-header {
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.modal-footer {
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.modal-body .form-control,
+.modal-body .form-select {
+  border-radius: 12px;
+}
+
+.modal-body .table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .attachment-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
 </style>

@@ -416,7 +416,6 @@ import {
 } from 'firebase/firestore';
 import { useAuthStore } from '../stores/authService';
 
-/** ✅ Modo estricto (recomendado): false = sin delegación (no presta bandejas) */
 const ENABLE_DELEGATION = false;
 
 const router = useRouter();
@@ -466,7 +465,6 @@ const actorName = computed(() => {
   );
 });
 
-/** ✅ Rangos reales: Guillermo <= 500.000, Juan <= 5.000.000, Ale infinito */
 const DEFAULT_APPROVAL_FLOW = {
   nombre: 'Flujo default',
   activo: true,
@@ -498,7 +496,7 @@ const DEFAULT_APPROVAL_FLOW = {
       nombre: 'Casi Aprobado',
       inStatus: 'Casi Aprobado',
       min: 5000001,
-      max: 0, // 0 => infinito (lo tratamos así en la lógica)
+      max: 0,
       approveTo: 'Aprobado',
       overTo: '',
       activo: true,
@@ -605,16 +603,13 @@ const getStepsForOC = (oc) => {
 const findStepIndexByStatus = (steps, status) =>
   steps.findIndex(s => normStatus(s?.inStatus) === normStatus(status));
 
-/** ✅ Fallback/Delegación: configurable */
 const findFallbackIndex = (steps, idx) => {
   if (!Array.isArray(steps) || idx < 0) return -1;
 
-  // Modo estricto: NO delegar
   if (!ENABLE_DELEGATION) {
     return stepHasAvailableApprover(steps[idx]) ? idx : -1;
   }
 
-  // Delegación: tu lógica original
   if (stepHasAvailableApprover(steps[idx])) return idx;
 
   const curStatus = normStatus(steps[idx]?.inStatus || steps[idx]?.nombre || '');
@@ -826,7 +821,7 @@ const fmtFecha = (f) => {
 };
 
 const getDelegationInfo = (oc) => {
-  if (!ENABLE_DELEGATION) return null; // ✅ si es estricto, no mostramos "delegado"
+  if (!ENABLE_DELEGATION) return null;
   const steps = getStepsForOC(oc);
   const idx = findStepIndexByStatus(steps, oc?.estatus);
   if (idx < 0) return null;
@@ -1163,7 +1158,6 @@ const cerrarSolpedSiCompleta = async (solpedId) => {
   }
 };
 
-/** ✅ Parse robusto (si viene string con puntos/CLP/etc) */
 const parseMoneyCLP = (v) => {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
@@ -1172,12 +1166,11 @@ const parseMoneyCLP = (v) => {
   return digits ? parseInt(digits, 10) : 0;
 };
 
-/** ✅ Cálculo REAL: usa min/max + overTo del step actual */
 const MAX_INF = Number.MAX_SAFE_INTEGER;
 const stepMin = (v) => Math.max(0, Number(v || 0) || 0);
 const stepMax = (v) => {
   const n = Number(v || 0) || 0;
-  return n > 0 ? n : MAX_INF; // max<=0 => infinito
+  return n > 0 ? n : MAX_INF;
 };
 
 const computeNextStatusOnApprove = (steps, currentStatus, montoRaw) => {
@@ -1255,7 +1248,6 @@ const aprobar = async (oc) => {
   try {
     const steps = getStepsForOC(oc);
 
-    // ✅ determina el siguiente estatus por rango real
     let nuevoEstatus = "Aprobado";
     try {
       nuevoEstatus = computeNextStatusOnApprove(steps, oc.estatus, oc.precioTotalConIVA);

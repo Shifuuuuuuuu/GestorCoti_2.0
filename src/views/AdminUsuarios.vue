@@ -710,9 +710,6 @@ const MENU_KEYS = [
 const permGroups = computed(() => Array.from(new Set(MENU_KEYS.map(x => x.group))));
 const labelFromKey = (k) => MENU_KEYS.find(x => x.key === k)?.label || k;
 
-/** =========================
- *  ✅ Responsive helper (paginación)
- * ========================= */
 const isSmallScreen = ref(false);
 let mql = null;
 const onMqlChange = (e) => { isSmallScreen.value = !!e.matches; };
@@ -733,9 +730,6 @@ onBeforeUnmount(() => {
   else mql.removeListener(onMqlChange);
 });
 
-/** =========================
- *  ✅ Formateos: Teléfono CL + RUT
- * ========================= */
 const digitsOnly = (s) => String(s || '').replace(/\D/g, '');
 const cleanRut = (v) => String(v || '').toUpperCase().replace(/[^0-9K]/g, '');
 
@@ -780,7 +774,6 @@ const normalizePhoneCL = (input) => {
   const raw = String(input || '').trim();
   if (!raw) return '';
 
-  // Si viene con +, dejamos solo + y dígitos
   if (raw.startsWith('+')) {
     const d = digitsOnly(raw);
     return d ? `+${d}` : '';
@@ -788,10 +781,8 @@ const normalizePhoneCL = (input) => {
 
   const d = digitsOnly(raw);
 
-  // 9 dígitos (celular sin código) => +56
   if (d.length === 9 && d.startsWith('9')) return `+56${d}`;
 
-  // 11 dígitos 569xxxxxxxx => +569xxxxxxxx
   if (d.length === 11 && d.startsWith('569')) return `+${d}`;
 
   return '';
@@ -801,14 +792,12 @@ const formatPhoneCLUI = (input) => {
   const e164 = normalizePhoneCL(input);
   if (!e164) return String(input || '').trim();
 
-  // +56912345678 => +56 9 1234 5678
   if (e164.startsWith('+569') && e164.length === 12) {
-    const rest = e164.slice(4); // 8 dígitos
+    const rest = e164.slice(4);
     return `+56 9 ${rest.slice(0,4)} ${rest.slice(4)}`;
   }
-  // +56 + 9 dígitos => (igual dejamos razonable)
   if (e164.startsWith('+56') && e164.length === 12) {
-    const local = e164.slice(3); // 9 dígitos
+    const local = e164.slice(3);
     return `+56 ${local[0]} ${local.slice(1,5)} ${local.slice(5)}`;
   }
   return e164;
@@ -849,9 +838,6 @@ const fmtPhone = (v) => {
   return formatPhoneCLUI(s);
 };
 
-/** =========================
- *  Estado / filtros / paginado
- * ========================= */
 const cargando = ref(true);
 const usuarios = ref([]);
 
@@ -978,7 +964,6 @@ function selectAllDeny() {
   form.value.menuPerms.deny = Array.from(deny);
 }
 function seleccionarAllowBasico() {
-  // ejemplo básico (ajusta a tu gusto)
   const basico = ['solped','historial-solped','historial-oc'];
   const deny = new Set(form.value.menuPerms.deny || []);
   const allow = new Set(form.value.menuPerms.allow || []);
@@ -1160,13 +1145,11 @@ const validar = () => {
     return false;
   }
 
-  // ✅ Teléfono opcional, pero si hay texto debe ser válido
   if (String(data.phone || '').trim() && !phoneE164.value) {
     addToast('warning','Teléfono inválido. Usa formato +56 9 1234 5678.');
     return false;
   }
 
-  // ✅ RUT opcional, pero si hay texto debe ser válido
   if (String(data.rut || '').trim() && rutStatus.value === false) {
     addToast('warning','RUT inválido.');
     return false;
@@ -1182,10 +1165,8 @@ const guardar = async () => {
   accionando.value = true;
 
   try {
-    const phone = phoneE164.value || ''; // E164 o vacío
-
+    const phone = phoneE164.value || '';
     if (!esEdicion.value) {
-      // ✅ payload sin phone si está vacío (evita crasheos en Admin SDK)
       const payload = {
         email: data.email,
         password: data.password,
@@ -1219,7 +1200,7 @@ const guardar = async () => {
         uid,
         email: data.email,
         displayName: data.fullName,
-        ...(phone ? { phone } : {}) // ✅ solo si hay phone válido
+        ...(phone ? { phone } : {})
       };
 
       await cfUpdate(payload);
@@ -1241,7 +1222,6 @@ const guardar = async () => {
     await cargarUsuarios();
     offOpen.value = false;
   } catch (e) {
-    // ✅ Log MUCHO más útil (para pillar el 500 real)
     console.error('CALLABLE ERROR RAW:', e);
     console.error('CALLABLE ERROR DATA:', JSON.stringify({
       code: e?.code, message: e?.message, details: e?.details

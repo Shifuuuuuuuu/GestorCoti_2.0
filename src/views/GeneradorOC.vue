@@ -1044,13 +1044,13 @@ const buildItemsSolpedForUI = (solpedItems = []) => {
         cantidad_cotizada: antes,
         cantidad_para_cotizar: 0,
         __key: baseKey,
-        __k: `${baseKey}|${idx}`,     // ✅ key único para Vue
+        __k: `${baseKey}|${idx}`,
         __max: max,
         __restante: max,
         __invalid: false,
       };
     })
-    .filter((it) => !isItemCompleto(it)); // ✅ aquí está el fix principal
+    .filter((it) => !isItemCompleto(it));
 };
 
 const buildSelections = (itemsUI = []) => {
@@ -2294,12 +2294,10 @@ const onChangeSolped = async () => {
     const todos = Array.isArray(data.items) ? data.items : [];
     itemsSolped.value = buildItemsSolpedForUI(todos);
 
-    // ✅ set max/restante inicial
     for (const it of itemsSolped.value) clampCantidadParaCotizar(it);
 
     centroCosto.value = data.numero_contrato || centroCosto.value;
 
-    // limpia adjuntos copiados desde SOLPED para que el usuario decida
     archivos.value = archivos.value.filter((a) => !a?.fromSolped);
 
     calcularAprobador();
@@ -2387,7 +2385,6 @@ const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, est
 
   const srefDoc = doc(db, "solpes", solpedId);
 
-  // Map rápido: key => qty
   const selMap = new Map();
   for (const s of selections) selMap.set(String(s.key || ""), num(s.cantidad_para_cotizar, 0));
 
@@ -2402,7 +2399,6 @@ const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, est
       const k = itemIdentityKey(it);
       const nueva = selMap.get(k) || 0;
 
-      // ✅ si no cotizó ese ítem, NO lo toques
       if (nueva <= 0) return it;
 
       const total = num(it.cantidad, 0);
@@ -2439,7 +2435,6 @@ const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, est
     });
   });
 
-  // historial (fuera de la transacción)
   const hcoll = collection(db, "solpes", solpedId, "historialEstados");
   await addDoc(hcoll, {
     usuario: nombreUsuario || "Sistema",
@@ -2450,7 +2445,6 @@ const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, est
 const enviarOC = async () => {
   if (enviando.value) return;
 
-  // ✅ valida límite de aprobadas (editor)
   await refrescarAprobadasConCount();
   if (bloqueoPorAprobadas.value) {
     const msgExtra = aprobadasState.ok
@@ -2460,20 +2454,17 @@ const enviarOC = async () => {
     return;
   }
 
-  // ✅ espera config aprobación
   if (aprobacionCfg.loading) {
     addToast("warning", "Espera un momento: cargando reglas de aprobación…");
     return;
   }
 
-  // ✅ recalcula aprobador
   calcularAprobador();
   if (aprobadorMeta.bloquea) {
     addToast("danger", "No hay aprobador disponible (inactivo/vacaciones o config no válida). No se puede enviar.");
     return;
   }
 
-  // ✅ validaciones base
   if (!centroCosto.value.trim()) { addToast("warning", "Selecciona Centro de Costo"); return; }
   if (!tipoCompra.value) { addToast("warning", "Selecciona tipo de compra"); return; }
   if (tipoCompra.value === "patente" && !destinoCompra.value.trim()) { addToast("warning", "Ingresa la patente"); return; }
@@ -2481,17 +2472,15 @@ const enviarOC = async () => {
   if (!monedaSeleccionada.value) { addToast("warning", "Selecciona moneda"); return; }
   if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
 
-  // ✅ SOLPED: arma selections (solo ítems con cantidad_para_cotizar > 0) + valida
   let selections = [];
   if (usarSolped.value && solpedSeleccionadaId.value) {
-    selections = buildSelections(itemsSolped.value); // usa clamp interno
+    selections = buildSelections(itemsSolped.value);
     if (!selections.length) {
       addToast("warning", "Debes ingresar al menos una 'Cant. a cotizar' (mayor a 0) para enviar la cotización.");
       return;
     }
   }
 
-  // ✅ adjuntos obligatorios
   const tieneAlMenosUnAdjunto = archivos.value.length > 0;
   if (!tieneAlMenosUnAdjunto) {
     addToast("warning", "Debes adjuntar al menos un archivo (o reutilizar el/los adjuntos de la SOLPED).");
@@ -2502,7 +2491,6 @@ const enviarOC = async () => {
   setBusy(true, "Enviando cotización…", "Preparando datos", 5);
 
   try {
-    // ✅ nombre usuario (más confiable desde Usuarios)
     let nombreUsuario = auth?.user?.displayName || auth?.user?.email || "Desconocido";
     const uid = myUid.value;
     if (uid) {
@@ -2515,7 +2503,6 @@ const enviarOC = async () => {
 
     setBusy(true, "Enviando cotización…", "Calculando número…", 10);
 
-    // ✅ calcular newId
     const qy = query(collection(db, "ordenes_oc"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
@@ -2532,17 +2519,15 @@ const enviarOC = async () => {
     const estatusInicial = ESTATUS_FIJO_INICIAL;
     const comentarioFinal = (comentario.value || "").trim();
 
-    // ✅ ítems OC: solo los que realmente se cotizan (más limpio y sin “completados fantasmas”)
     let itemsOC = [];
     if (usarSolped.value && solpedSeleccionadaId.value) {
-      itemsOC = buildItemsOCFromUI(itemsSolped.value); // usa clamp interno
+      itemsOC = buildItemsOCFromUI(itemsSolped.value);
       if (!itemsOC.length) {
         addToast("warning", "No hay ítems válidos para cotizar (revisa cantidades).");
         return;
       }
     }
 
-    // ✅ subir adjuntos (reusa los de SOLPED sin volver a subir)
     const storage = getStorage();
     const subidos = [];
 
@@ -2554,7 +2539,6 @@ const enviarOC = async () => {
       const pct = Math.min(90, 10 + Math.round((doneAdj / totalAdj) * 80));
       setBusy(true, "Enviando cotización…", `Subiendo adjunto ${doneAdj} de ${totalAdj}`, pct);
 
-      // reutilizado desde SOLPED
       if (a?.fromSolped && a?.url) {
         subidos.push({
           nombre: a.name,
@@ -2566,7 +2550,6 @@ const enviarOC = async () => {
         continue;
       }
 
-      // upload normal
       if (!a.file || a.file.size < 100) continue;
 
       const safeName = String(a.name || "archivo")
@@ -2635,7 +2618,6 @@ const enviarOC = async () => {
     const newDocId = newDocRef.id;
     await updateDoc(newDocRef, { __docId: newDocId });
 
-    // ✅ actualizar SOLPED con transacción (solo los ítems realmente cotizados)
     if (usarSolped.value && solpedSeleccionadaId.value) {
       await actualizarSolpedAsociada(solpedSeleccionadaId.value, selections, nombreUsuario, estatusInicial);
     }
@@ -2643,7 +2625,6 @@ const enviarOC = async () => {
     setBusy(true, "Listo ✅", "Cotización enviada correctamente", 100);
     addToast("success", "Cotización enviada exitosamente.");
 
-    // ✅ reset form
     centroCosto.value = "";
     tipoCompra.value = "stock";
     destinoCompra.value = "";

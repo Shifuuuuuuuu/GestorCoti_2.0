@@ -4,80 +4,117 @@
   <div class="equipos-admin-page">
     <div class="container py-4 py-md-5">
 
-      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
-        <h1 class="h5 h4-sm fw-semibold mb-0">Administrar equipos</h1>
+      <div class="page-hero mb-4">
+        <div class="page-hero__content">
+          <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <div>
+              <div class="page-eyebrow mb-2">
+                <i class="bi bi-truck me-2"></i>
+                Gestión operativa
+              </div>
+              <h1 class="h5 h4-sm fw-semibold mb-1">Administrar equipos</h1>
+              <p class="page-subtitle mb-0">
+                Gestiona equipos, importa información desde Excel y revisa registros incompletos.
+              </p>
+            </div>
 
-        <div class="d-flex align-items-stretch gap-2 flex-wrap">
-          <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
-            <i class="bi bi-sliders2 me-1"></i> Filtros
-          </button>
+            <div class="d-flex align-items-stretch gap-2 flex-wrap">
+              <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
+                <i class="bi bi-sliders2 me-1"></i> Filtros
+              </button>
 
-          <button class="btn btn-primary" @click="abrirCrear">
-            <i class="bi bi-plus-lg me-1"></i>
-            <span class="d-none d-sm-inline">Agregar equipo</span>
-            <span class="d-inline d-sm-none">Agregar</span>
-          </button>
-          <button class="btn btn-outline-success" @click="exportarExcelFaltantes" :disabled="cargando || !equipos.length">
-            <i class="bi bi-download me-1"></i>
-            <span class="d-none d-sm-inline">Excel faltantes</span>
-            <span class="d-inline d-sm-none">Faltantes</span>
-          </button>
-          <button class="btn btn-outline-secondary" @click="cargarEquipos">
-            <i class="bi bi-arrow-clockwise me-1"></i>
-            <span class="d-none d-sm-inline">Recargar</span>
-            <span class="d-inline d-sm-none">Reload</span>
-          </button>
-          <input ref="fileInput" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onFilePicked">
-          <button class="btn btn-success" @click="pedirArchivo" :disabled="importando">
-            <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i>
-            <span class="d-none d-sm-inline">{{ importando ? 'Importando…' : 'Importar Excel' }}</span>
-            <span class="d-inline d-sm-none">{{ importando ? 'Import…' : 'Excel' }}</span>
-          </button>
-        </div>
-      </div>
-      <div v-if="importando" class="alert alert-info d-flex align-items-center mb-3">
-        <div class="me-3 spinner-border spinner-border-sm" role="status"></div>
-        <div class="flex-grow-1">
-          {{ importMsg }}
-          <div class="progress mt-2" style="height: 6px;">
-            <div class="progress-bar" role="progressbar" :style="{ width: importPct + '%' }"></div>
+              <button class="btn btn-primary hero-btn" @click="abrirCrear">
+                <i class="bi bi-plus-lg me-1"></i>
+                <span class="d-none d-sm-inline">Agregar equipo</span>
+                <span class="d-inline d-sm-none">Agregar</span>
+              </button>
+
+              <button
+                class="btn btn-outline-success hero-btn"
+                @click="exportarExcelFaltantes"
+                :disabled="cargando || !equipos.length"
+              >
+                <i class="bi bi-download me-1"></i>
+                <span class="d-none d-sm-inline">Excel faltantes</span>
+                <span class="d-inline d-sm-none">Faltantes</span>
+              </button>
+
+              <button class="btn btn-outline-secondary hero-btn" @click="cargarEquipos">
+                <i class="bi bi-arrow-clockwise me-1"></i>
+                <span class="d-none d-sm-inline">Recargar</span>
+                <span class="d-inline d-sm-none">Reload</span>
+              </button>
+
+              <input ref="fileInput" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onFilePicked">
+
+              <button class="btn btn-success hero-btn" @click="pedirArchivo" :disabled="importando">
+                <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+                <span class="d-none d-sm-inline">{{ importando ? 'Importando…' : 'Importar Excel' }}</span>
+                <span class="d-inline d-sm-none">{{ importando ? 'Import…' : 'Excel' }}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      <div class="card mb-3 d-none d-md-block">
+
+      <div v-if="importando" class="import-card mb-3">
+        <div class="d-flex align-items-center">
+          <div class="me-3 spinner-border spinner-border-sm" role="status"></div>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ importMsg }}</div>
+            <div class="progress progress-pro mt-2">
+              <div class="progress-bar" role="progressbar" :style="{ width: importPct + '%' }"></div>
+            </div>
+            <div class="small text-secondary mt-1">{{ importPct }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-card mb-3 d-none d-md-block">
         <div class="card-body">
           <div class="row g-2 align-items-end">
             <div class="col-12 col-md-6">
               <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
-              <input
-                class="form-control"
-                v-model="busqueda"
-                placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
+              <div class="input-icon-wrap">
+                <i class="bi bi-search input-icon"></i>
+                <input
+                  class="form-control form-control-pro"
+                  v-model="busqueda"
+                  placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
+              </div>
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Filtrar por Clasificación</label>
-              <select class="form-select" v-model="filtroClasificacion">
+              <select class="form-select form-control-pro" v-model="filtroClasificacion">
                 <option value="">— Todas —</option>
                 <option v-for="c in clasificacionesOrdenadas" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
+
             <div class="col-12 col-md-2">
-              <button class="btn btn-dark w-100" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-outline-secondary w-100" @click="limpiarFiltros">
+                <i class="bi bi-eraser me-1"></i> Limpiar
+              </button>
             </div>
           </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-header bg-white d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">Equipos</div>
-          <span class="badge bg-dark-subtle text-dark-emphasis">{{ equipos.length }} en total</span>
+
+      <div class="main-card card">
+        <div class="card-header card-header-pro d-flex align-items-center justify-content-between">
+          <div class="fw-semibold d-flex align-items-center">
+            <i class="bi bi-list-ul me-2 text-secondary"></i>
+            Equipos
+          </div>
+          <span class="badge badge-counter">{{ equipos.length }} en total</span>
         </div>
 
         <div class="card-body p-0">
           <div v-if="cargando" class="p-4 text-center">
             <div class="spinner-border" role="status"></div>
-            <div class="small mt-2">Cargando…</div>
+            <div class="small mt-2 text-secondary">Cargando…</div>
           </div>
 
           <div v-else>
@@ -86,8 +123,8 @@
             </div>
 
             <div v-else class="table-responsive">
-              <table class="table table-hover table-sm align-middle mb-0">
-                <thead class="position-sticky top-0 bg-body">
+              <table class="table table-hover table-sm align-middle mb-0 equipos-table">
+                <thead class="position-sticky top-0 table-head-pro">
                   <tr>
                     <th style="width:34px;"></th>
                     <th style="min-width:120px;">Código</th>
@@ -157,9 +194,11 @@
                     <td class="text-end pe-3">
                       <div class="btn-group btn-group-sm d-none d-md-inline-flex">
                         <button class="btn btn-outline-primary" @click="abrirEditar(e)">Editar</button>
-                        <button class="btn btn-outline-danger"
-                                :disabled="accionando && idEnAccion===e.__id"
-                                @click="abrirConfirm(e)">
+                        <button
+                          class="btn btn-outline-danger"
+                          :disabled="accionando && idEnAccion===e.__id"
+                          @click="abrirConfirm(e)"
+                        >
                           <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm me-2"></span>
                           Eliminar
                         </button>
@@ -169,10 +208,12 @@
                         <button class="btn btn-outline-primary btn-sm" @click="abrirEditar(e)" title="Editar">
                           <i class="bi bi-pencil-square"></i>
                         </button>
-                        <button class="btn btn-outline-danger btn-sm"
-                                :disabled="accionando && idEnAccion===e.__id"
-                                @click="abrirConfirm(e)"
-                                title="Eliminar">
+                        <button
+                          class="btn btn-outline-danger btn-sm"
+                          :disabled="accionando && idEnAccion===e.__id"
+                          @click="abrirConfirm(e)"
+                          title="Eliminar"
+                        >
                           <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm"></span>
                           <i v-else class="bi bi-trash3"></i>
                         </button>
@@ -187,7 +228,8 @@
                 </tbody>
               </table>
             </div>
-            <div class="card-footer bg-white">
+
+            <div class="card-footer card-footer-pro">
               <nav class="overflow-auto">
                 <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
                   <li class="page-item" :class="{disabled: paginaActual===1}">
@@ -206,6 +248,7 @@
           </div>
         </div>
       </div>
+
       <div v-if="offOpen" class="offcanvas-backdrop" @click.self="cerrarOff">
         <div class="offcanvas-panel">
           <div class="offcanvas-header">
@@ -217,66 +260,65 @@
             <div class="row g-3">
               <div class="col-12 col-md-6">
                 <label class="form-label">Código</label>
-                <input class="form-control" v-model="form.codigo" placeholder="Ej: JK-2864" />
+                <input class="form-control form-control-pro" v-model="form.codigo" placeholder="Ej: JK-2864" />
               </div>
 
               <div class="col-12 col-md-6">
                 <label class="form-label">N° Interno</label>
-                <input class="form-control" v-model="form.numero_interno" placeholder="Ej: GE-456" />
+                <input class="form-control form-control-pro" v-model="form.numero_interno" placeholder="Ej: GE-456" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">N° Motor</label>
-                <input class="form-control" v-model="form.numero_motor" placeholder="Ej: QS213-03" />
+                <input class="form-control form-control-pro" v-model="form.numero_motor" placeholder="Ej: QS213-03" />
               </div>
 
               <div class="col-12 col-md-6">
                 <label class="form-label">Año</label>
-                <input class="form-control" type="number" v-model.number="form.ano" min="1900" max="2100" />
+                <input class="form-control form-control-pro" type="number" v-model.number="form.ano" min="1900" max="2100" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">Equipo</label>
-                <input class="form-control" v-model="form.equipo" placeholder="Descripción del equipo" />
+                <input class="form-control form-control-pro" v-model="form.equipo" placeholder="Descripción del equipo" />
               </div>
 
               <div class="col-12 col-md-6">
                 <label class="form-label">Marca</label>
-                <input class="form-control" v-model="form.marca" placeholder="RANDON" />
+                <input class="form-control form-control-pro" v-model="form.marca" placeholder="RANDON" />
               </div>
 
               <div class="col-12 col-md-6">
                 <label class="form-label">Modelo</label>
-                <input class="form-control" v-model="form.modelo" placeholder="SRLTV0327" />
+                <input class="form-control form-control-pro" v-model="form.modelo" placeholder="SRLTV0327" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">Clasificación</label>
-                <input class="form-control" v-model="form.clasificacion1" placeholder="SEMI REMOLQUE SILO" />
+                <input class="form-control form-control-pro" v-model="form.clasificacion1" placeholder="SEMI REMOLQUE SILO" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">Tipo de equipo</label>
-                <input class="form-control" v-model="form.tipo_equipo" placeholder="SEMI REMOLQUE SILO" />
+                <input class="form-control form-control-pro" v-model="form.tipo_equipo" placeholder="SEMI REMOLQUE SILO" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">N° Chasis</label>
-                <input class="form-control" v-model="form.numero_chasis" placeholder="9ADH0973BCM343474" />
+                <input class="form-control form-control-pro" v-model="form.numero_chasis" placeholder="9ADH0973BCM343474" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">Localización</label>
-                <input class="form-control" v-model="form.localizacion" placeholder="22368 DET\\ CANECHE" />
+                <input class="form-control form-control-pro" v-model="form.localizacion" placeholder="22368 DET\\ CANECHE" />
               </div>
 
               <div class="col-12" v-if="esEdicion && (form.creado || form.actualizado)">
-                <div class="small text-secondary">
+                <div class="audit-info small text-secondary">
                   <div v-if="form.creado">Creado: {{ fmtFecha(form.creado) }}</div>
                   <div v-if="form.actualizado">Actualizado: {{ fmtFecha(form.actualizado) }}</div>
                 </div>
               </div>
-
             </div>
           </div>
 
@@ -291,6 +333,7 @@
           </div>
         </div>
       </div>
+
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
@@ -301,12 +344,12 @@
             <div class="row g-3">
               <div class="col-12">
                 <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
-                <input class="form-control" v-model="busqueda" placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
+                <input class="form-control form-control-pro" v-model="busqueda" placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
               </div>
 
               <div class="col-12">
                 <label class="form-label">Filtrar por Clasificación</label>
-                <select class="form-select" v-model="filtroClasificacion">
+                <select class="form-select form-control-pro" v-model="filtroClasificacion">
                   <option value="">— Todas —</option>
                   <option v-for="c in clasificacionesOrdenadas" :key="c" :value="c">{{ c }}</option>
                 </select>
@@ -333,6 +376,7 @@
       </div>
 
     </div>
+
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -398,7 +442,6 @@ type Equipo = {
   modelo?: string;
   numero_chasis?: string;
   tipo_equipo?: string;
-
   numero_interno?: string;
   numero_motor?: string;
 };
@@ -434,6 +477,7 @@ const fmtFecha = (f:any) => {
     return d.toLocaleString('es-CL', { dateStyle:'short', timeStyle:'short' });
   } catch { return '—'; }
 };
+
 const CAMPOS_AUDITORIA = [
   { key: 'codigo', label: 'Código' },
   { key: 'numero_interno', label: 'N° Interno' },
@@ -492,16 +536,6 @@ const setSheetCols = (ws: XLSX.WorkSheet, widths: number[]) => {
   ws['!cols'] = widths.map((w) => ({ wch: w }));
 };
 
-const crearHojaDesdeJson = (rows: any[], widths: number[] = []) => {
-  const ws = XLSX.utils.json_to_sheet(rows);
-  if (rows.length > 0) {
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
-  }
-  if (widths.length) setSheetCols(ws, widths);
-  return ws;
-};
-
 const exportarExcelFaltantes = () => {
   try {
     const base = equipos.value;
@@ -544,6 +578,7 @@ const exportarExcelFaltantes = () => {
           });
         }
       }
+
       if (faltantes.length > 0) {
         const tipo = esCampoVacio(e.tipo_equipo) ? 'Sin tipo' : valorParaExcel(e.tipo_equipo);
         const clasif = esCampoVacio(e.clasificacion1) ? 'Sin clasificación' : valorParaExcel(e.clasificacion1);
@@ -572,6 +607,7 @@ const exportarExcelFaltantes = () => {
       addToast('success', 'No hay faltantes. Todos los equipos están completos ✅');
       return;
     }
+
     matrizRows.sort((a, b) =>
       a['Tipo de equipo'].localeCompare(b['Tipo de equipo']) ||
       a['Clasificación'].localeCompare(b['Clasificación']) ||
@@ -590,38 +626,19 @@ const exportarExcelFaltantes = () => {
     const resumenRows = Array.from(resumenCampo.entries())
       .map(([campo, cantidad]) => ({ 'Campo faltante': campo, 'Cantidad': cantidad }))
       .sort((a, b) => b['Cantidad'] - a['Cantidad'] || a['Campo faltante'].localeCompare(b['Campo faltante']));
+
     const wb = XLSX.utils.book_new();
+
     const wsMatriz = XLSX.utils.json_to_sheet(matrizRows);
     if (wsMatriz['!ref']) {
       const range = XLSX.utils.decode_range(wsMatriz['!ref']);
       wsMatriz['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
     }
     wsMatriz['!cols'] = [
-      { wch: 40 },
-      { wch: 24 },
-      { wch: 28 },
-      { wch: 28 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 10 },
-      { wch: 24 },
-      { wch: 16 },
-      { wch: 60 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 16 },
-      { wch: 18 },
+      { wch: 40 }, { wch: 24 }, { wch: 28 }, { wch: 28 }, { wch: 16 }, { wch: 16 },
+      { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 24 },
+      { wch: 16 }, { wch: 60 }, { wch: 14 }, { wch: 16 }, { wch: 15 }, { wch: 10 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 20 }, { wch: 16 }, { wch: 18 },
     ];
     XLSX.utils.book_append_sheet(wb, wsMatriz, 'Auditoria faltantes');
 
@@ -656,6 +673,7 @@ const exportarExcelFaltantes = () => {
     addToast('danger', 'No se pudo generar el Excel de auditoría.');
   }
 };
+
 const cargarEquipos = async () => {
   cargando.value = true;
   try {
@@ -857,6 +875,7 @@ async function confirmarEliminar(){
     idEnAccion.value = null;
   }
 }
+
 const fileInput = ref<HTMLInputElement|null>(null);
 const importando = ref(false);
 const importMsg = ref('');
@@ -980,6 +999,7 @@ async function importarExcel(file: File){
     if (conMotor === 0){
       addToast('warning','No se detectó "NUMERO DE MOTOR" en el Excel. Revisa el encabezado.', 4500);
     }
+
     importMsg.value = 'Cargando datos existentes…';
     importPct.value = 10;
 
@@ -994,6 +1014,7 @@ async function importarExcel(file: File){
       if (c) byCodigo.set(c, x);
       if (ch) byChasis.set(ch, x);
     });
+
     const total = parsed.length;
     let done = 0;
     const chunkSize = 450;
@@ -1083,82 +1104,327 @@ async function importarExcel(file: File){
 <style scoped>
 .equipos-admin-page{
   min-height:100vh;
-  background:
-    radial-gradient(900px 400px at -10% -20%, rgba(0,0,0,.03), transparent 60%),
-    radial-gradient(900px 400px at 110% 0%, rgba(0,0,0,.03), transparent 60%),
-    #f8fafc;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
 }
+
 @media (min-width: 576px){
   .h4-sm{ font-size: 1.35rem; }
 }
 
+/* HERO */
+.page-hero{
+  border: 1px solid var(--bs-border-color);
+  border-radius: 22px;
+  background: var(--bs-tertiary-bg);
+  box-shadow: 0 16px 34px rgba(0,0,0,.05);
+}
+
+.page-hero__content{
+  padding: 1.35rem 1.4rem;
+}
+
+.page-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  padding:.42rem .82rem;
+  border-radius:999px;
+  background: var(--bs-secondary-bg);
+  border:1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color, var(--bs-body-color));
+  font-size:.82rem;
+  font-weight:700;
+}
+
+.page-subtitle{
+  color: var(--bs-secondary-color, #6c757d);
+  max-width: 760px;
+}
+
+.hero-btn{
+  border-radius: 12px;
+}
+
+/* CARDS */
+.filter-card,
+.main-card{
+  border: 1px solid var(--bs-border-color);
+  border-radius: 20px;
+  background: var(--bs-body-bg);
+  box-shadow: 0 12px 28px rgba(0,0,0,.04);
+}
+
+.card-header-pro{
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+  border-top-left-radius: 20px !important;
+  border-top-right-radius: 20px !important;
+  padding: 1rem 1.1rem;
+}
+
+.card-footer-pro{
+  background: var(--bs-tertiary-bg);
+  border-top: 1px solid var(--bs-border-color);
+  border-bottom-left-radius: 20px !important;
+  border-bottom-right-radius: 20px !important;
+}
+
+.badge-counter{
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: .5rem .8rem;
+}
+
+.import-card{
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 18px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.04);
+  padding: 1rem 1.1rem;
+}
+
+.audit-info{
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  padding: .75rem .9rem;
+}
+
+/* FORM */
+.form-control-pro{
+  min-height: 46px;
+  border-radius: 14px;
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: none;
+}
+
+.form-control-pro:focus{
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 .22rem rgba(var(--bs-primary-rgb), .12);
+}
+
+.input-icon-wrap{
+  position: relative;
+}
+.input-icon{
+  position: absolute;
+  left: .9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--bs-secondary-color, #6c757d);
+  z-index: 2;
+}
+.input-icon-wrap .form-control{
+  padding-left: 2.5rem;
+}
+
+/* TABLE */
+.equipos-table th,
+.equipos-table td{
+  vertical-align: middle;
+  border-color: var(--bs-border-color);
+  background: transparent;
+  color: var(--bs-body-color);
+}
+
+.equipos-table tbody tr{
+  transition: background-color .18s ease, transform .18s ease;
+}
+
+.equipos-table tbody tr:hover{
+  background: color-mix(in srgb, var(--bs-tertiary-bg) 72%, transparent);
+}
+
+.table-head-pro th{
+  background: var(--bs-tertiary-bg) !important;
+  border-bottom: 1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: .84rem;
+  font-weight: 800;
+  z-index: 1;
+}
+
+.table td .badge{
+  font-weight: 700;
+}
+
+/* OFFCANVAS */
 .offcanvas-backdrop{
-  position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: grid;
+  place-items: center;
   background: rgba(0,0,0,.45);
 }
+
 .offcanvas-panel{
-  position: fixed; right: 0; top: 0; bottom: 0;
-  width: 560px; max-width: 95vw;
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 560px;
+  max-width: 95vw;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   box-shadow: -10px 0 40px rgba(0,0,0,.25);
-  border-top-left-radius:.75rem; border-bottom-left-radius:.75rem;
+  border-top-left-radius:.95rem;
+  border-bottom-left-radius:.95rem;
   animation: slideIn .18s ease-out both;
 }
-.offcanvas-panel-sm{ width: 420px; max-width: 96vw; }
-@keyframes slideIn { from{ transform: translateX(20px); opacity: 0; } to{ transform:none; opacity:1; } }
-.offcanvas-header, .offcanvas-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
-}
-.offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
-.offcanvas-body{ padding: 1rem; overflow: auto; }
 
-.vmodal-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  z-index: 1090; display: grid; place-items: center; padding: 1rem;
+.offcanvas-panel-sm{
+  width: 420px;
+  max-width: 96vw;
 }
+
+@keyframes slideIn {
+  from{ transform: translateX(20px); opacity: 0; }
+  to{ transform:none; opacity:1; }
+}
+
+.offcanvas-header,
+.offcanvas-footer{
+  padding: .95rem 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+}
+
+.offcanvas-footer{
+  border-top: 1px solid var(--bs-border-color);
+  border-bottom: 0;
+}
+
+.offcanvas-body{
+  padding: 1rem;
+  overflow: auto;
+  background: var(--bs-body-bg);
+}
+
+/* MODAL */
+.vmodal-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 1090;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
 .vmodal{
-  width: 100%; max-width: 700px;  border-radius: .75rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
+  width: 100%;
+  max-width: 700px;
+  border-radius: .95rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  overflow: hidden;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
 }
-.vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
-}
-.vmodal-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
-.vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-.toast-stack{
-  position: fixed; right: 12px; bottom: 12px; z-index: 1200;
-  display: flex; flex-direction: column; gap: 10px;
+.vmodal-header,
+.vmodal-footer{
+  padding: .95rem 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
 }
-.toast-box{
-  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 240px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+
+.vmodal-footer{
+  border-top: 1px solid var(--bs-border-color);
+  border-bottom: 0;
 }
-.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
-.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
-.btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
+
+.vmodal-body{
+  padding: 1rem;
+  max-height: 65vh;
+  overflow: auto;
+  background: var(--bs-body-bg);
+}
 
 .confirm-icon{
-  width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; font-size: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg,#ef4444,#dc2626);
+  color: #fff;
+  font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 
-.table td, .table th{ vertical-align: middle; }
-.table-responsive thead th{
-  z-index: 1; border-bottom: 1px solid var(--bs-border-color);
+/* TOASTS */
+.toast-stack{
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-@media (max-width: 576px){
-  thead th:first-child, tbody td:first-child{ width: 34px !important; }
-  td .text-truncate{ max-width: 180px; }
-}
-.pagination .page-link{ min-width: 34px; text-align:center; }
 
-.progress { background: #f1f5f9; }
-.progress-bar { background: #16a34a; }
+.toast-box{
+  display: flex;
+  align-items: center;
+  padding: .6rem .8rem;
+  border-radius: .7rem;
+  color: #fff;
+  min-width: 240px;
+  max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
+.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
+.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
+
+.btn-close-white{
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* PAGINATION */
+.pagination .page-link{
+  min-width: 34px;
+  text-align:center;
+  border-radius: 10px;
+}
+
+.progress-pro{
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bs-secondary-bg);
+}
+
+.progress-bar{
+  background: #16a34a;
+}
+
+@media (max-width: 576px){
+  thead th:first-child,
+  tbody td:first-child{ width: 34px !important; }
+
+  td .text-truncate{ max-width: 180px; }
+
+  .page-hero__content{
+    padding: 1rem;
+  }
+
+  .card-header-pro,
+  .card-footer-pro{
+    padding-left: .95rem;
+    padding-right: .95rem;
+  }
+}
 </style>

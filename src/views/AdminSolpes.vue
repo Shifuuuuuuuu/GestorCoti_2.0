@@ -1043,16 +1043,12 @@ const visiblePageButtons = computed(() => {
   return pages;
 });
 
-/** =========================
- * ✅ Adjuntos (formato EXACTO)
- * autorizaciones: [{nombre,tamano,tipo,url,comentarios:[]}]
- * storage: solped_adjuntos/<Empresa>_<numero_solpe>/<ts>/<archivo>
- * ========================= */
+
 const inputAutorizacionEditEl = ref(null);
 const inputAutorizacionNuevoEl = ref(null);
 
-const archivosAutorizacionEdit = ref([]);  // Files pendientes edición
-const archivosAutorizacionNuevo = ref([]); // Files pendientes nueva
+const archivosAutorizacionEdit = ref([]);
+const archivosAutorizacionNuevo = ref([]);
 
 function abrirSelectorAutorizacionEdit(){ inputAutorizacionEditEl.value?.click(); }
 function abrirSelectorAutorizacionNuevo(){ inputAutorizacionNuevoEl.value?.click(); }
@@ -1098,7 +1094,6 @@ function prettyBytes(bytes){
   }
 }
 
-// "Xtreme Servicio" => "Xtreme_Servicio"
 function slugEmpresa(emp){
   return String(emp || "Empresa")
     .trim()
@@ -1111,11 +1106,9 @@ function safeFileName(name){
     .trim();
 }
 
-// lee adjuntos existentes (acepta tu formato exacto + compat)
 function normalizeAdjuntosFromRow(row){
   const arr = Array.isArray(row?.autorizaciones) ? row.autorizaciones : [];
 
-  // si viene con el formato exacto: {nombre,tamano,tipo,url,comentarios}
   if (arr.length) {
     return arr.map(a => ({
       nombre: a?.nombre ?? a?.name ?? "archivo",
@@ -1126,7 +1119,6 @@ function normalizeAdjuntosFromRow(row){
     }));
   }
 
-  // compat con campos viejos sueltos
   if (row?.autorizacion_url || row?.autorizacion_nombre) {
     return [{
       nombre: row.autorizacion_nombre || "autorizacion",
@@ -1140,7 +1132,6 @@ function normalizeAdjuntosFromRow(row){
   return [];
 }
 
-// sube N archivos y retorna maps con {nombre,tamano,tipo,url,comentarios:[]}
 async function uploadAdjuntos({ solpeId, empresa, numero_solpe }, files){
   if (!files?.length) return [];
   const storage = getStorage();
@@ -1172,10 +1163,6 @@ async function uploadAdjuntos({ solpeId, empresa, numero_solpe }, files){
   }
   return results;
 }
-
-/** =========================
- * Subs / Listado / Filtros (igual)
- * ========================= */
 function cleanupSubs(){
   if (unsubList){ unsubList(); unsubList=null; }
   if (unsubSearch){ unsubSearch(); unsubSearch=null; }
@@ -1383,9 +1370,6 @@ function mobileApplyFilters(){
   mobileFiltersOpen.value = false;
 }
 
-/** =========================
- * Editor / Nueva / Historial (solo cambiamos adjuntos)
- * ========================= */
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
@@ -1483,7 +1467,6 @@ function abrirEditor(row){
     __fecha_ts: originalTs,
     __fecha_str: originalStr,
 
-    // ✅ adjuntos en formato exacto
     autorizaciones: normalizeAdjuntosFromRow(row),
 
     dirigidoA: Array.isArray(row.dirigidoA) ? [...row.dirigidoA] : [],
@@ -1541,7 +1524,6 @@ async function guardarEdicion(){
     const id = seleccion.value.__id;
     const dref = doc(db, "solpes", id);
 
-    // ✅ Subir nuevos adjuntos
     if (archivosAutorizacionEdit.value.length) {
       const added = await uploadAdjuntos({
         solpeId: id,
@@ -1573,10 +1555,7 @@ async function guardarEdicion(){
     const firstAdj = autorizaciones[0] || null;
 
     const payload = {
-      // ✅ EXACTO como tu ejemplo
       autorizaciones,
-
-      // ✅ compat (primer adjunto)
       autorizacion_nombre: firstAdj?.nombre ?? null,
       autorizacion_url: firstAdj?.url ?? null,
 
@@ -1608,7 +1587,6 @@ async function guardarEdicion(){
   }
 }
 
-/** ===== Modal Nueva ===== */
 const modalNueva = ref(false);
 const creando = ref(false);
 const nuevo = ref({});
@@ -1719,7 +1697,6 @@ async function crearNueva(){
   }
 }
 
-/** ===== Historial ===== */
 async function guardarHistorial(){
   if (!seleccion.value?.__id) return;
   try{
@@ -1752,7 +1729,6 @@ async function eliminarHistorialDoc(hid){
   }
 }
 
-/** ===== Confirm Delete ===== */
 const confirmOpen = ref(false);
 const confirmRow  = ref(null);
 const eliminando  = ref(false);
@@ -1783,7 +1759,6 @@ async function confirmarEliminar(){
   }
 }
 
-/** ===== Items (igual que antes) ===== */
 const modalItem = ref(false);
 const isEditItem = ref(false);
 const itemIndex = ref(-1);
@@ -1860,7 +1835,6 @@ function eliminarItem(idx){
   edit.value.items.splice(idx, 1);
 }
 
-/** ===== Fechas display ===== */
 function toCL(date) {
   try {
     return new Date(date).toLocaleString("es-CL", {

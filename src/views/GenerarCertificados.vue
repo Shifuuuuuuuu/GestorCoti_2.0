@@ -793,7 +793,6 @@ function getPreventivoByTipoEquipo(tipo) {
 
   if (PREVENTIVOS_MOTORES[t]) return PREVENTIVOS_MOTORES[t];
 
-  // aliases / coincidencias flexibles
   if (t.includes("TRACTO") && t.includes("CAMION")) return PREVENTIVOS_MOTORES["TRACTO CAMION"];
   if (t.includes("CAMIONETA")) return PREVENTIVOS_MOTORES["CAMIONETA"];
   if (t.includes("CAMION") && t.includes("MIXER")) return PREVENTIVOS_MOTORES["CAMION MIXER"];
@@ -1251,7 +1250,6 @@ async function cargarProximoNumero() {
     const ref = doc(db, "counters_certificados", id);
     const snap = await getDoc(ref);
 
-    // ✅ fallbacks por tipo
     let fallback = 1;
     if (form.value.tipo === "TORQUE") fallback = 192;
     if (form.value.tipo === "MANTENCION") fallback = 982;
@@ -1264,7 +1262,6 @@ async function cargarProximoNumero() {
     counterNext.value = nextVal;
   } catch (e) {
     console.error(e);
-    // ✅ fallback seguro si falla lectura
     if (form.value.tipo === "TORQUE") counterNext.value = 192;
     else if (form.value.tipo === "MANTENCION") counterNext.value = 982;
     else counterNext.value = 1;
@@ -1590,15 +1587,12 @@ async function buildPdfBytesFromModel(model, numero, verificationUrl) {
 
   let y = height - M - innerPad;
 
-  // ✅ Header = Mining
   const headerLogoBytes = await fetchAsArrayBuffer(logoMiningSrc);
   const headerLogo = await pdfDoc.embedPng(headerLogoBytes);
 
-  // ✅ QR Logo = Servicios
   const qrLogoBytes = await fetchAsArrayBuffer(logoServiciosSrc);
   const qrLogo = await pdfDoc.embedPng(qrLogoBytes);
 
-  // ---- HEADER LOGO (Mining) ----
   const logoW = 170;
   const logoH = (headerLogo.height / headerLogo.width) * logoW;
 
@@ -1932,7 +1926,6 @@ async function buildPdfBytesFromModel(model, numero, verificationUrl) {
       const qrX = width - M - 16 - qrW;
       const qrY = M + 60;
 
-      // ✅ QR logo = Servicios
       const smallLogoW = 95;
       const smallLogoH = (qrLogo.height / qrLogo.width) * smallLogoW;
       const smallLogoY = qrY + qrH + 8;

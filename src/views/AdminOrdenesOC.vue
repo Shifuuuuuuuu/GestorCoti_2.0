@@ -5,6 +5,7 @@
     <div class="container py-4">
       <div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
         <h1 class="h5 h4-md fw-semibold mb-0">Admin · Órdenes OC</h1>
+
         <div class="d-none d-md-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto ms-md-3">
           <div class="input-group minw-280">
             <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -19,48 +20,63 @@
               v-if="busquedaActiva"
               class="btn btn-outline-danger"
               @click="limpiarBusqueda"
-              title="Limpiar búsqueda">
+              title="Limpiar búsqueda"
+            >
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
+
           <button class="btn btn-outline-primary" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
             <span
               v-if="hasActiveFilters"
               class="badge bg-primary-subtle text-primary-emphasis ms-2"
-              >{{ totalFiltrosActivos }}</span
             >
+              {{ totalFiltrosActivos }}
+            </span>
           </button>
 
           <button class="btn btn-primary" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva OC
           </button>
         </div>
+
         <div class="d-flex d-md-none w-100 gap-2">
           <button class="btn btn-outline-secondary flex-fill" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
             <span
               v-if="hasActiveFilters"
               class="badge bg-primary-subtle text-primary-emphasis ms-1"
-              >{{ totalFiltrosActivos }}</span
             >
+              {{ totalFiltrosActivos }}
+            </span>
           </button>
           <button class="btn btn-primary flex-fill" @click="abrirModalNueva">
             <i class="bi bi-plus-lg me-1"></i> Nueva
           </button>
         </div>
       </div>
-      <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
+
+      <div
+        v-if="hasActiveFilters || busquedaActiva"
+        class="d-flex flex-wrap align-items-center gap-2 mb-2"
+      >
         <small class="text-secondary">Filtros activos:</small>
 
         <span v-if="filtroEstatus" class="badge bg-light text-dark border">
           Estatus: {{ filtroEstatus }}
-          <button class="btn-close btn-close-white ms-2 small" @click="filtroEstatus=''; aplicarFiltros()"></button>
+          <button
+            class="btn-close btn-close-white ms-2 small"
+            @click="filtroEstatus=''; aplicarFiltros()"
+          ></button>
         </span>
 
         <span v-if="filtroResponsable" class="badge bg-light text-dark border">
           Responsable: {{ filtroResponsable }}
-          <button class="btn-close btn-close-white ms-2 small" @click="filtroResponsable=''; aplicarFiltros()"></button>
+          <button
+            class="btn-close btn-close-white ms-2 small"
+            @click="filtroResponsable=''; aplicarFiltros()"
+          ></button>
         </span>
 
         <span v-if="busquedaActiva" class="badge bg-info-subtle text-info-emphasis">
@@ -68,10 +84,15 @@
           <button class="btn-close btn-close-white ms-2 small" @click="limpiarBusqueda()"></button>
         </span>
 
-        <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros" v-if="hasActiveFilters || busquedaActiva">
+        <button
+          class="btn btn-link btn-sm ps-0"
+          @click="limpiarFiltros"
+          v-if="hasActiveFilters || busquedaActiva"
+        >
           Limpiar todo
         </button>
       </div>
+
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
@@ -80,21 +101,29 @@
               paginación desactivada
             </span>
           </div>
+
           <div class="d-flex d-md-none gap-2">
             <div class="input-group input-group-sm">
               <span class="input-group-text"><i class="bi bi-search"></i></span>
-              <input class="form-control" placeholder="ID doc o ID" v-model="buscarTexto" @keyup.enter="onBuscar">
+              <input
+                class="form-control"
+                placeholder="ID doc o ID"
+                v-model="buscarTexto"
+                @keyup.enter="onBuscar"
+              >
               <button class="btn btn-outline-secondary" @click="onBuscar">Buscar</button>
             </div>
             <button
               v-if="busquedaActiva"
               class="btn btn-sm btn-outline-danger"
               @click="limpiarBusqueda"
-              title="Limpiar">
+              title="Limpiar"
+            >
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
         </div>
+
         <div class="table-responsive d-none d-md-block">
           <table class="table align-middle mb-0">
             <thead>
@@ -115,9 +144,11 @@
                   <div class="small text-secondary mt-2">Cargando…</div>
                 </td>
               </tr>
+
               <tr v-else-if="rows.length === 0">
                 <td colspan="7" class="text-center py-4 text-secondary">Sin resultados.</td>
               </tr>
+
               <tr v-else v-for="r in rows" :key="r.__id">
                 <td class="fw-semibold">#{{ r.id ?? '—' }}</td>
                 <td>
@@ -129,7 +160,11 @@
                   </div>
                 </td>
                 <td>{{ r.responsable || '—' }}</td>
-                <td><span class="badge" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span></td>
+                <td>
+                  <span class="badge" :class="badgeClass(r.estatus)">
+                    {{ r.estatus || '—' }}
+                  </span>
+                </td>
                 <td class="d-none d-lg-table-cell">{{ r.empresa || '—' }}</td>
                 <td class="d-none d-md-table-cell">{{ prettyTS(r.fechaSubida) }}</td>
                 <td>
@@ -144,15 +179,32 @@
                       <i class="bi bi-file-earmark-pdf"></i>
                     </button>
                   </div>
+
                   <div class="dropdown d-inline d-sm-none">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">
+                    <button
+                      class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                      data-bs-toggle="dropdown"
+                      type="button"
+                    >
                       Acciones
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                      <li><button class="dropdown-item" @click="abrirEditor(r)"><i class="bi bi-pencil-square me-2"></i>Editar</button></li>
-                      <li><button class="dropdown-item" @click="verArchivoOC(r)"><i class="bi bi-file-earmark-pdf me-2"></i>Ver archivo</button></li>
+                      <li>
+                        <button class="dropdown-item" @click="abrirEditor(r)">
+                          <i class="bi bi-pencil-square me-2"></i>Editar
+                        </button>
+                      </li>
+                      <li>
+                        <button class="dropdown-item" @click="verArchivoOC(r)">
+                          <i class="bi bi-file-earmark-pdf me-2"></i>Ver archivo
+                        </button>
+                      </li>
                       <li><hr class="dropdown-divider"></li>
-                      <li><button class="dropdown-item text-danger" @click="abrirConfirm(r)"><i class="bi bi-trash3 me-2"></i>Eliminar</button></li>
+                      <li>
+                        <button class="dropdown-item text-danger" @click="abrirConfirm(r)">
+                          <i class="bi bi-trash3 me-2"></i>Eliminar
+                        </button>
+                      </li>
                     </ul>
                   </div>
                 </td>
@@ -160,30 +212,44 @@
             </tbody>
           </table>
         </div>
+
         <div class="d-block d-md-none">
           <div v-if="cargando" class="text-center py-4">
             <div class="spinner-border" role="status"></div>
             <div class="small text-secondary mt-2">Cargando…</div>
           </div>
-          <div v-else-if="rows.length === 0" class="text-center py-4 text-secondary">Sin resultados.</div>
+
+          <div v-else-if="rows.length === 0" class="text-center py-4 text-secondary">
+            Sin resultados.
+          </div>
 
           <div v-else class="list-group list-group-flush">
             <div v-for="r in rows" :key="r.__id" class="list-group-item">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="fw-semibold">#{{ r.id ?? '—' }}</div>
-                  <div class="small text-secondary"><i class="bi bi-calendar3 me-1"></i>{{ prettyTS(r.fechaSubida) }}</div>
+                  <div class="small text-secondary">
+                    <i class="bi bi-calendar3 me-1"></i>{{ prettyTS(r.fechaSubida) }}
+                  </div>
                 </div>
-                <span class="badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+                <span class="badge mt-1" :class="badgeClass(r.estatus)">
+                  {{ r.estatus || '—' }}
+                </span>
               </div>
+
               <div class="mt-2 small">
                 <div class="text-truncate">
                   <span class="text-secondary">Centro costo:</span>
                   {{ r.centroCostoNombre || r.nombre_centro_costo || r.centroCosto || r.numero_contrato || '—' }}
                 </div>
-                <div class="text-truncate"><span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}</div>
-                <div class="text-truncate"><span class="text-secondary">Responsable:</span> {{ r.responsable || '—' }}</div>
+                <div class="text-truncate">
+                  <span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}
+                </div>
+                <div class="text-truncate">
+                  <span class="text-secondary">Responsable:</span> {{ r.responsable || '—' }}
+                </div>
               </div>
+
               <div class="d-flex gap-2 mt-3">
                 <button class="btn btn-outline-primary btn-sm flex-fill" @click="abrirEditor(r)">
                   <i class="bi bi-pencil-square me-1"></i> Editar
@@ -198,36 +264,67 @@
             </div>
           </div>
         </div>
+
         <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0 flex-wrap gap-1">
               <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">«</button>
+                <button
+                  class="page-link"
+                  @click="goToPage(currentPage - 1)"
+                  :disabled="currentPage === 1"
+                >
+                  «
+                </button>
               </li>
-              <li class="page-item" v-for="n in visiblePageButtons" :key="n" :class="{ active: currentPage === n }">
+
+              <li
+                class="page-item"
+                v-for="n in visiblePageButtons"
+                :key="n"
+                :class="{ active: currentPage === n }"
+              >
                 <button class="page-link" @click="goToPage(n)">{{ n }}</button>
               </li>
+
               <li class="page-item" :class="{ disabled: !hasNextPage }">
-                <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="!hasNextPage">»</button>
+                <button
+                  class="page-link"
+                  @click="goToPage(currentPage + 1)"
+                  :disabled="!hasNextPage"
+                >
+                  »
+                </button>
               </li>
             </ul>
           </nav>
         </div>
       </div>
+
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
-          <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
+          <i
+            class="me-2"
+            :class="t.type==='success'
+              ? 'bi bi-check-circle-fill'
+              : (t.type==='warning'
+                ? 'bi bi-exclamation-triangle-fill'
+                : 'bi bi-x-circle-fill')"
+          ></i>
           <span class="me-3">{{ t.text }}</span>
           <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
         </div>
       </div>
     </div>
+
+    <!-- FILTROS -->
     <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
           <div class="fw-semibold"><i class="bi bi-funnel me-2"></i>Filtros</div>
           <button class="btn-close" @click="mobileFiltersOpen=false" aria-label="Cerrar"></button>
         </div>
+
         <div class="offcanvas-body">
           <div class="row g-3">
             <div class="col-12">
@@ -245,11 +342,13 @@
                   v-if="busquedaActiva"
                   class="btn btn-outline-danger"
                   @click="limpiarBusqueda"
-                  title="Limpiar">
+                  title="Limpiar"
+                >
                   <i class="bi bi-x-lg"></i>
                 </button>
               </div>
             </div>
+
             <div class="col-12 col-sm-6">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="filtroEstatus" @change="aplicarFiltros">
@@ -257,6 +356,7 @@
                 <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
+
             <div class="col-12 col-sm-6">
               <label class="form-label">Responsable</label>
               <select class="form-select" v-model="filtroResponsable" @change="aplicarFiltros">
@@ -266,12 +366,15 @@
             </div>
           </div>
         </div>
+
         <div class="offcanvas-footer d-flex justify-content-between">
           <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar todo</button>
           <button class="btn btn-primary" @click="mobileApplyFilters">Aplicar</button>
         </div>
       </div>
     </div>
+
+    <!-- EDITOR -->
     <div v-if="editorAbierto" class="offcanvas-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
@@ -289,7 +392,6 @@
             <div class="col-12 col-md-5">
               <label class="form-label">Fecha subida</label>
               <input type="text" class="form-control" :value="prettyTS(edit.fechaSubida)" disabled>
-              <div class="form-text">Se fija automáticamente y no se modifica.</div>
             </div>
 
             <div class="col-12 col-md-5">
@@ -301,6 +403,7 @@
               <label class="form-label">Empresa</label>
               <input class="form-control" v-model="edit.empresa" placeholder="Xtreme Servicio">
             </div>
+
             <div class="col-6 col-md-4">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="edit.estatus">
@@ -312,10 +415,12 @@
               <label class="form-label">Centro Costo (código)</label>
               <input class="form-control" v-model="edit.centroCosto" placeholder="CASAMATRIZ">
             </div>
+
             <div class="col-12 col-md-6">
               <label class="form-label">Centro Costo (nombre)</label>
               <input class="form-control" v-model="edit.centroCostoNombre" placeholder="CASA MATRIZ">
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Responsable</label>
               <select class="form-select" v-model="edit.responsable">
@@ -323,10 +428,12 @@
                 <option v-for="r in RESPONSABLES_OPC" :key="r">{{ r }}</option>
               </select>
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Aprobador sugerido</label>
               <input class="form-control" v-model="edit.aprobadorSugerido" placeholder="Juan Cubillos">
             </div>
+
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between">
                 <label class="form-label fw-semibold mb-0">Asociar SOLPED (Pendiente / Parcial)</label>
@@ -355,10 +462,12 @@
                   >
                     <option value="">— Selecciona una SOLPED —</option>
                     <option v-for="s in solpedsFiltradas" :key="s.id" :value="s.id">
-                      #{{ s.numero_solpe }} · {{ s.tipo_solped ?? 'SIN TIPO' }} · {{ s.centroCostoTexto ?? 's/CC' }} · {{ s.estatus }}
+                      #{{ s.numero_solpe }} · {{ s.tipo_solped ?? 'SIN TIPO' }} ·
+                      {{ s.centroCostoTexto ?? 's/CC' }} · {{ s.estatus }}
                     </option>
                   </select>
                 </div>
+
                 <div class="col-12 col-md-4">
                   <input
                     v-model="solpedBusqueda"
@@ -369,38 +478,344 @@
                   />
                 </div>
               </div>
+
               <div class="form-text">
                 Se guardan automáticamente <strong>numero_solped</strong> (número) y <strong>solpedId</strong>.
               </div>
+
               <div class="small mt-1">
                 <span v-if="cargandoSolpeds" class="text-secondary">Cargando SOLPEDs…</span>
-                <span v-else-if="!solpedsFiltradas.length" class="text-secondary">No hay SOLPEDs pendientes/parciales.</span>
+                <span v-else-if="!solpedsFiltradas.length" class="text-secondary">
+                  No hay SOLPEDs pendientes/parciales.
+                </span>
               </div>
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="edit.tipo_solped" placeholder="Sin SOLPED / REPUESTOS / ...">
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo compra</label>
               <input class="form-control" v-model="edit.tipoCompra" placeholder="stock / emergencia / ...">
             </div>
+
             <div class="col-6 col-md-3">
               <label class="form-label">Moneda</label>
               <input class="form-control" v-model="edit.moneda" placeholder="CLP">
             </div>
+
             <div class="col-6 col-md-3">
               <label class="form-label">Total c/ IVA</label>
               <input class="form-control" v-model.number="edit.precioTotalConIVA" type="number" min="0">
             </div>
+
             <div class="col-12 col-md-6">
               <label class="form-label">Destino compra</label>
               <input class="form-control" v-model="edit.destinoCompra" placeholder="">
             </div>
+
             <div class="col-12">
               <label class="form-label">Comentario</label>
-              <textarea class="form-control" rows="2" v-model="edit.comentario" placeholder="Notas / observaciones"></textarea>
+              <textarea
+                class="form-control"
+                rows="2"
+                v-model="edit.comentario"
+                placeholder="Notas / observaciones"
+              ></textarea>
             </div>
+
+            <!-- ITEMS -->
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="fw-semibold">Ítems</div>
+                <button class="btn btn-sm btn-outline-primary" @click="agregarItemInline">
+                  <i class="bi bi-plus-lg me-1"></i> Agregar ítem
+                </button>
+              </div>
+
+              <div class="table-responsive d-none d-sm-block">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:72px;">Ítem</th>
+                      <th>Descripción</th>
+                      <th style="width:110px;">Cant.</th>
+                      <th style="width:120px;">Cotizada</th>
+                      <th style="width:120px;">Por cotizar</th>
+                      <th style="width:160px;">Código ref.</th>
+                      <th style="width:140px;">Estado</th>
+                      <th style="width:140px;">Cotización</th>
+                      <th style="width:190px;">Imagen</th>
+                      <th style="width:170px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!edit.items?.length">
+                      <td colspan="10" class="text-center text-secondary">Sin ítems.</td>
+                    </tr>
+
+                    <tr v-for="(it, idx) in edit.items" :key="'e-'+idx">
+                      <td>
+                        <input
+                          class="form-control form-control-sm"
+                          v-model.number="it.item"
+                          type="number"
+                          min="1"
+                          @input="normalizarItemEdicion(it)"
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          class="form-control form-control-sm"
+                          v-model="it.descripcion"
+                          placeholder="Descripción"
+                        />
+                        <input
+                          class="form-control form-control-sm mt-1"
+                          v-model="it.numero_interno"
+                          placeholder="N° interno (opcional)"
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          class="form-control form-control-sm"
+                          v-model.number="it.cantidad"
+                          type="number"
+                          min="0"
+                          @input="normalizarItemEdicion(it)"
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          class="form-control form-control-sm"
+                          v-model.number="it.cantidad_cotizada"
+                          type="number"
+                          min="0"
+                          @input="normalizarItemEdicion(it)"
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          class="form-control form-control-sm"
+                          :value="it.cantidad_para_cotizar ?? 0"
+                          disabled
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          class="form-control form-control-sm"
+                          v-model="it.codigo_referencial"
+                          placeholder="Código"
+                        />
+                      </td>
+
+                      <td>
+                        <select class="form-select form-select-sm" v-model="it.estado">
+                          <option>pendiente</option>
+                          <option>aprobado</option>
+                          <option>rechazado</option>
+                          <option>parcial</option>
+                          <option>completado</option>
+                        </select>
+                      </td>
+
+                      <td>
+                        <select
+                          class="form-select form-select-sm"
+                          v-model="it.estado_cotizacion"
+                          @change="normalizarItemEdicion(it, false)"
+                        >
+                          <option>pendiente</option>
+                          <option>parcial</option>
+                          <option>completo</option>
+                        </select>
+                      </td>
+
+                      <td>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                          <button
+                            v-if="it.imagen_url"
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="verImagenItem(it)"
+                            type="button"
+                          >
+                            Ver
+                          </button>
+
+                          <input
+                            :id="`inputImg-${idx}`"
+                            type="file"
+                            class="d-none"
+                            accept="image/*"
+                            @change="onImagenItemChange($event, idx)"
+                          />
+
+                          <button
+                            class="btn btn-sm btn-outline-primary"
+                            @click="abrirInputImagen(idx)"
+                            type="button"
+                          >
+                            {{ it.imagen_url ? "Actualizar" : "Agregar" }}
+                          </button>
+
+                          <button
+                            v-if="it.imagen_url"
+                            class="btn btn-sm btn-outline-danger"
+                            @click="quitarImagenItem(idx)"
+                            type="button"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-secondary" @click="duplicarItemInline(idx)">
+                            <i class="bi bi-files"></i>
+                          </button>
+                          <button class="btn btn-outline-danger" @click="eliminarItemInline(idx)">
+                            <i class="bi bi-trash3"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="d-block d-sm-none">
+                <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
+                <div class="list-group list-group-flush">
+                  <div v-for="(it, idx) in edit.items" :key="'m-'+idx" class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div class="fw-semibold">Ítem</div>
+                      <button class="btn btn-sm btn-outline-danger" @click="eliminarItemInline(idx)">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+
+                    <div class="row g-2 mt-1">
+                      <div class="col-4">
+                        <input
+                          class="form-control form-control-sm"
+                          v-model.number="it.item"
+                          type="number"
+                          min="1"
+                          placeholder="#"
+                          @input="normalizarItemEdicion(it)"
+                        />
+                      </div>
+
+                      <div class="col-8">
+                        <select class="form-select form-select-sm" v-model="it.estado">
+                          <option>pendiente</option>
+                          <option>aprobado</option>
+                          <option>rechazado</option>
+                          <option>parcial</option>
+                          <option>completado</option>
+                        </select>
+                      </div>
+
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" v-model="it.descripcion" placeholder="Descripción" />
+                      </div>
+
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" v-model="it.numero_interno" placeholder="N° interno" />
+                      </div>
+
+                      <div class="col-6">
+                        <input
+                          class="form-control form-control-sm"
+                          v-model.number="it.cantidad"
+                          type="number"
+                          min="0"
+                          placeholder="Cant."
+                          @input="normalizarItemEdicion(it)"
+                        />
+                      </div>
+
+                      <div class="col-6">
+                        <input
+                          class="form-control form-control-sm"
+                          v-model.number="it.cantidad_cotizada"
+                          type="number"
+                          min="0"
+                          placeholder="Cotizada"
+                          @input="normalizarItemEdicion(it)"
+                        />
+                      </div>
+
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" :value="`Por cotizar: ${it.cantidad_para_cotizar ?? 0}`" disabled />
+                      </div>
+
+                      <div class="col-12">
+                        <input class="form-control form-control-sm" v-model="it.codigo_referencial" placeholder="Código ref." />
+                      </div>
+
+                      <div class="col-12">
+                        <select
+                          class="form-select form-select-sm"
+                          v-model="it.estado_cotizacion"
+                          @change="normalizarItemEdicion(it, false)"
+                        >
+                          <option>pendiente</option>
+                          <option>parcial</option>
+                          <option>completo</option>
+                        </select>
+                      </div>
+
+                      <div class="col-12 d-flex align-items-center gap-2 flex-wrap">
+                        <button
+                          v-if="it.imagen_url"
+                          class="btn btn-sm btn-outline-secondary"
+                          @click="verImagenItem(it)"
+                          type="button"
+                        >
+                          Ver
+                        </button>
+
+                        <input
+                          :id="`minputImg-${idx}`"
+                          type="file"
+                          class="d-none"
+                          accept="image/*"
+                          @change="onImagenItemChange($event, idx)"
+                        />
+
+                        <button
+                          class="btn btn-sm btn-outline-primary"
+                          @click="abrirInputImagenMobile(idx)"
+                          type="button"
+                        >
+                          {{ it.imagen_url ? "Actualizar imagen" : "Agregar imagen" }}
+                        </button>
+
+                        <button
+                          v-if="it.imagen_url"
+                          class="btn btn-sm btn-outline-danger"
+                          @click="quitarImagenItem(idx)"
+                          type="button"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ARCHIVO OC -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivo OC (único)</div>
@@ -417,6 +832,7 @@
                   </button>
                 </div>
               </div>
+
               <div class="list-group">
                 <div class="list-group-item" v-if="edit.archivoOC?.url">
                   <div class="d-flex justify-content-between align-items-center">
@@ -437,6 +853,8 @@
                 <div v-else class="list-group-item text-secondary small">Sin archivo OC.</div>
               </div>
             </div>
+
+            <!-- STORAGE -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Archivos en Storage</div>
@@ -454,6 +872,7 @@
                   </button>
                 </div>
               </div>
+
               <div class="list-group">
                 <div
                   class="list-group-item d-flex align-items-center justify-content-between"
@@ -472,12 +891,17 @@
                     </button>
                   </div>
                 </div>
-                <div v-if="!edit.archivosStorage?.length" class="list-group-item text-secondary small">Sin archivos.</div>
+                <div v-if="!edit.archivosStorage?.length" class="list-group-item text-secondary small">
+                  Sin archivos.
+                </div>
               </div>
+
               <div class="form-text">
                 Nota: el botón “Eliminar” solo quita el link del documento (no borra el archivo del Storage).
               </div>
             </div>
+
+            <!-- HISTORIAL -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <div class="fw-semibold">Historial</div>
@@ -485,11 +909,16 @@
                   <i class="bi bi-plus-lg me-1"></i> Agregar
                 </button>
               </div>
+
               <div class="list-group">
                 <div class="list-group-item" v-for="(h, ix) in edit.historial" :key="'h'+ix">
                   <div class="row g-2 align-items-center">
                     <div class="col-md-3">
-                      <input class="form-control form-control-sm" :value="prettyTS(h.fecha ?? h._previewFecha)" disabled>
+                      <input
+                        class="form-control form-control-sm"
+                        :value="prettyTS(h.fecha ?? h._previewFecha)"
+                        disabled
+                      >
                     </div>
                     <div class="col-md-4">
                       <input class="form-control form-control-sm" v-model="h.estatus" placeholder="Estatus">
@@ -502,10 +931,11 @@
                     </div>
                   </div>
                 </div>
-                <div v-if="!edit.historial?.length" class="list-group-item text-secondary small">Sin historial.</div>
+                <div v-if="!edit.historial?.length" class="list-group-item text-secondary small">
+                  Sin historial.
+                </div>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -520,17 +950,21 @@
         </div>
       </div>
     </div>
+
+    <!-- NUEVA -->
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
           <h5 class="mb-0">Nueva Orden OC</h5>
         </div>
+
         <div class="vmodal-body">
           <div class="row g-3">
             <div class="col-6 col-md-3">
               <label class="form-label">ID</label>
               <input class="form-control" v-model.number="nuevo.id" type="number" min="0">
             </div>
+
             <div class="col-6 col-md-5">
               <label class="form-label">Fecha subida</label>
               <input type="text" class="form-control" :value="prettyTS(new Date())" disabled>
@@ -541,6 +975,7 @@
               <label class="form-label">Empresa</label>
               <input class="form-control" v-model="nuevo.empresa" placeholder="Xtreme Servicio">
             </div>
+
             <div class="col-6 col-md-3">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
@@ -552,6 +987,7 @@
               <label class="form-label">Centro Costo (código)</label>
               <input class="form-control" v-model="nuevo.centroCosto" placeholder="CASAMATRIZ">
             </div>
+
             <div class="col-md-6">
               <label class="form-label">Centro Costo (nombre)</label>
               <input class="form-control" v-model="nuevo.centroCostoNombre" placeholder="CASA MATRIZ">
@@ -564,6 +1000,7 @@
                 <option v-for="r in RESPONSABLES_OPC" :key="'nr-'+r">{{ r }}</option>
               </select>
             </div>
+
             <div class="col-md-6">
               <label class="form-label">Aprobado por</label>
               <input class="form-control" v-model="nuevo.aprobadoPor">
@@ -573,6 +1010,7 @@
               <label class="form-label">Tipo compra</label>
               <input class="form-control" v-model="nuevo.tipoCompra" placeholder="stock">
             </div>
+
             <div class="col-md-6">
               <label class="form-label">Tipo SOLPED</label>
               <input class="form-control" v-model="nuevo.tipo_solped" placeholder="Sin SOLPED">
@@ -582,10 +1020,12 @@
               <label class="form-label">Número SOLPED (asociar)</label>
               <input class="form-control" v-model="nuevo.numero_solped" placeholder="29">
             </div>
+
             <div class="col-md-3">
               <label class="form-label">Moneda</label>
               <input class="form-control" v-model="nuevo.moneda" placeholder="CLP">
             </div>
+
             <div class="col-md-3">
               <label class="form-label">Total c/ IVA</label>
               <input class="form-control" v-model.number="nuevo.precioTotalConIVA" type="number" min="0">
@@ -595,6 +1035,7 @@
               <label class="form-label">Comentario</label>
               <textarea class="form-control" rows="2" v-model="nuevo.comentario"></textarea>
             </div>
+
             <div class="col-12">
               <label class="form-label">Archivo OC (PDF/imagen)</label>
               <div class="d-flex gap-2 flex-wrap">
@@ -613,6 +1054,7 @@
                 </div>
               </div>
             </div>
+
             <div class="col-12">
               <label class="form-label">Archivos Storage (múltiples)</label>
               <div class="d-flex gap-2 flex-wrap">
@@ -632,9 +1074,9 @@
                 </div>
               </div>
             </div>
-
           </div>
         </div>
+
         <div class="vmodal-footer">
           <button class="btn btn-secondary" @click="cerrarModalNueva">Cancelar</button>
           <button class="btn btn-primary" :disabled="creando" @click="crearNueva">
@@ -644,6 +1086,8 @@
         </div>
       </div>
     </div>
+
+    <!-- ELIMINAR -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
       <div class="vmodal" style="max-width: 520px;">
         <div class="vmodal-header d-flex align-items-center gap-2">
@@ -663,10 +1107,24 @@
             <strong>#{{ confirmRow?.id ?? '—' }}</strong>?
           </p>
           <ul class="list-unstyled small mb-0">
-            <li><span class="text-secondary">Empresa:</span> <strong>{{ confirmRow?.empresa || '—' }}</strong></li>
-            <li><span class="text-secondary">Centro costo:</span> <strong>{{ confirmRow?.centroCostoNombre || confirmRow?.nombre_centro_costo || confirmRow?.centroCosto || '—' }}</strong></li>
-            <li><span class="text-secondary">Responsable:</span> <strong>{{ confirmRow?.responsable || '—' }}</strong></li>
-            <li><span class="text-secondary">Fecha subida:</span> <strong>{{ prettyTS(confirmRow?.fechaSubida) }}</strong></li>
+            <li>
+              <span class="text-secondary">Empresa:</span>
+              <strong>{{ confirmRow?.empresa || '—' }}</strong>
+            </li>
+            <li>
+              <span class="text-secondary">Centro costo:</span>
+              <strong>
+                {{ confirmRow?.centroCostoNombre || confirmRow?.nombre_centro_costo || confirmRow?.centroCosto || '—' }}
+              </strong>
+            </li>
+            <li>
+              <span class="text-secondary">Responsable:</span>
+              <strong>{{ confirmRow?.responsable || '—' }}</strong>
+            </li>
+            <li>
+              <span class="text-secondary">Fecha subida:</span>
+              <strong>{{ prettyTS(confirmRow?.fechaSubida) }}</strong>
+            </li>
           </ul>
         </div>
 
@@ -681,7 +1139,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -689,10 +1146,43 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { db } from "../stores/firebase";
 import {
-  collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, getDocs, serverTimestamp
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+  onSnapshot,
+  doc,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
+  getDocs,
+  serverTimestamp,
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+const PAGE_SIZE = 20;
+
+const ESTATUS_OPC = [
+  "Aprobado",
+  "Rechazado",
+  "Preaprobado",
+  "Casi Aprobado",
+  "Pendiente de Aprobación",
+  "Enviada a proveedor",
+  "Revisión Guillermo",
+];
+
+const RESPONSABLES_OPC = [
+  "Cindy Quiroga",
+  "Guillermo Manzor",
+  "María José Ballesteros",
+  "Ricardo Santibañez",
+  "Felipe Gonzalez",
+];
 
 const prettyTS = (v) => {
   if (!v) return "—";
@@ -724,12 +1214,63 @@ function safeCloneFirestore(x) {
   return out;
 }
 
-const PAGE_SIZE = 20;
-const ESTATUS_OPC = ["Aprobado","Rechazado","Preaprobado","Casi Aprobado","Pendiente de Aprobación","Enviada a proveedor","Revisión Guillermo"
-];
-const RESPONSABLES_OPC = [
-  "Cindy Quiroga","Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez"
-];
+const num = (v, def = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+};
+
+function makeTempId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function crearItemBase() {
+  return {
+    __tempId: makeTempId(),
+    item: 1,
+    descripcion: "",
+    cantidad: 0,
+    cantidad_cotizada: 0,
+    cantidad_para_cotizar: 0,
+    codigo_referencial: "SIN CÓDIGO",
+    numero_interno: "",
+    estado: "pendiente",
+    estado_cotizacion: "pendiente",
+    imagen_path: "",
+    imagen_url: "",
+    stock: 0,
+    precio_unitario: 0,
+  };
+}
+
+function normalizarItemEdicion(item, autoCotizacion = true) {
+  item.item = Math.max(1, num(item.item, 1));
+  item.cantidad = Math.max(0, num(item.cantidad, 0));
+  item.cantidad_cotizada = Math.max(0, num(item.cantidad_cotizada, 0));
+  item.stock = Math.max(0, num(item.stock, 0));
+  item.precio_unitario = Math.max(0, num(item.precio_unitario, 0));
+
+  const restante = Math.max(item.cantidad - item.cantidad_cotizada, 0);
+  item.cantidad_para_cotizar = restante;
+
+  if (autoCotizacion) {
+    if (item.cantidad <= 0 && item.cantidad_cotizada <= 0) {
+      item.estado_cotizacion = item.estado_cotizacion || "pendiente";
+    } else if (item.cantidad_cotizada <= 0) {
+      item.estado_cotizacion = "pendiente";
+    } else if (item.cantidad_cotizada < item.cantidad) {
+      item.estado_cotizacion = "parcial";
+    } else {
+      item.estado_cotizacion = "completo";
+    }
+  }
+
+  if (!item.codigo_referencial) item.codigo_referencial = "SIN CÓDIGO";
+  if (!item.estado) item.estado = "pendiente";
+  if (!item.estado_cotizacion) item.estado_cotizacion = "pendiente";
+  if (!item.__tempId) item.__tempId = makeTempId();
+
+  return item;
+}
 
 const rows = ref([]);
 const cargando = ref(true);
@@ -743,29 +1284,44 @@ const busquedaActiva = ref(false);
 const filtroEstatus = ref("");
 const filtroResponsable = ref("");
 let unsubSearch = null;
+
 const toasts = ref([]);
 const addToast = (type, text, timeout = 2600) => {
   const id = Date.now() + Math.random();
   toasts.value.push({ id, type, text });
   setTimeout(() => closeToast(id), timeout);
 };
-const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
+const closeToast = (id) => {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
+};
+
 const badgeClass = (estatus) => {
   const s = (estatus || "").toLowerCase();
-  if (s.includes("complet") || s.includes("aprob") || s.includes("recep")) return "bg-success-subtle text-success-emphasis";
-  if (s.includes("curso") || s.includes("enviada") || s.includes("revisión")) return "bg-info-subtle text-info-emphasis";
-  if (s.includes("rechaz") || s.includes("anul")) return "bg-danger-subtle text-danger-emphasis";
-  if (s.includes("solicit")) return "bg-warning-subtle text-warning-emphasis";
+  if (s.includes("complet") || s.includes("aprob") || s.includes("recep")) {
+    return "bg-success-subtle text-success-emphasis";
+  }
+  if (s.includes("curso") || s.includes("enviada") || s.includes("revisión")) {
+    return "bg-info-subtle text-info-emphasis";
+  }
+  if (s.includes("rechaz") || s.includes("anul")) {
+    return "bg-danger-subtle text-danger-emphasis";
+  }
+  if (s.includes("solicit")) {
+    return "bg-warning-subtle text-warning-emphasis";
+  }
   return "bg-secondary-subtle text-secondary-emphasis";
 };
+
 const mobileFiltersOpen = ref(false);
 const hasActiveFilters = computed(() => !!filtroEstatus.value || !!filtroResponsable.value);
 const totalFiltrosActivos = computed(() => (filtroEstatus.value ? 1 : 0) + (filtroResponsable.value ? 1 : 0));
-function mobileApplyFilters(){
+
+function mobileApplyFilters() {
   aplicarFiltros();
   mobileFiltersOpen.value = false;
 }
-function limpiarFiltros(){
+
+function limpiarFiltros() {
   filtroEstatus.value = "";
   filtroResponsable.value = "";
   if (busquedaActiva.value) limpiarBusqueda();
@@ -781,7 +1337,7 @@ const visiblePageButtons = computed(() => {
     if (n <= maxReach) pages.push(n);
   }
   if (!pages.includes(currentPage.value)) pages.push(currentPage.value);
-  pages.sort((a,b)=>a-b);
+  pages.sort((a, b) => a - b);
   return pages;
 });
 
@@ -806,79 +1362,123 @@ function buildPageQuery(page, withFilters = true) {
   return query(colRef, ...constraints);
 }
 
-function subscribePage(page){
-  if (unsubList) { unsubList(); unsubList = null; }
-  if (unsubSearch) { unsubSearch(); unsubSearch = null; }
+function subscribePage(page) {
+  if (unsubList) {
+    unsubList();
+    unsubList = null;
+  }
+  if (unsubSearch) {
+    unsubSearch();
+    unsubSearch = null;
+  }
 
   cargando.value = true;
   busquedaActiva.value = false;
 
   const qy = buildPageQuery(page, true);
-  if (!qy) { cargando.value = false; return; }
-
-  unsubList = onSnapshot(qy, (snap) => {
-    const arr = [];
-    snap.forEach(d => arr.push({ __id: d.id, ...d.data(), __snap: d }));
-    hasNextPage.value = arr.length > PAGE_SIZE;
-
-    const pageDocs = arr.slice(0, PAGE_SIZE);
-    rows.value = pageDocs.map(x => { const y = { ...x }; delete y.__snap; return y; });
-
-    const lastSnap = pageDocs.length ? pageDocs[pageDocs.length - 1].__snap : null;
-    if (lastSnap) pageCursors.value[page - 1] = lastSnap;
-
+  if (!qy) {
     cargando.value = false;
-  }, (err) => {
-    console.error("onSnapshot page:", err);
-    addToast("danger", "Error listando OC (posible índice compuesto faltante).");
-    cargando.value = false;
-  });
+    return;
+  }
+
+  unsubList = onSnapshot(
+    qy,
+    (snap) => {
+      const arr = [];
+      snap.forEach((d) => arr.push({ __id: d.id, ...d.data(), __snap: d }));
+      hasNextPage.value = arr.length > PAGE_SIZE;
+
+      const pageDocs = arr.slice(0, PAGE_SIZE);
+      rows.value = pageDocs.map((x) => {
+        const y = { ...x };
+        delete y.__snap;
+        return y;
+      });
+
+      const lastSnap = pageDocs.length ? pageDocs[pageDocs.length - 1].__snap : null;
+      if (lastSnap) pageCursors.value[page - 1] = lastSnap;
+
+      cargando.value = false;
+    },
+    (err) => {
+      console.error("onSnapshot page:", err);
+      addToast("danger", "Error listando OC (posible índice compuesto faltante).");
+      cargando.value = false;
+    }
+  );
 }
 
-function goToPage(n){
+function goToPage(n) {
   if (hasActiveFilters.value || busquedaActiva.value) return;
   if (n < 1) return;
   if (n > currentPage.value + 1 && !hasNextPage.value) return;
   currentPage.value = n;
   subscribePage(n);
 }
-function aplicarFiltros(){ currentPage.value = 1; subscribePage(1); }
 
-async function onBuscar(){
+function aplicarFiltros() {
+  currentPage.value = 1;
+  subscribePage(1);
+}
+
+async function onBuscar() {
   const raw = (buscarTexto.value ?? "").trim();
-  if (!raw) { limpiarBusqueda(); return; }
-  const num = parseInt(raw, 10);
-  if (!isNaN(num) && String(num) === raw) {
-    if (unsubList) { unsubList(); unsubList = null; }
-    if (unsubSearch) { unsubSearch(); unsubSearch = null; }
+  if (!raw) {
+    limpiarBusqueda();
+    return;
+  }
+
+  const numero = parseInt(raw, 10);
+
+  if (!isNaN(numero) && String(numero) === raw) {
+    if (unsubList) {
+      unsubList();
+      unsubList = null;
+    }
+    if (unsubSearch) {
+      unsubSearch();
+      unsubSearch = null;
+    }
+
     cargando.value = true;
     busquedaActiva.value = true;
 
     const colRef = collection(db, "ordenes_oc");
-    const constraints = [ where("id", "==", num) ];
-    if (filtroEstatus.value) constraints.push(where("estatus","==",filtroEstatus.value));
-    if (filtroResponsable.value) constraints.push(where("responsable","==",filtroResponsable.value));
+    const constraints = [where("id", "==", numero)];
+    if (filtroEstatus.value) constraints.push(where("estatus", "==", filtroEstatus.value));
+    if (filtroResponsable.value) constraints.push(where("responsable", "==", filtroResponsable.value));
     constraints.push(limit(20));
 
     const qy = query(colRef, ...constraints);
 
-    unsubSearch = onSnapshot(qy, (snap) => {
-      const arr = [];
-      snap.forEach(d => arr.push({ __id: d.id, ...d.data() }));
-      rows.value = arr.sort((a,b)=>(b.id??0)-(a.id??0));
-      cargando.value = false;
-      hasNextPage.value = false;
-    }, (err) => {
-      console.error("onSnapshot search id:", err);
-      addToast("danger", "Error en búsqueda por ID.");
-      cargando.value = false;
-    });
+    unsubSearch = onSnapshot(
+      qy,
+      (snap) => {
+        const arr = [];
+        snap.forEach((d) => arr.push({ __id: d.id, ...d.data() }));
+        rows.value = arr.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+        cargando.value = false;
+        hasNextPage.value = false;
+      },
+      (err) => {
+        console.error("onSnapshot search id:", err);
+        addToast("danger", "Error en búsqueda por ID.");
+        cargando.value = false;
+      }
+    );
     return;
   }
 
   if (raw.length >= 8) {
-    if (unsubList) { unsubList(); unsubList = null; }
-    if (unsubSearch) { unsubSearch(); unsubSearch = null; }
+    if (unsubList) {
+      unsubList();
+      unsubList = null;
+    }
+    if (unsubSearch) {
+      unsubSearch();
+      unsubSearch = null;
+    }
+
     cargando.value = true;
     busquedaActiva.value = true;
     try {
@@ -900,7 +1500,7 @@ async function onBuscar(){
   addToast("warning", "Ingresa un ID numérico o un ID de documento válido.");
 }
 
-function limpiarBusqueda(){
+function limpiarBusqueda() {
   buscarTexto.value = "";
   busquedaActiva.value = false;
   currentPage.value = 1;
@@ -918,28 +1518,115 @@ const triggerPicker = (el) => {
   el.click();
 };
 
-function openArchivoOCPicker(){ triggerPicker(inputArchivoOCEl.value); }
-function openArchivosStoragePicker(){ triggerPicker(inputArchivosStorageEl.value); }
-function openArchivoOCNuevoPicker(){ triggerPicker(inputArchivoOCNuevoEl.value); }
-function openArchivosStorageNuevoPicker(){ triggerPicker(inputArchivosStorageNuevoEl.value); }
+function openArchivoOCPicker() {
+  triggerPicker(inputArchivoOCEl.value);
+}
+function openArchivosStoragePicker() {
+  triggerPicker(inputArchivosStorageEl.value);
+}
+function openArchivoOCNuevoPicker() {
+  triggerPicker(inputArchivoOCNuevoEl.value);
+}
+function openArchivosStorageNuevoPicker() {
+  triggerPicker(inputArchivosStorageNuevoEl.value);
+}
 
 const editorAbierto = ref(false);
 const seleccion = ref(null);
 const edit = ref({});
 const guardando = ref(false);
 
-
 const archivoOCFile = ref(null);
-function onArchivoOC(e){
+function onArchivoOC(e) {
   const f = (e.target.files || [])[0];
   archivoOCFile.value = f || null;
 }
-function borrarArchivoOC(){ edit.value.archivoOC = null; }
-
+function borrarArchivoOC() {
+  edit.value.archivoOC = null;
+}
 
 const nuevosStorageFiles = ref([]);
-function onArchivosStorage(e){ nuevosStorageFiles.value = Array.from(e.target.files || []); }
-function eliminarArchivoStorage(ix){ edit.value.archivosStorage.splice(ix, 1); }
+function onArchivosStorage(e) {
+  nuevosStorageFiles.value = Array.from(e.target.files || []);
+}
+function eliminarArchivoStorage(ix) {
+  edit.value.archivosStorage.splice(ix, 1);
+}
+
+function agregarItemInline() {
+  if (!Array.isArray(edit.value.items)) edit.value.items = [];
+  const nextItem = edit.value.items.length
+    ? Math.max(...edit.value.items.map((x) => num(x.item, 0))) + 1
+    : 1;
+  const nuevo = crearItemBase();
+  nuevo.item = nextItem;
+  edit.value.items.push(nuevo);
+}
+
+function duplicarItemInline(ix) {
+  const original = edit.value.items?.[ix];
+  if (!original) return;
+  const copia = cloneForUI(original);
+  copia.__tempId = makeTempId();
+  copia.item = (edit.value.items?.length || 0) + 1;
+  normalizarItemEdicion(copia);
+  edit.value.items.splice(ix + 1, 0, copia);
+}
+
+function eliminarItemInline(ix) {
+  edit.value.items.splice(ix, 1);
+  edit.value.items.forEach((it, index) => {
+    if (!num(it.item, 0)) it.item = index + 1;
+  });
+}
+
+function verImagenItem(it) {
+  const url = it?.imagen_url;
+  if (!url) {
+    addToast("warning", "Este ítem no tiene imagen.");
+    return;
+  }
+  window.open(url, "_blank");
+}
+
+function abrirInputImagen(idx) {
+  document.getElementById(`inputImg-${idx}`)?.click();
+}
+
+function abrirInputImagenMobile(idx) {
+  document.getElementById(`minputImg-${idx}`)?.click();
+}
+
+async function onImagenItemChange(ev, idx) {
+  try {
+    const f = (ev.target.files || [])[0];
+    if (!f || !seleccion.value) return;
+
+    const storage = getStorage();
+    const idDoc = seleccion.value.__id;
+    const path = `ordenes_oc/${idDoc}/items/${Date.now()}_${f.name}`;
+    const storageRef = sref(storage, path);
+    const up = await uploadBytes(storageRef, f);
+    const url = await getDownloadURL(up.ref);
+
+    if (!edit.value.items[idx]) return;
+    edit.value.items[idx].imagen_url = url;
+    edit.value.items[idx].imagen_path = path;
+
+    addToast("success", "Imagen del ítem subida.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo subir la imagen del ítem.");
+  } finally {
+    if (ev?.target) ev.target.value = "";
+  }
+}
+
+function quitarImagenItem(idx) {
+  if (!edit.value?.items?.[idx]) return;
+  edit.value.items[idx].imagen_url = "";
+  edit.value.items[idx].imagen_path = "";
+}
 
 const SOLPEDS_COL = "solpes";
 const cargandoSolpeds = ref(false);
@@ -951,27 +1638,27 @@ const solpedSeleccionId = ref("");
 const solpedsFiltradas = computed(() => {
   const q = solpedBusqueda.value.trim().toLowerCase();
   if (!q) return solpeds.value;
-  return solpeds.value.filter(s => {
-    const num = String(s.numero_solpe ?? "").toLowerCase();
+  return solpeds.value.filter((s) => {
+    const n = String(s.numero_solpe ?? "").toLowerCase();
     const tipo = String(s.tipo_solped ?? "").toLowerCase();
-    const cc  = String(s.centroCostoTexto ?? "").toLowerCase();
-    return num.includes(q) || tipo.includes(q) || cc.includes(q);
+    const cc = String(s.centroCostoTexto ?? "").toLowerCase();
+    return n.includes(q) || tipo.includes(q) || cc.includes(q);
   });
 });
 
-async function cargarSolpedsPendientes(){
+async function cargarSolpedsPendientes() {
   cargandoSolpeds.value = true;
   try {
     const colRef = collection(db, SOLPEDS_COL);
     const q1 = query(
       colRef,
-      where("estatus", "in", ["Pendiente","Parcial","pendiente","parcial"]),
+      where("estatus", "in", ["Pendiente", "Parcial", "pendiente", "parcial"]),
       orderBy("numero_solpe", "desc"),
       limit(300)
     );
     const snap = await getDocs(q1);
     const items = [];
-    snap.forEach(d => {
+    snap.forEach((d) => {
       const x = d.data();
       if (typeof x.numero_solpe === "number") {
         items.push({
@@ -979,28 +1666,30 @@ async function cargarSolpedsPendientes(){
           numero_solpe: x.numero_solpe,
           estatus: x.estatus ?? "",
           tipo_solped: x.tipo_solped,
-          centroCostoTexto: x.centroCostoTexto
+          centroCostoTexto: x.centroCostoTexto,
         });
       }
     });
-    items.sort((a,b) => {
+
+    items.sort((a, b) => {
       const ap = String(a.estatus).toLowerCase() === "parcial";
       const bp = String(b.estatus).toLowerCase() === "parcial";
       if (ap !== bp) return ap ? -1 : 1;
       return (b.numero_solpe ?? 0) - (a.numero_solpe ?? 0);
     });
+
     solpeds.value = items;
   } catch (e) {
     console.error(e);
-    addToast("danger","Error cargando SOLPEDs.");
+    addToast("danger", "Error cargando SOLPEDs.");
   } finally {
     cargandoSolpeds.value = false;
   }
 }
 
-async function onSeleccionarSolped(){
+async function onSeleccionarSolped() {
   if (!seleccion.value) return;
-  const sel = solpeds.value.find(s => s.id === solpedSeleccionId.value);
+  const sel = solpeds.value.find((s) => s.id === solpedSeleccionId.value);
   if (!sel) return;
 
   guardandoSolped.value = true;
@@ -1008,22 +1697,23 @@ async function onSeleccionarSolped(){
     const dref = doc(db, "ordenes_oc", seleccion.value.__id);
     await updateDoc(dref, {
       solpedId: sel.id,
-      numero_solped: sel.numero_solpe
+      numero_solped: sel.numero_solpe,
     });
     edit.value.solpedId = sel.id;
     edit.value.numero_solped = sel.numero_solpe;
-    addToast("success","SOLPED asociada.");
+    addToast("success", "SOLPED asociada.");
   } catch (e) {
     console.error(e);
-    addToast("danger","No se pudo asociar la SOLPED.");
+    addToast("danger", "No se pudo asociar la SOLPED.");
   } finally {
     guardandoSolped.value = false;
   }
 }
 
-async function quitarAsociacionSolped(){
+async function quitarAsociacionSolped() {
   if (!seleccion.value) return;
   if (!confirm("¿Quitar la SOLPED asociada de esta orden?")) return;
+
   guardandoSolped.value = true;
   try {
     const dref = doc(db, "ordenes_oc", seleccion.value.__id);
@@ -1031,16 +1721,16 @@ async function quitarAsociacionSolped(){
     edit.value.solpedId = null;
     edit.value.numero_solped = null;
     solpedSeleccionId.value = "";
-    addToast("success","Asociación eliminada.");
+    addToast("success", "Asociación eliminada.");
   } catch (e) {
     console.error(e);
-    addToast("danger","No se pudo quitar la asociación.");
+    addToast("danger", "No se pudo quitar la asociación.");
   } finally {
     guardandoSolped.value = false;
   }
 }
 
-function abrirEditor(row){
+function abrirEditor(row) {
   seleccion.value = row;
 
   edit.value = cloneForUI({
@@ -1065,20 +1755,25 @@ function abrirEditor(row){
     tipo_solped: row.tipo_solped ?? "Sin SOLPED",
     numero_solped: row.numero_solped ?? "",
     solpedId: row.solpedId ?? null,
-    items: Array.isArray(row.items) ? row.items : []
+    items: Array.isArray(row.items) ? row.items : [],
   });
 
-  edit.value.historial = (edit.value.historial || []).map(h => {
+  edit.value.historial = (edit.value.historial || []).map((h) => {
     const hh = { ...h };
     const hasRealTs =
-      (typeof hh.fecha?.toDate === "function") ||
+      typeof hh.fecha?.toDate === "function" ||
       (hh.fecha && typeof hh.fecha.seconds === "number");
     if (hasRealTs && "_previewFecha" in hh) delete hh._previewFecha;
     return hh;
   });
 
-  editorAbierto.value = true;
+  edit.value.items = (edit.value.items || []).map((it, ix) => {
+    const clean = cloneForUI(it);
+    if (!clean.__tempId) clean.__tempId = `${ix + 1}-${clean.descripcion || "item"}`;
+    return normalizarItemEdicion(clean);
+  });
 
+  editorAbierto.value = true;
   archivoOCFile.value = null;
   nuevosStorageFiles.value = [];
 
@@ -1087,7 +1782,7 @@ function abrirEditor(row){
   });
 }
 
-function cerrarEditor(){
+function cerrarEditor() {
   editorAbierto.value = false;
   seleccion.value = null;
   edit.value = {};
@@ -1100,53 +1795,80 @@ function cerrarEditor(){
 
 async function guardarEdicion() {
   if (!seleccion.value) return;
+
   guardando.value = true;
   try {
     const idDoc = seleccion.value.__id;
     const dref = doc(db, "ordenes_oc", idDoc);
+
     if (archivoOCFile.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${idDoc}/oc_enviada_${Date.now()}_${archivoOCFile.value.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, archivoOCFile.value);
+      const storageRef = sref(storage, path);
+      const up = await uploadBytes(storageRef, archivoOCFile.value);
       const url = await getDownloadURL(up.ref);
+
       edit.value.archivoOC = {
         nombre: archivoOCFile.value.name,
         tipo: archivoOCFile.value.type || "application/octet-stream",
         url,
-        fechaSubida: serverTimestamp()
+        fechaSubida: serverTimestamp(),
       };
+
       archivoOCFile.value = null;
     }
+
     if (nuevosStorageFiles.value?.length) {
       const storage = getStorage();
       const uploads = [];
+
       for (const f of nuevosStorageFiles.value) {
         const path = `ordenes_oc/${idDoc}/${Date.now()}_${f.name}`;
-        const sRef = sref(storage, path);
-        const up = await uploadBytes(sRef, f);
+        const storageRef = sref(storage, path);
+        const up = await uploadBytes(storageRef, f);
         const url = await getDownloadURL(up.ref);
-        uploads.push({ nombre: f.name, tipo: f.type || "application/octet-stream", url });
+        uploads.push({
+          nombre: f.name,
+          tipo: f.type || "application/octet-stream",
+          url,
+        });
       }
+
       if (!Array.isArray(edit.value.archivosStorage)) edit.value.archivosStorage = [];
       edit.value.archivosStorage.push(...uploads);
       nuevosStorageFiles.value = [];
     }
+
     if (typeof edit.value.id === "string") {
       const n = parseInt(edit.value.id, 10);
       edit.value.id = isNaN(n) ? null : n;
     }
+
     if (typeof edit.value.precioTotalConIVA === "string") {
       const n = parseInt(edit.value.precioTotalConIVA, 10);
       edit.value.precioTotalConIVA = isNaN(n) ? 0 : n;
     }
+
     if (Array.isArray(edit.value.items)) {
-      edit.value.items = edit.value.items.map(it => ({
-        ...it,
-        item: Number(it.item ?? 0),
-        cantidad: Number(it.cantidad ?? 0),
-        precio_unitario: Number(it.precio_unitario ?? 0)
-      }));
+      edit.value.items = edit.value.items.map((it, ix) => {
+        const limpio = normalizarItemEdicion({ ...it });
+        return {
+          __tempId: limpio.__tempId || `${ix + 1}-${limpio.descripcion || "item"}`,
+          item: num(limpio.item, ix + 1),
+          cantidad: num(limpio.cantidad, 0),
+          cantidad_cotizada: num(limpio.cantidad_cotizada, 0),
+          cantidad_para_cotizar: num(limpio.cantidad_para_cotizar, 0),
+          codigo_referencial: limpio.codigo_referencial || "SIN CÓDIGO",
+          descripcion: limpio.descripcion || "",
+          estado: limpio.estado || "pendiente",
+          estado_cotizacion: limpio.estado_cotizacion || "pendiente",
+          imagen_path: limpio.imagen_path || "",
+          imagen_url: limpio.imagen_url || "",
+          numero_interno: limpio.numero_interno || "",
+          stock: num(limpio.stock, 0),
+          precio_unitario: num(limpio.precio_unitario, 0),
+        };
+      });
     }
 
     const payload = safeCloneFirestore(edit.value);
@@ -1154,6 +1876,7 @@ async function guardarEdicion() {
     delete payload.fechaAprobacion;
 
     await updateDoc(dref, payload);
+
     addToast("success", "Orden OC actualizada.");
     cerrarEditor();
   } catch (e) {
@@ -1164,25 +1887,38 @@ async function guardarEdicion() {
   }
 }
 
-function agregarHistorial(){
+function agregarHistorial() {
   if (!Array.isArray(edit.value.historial)) edit.value.historial = [];
   edit.value.historial.push({
     estatus: edit.value.estatus || "Actualizado",
     fecha: serverTimestamp(),
     _previewFecha: new Date(),
-    usuario: edit.value.responsable || edit.value.aprobadoPor || ""
+    usuario: edit.value.responsable || edit.value.aprobadoPor || "",
   });
 }
-function eliminarHistorial(ix){ edit.value.historial.splice(ix, 1); }
+
+function eliminarHistorial(ix) {
+  edit.value.historial.splice(ix, 1);
+}
 
 const confirmOpen = ref(false);
-const confirmRow  = ref(null);
-const eliminando  = ref(false);
+const confirmRow = ref(null);
+const eliminando = ref(false);
 
-function abrirConfirm(row){ confirmRow.value = row; confirmOpen.value = true; }
-function cerrarConfirm(){ if (eliminando.value) return; confirmOpen.value = false; confirmRow.value = null; }
-async function confirmarEliminar(){
+function abrirConfirm(row) {
+  confirmRow.value = row;
+  confirmOpen.value = true;
+}
+
+function cerrarConfirm() {
+  if (eliminando.value) return;
+  confirmOpen.value = false;
+  confirmRow.value = null;
+}
+
+async function confirmarEliminar() {
   if (!confirmRow.value?.__id) return;
+
   try {
     eliminando.value = true;
     await deleteDoc(doc(db, "ordenes_oc", confirmRow.value.__id));
@@ -1203,7 +1939,7 @@ const archivoOCNuevo = ref(null);
 const archivoOCNuevoNombre = ref("");
 const previewArchivosStorageNuevo = ref([]);
 
-function defaultNuevo(){
+function defaultNuevo() {
   return {
     id: null,
     empresa: "Xtreme Servicio",
@@ -1225,29 +1961,33 @@ function defaultNuevo(){
     fechaSubida: null,
     fechaAprobacion: null,
     historial: [],
-    items: []
+    items: [],
   };
 }
 
-function abrirModalNueva(){
+function abrirModalNueva() {
   nuevo.value = defaultNuevo();
   archivoOCNuevo.value = null;
   archivoOCNuevoNombre.value = "";
   previewArchivosStorageNuevo.value = [];
   modalNueva.value = true;
 }
-function cerrarModalNueva(){ modalNueva.value = false; }
 
-function onArchivoOCNuevo(e){
+function cerrarModalNueva() {
+  modalNueva.value = false;
+}
+
+function onArchivoOCNuevo(e) {
   const f = (e.target.files || [])[0];
   archivoOCNuevo.value = f || null;
   archivoOCNuevoNombre.value = f?.name || "";
 }
-function onArchivosStorageNuevo(e){
+
+function onArchivosStorageNuevo(e) {
   previewArchivosStorageNuevo.value = Array.from(e.target.files || []);
 }
 
-async function crearNueva(){
+async function crearNueva() {
   try {
     creando.value = true;
 
@@ -1255,6 +1995,7 @@ async function crearNueva(){
       const n = parseInt(nuevo.value.id, 10);
       nuevo.value.id = isNaN(n) ? null : n;
     }
+
     if (typeof nuevo.value.precioTotalConIVA === "string") {
       const n = parseInt(nuevo.value.precioTotalConIVA, 10);
       nuevo.value.precioTotalConIVA = isNaN(n) ? 0 : n;
@@ -1267,35 +2008,44 @@ async function crearNueva(){
       archivosStorage: [],
       fechaSubida: serverTimestamp(),
       fechaAprobacion: null,
-      historial: []
+      historial: [],
     });
 
     const dref = await addDoc(collection(db, "ordenes_oc"), payload);
+
     if (archivoOCNuevo.value) {
       const storage = getStorage();
       const path = `ordenes_oc/${dref.id}/oc_enviada_${Date.now()}_${archivoOCNuevo.value.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, archivoOCNuevo.value);
+      const storageRef = sref(storage, path);
+      const up = await uploadBytes(storageRef, archivoOCNuevo.value);
       const url = await getDownloadURL(up.ref);
+
       await updateDoc(doc(db, "ordenes_oc", dref.id), {
         archivoOC: {
           nombre: archivoOCNuevo.value.name,
           tipo: archivoOCNuevo.value.type || "application/octet-stream",
           url,
-          fechaSubida: serverTimestamp()
-        }
+          fechaSubida: serverTimestamp(),
+        },
       });
     }
+
     if (previewArchivosStorageNuevo.value.length) {
       const storage = getStorage();
       const uploads = [];
+
       for (const f of previewArchivosStorageNuevo.value) {
         const path = `ordenes_oc/${dref.id}/${Date.now()}_${f.name}`;
-        const sRef = sref(storage, path);
-        const up = await uploadBytes(sRef, f);
+        const storageRef = sref(storage, path);
+        const up = await uploadBytes(storageRef, f);
         const url = await getDownloadURL(up.ref);
-        uploads.push({ nombre: f.name, tipo: f.type || "application/octet-stream", url });
+        uploads.push({
+          nombre: f.name,
+          tipo: f.type || "application/octet-stream",
+          url,
+        });
       }
+
       await updateDoc(doc(db, "ordenes_oc", dref.id), { archivosStorage: uploads });
     }
 
@@ -1309,13 +2059,19 @@ async function crearNueva(){
   }
 }
 
-function verArchivoOC(row){
+function verArchivoOC(row) {
   const url = row?.archivoOC?.url;
-  if (!url) { addToast("warning", "Esta OC no tiene archivoOC aún."); return; }
+  if (!url) {
+    addToast("warning", "Esta OC no tiene archivoOC aún.");
+    return;
+  }
   window.open(url, "_blank");
 }
 
-onMounted(() => { subscribePage(1); });
+onMounted(() => {
+  subscribePage(1);
+});
+
 onBeforeUnmount(() => {
   if (unsubList) unsubList();
   if (unsubSearch) unsubSearch();
@@ -1323,85 +2079,165 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.admin-oc-page{
-  min-height:100vh;
+.admin-oc-page {
+  min-height: 100vh;
   --oc-radius: 14px;
 }
 
-
-.h4-md { font-size: 1.25rem; }
-@media (min-width: 768px){ .h4-md { font-size: 1.5rem; } }
-
-.minw-280{ min-width: 280px; }
-
-.text-truncate { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 576px){
-  .text-truncate { max-width: 180px; }
+.h4-md {
+  font-size: 1.25rem;
+}
+@media (min-width: 768px) {
+  .h4-md {
+    font-size: 1.5rem;
+  }
 }
 
-.offcanvas-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  display: grid; place-items: end; z-index: 1080;
+.minw-280 {
+  min-width: 280px;
 }
-.offcanvas-panel{
-  width: min(900px, 100%);
+
+.text-truncate {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 576px) {
+  .text-truncate {
+    max-width: 180px;
+  }
+}
+
+.offcanvas-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: grid;
+  place-items: end;
+  z-index: 1080;
+}
+
+.offcanvas-panel {
+  width: min(980px, 100%);
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
   height: 100vh;
-  box-shadow: -12px 0 32px rgba(0,0,0,.25);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, .25);
   animation: slideIn .22s ease-out;
-  display: flex; flex-direction: column;
-}
-.offcanvas-header, .offcanvas-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
-}
-.offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.offcanvas-body{
-  padding: 1rem; overflow: auto; flex: 1 1 auto; min-height: 0;
-}
-@keyframes slideIn{
-  from{ transform: translateX(20px); opacity:.0; }
-  to{ transform: translateX(0); opacity:1; }
+  display: flex;
+  flex-direction: column;
 }
 
-
-.vmodal-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  z-index: 1080; display: grid; place-items: center; padding: 1rem;
+.offcanvas-header,
+.offcanvas-footer {
+  padding: .9rem 1rem;
+  border-bottom: 1px solid #eee;
 }
-.vmodal{
-  width: 100%; max-width: 700px;  border-radius: .75rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
+.offcanvas-footer {
+  border-top: 1px solid #eee;
+  border-bottom: 0;
+}
+
+.offcanvas-body {
+  padding: 1rem;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(20px);
+    opacity: .0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.vmodal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 1080;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.vmodal {
+  width: 100%;
+  max-width: 700px;
+  border-radius: .75rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  overflow: hidden;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
   border: 1px solid rgba(0,0,0,.06);
 }
-.vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
-}
-.vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-
-.toast-stack{
-  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
-  display: flex; flex-direction: column; gap: 10px;
+.vmodal-header,
+.vmodal-footer {
+  padding: .9rem 1rem;
+  border-bottom: 1px solid #eee;
 }
-.toast-box{
-  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+.vmodal-footer {
+  border-top: 1px solid #eee;
+  border-bottom: 0;
 }
-.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
-.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
-.btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-.confirm-icon{
-  width: 38px; height: 38px;
-  border-radius: 10px;
-  display: grid; place-items: center;
+.vmodal-body {
+  padding: 1rem;
+  max-height: 65vh;
+  overflow: auto;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast-box {
+  display: flex;
+  align-items: center;
+  padding: .6rem .8rem;
+  border-radius: .5rem;
+  color: #fff;
+  min-width: 260px;
+  max-width: 380px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+.toast-success {
+  background: linear-gradient(135deg,#22c55e,#16a34a);
+}
+.toast-warning {
+  background: linear-gradient(135deg,#f59e0b,#d97706);
+}
+.toast-danger {
   background: linear-gradient(135deg,#ef4444,#dc2626);
-  color: #fff; font-size: 18px;
+}
+
+.btn-close-white {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.confirm-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg,#ef4444,#dc2626);
+  color: #fff;
+  font-size: 18px;
   box-shadow: 0 6px 18px rgba(220,38,38,.35);
 }
 </style>

@@ -1187,7 +1187,6 @@ watch(
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
-/* ✅ Animación salto */
 .badge-bounce {
   animation: badgeJump 0.9s cubic-bezier(.2,.9,.25,1) both;
   transform-origin: center;
@@ -1217,7 +1216,6 @@ watch(
   cursor: pointer;
 }
 
-/* Settings UI */
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -1253,7 +1251,6 @@ watch(
   background: #fafafa;
 }
 
-/* settings restantes */
 .settings-label {
   font-size: 0.75rem;
   text-transform: uppercase;

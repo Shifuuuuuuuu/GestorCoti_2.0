@@ -685,7 +685,6 @@ function recomputeSolpedItemState(item) {
   it.estado = it.estado_cotizacion;
   return it;
 }
-// ✅ clamp con marca visual si ajustó
 const clampCantidad = (it) => {
   const max = nnum(it.__restan, 0);
   const raw = nnum(it.cantidad_para_cotizar, 0);
@@ -698,7 +697,6 @@ const clampCantidad = (it) => {
   it.__invalid = raw !== v;
 };
 
-// ✅ selections: solo ítems con qty > 0 (evita “toques fantasma”)
 const buildSelectionsTaller = (itemsUI = []) => {
   const out = [];
   for (const it of itemsUI || []) {
@@ -715,7 +713,6 @@ const buildSelectionsTaller = (itemsUI = []) => {
   return out;
 };
 
-// ✅ items para OC: solo seleccionados
 const buildItemsOC_Taller = (itemsUI = [], selections = [], nombreUsuario = "", solpedId = "", solpedSel = null, moneda = "CLP", totalConIVA = 0) => {
   const selByItem = new Map(selections.map(s => [nnum(s.item, 0), nnum(s.qty, 0)]));
   const out = [];
@@ -736,7 +733,6 @@ const buildItemsOC_Taller = (itemsUI = [], selections = [], nombreUsuario = "", 
       cantidad_solicitada_oc: qty,
       cantidad_para_cotizar: qty,
 
-      // para el OC, esto es “lo solicitado”
       cantidad_cotizada: qty,
 
       estado: "revision",
@@ -857,7 +853,6 @@ const onChangeSolped = async () => {
 
     centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
 
-    // (tu autorización única, la dejo igual)
     autorizacionNombre.value = data.autorizacion_nombre || null;
     autorizacionUrlRaw.value = data.autorizacion_url || null;
     const guess = String((autorizacionNombre.value || autorizacionUrlRaw.value || "")).toLowerCase();
@@ -886,18 +881,15 @@ const onChangeSolped = async () => {
 
       const final = recomputeSolpedItemState(withCounters);
 
-      // ✅ keys estables para vue
       final.__tempId = final.__tempId || `${final.item}-${normalizePlain(final.descripcion)}-${final.codigo_referencial || ""}`;
       final.__k = `${final.item}|${final.__tempId}|${idx}`;
 
-      // defaults UI
       final.cantidad_para_cotizar = 0;
       final.__invalid = false;
 
       return final;
     });
 
-    // ✅ filtro correcto: solo con pendiente real
     itemsSolped.value = normalizados
       .filter((it) => nnum(it.__restan, 0) > 0);
 
@@ -966,7 +958,6 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
     const dataSol = ss.data() || {};
     const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-    // Índices para encontrar ítems de forma estable
     const idxByItemNo = new Map();
     const idxByTempId = new Map();
 
@@ -1008,7 +999,7 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
       const { total, restan } = computeItemCounters(base);
       const req = Math.max(0, nnum(sel?.qty, 0));
 
-      // clamp server-side
+
       const qty = Math.min(req, restan, total);
 
       if (qty <= 0) {
@@ -1016,8 +1007,6 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
         continue;
       }
 
-      // Se registra como pendiente de revisión de OC,
-      // pero el estado global de la SOLPED contará el comprometido total
       base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
       base.pendienteRevisionPorOC[ocKey] = qty;
 
@@ -1026,8 +1015,6 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
 
     const finalItems = items.map((it) => recomputeSolpedItemState(it));
 
-    // ✅ Estado global de SOLPED según lo comprometido total
-    // (aprobado + pendiente revisión)
     const tot = finalItems.length;
 
     const completos = finalItems.filter((it) => {
@@ -1054,7 +1041,6 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
     return { nuevoEstatusSol };
   });
 
-  // Historial fuera de transacción
   await addDoc(collection(db, "solped_taller", solpedId, "historialEstados"), {
     usuario: nombreUsuario,
     fecha: serverTimestamp(),
@@ -1067,7 +1053,6 @@ async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario
 const enviarOC = async () => {
   if (enviando.value) return;
 
-  // ✅ refresca count antes de validar bloqueo (por si cambió en vivo)
   await refrescarAprobadasConCountTaller();
 
   if (bloqueoPorAprobadasTaller.value) {
@@ -1085,7 +1070,6 @@ const enviarOC = async () => {
   if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
   if (archivos.value.length === 0) { addToast("warning", "Debes subir al menos un archivo de cotización"); return; }
 
-  // ✅ SOLPED: solo ítems realmente cotizados
   let selections = [];
   if (usarSolped.value && solpedSeleccionadaId.value) {
     selections = buildSelectionsTaller(itemsSolped.value);
@@ -1100,7 +1084,6 @@ const enviarOC = async () => {
   enviando.value = true;
 
   try {
-    // ✅ calcula nuevo correlativo
     const qy = query(collection(db, "ordenes_oc_taller"), orderBy("id", "desc"), limit(1));
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
@@ -1110,7 +1093,6 @@ const enviarOC = async () => {
     const aprobador = aprobadorSugerido.value || "";
     const estatusInicial = "Revisión Guillermo";
 
-    // ✅ subir adjuntos
     const storage = getStorage();
     const subidos = [];
 
@@ -1129,7 +1111,6 @@ const enviarOC = async () => {
       subidos.push({ nombre: safeName, tipo: a.tipo || a.file.type || "application/octet-stream", url });
     }
 
-    // ✅ items OC (solo seleccionados)
     let itemsFinal = [];
     if (usarSolped.value && solpedSeleccionadaId.value && solpedSeleccionada.value) {
       itemsFinal = buildItemsOC_Taller(
@@ -1182,10 +1163,8 @@ const enviarOC = async () => {
       }),
     };
 
-    // ✅ crea OC
     const newRef = await addDoc(collection(db, "ordenes_oc_taller"), dataToSave);
 
-    // ✅ actualiza SOLPED con transacción (solo lo realmente cotizado)
     if (usarSolped.value && solpedSeleccionadaId.value) {
       await actualizarSolpedTaller_postOC(
         solpedSeleccionadaId.value,
