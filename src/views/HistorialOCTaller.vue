@@ -306,7 +306,7 @@
               <div class="mb-0">
                 <label class="form-label">Tamaño de página</label>
                 <select class="form-select" v-model.number="pageSize" @change="applyFilters">
-                  <option v-for="n in [5,10,20,30,40,50, 100, 200]" :key="n" :value="n">{{ n }}</option>
+                  <option v-for="n in [5,10,20,30,40,50, 100, 200,300,400,500]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
             </div>
@@ -363,7 +363,7 @@
             <div class="mb-0">
               <label class="form-label">Tamaño de página</label>
               <select class="form-select" v-model.number="pageSize">
-                <option v-for="n in [5,10,20,30,40,50, 100, 200]" :key="n" :value="n">{{ n }}</option>
+                <option v-for="n in [5,10,20,30,40,50, 100, 200,300,400,500]" :key="n" :value="n">{{ n }}</option>
               </select>
             </div>
           </div>
@@ -835,7 +835,7 @@ function loadPersistedFilters(){
       centroSearch.value     = f.centroSearch ?? '';
       empresaSegmento.value  = f.empresaSegmento ?? 'todas';
       soloMias.value         = !!f.soloMias;
-      if ([5,10,20,30,40,50, 100, 200].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
+      if ([5,10,20,30,40,50, 100, 200,300,400,500].includes(Number(f.pageSize))) pageSize.value = Number(f.pageSize);
     } else {
       const legacy = localStorage.getItem(LS_SOLO_MIAS_KEY);
       if (legacy === '1') soloMias.value = true;
@@ -1086,7 +1086,7 @@ onMounted(async () => {
 
   const st = loadRouteState();
   if (st) {
-    if ([5,10,20,30,40,50, 100, 200].includes(Number(st.pageSize))) pageSize.value = Number(st.pageSize);
+    if ([5,10,20,30,40,50, 100, 200,300,400,500].includes(Number(st.pageSize))) pageSize.value = Number(st.pageSize);
 
     const restoredPage = Math.max(1, Number(st.page || 1));
     const restoredScroll = Math.max(0, Number(st.scrollY || 0));

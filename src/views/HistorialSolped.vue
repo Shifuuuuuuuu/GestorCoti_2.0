@@ -600,7 +600,7 @@
               <div class="mb-0">
                 <label class="form-label">Tamaño de página</label>
                 <select class="form-select" v-model.number="pageSize" aria-label="Tamaño de página">
-                  <option v-for="n in [10,20,30,40,50,100,200]" :key="n" :value="n">{{ n }}</option>
+                  <option v-for="n in [10,20,30,40,50,100,200,300, 400, 500]" :key="n" :value="n">{{ n }}</option>
                 </select>
               </div>
             </div>
@@ -707,7 +707,7 @@
             <div class="mb-0">
               <label class="form-label">Tamaño de página</label>
               <select class="form-select" v-model.number="pageSize">
-                <option v-for="n in [10,20,30,40,50,100,200]" :key="n" :value="n">{{ n }}</option>
+                <option v-for="n in [10,20,30,40,50,100,200,300,400,500]" :key="n" :value="n">{{ n }}</option>
               </select>
             </div>
           </div>

@@ -348,7 +348,7 @@
 
               <div class="col-12">
                 <label class="form-label">Rol</label>
-                <select class="form-select" v-model="form.role">
+                <select class="form-select" :value="form.role" @change="onRoleChange">
                   <option value="">— Selecciona —</option>
                   <option v-for="r in rolesDisponibles" :key="'role-'+r" :value="r">{{ r }}</option>
                 </select>
@@ -646,7 +646,13 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { db, app } from '../stores/firebase';
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-
+import {
+  MENU_DEFINITIONS,
+  getMenuGroups,
+  getLabelFromKey,
+  normalizeMenuPerms,
+  getRoleMenuTemplate,
+} from "@/config/menuPermissions";
 const centrosCosto = {
   "30858": "CONTRATO 30858 INFRA CHUQUICAMATA",
   "27483": "CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
@@ -676,41 +682,31 @@ const FUNCTIONS_REGION = 'southamerica-west1';
 const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor',"Recepcion_OC","CargadorDoc"];
 const empresasDisponibles = ['Xtreme Servicio', 'Xtreme Mining', 'Xtreme Hormigones'];
 
-const MENU_KEYS = [
-  { key: 'solped', label: 'Crear SOLPED', group: 'Empresa' },
-  { key: 'historial-solped', label: 'Historial SOLPED', group: 'Empresa' },
-  { key: 'GeneradorOC', label: 'Generador Cotización (OC)', group: 'Empresa' },
-  { key: 'historial-oc', label: 'Historial Cotizaciones', group: 'Empresa' },
-  { key: 'AprobacionOC', label: 'Aprobador Cotización', group: 'Empresa' },
-  { key: 'GenerarCotizacion', label: 'Generador de cotización', group: 'Empresa' },
+const MENU_KEYS = MENU_DEFINITIONS.map((x) => ({
+  key: x.key,
+  label: x.label,
+  group: x.group,
+}));
 
-  { key: 'SolpedTaller', label: 'Crear SOLPED (Taller)', group: 'Taller' },
-  { key: 'HistorialSolpedTaller', label: 'Historial SOLPED (Taller)', group: 'Taller' },
-  { key: 'GeneradorOCTaller', label: 'Generador Cotización (Taller)', group: 'Taller' },
-  { key: 'HistorialOCTaller', label: 'Historial Cotizaciones (Taller)', group: 'Taller' },
-  { key: 'AprobacionOCTaller', label: 'Aprobador Cotización (Taller)', group: 'Taller' },
+const permGroups = computed(() => getMenuGroups());
+const labelFromKey = (k) => getLabelFromKey(k);
+const aplicarPlantillaRol = (role) => {
+  const plantilla = getRoleMenuTemplate(role);
 
-  { key: 'AdminSolpes', label: 'Admin SOLPED', group: 'Admin' },
-  { key: 'AdminSolpedTaller', label: 'Admin SOLPED (Taller)', group: 'Admin' },
-  { key: 'AdminOrdenesOC', label: 'Admin OC', group: 'Admin' },
-  { key: 'AdminOrdenesOCTaller', label: 'Admin OC (Taller)', group: 'Admin' },
-  { key: 'AdminUsuarios', label: 'Admin Usuarios', group: 'Admin' },
-  { key: 'AdminEquipos', label: 'Admin Equipos', group: 'Admin' },
-  { key: 'DashboardEstadisticas', label: 'Dashboard', group: 'Admin' },
-  { key: 'AdminConfig', label: 'Configuración Reglas', group: 'Admin' },
-  { key: 'AdminGestionDocs', label: 'Gestor de Facturas', group: 'Admin' },
-  { key: 'RecepcionOC', label: 'Recepción de OC', group: 'Admin' },
-  { key: 'SoporteGestion', label: 'SoporteGestion', group: 'Admin' },
-  { key: 'GenerarCertificados', label: 'Generador de certificados', group: 'Admin' },
+  form.value.menuPerms = {
+    allow: [...plantilla],
+    deny: [],
+  };
+};
+const onRoleChange = (ev) => {
+  const role = ev?.target?.value ?? "";
+  form.value.role = role;
 
-  { key: 'Soporte', label: 'Soporte', group: 'General' },
-  { key: 'AprobacionDocs', label: 'Aprobador de Facturas', group: 'General' },
-  { key: 'AiInspectorView', label: 'Chatbot', group: 'General' },
-];
-
-const permGroups = computed(() => Array.from(new Set(MENU_KEYS.map(x => x.group))));
-const labelFromKey = (k) => MENU_KEYS.find(x => x.key === k)?.label || k;
-
+  // solo autocompletar cuando se está creando
+  if (!esEdicion.value) {
+    aplicarPlantillaRol(role);
+  }
+};
 const isSmallScreen = ref(false);
 let mql = null;
 const onMqlChange = (e) => { isSmallScreen.value = !!e.matches; };
@@ -865,12 +861,6 @@ const accionando = ref(false);
 const accionandoContratos = ref(false);
 const uidEnAccion = ref(null);
 
-const normalizeMenuPerms = (mp) => {
-  const obj = mp && typeof mp === 'object' ? mp : {};
-  const allow = Array.isArray(obj.allow) ? obj.allow.map(String) : [];
-  const deny  = Array.isArray(obj.deny) ? obj.deny.map(String) : [];
-  return { allow, deny };
-};
 
 const toggleEmpresa = (empresa, checked) => {
   const arr = [...(form.value.empresas || [])];

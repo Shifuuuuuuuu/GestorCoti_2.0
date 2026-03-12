@@ -30,12 +30,15 @@ watch(
 useOCNotifications();
 useOCNotificationTaller();
 
-const showShell = computed(() => route.name !== "login");
+const hideShellRoutes = ["login", "NotFound"];
+
+const showShell = computed(() => !hideShellRoutes.includes(String(route.name || "")));
 </script>
 
 <template>
   <AppShell v-if="showShell" />
-  <main v-else class="login-main">
+
+  <main v-else class="standalone-main">
     <router-view />
   </main>
 
@@ -44,5 +47,7 @@ const showShell = computed(() => route.name !== "login");
 </template>
 
 <style>
-.login-main { padding-top: 24px; }
+.standalone-main {
+  min-height: 100vh;
+}
 </style>

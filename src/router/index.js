@@ -1,6 +1,12 @@
 // src/router/index.js
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/authService";
+import {
+  ALWAYS_ALLOWED_ROUTE_NAMES,
+  MENU_BY_ROUTE_NAME,
+  canAccessMenuKey,
+  normKey,
+} from "@/config/menuPermissions";
 
 const Login = () => import("../views/Login.vue");
 const Inicio = () => import("../views/Inicio.vue");
@@ -37,8 +43,8 @@ const RecepcionOC = () => import("../views/RecepcionOC.vue");
 const AiInspectorView = () => import("../views/AiInspectorView.vue");
 const GenerarCotizacion = () => import("../views/GenerarCotizacion.vue");
 const GenerarCertificados = () => import("../views/GenerarCertificados.vue");
-const VerifyCertificado = () => import ("../views/VerifyCertificado.vue")
-
+const VerifyCertificado = () => import("../views/VerifyCertificado.vue");
+const NotFound = () => import("../views/NotFound.vue");
 const routes = [
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
   { path: "/", redirect: { name: "Inicio" } },
@@ -89,9 +95,10 @@ const routes = [
   { path: "/generador-coti", name: "GenerarCotizacion", component: GenerarCotizacion, meta: { requiresAuth: true, menuKey: "GenerarCotizacion" } },
   { path: "/generador-certificados", name: "GenerarCertificados", component: GenerarCertificados, meta: { requiresAuth: true, menuKey: "GenerarCertificados" } },
 
-  { path: "/verify-certificado", component: VerifyCertificado},
+  { path: "/verify-certificado", component: VerifyCertificado },
 
-  { path: "/:pathMatch(.*)*", redirect: { name: "Inicio" } },
+  { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound, meta: { public: true },
+},
 ];
 
 const router = createRouter({
@@ -99,44 +106,7 @@ const router = createRouter({
   routes,
 });
 
-const ALWAYS_ALLOWED = new Set([
-  "Inicio",
-  "PerfilUsuario",
-  "oc-detalle",
-  "OrdenOCTallerDetalle",
-  "SolpedDetalle",
-  "SolpedTallerDetalle",
-]);
-
-function normKey(s) {
-  return String(s || "")
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .toLowerCase();
-}
-
-function getUserFlags(auth) {
-  const fullName = String(
-    auth?.profile?.fullName ||
-      auth?.profile?.Nombre_completo ||
-      auth?.user?.displayName ||
-      ""
-  ).trim();
-
-  const email = String(auth?.user?.email || "").trim().toLowerCase();
-  const role = String(auth?.profile?.role || auth?.role || "").trim();
-
-  const nName = normKey(fullName);
-  const nRole = normKey(role);
-
-  const isTallerCMUser = nName === "taller_cm" || email === "tallercm@xtremeservicios.cl";
-
-  return { fullName, email, role, nRole, isTallerCMUser };
-}
+const ALWAYS_ALLOWED = new Set(ALWAYS_ALLOWED_ROUTE_NAMES);
 
 router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore();
@@ -156,58 +126,89 @@ router.beforeEach(async (to, from, next) => {
     return next({ name: "Inicio" });
   }
 
-  if (requiresAuth) {
-    if (ALWAYS_ALLOWED.has(String(to.name || ""))) return next();
+  if (!requiresAuth) return next();
 
-    const { nRole, isTallerCMUser } = getUserFlags(auth);
+  if (ALWAYS_ALLOWED.has(String(to.name || ""))) {
+    return next();
+  }
 
-    const routeKeyRaw = String(to.meta?.menuKey || to.name || "");
-    const routeKey = normKey(routeKeyRaw);
+  const profile = auth?.profile || {};
+  const role = profile?.role || auth?.role || "";
+  const menuPerms = profile?.menuPerms || { allow: [], deny: [] };
 
-    if (isTallerCMUser && nRole === "generador_solped") {
-      const allowedForTallerCM = new Set([
-        normKey("SolpedTaller"),
-        normKey("HistorialSolpedTaller"),
-        normKey("SolpedTallerDetalle"),
-        normKey("HistorialOCTaller"),
-        normKey("OrdenOCTallerDetalle"),
-        normKey("Soporte"),
-        normKey("Inicio"),
-        normKey("PerfilUsuario"),
-      ]);
+  const fullName = String(
+    profile?.fullName ||
+      profile?.Nombre_completo ||
+      auth?.user?.displayName ||
+      ""
+  ).trim().toLowerCase();
 
-      if (allowedForTallerCM.has(routeKey)) {
-        return next();
-      }
-    }
+  const email = String(auth?.user?.email || "").trim().toLowerCase();
 
-    const perms = auth?.profile?.menuPerms || { allow: [], deny: [] };
-    const allowRaw = Array.isArray(perms.allow) ? perms.allow.map(String) : [];
-    const denyRaw = Array.isArray(perms.deny) ? perms.deny.map(String) : [];
+  const routeDef = MENU_BY_ROUTE_NAME[String(to.name || "")];
+  const routeKey = routeDef?.key || String(to.meta?.menuKey || to.name || "");
 
-    const allowSet = new Set(allowRaw.map(normKey));
-    const denySet = new Set(denyRaw.map(normKey));
+  let extraAllow = [];
+  let extraDeny = [];
 
-    const candidates = new Set([
-      normKey(routeKeyRaw),
-      normKey(to.name),
-      normKey(to.path),
-    ]);
+  const isTallerCMUser =
+    fullName === "taller cm" || email === "tallercm@xtremeservicios.cl";
 
-    for (const c of candidates) {
-      if (c && denySet.has(c)) return next({ name: "Inicio" });
-    }
+  const isGuillermo =
+    fullName === "guillermo manzor" || email === "gmanzor@xtrememining.cl";
 
-    if (allowSet.size > 0) {
-      let ok = false;
-      for (const c of candidates) {
-        if (c && allowSet.has(c)) {
-          ok = true;
-          break;
-        }
-      }
-      if (!ok) return next({ name: "Inicio" });
-    }
+  const isJuanCubillos =
+    fullName === "juan cubillos" || email === "jcubillos@xtrememining.cl";
+
+  const isAlejandroCandia =
+    fullName === "alejandro candia" || email === "acp@xtrememining.cl";
+
+  const isMariaJoseBallesteros =
+    fullName === "maria jose ballesteros" ||
+    fullName === "maría jose ballesteros" ||
+    email === "mballesteros@xtrememining.cl" ||
+    email === "mjb@xtrememining.cl";
+
+  const isPatricioBustos = fullName === "patricio bustos";
+  const isAxelBasicContreras = fullName === "axel basic contreras";
+  const isGriselleMatus = fullName === "griselle matus";
+
+  if (isTallerCMUser && normKey(role) === "generador_solped") {
+    extraAllow.push(
+      "SolpedTaller",
+      "HistorialSolpedTaller",
+      "HistorialOCTaller",
+      "Soporte"
+    );
+  }
+
+  if (isGuillermo || isMariaJoseBallesteros || normKey(role) === "aprobador_editor") {
+    extraAllow.push("AprobacionOC", "AprobacionOCTaller");
+  }
+
+  if (isAlejandroCandia || isJuanCubillos) {
+    extraAllow.push("AprobacionDocs");
+  }
+
+  if (isJuanCubillos || isPatricioBustos || isAxelBasicContreras || isGriselleMatus) {
+    extraAllow.push("GenerarCotizacion");
+  }
+
+  if (isTallerCMUser) {
+    extraDeny.push("GenerarCotizacion");
+  }
+
+  const allowed = canAccessMenuKey({
+    role,
+    menuPerms,
+    targetKey: routeKey,
+    extraAllow,
+    extraDeny,
+    useRoleDefaultsWhenAllowEmpty: true,
+  });
+
+  if (!allowed) {
+    return next({ name: "Inicio" });
   }
 
   next();
