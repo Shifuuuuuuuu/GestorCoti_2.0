@@ -407,16 +407,18 @@ const dateLikeToMillis = (x) => {
 
 const estadoBadgeClass = (estatus) => {
   const s = (estatus || '').toLowerCase();
-  if (s.includes('complet')) return 'bg-success-subtle text-success-emphasis';
+  if (s.includes('complet') || s.includes('apro')) return 'bg-success-subtle text-success-emphasis';
   if (s.includes('preaprob')) return 'bg-info-subtle text-info-emphasis';
   if (s.includes('rechaz') || s.includes('escala')) return 'bg-danger-subtle text-danger-emphasis';
-  if (s.includes('revisión') || s.includes('revision')) return 'bg-warning-subtle text-warning-emphasis';
-  if (s.includes('solicit') || s.includes('oc enviada')) return 'bg-primary-subtle text-primary-emphasis';
+  if (s.includes('revisión') || s.includes('pendi')) return 'bg-warning-subtle text-warning-emphasis';
+  if (s.includes('solicit') || s.includes('pedido')) return 'bg-primary-subtle text-primary-emphasis';
+  if (s.includes('enviada'))return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
 const itemEstadoBadge = (e) => {
   const s = (e || '').toLowerCase();
+  if (s.includes('Apro')) return 'bg-success-subtle text-success-emphasis';
   if (s.includes('complet')) return 'bg-success-subtle text-success-emphasis';
   if (s.includes('parcial')) return 'bg-warning-subtle text-warning-emphasis';
   if (s.includes('pend')) return 'bg-secondary-subtle text-secondary-emphasis';

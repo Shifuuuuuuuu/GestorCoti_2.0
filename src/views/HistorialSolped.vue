@@ -1671,7 +1671,8 @@ const centrosLocalFallback = {
   "30-10-11": "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM",
   '10-10-20': 'TALLER SAN BERNARDO',
   '31155': 'DIVISION ANDINA 4600031155',
-  '23302':'CONTRATO 23302'
+  '23302':'CONTRATO 23302',
+  'GPLA': 'GPLA 4600031750'
 };
 async function loadCentrosCosto() {
   try {
@@ -1787,7 +1788,7 @@ onBeforeRouteLeave(() => {
 
 const listaEstatus = [
   'Rechazado','Pendiente',
-  'OC enviada a proveedor','Cotizado parcial','Cotizado Completado','Parcial, Pedido en Casa matriz','Pedido en Casa matriz'
+  'OC enviada a proveedor','Cotizado Parcial','Cotizado Completado','Parcial, Pedido en Casa matriz','Pedido en Casa matriz'
 ];
 
 const prettyFecha = (f) => {
@@ -3194,7 +3195,13 @@ async function guardarEdicion() {
       const norm = descOrig
         .normalize("NFD")
         .replace(/\p{Diacritic}/gu, "")
-        .toLowerCase();
+        .toLowerCase()
+        .replace(/[\/\\#?\[\]]/g, "-")
+        .replace(/"/g, "")
+        .replace(/\s+/g, "_")
+        .replace(/[^a-z0-9._-]/g, "")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
 
       const catRef = doc(db, "items_catalog", norm);
       const snap = await getDoc(catRef);

@@ -546,26 +546,42 @@
                   <textarea class="form-control" rows="3" v-model="comentario" placeholder="Agrega un comentario opcional…"></textarea>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label">Archivos PDF, Imagen o Excel (se convierte a PDF)</label>
+                  <label class="form-label">Archivos PDF o Imagen (se convierte a PDF)</label>
 
-                  <div class="d-flex flex-wrap align-items-center gap-2">
-                    <input
-                      id="inputArchivo"
-                      type="file"
-                      multiple
-                      accept="application/pdf,image/*,.xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-                      class="d-none"
-                      @change="onMultipleFilesSelected"
-                    />
-                    <button type="button" class="btn btn-outline-primary" @click="abrirSelectorArchivos">
-                      <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
-                    </button>
-                    <small class="text-secondary">Puedes subir más de uno.</small>
-                  </div>
+                  <input
+                    id="inputArchivo"
+                    type="file"
+                    multiple
+                    accept="application/pdf,image/*,.xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                    class="d-none"
+                    @change="onMultipleFilesSelected"
+                  />
 
-                  <div class="form-text">
-                    Puedes adjuntar archivos nuevos y/o reutilizar documentos adjuntos desde la SOLPED.
-                    Si seleccionas Excel/CSV, se convertirá a PDF automáticamente.
+                  <div
+                    class="dropzone-upload"
+                    :class="{ 'is-dragging': dragOverArchivos }"
+                    @click="abrirSelectorArchivos"
+                    @dragenter.prevent="onDragEnterArchivos"
+                    @dragover.prevent="onDragOverArchivos"
+                    @dragleave.prevent="onDragLeaveArchivos"
+                    @drop.prevent="onDropArchivos"
+                  >
+                    <div class="dropzone-icon">
+                      <i class="bi bi-cloud-arrow-up"></i>
+                    </div>
+
+                    <div class="fw-semibold mb-1">
+                      Arrastra aquí tus archivos
+                    </div>
+
+                    <div class="text-secondary small mb-2">
+                      o haz clic para seleccionarlos
+                    </div>
+
+                    <div class="d-flex justify-content-center flex-wrap gap-2">
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">PDF</span>
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">Imágenes</span>
+                    </div>
                   </div>
                 </div>
                 <div v-for="(archivo, i) in archivos" :key="archivo.__k" class="card mb-2">
@@ -944,7 +960,8 @@ const router = useRouter();
 const route = useRoute();
 const volver = () => router.back();
 const auth = useAuthStore();
-
+const dragOverArchivos = ref(false);
+let dragCounterArchivos = 0;
 const busy = reactive({
   on: false,
   label: "Procesando…",
@@ -990,27 +1007,48 @@ const itemIdentityKey = (it) => {
 const isItemCompleto = (it) => {
   const total = num(it?.cantidad, 0);
   const cot = num(it?.cantidad_cotizada, 0);
-  const ec = normalizePlain(it?.estado_cotizacion);
-  const ev = normalizePlain(it?.estado);
+  return total > 0 && cot >= total;
+};
 
-  if (ec === "completo") return true;
-  if (ev === "completado") return true;
-  if (total > 0 && cot >= total) return true;
-  return false;
+const normalizarEstadoCantidades = ({ total, cotizada }) => {
+  const t = Math.max(0, num(total, 0));
+  const cRaw = Math.max(0, num(cotizada, 0));
+  const c = t > 0 ? Math.min(cRaw, t) : cRaw;
+
+  if (t <= 0) {
+    return {
+      finalCotizada: c,
+      estado_cotizacion: c > 0 ? "revisión" : "pendiente",
+      estado: c > 0 ? "completado" : "pendiente",
+    };
+  }
+
+  if (c <= 0) {
+    return {
+      finalCotizada: 0,
+      estado_cotizacion: "pendiente",
+      estado: "pendiente",
+    };
+  }
+
+  if (c < t) {
+    return {
+      finalCotizada: c,
+      estado_cotizacion: "revisión",
+      estado: "parcial",
+    };
+  }
+
+  return {
+    finalCotizada: t,
+    estado_cotizacion: "revisión",
+    estado: "completado",
+  };
 };
 
 const computeEstadoItem = ({ total, antes, nueva }) => {
-  const final = antes + nueva;
-  const cappedFinal = total > 0 ? Math.min(final, total) : final;
-
-  const completo = total > 0 && cappedFinal >= total;
-  const parcial = nueva > 0 || (antes > 0 && !completo);
-
-  return {
-    finalCotizada: cappedFinal,
-    estado_cotizacion: completo ? "completo" : (parcial ? "parcial" : "ninguno"),
-    estado: completo ? "completado" : (parcial ? "parcial" : "pendiente"),
-  };
+  const final = num(antes, 0) + num(nueva, 0);
+  return normalizarEstadoCantidades({ total, cotizada: final });
 };
 
 const clampCantidadParaCotizar = (it) => {
@@ -1034,15 +1072,24 @@ const buildItemsSolpedForUI = (solpedItems = []) => {
     .map((it, idx) => {
       const total = num(it?.cantidad, 0);
       const antes = num(it?.cantidad_cotizada, 0);
-      const max = Math.max(0, total - antes);
+      const normalizado = normalizarEstadoCantidades({ total, cotizada: antes });
+      const max = Math.max(0, total - normalizado.finalCotizada);
 
-      const baseKey = itemIdentityKey(it);
-      return {
+      const itemNormalizado = {
         ...it,
         item: num(it?.item, idx + 1),
         cantidad: total,
-        cantidad_cotizada: antes,
+        cantidad_cotizada: normalizado.finalCotizada,
+        estado: normalizado.estado,
+        estado_cotizacion: normalizado.estado_cotizacion,
+      };
+
+      const baseKey = itemIdentityKey(itemNormalizado);
+
+      return {
+        ...itemNormalizado,
         cantidad_para_cotizar: 0,
+        __sourceIndex: idx,
         __key: baseKey,
         __k: `${baseKey}|${idx}`,
         __max: max,
@@ -1058,6 +1105,7 @@ const buildSelections = (itemsUI = []) => {
     .map((it) => {
       clampCantidadParaCotizar(it);
       return {
+        sourceIndex: num(it.__sourceIndex, -1),
         key: it.__key,
         item: num(it.item, 0),
         numero_interno: String(it.numero_interno || "").trim(),
@@ -1070,6 +1118,7 @@ const buildSelections = (itemsUI = []) => {
 
 const buildItemsOCFromUI = (itemsUI = []) => {
   const out = [];
+
   for (const it of itemsUI || []) {
     clampCantidadParaCotizar(it);
 
@@ -1078,7 +1127,6 @@ const buildItemsOCFromUI = (itemsUI = []) => {
 
     const total = num(it.cantidad, 0);
     const antes = num(it.cantidad_cotizada, 0);
-
     const st = computeEstadoItem({ total, antes, nueva });
 
     out.push({
@@ -1096,6 +1144,7 @@ const buildItemsOCFromUI = (itemsUI = []) => {
       estado_cotizacion: st.estado_cotizacion,
     });
   }
+
   return out;
 };
 const esAprobadoFinal = (estatus) => {
@@ -1408,6 +1457,7 @@ const centrosCostoLista = ref([
   { key: "10-10-20", name: "TALLER SAN BERNARDO" },
   { key: "31155", name: "DIVISION ANDINA 4600031155 Y 23302 CARPETAS" },
   { key: "23302", name: "CONTRATO 23302" },
+  { key: "GPLA", name: "GPLA 4600031750" },
 ]);
 
 const centrosFiltrados = computed(() => {
@@ -1526,14 +1576,29 @@ const abrirSelectorArchivos = () => {
   if (input) input.click();
 };
 
-const onMultipleFilesSelected = async (e) => {
-  const list = Array.from(e.target.files || []);
+const archivoYaAgregado = (file) => {
+  const name = String(file?.name || "").trim().toLowerCase();
+  const size = Number(file?.size || 0);
+
+  return archivos.value.some((a) => {
+    if (a?.fromSolped) return false;
+    const aName = String(a?.name || "").trim().toLowerCase();
+    const aSize = Number(a?.file?.size || 0);
+    return aName === name && aSize === size;
+  });
+};
+
+const procesarArchivosEntrantes = async (files = []) => {
+  const list = Array.from(files || []);
   if (!list.length) return;
 
   setBusy(true, "Procesando archivos…", "Validando y preparando adjuntos", 5);
 
+  let agregados = 0;
+
   try {
     let idx = 0;
+
     for (const file of list) {
       idx++;
       const pct = Math.round((idx / list.length) * 100);
@@ -1542,10 +1607,22 @@ const onMultipleFilesSelected = async (e) => {
         addToast("warning", `Archivo inválido: ${file?.name || "desconocido"}`);
         continue;
       }
+
+      if (archivoYaAgregado(file)) {
+        addToast("warning", `El archivo "${file.name}" ya fue agregado.`);
+        continue;
+      }
+
       if (isExcelLike(file)) {
         setBusy(true, "Convirtiendo Excel a PDF…", file.name, Math.min(95, pct));
         try {
           const pdfFile = await excelFileToPdfFile(file);
+
+          if (archivoYaAgregado(pdfFile)) {
+            addToast("warning", `El archivo convertido "${pdfFile.name}" ya fue agregado.`);
+            continue;
+          }
+
           archivos.value.push({
             file: pdfFile,
             name: pdfFile.name,
@@ -1554,6 +1631,8 @@ const onMultipleFilesSelected = async (e) => {
             convertedFromExcel: true,
             __k: `${pdfFile.name}-${pdfFile.size}-${Date.now()}-${Math.random()}`,
           });
+
+          agregados++;
           addToast("success", `Excel convertido a PDF: ${pdfFile.name}`);
         } catch (err) {
           console.error("Excel->PDF error:", err);
@@ -1582,16 +1661,62 @@ const onMultipleFilesSelected = async (e) => {
         __k: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
       });
 
+      agregados++;
       setBusy(true, "Procesando archivos…", `${file.name}`, Math.min(95, pct));
     }
 
-    if (!archivos.value.length) addToast("warning", "Ningún archivo válido fue seleccionado.");
+    if (!agregados) {
+      addToast("warning", "Ningún archivo válido fue agregado.");
+    }
   } finally {
     setBusy(false);
-    try { if (e?.target) e.target.value = ""; } catch(e2) { console.log(e2); }
   }
 };
 
+const onMultipleFilesSelected = async (e) => {
+  try {
+    const list = Array.from(e?.target?.files || []);
+    await procesarArchivosEntrantes(list);
+  } finally {
+    try {
+      if (e?.target) e.target.value = "";
+    } catch (err) {
+      console.log(err);
+    }
+  }
+};
+
+const onDragEnterArchivos = () => {
+  dragCounterArchivos += 1;
+  dragOverArchivos.value = true;
+};
+
+const onDragOverArchivos = () => {
+  dragOverArchivos.value = true;
+};
+
+const onDragLeaveArchivos = () => {
+  dragCounterArchivos = Math.max(0, dragCounterArchivos - 1);
+  if (dragCounterArchivos === 0) {
+    dragOverArchivos.value = false;
+  }
+};
+
+const onDropArchivos = async (e) => {
+  dragCounterArchivos = 0;
+  dragOverArchivos.value = false;
+
+  const dt = e?.dataTransfer;
+  if (!dt) return;
+
+  const files = Array.from(dt.files || []);
+  if (!files.length) {
+    addToast("warning", "No se detectaron archivos para subir.");
+    return;
+  }
+
+  await procesarArchivosEntrantes(files);
+};
 const keyFromUrl = (u) => String(u || "").split("?")[0];
 
 const isAdjuntoEnArchivos = (adj) => {
@@ -2377,16 +2502,11 @@ const calcularAprobador = () => {
   }) : null;
 };
 
-
-
 const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, estatusInicial) => {
   if (!solpedId) return;
   if (!Array.isArray(selections) || selections.length === 0) return;
 
   const srefDoc = doc(db, "solpes", solpedId);
-
-  const selMap = new Map();
-  for (const s of selections) selMap.set(String(s.key || ""), num(s.cantidad_para_cotizar, 0));
 
   await runTransaction(db, async (tx) => {
     const ss = await tx.get(srefDoc);
@@ -2395,34 +2515,73 @@ const actualizarSolpedAsociada = async (solpedId, selections, nombreUsuario, est
     const dataSol = ss.data() || {};
     const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-    const actualizados = originales.map((it) => {
-      const k = itemIdentityKey(it);
-      const nueva = selMap.get(k) || 0;
+    const selByIndex = new Map();
+    const selByKey = new Map();
 
-      if (nueva <= 0) return it;
+    for (const s of selections) {
+      const qty = Math.max(0, num(s.cantidad_para_cotizar, 0));
+      if (qty <= 0) continue;
 
-      const total = num(it.cantidad, 0);
-      const antes = num(it.cantidad_cotizada, 0);
+      if (num(s.sourceIndex, -1) >= 0) {
+        selByIndex.set(num(s.sourceIndex, -1), qty);
+      }
 
-      const st = computeEstadoItem({ total, antes, nueva });
+      if (s.key) {
+        selByKey.set(String(s.key), qty);
+      }
+    }
+
+    const actualizados = originales.map((it, idx) => {
+      const total = num(it?.cantidad, 0);
+      const antes = num(it?.cantidad_cotizada, 0);
+
+      const identity = itemIdentityKey({
+        ...it,
+        item: num(it?.item, idx + 1),
+      });
+
+      const qtySeleccionada =
+        (selByIndex.has(idx) ? selByIndex.get(idx) : undefined) ??
+        (selByKey.has(identity) ? selByKey.get(identity) : 0);
+
+      if (qtySeleccionada > 0) {
+        const st = computeEstadoItem({
+          total,
+          antes,
+          nueva: qtySeleccionada,
+        });
+
+        return {
+          ...it,
+          item: num(it?.item, idx + 1),
+          cantidad: total,
+          cantidad_cotizada: st.finalCotizada,
+          estado: st.estado,
+          estado_cotizacion: st.estado_cotizacion,
+        };
+      }
+      const normalizado = normalizarEstadoCantidades({
+        total,
+        cotizada: antes,
+      });
 
       return {
         ...it,
-        cantidad_cotizada: st.finalCotizada,
-        estado: st.estado,
-        estado_cotizacion: st.estado_cotizacion,
+        item: num(it?.item, idx + 1),
+        cantidad: total,
+        cantidad_cotizada: normalizado.finalCotizada,
+        estado: normalizado.estado,
+        estado_cotizacion: normalizado.estado_cotizacion,
       };
     });
 
     const allComplete = actualizados.every((it) => {
-      const total = num(it.cantidad, 0);
-      const cot = num(it.cantidad_cotizada, 0);
-      const ec = normalizePlain(it.estado_cotizacion);
-      if (total <= 0) return true;
-      return ec === "completo" || cot >= total;
+      const total = num(it?.cantidad, 0);
+      const cot = num(it?.cantidad_cotizada, 0);
+      return total <= 0 || cot >= total;
     });
 
-    const anyCotizado = actualizados.some((it) => num(it.cantidad_cotizada, 0) > 0);
+    const anyCotizado = actualizados.some((it) => num(it?.cantidad_cotizada, 0) > 0);
 
     const nextEstatus = allComplete
       ? "Cotizado Completado"
@@ -2958,7 +3117,36 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 24px rgba(0,0,0,.12);
   max-width: 420px;
 }
+.dropzone-upload{
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 28px 18px;
+  text-align: center;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all .2s ease;
+  user-select: none;
+}
 
+
+.dropzone-upload:hover{
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.dropzone-upload.is-dragging{
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, .06);
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, .08);
+  transform: scale(1.01);
+}
+
+.dropzone-icon{
+  font-size: 42px;
+  line-height: 1;
+  color: #dc2626;
+  margin-bottom: 10px;
+}
 .sticky-panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: hidden; }
 .sticky-panel .card-body { overflow: auto; }
 

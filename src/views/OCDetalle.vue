@@ -299,10 +299,13 @@
                     <th style="width: 80px">Ítem</th>
                     <th>Descripción</th>
                     <th style="width: 160px">Código ref.</th>
-                    <th class="text-center" style="width: 110px">Cant.</th>
+                    <th class="text-center" style="width: 110px">Cant. Solped</th>
+                    <th class="text-center" style="width: 110px">Cant. Cotizada antes</th>
                     <th class="text-center" style="width: 110px">Cotizado</th>
+                    <th class="text-center" style="width: 110px">Total</th>
                     <th style="width: 160px">N° interno</th>
-                    <th style="width: 140px">Estado</th>
+                    <th style="width: 140px">Estado de la coti</th>
+                    <th style="width: 140px">Estado de la Solped</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -313,11 +316,18 @@
                     </td>
                     <td><span class="text-monospace">{{ it.codigo_referencial || "—" }}</span></td>
                     <td class="text-center">{{ it.cantidad ?? "—" }}</td>
+                    <td class="text-center">{{ it.cantidad_cotizada_antes ?? "—" }}</td>
+                    <td class="text-center">{{ it.cantidad_para_cotizar ?? "—" }}</td>
                     <td class="text-center">{{ it.cantidad_cotizada ?? "—" }}</td>
                     <td>{{ it.numero_interno || "—" }}</td>
                     <td>
                       <span class="badge" :class="itemEstadoBadge(it.estado_cotizacion)">
                         {{ it.estado_cotizacion || "—" }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge" :class="itemEstadoBadge(it.estado )">
+                        {{ it.estado || "—" }}
                       </span>
                     </td>
                   </tr>
@@ -1268,6 +1278,7 @@ const estadoBadgeClass = (estatus) => {
 
 const itemEstadoBadge = (e) => {
   const s = norm(e);
+  if (s === "aprobado") return "bg-success-subtle text-success-emphasis";
   if (s.includes("complet")) return "bg-success-subtle text-success-emphasis";
   if (s.includes("parcial")) return "bg-warning-subtle text-warning-emphasis";
   if (s.includes("revision")) return "bg-info-subtle text-info-emphasis";

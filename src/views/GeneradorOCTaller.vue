@@ -425,12 +425,41 @@
 
               <div class="mb-3">
                 <label class="form-label">Archivos PDF o Imagen (cotizaciones)</label>
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                  <input id="inputArchivo" type="file" multiple accept="application/pdf,image/*" class="d-none" @change="onMultipleFilesSelected">
-                  <button class="btn btn-outline-primary" @click="abrirSelectorArchivos">
-                    <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
-                  </button>
-                  <small class="text-secondary">Puedes subir más de uno.</small>
+
+                <input
+                  id="inputArchivo"
+                  type="file"
+                  multiple
+                  accept="application/pdf,image/*"
+                  class="d-none"
+                  @change="onMultipleFilesSelected"
+                >
+
+                <div
+                  class="dropzone-upload"
+                  :class="{ 'is-dragging': dragOverArchivos }"
+                  @click="abrirSelectorArchivos"
+                  @dragenter.prevent="onDragEnterArchivos"
+                  @dragover.prevent="onDragOverArchivos"
+                  @dragleave.prevent="onDragLeaveArchivos"
+                  @drop.prevent="onDropArchivos"
+                >
+                  <div class="dropzone-icon">
+                    <i class="bi bi-cloud-arrow-up"></i>
+                  </div>
+
+                  <div class="fw-semibold mb-1">
+                    Arrastra aquí tus archivos
+                  </div>
+
+                  <div class="text-secondary small mb-2">
+                    o haz clic para seleccionarlos
+                  </div>
+
+                  <div class="d-flex justify-content-center flex-wrap gap-2">
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">PDF</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">Imágenes</span>
+                  </div>
                 </div>
               </div>
 
@@ -567,8 +596,21 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
-  collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc,
-  serverTimestamp, onSnapshot, Timestamp, getCountFromServer, runTransaction
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  query,
+  where,
+  orderBy,
+  limit,
+  addDoc,
+  updateDoc,
+  serverTimestamp,
+  onSnapshot,
+  Timestamp,
+  getCountFromServer,
+  runTransaction,
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -588,7 +630,7 @@ const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TAL
 
 const totalAprobadasDelUsuarioTaller = ref(0);
 const bloqueoPorAprobadasTaller = computed(() => {
-  const roleLower = (userRole.value || "").toString().toLowerCase();
+  const roleLower = String(userRole.value || "").trim().toLowerCase();
   if (!APPLY_TO_ROLES.includes(roleLower)) return false;
   return totalAprobadasDelUsuarioTaller.value >= MAX_OC_APROBADAS_TALLER;
 });
@@ -628,8 +670,10 @@ const aprobadorSugerido = ref("");
 
 const tipoCambioUSD = 950;
 const tipoCambioEUR = 1050;
+const ESTATUS_FIJO_INICIAL = "Revisión Guillermo";
 
 const mostrarEquipos = ref(false);
+
 const nnum = (v, def = 0) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : def;
@@ -643,102 +687,184 @@ const normalizePlain = (s) =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
-function sumMapNumbers(obj) {
-  if (!obj || typeof obj !== "object") return 0;
-  return Object.values(obj).reduce((acc, v) => acc + nnum(v, 0), 0);
-}
+const itemIdentityKey = (it) => {
+  const itemN = nnum(it?.item, 0);
+  const ni = String(it?.numero_interno || "").trim();
+  const desc = normalizePlain(it?.descripcion || "");
+  return `${itemN}|${ni}|${desc}`;
+};
 
-function computeItemCounters(base) {
-  const total = nnum(base.cantidad, 0);
+const isItemCompleto = (it) => {
+  const total = nnum(it?.cantidad, 0);
+  const cot = nnum(it?.cantidad_cotizada, 0);
+  return total > 0 && cot >= total;
+};
 
-  const cotPorOC = (base.cotPorOC && typeof base.cotPorOC === "object") ? base.cotPorOC : {};
-  const pend = (base.pendienteRevisionPorOC && typeof base.pendienteRevisionPorOC === "object")
-    ? base.pendienteRevisionPorOC
-    : {};
+const normalizarEstadoCantidades = ({ total, cotizada }) => {
+  const t = Math.max(0, nnum(total, 0));
+  const cRaw = Math.max(0, nnum(cotizada, 0));
+  const c = t > 0 ? Math.min(cRaw, t) : cRaw;
 
-  const aprobado = Math.min(total, sumMapNumbers(cotPorOC));
-  const reservado = Math.min(total, sumMapNumbers(pend));
-  const restan = Math.max(0, total - aprobado - reservado);
-  const comprometido = Math.min(total, aprobado + reservado);
+  if (t <= 0) {
+    return {
+      finalCotizada: c,
+      estado_cotizacion: c > 0 ? "revisión" : "pendiente",
+      estado: c > 0 ? "completado" : "pendiente",
+    };
+  }
 
-  return { total, aprobado, reservado, restan, comprometido };
-}
+  if (c <= 0) {
+    return {
+      finalCotizada: 0,
+      estado_cotizacion: "pendiente",
+      estado: "pendiente",
+    };
+  }
 
-function recomputeSolpedItemState(item) {
-  const it = { ...(item || {}) };
-  const total = nnum(it.cantidad, 0);
+  if (c < t) {
+    return {
+      finalCotizada: c,
+      estado_cotizacion: "revisión",
+      estado: "parcial",
+    };
+  }
 
-  it.cotPorOC = (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {};
-  it.pendienteRevisionPorOC =
-    (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object")
-      ? it.pendienteRevisionPorOC
-      : {};
+  return {
+    finalCotizada: t,
+    estado_cotizacion: "revisión",
+    estado: "completado",
+  };
+};
 
-  const { comprometido } = computeItemCounters(it);
+const computeEstadoItem = ({ total, antes, nueva }) => {
+  const final = nnum(antes, 0) + nnum(nueva, 0);
+  return normalizarEstadoCantidades({ total, cotizada: final });
+};
 
-  it.cantidad_cotizada = comprometido;
+const clampCantidadParaCotizar = (it) => {
+  const total = nnum(it?.cantidad, 0);
+  const antes = nnum(it?.cantidad_cotizada, 0);
+  const max = Math.max(0, total - antes);
 
-  if (total > 0 && comprometido >= total) it.estado_cotizacion = "completado";
-  else if (comprometido > 0) it.estado_cotizacion = "parcial";
-  else it.estado_cotizacion = "pendiente";
+  const raw = nnum(it?.cantidad_para_cotizar, 0);
+  const v = Math.min(Math.max(0, raw), max);
 
-  it.estado = it.estado_cotizacion;
-  return it;
-}
-const clampCantidad = (it) => {
-  const max = nnum(it.__restan, 0);
-  const raw = nnum(it.cantidad_para_cotizar, 0);
-
-  let v = raw;
-  if (v < 0) v = 0;
-  if (v > max) v = max;
-
+  it.__max = max;
   it.cantidad_para_cotizar = v;
+  it.__restante = Math.max(0, max - v);
+  it.__restan = it.__restante;
   it.__invalid = raw !== v;
 };
 
+const clampCantidad = (it) => clampCantidadParaCotizar(it);
+
+
+const buildItemsSolpedForUI = (solpedItems = []) => {
+  return (solpedItems || [])
+    .map((it, idx) => {
+      const total = nnum(it?.cantidad, 0);
+      const antes = nnum(it?.cantidad_cotizada, 0);
+      const normalizado = normalizarEstadoCantidades({ total, cotizada: antes });
+      const max = Math.max(0, total - normalizado.finalCotizada);
+
+      const itemNormalizado = {
+        ...it,
+        item: nnum(it?.item, idx + 1),
+        cantidad: total,
+        cantidad_cotizada: normalizado.finalCotizada,
+        estado: normalizado.estado,
+        estado_cotizacion: normalizado.estado_cotizacion,
+      };
+
+      const baseKey = itemIdentityKey(itemNormalizado);
+
+      return {
+        ...itemNormalizado,
+        cantidad_para_cotizar: 0,
+        __sourceIndex: idx,
+        __key: baseKey,
+        __tempId: `${baseKey}|${idx}`,
+        __k: `${baseKey}|${idx}`,
+        __max: max,
+        __restante: max,
+        __restan: max,
+        __invalid: false,
+      };
+    })
+    .filter((it) => !isItemCompleto(it));
+};
+
 const buildSelectionsTaller = (itemsUI = []) => {
-  const out = [];
-  for (const it of itemsUI || []) {
-    clampCantidad(it);
-    const qty = nnum(it.cantidad_para_cotizar, 0);
+  return (itemsUI || [])
+    .map((it) => {
+      clampCantidadParaCotizar(it);
+      return {
+        sourceIndex: nnum(it.__sourceIndex, -1),
+        key: String(it.__key || ""),
+        item: nnum(it.item, 0),
+        numero_interno: String(it.numero_interno || "").trim(),
+        descripcion: String(it.descripcion || ""),
+        __tempId: String(it.__tempId || "").trim(),
+        qty: nnum(it.cantidad_para_cotizar, 0),
+      };
+    })
+    .filter((x) => x.qty > 0);
+};
+
+const buildItemsOC_Taller = (
+  itemsUI = [],
+  selections = [],
+  nombreUsuario = "",
+  solpedId = "",
+  solpedSel = null,
+  moneda = "CLP",
+  totalConIVA = 0
+) => {
+  const selByIndex = new Map();
+  const selByKey = new Map();
+
+  for (const s of selections || []) {
+    const qty = Math.max(0, nnum(s.qty, 0));
     if (qty <= 0) continue;
+
+    if (nnum(s.sourceIndex, -1) >= 0) {
+      selByIndex.set(nnum(s.sourceIndex, -1), qty);
+    }
+
+    if (s.key) {
+      selByKey.set(String(s.key), qty);
+    }
+  }
+
+  const out = [];
+
+  for (const it of itemsUI || []) {
+    clampCantidadParaCotizar(it);
+
+    const qty =
+      (selByIndex.has(nnum(it.__sourceIndex, -1)) ? selByIndex.get(nnum(it.__sourceIndex, -1)) : undefined) ??
+      (selByKey.has(String(it.__key || "")) ? selByKey.get(String(it.__key || "")) : 0);
+
+    if (!qty || qty <= 0) continue;
+
+    const total = nnum(it.cantidad, 0);
+    const antes = nnum(it.cantidad_cotizada, 0);
+    const st = computeEstadoItem({ total, antes, nueva: qty });
 
     out.push({
       item: nnum(it.item, 0),
-      __tempId: String(it.__tempId || "").trim(),
-      qty,
-    });
-  }
-  return out;
-};
-
-const buildItemsOC_Taller = (itemsUI = [], selections = [], nombreUsuario = "", solpedId = "", solpedSel = null, moneda = "CLP", totalConIVA = 0) => {
-  const selByItem = new Map(selections.map(s => [nnum(s.item, 0), nnum(s.qty, 0)]));
-  const out = [];
-
-  for (const it of itemsUI || []) {
-    const itemNo = nnum(it.item, 0);
-    const qty = selByItem.get(itemNo) || 0;
-    if (qty <= 0) continue;
-
-    out.push({
-      solped_item_no: itemNo,
-      item: itemNo,
-      descripcion: it.descripcion || "",
-      codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
-      imagen_url: it.imagen_url ?? null,
-
-      cantidad: nnum(it.cantidad, 0),
-      cantidad_solicitada_oc: qty,
+      descripcion: String(it.descripcion || ""),
+      cantidad: total,
+      cantidad_cotizada_antes: antes,
       cantidad_para_cotizar: qty,
-
-      cantidad_cotizada: qty,
-
-      estado: "revision",
-      estado_cotizacion: "revision",
-
+      cantidad_cotizada: st.finalCotizada,
+      codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
       numero_interno: it.numero_interno || "",
+      imagen_url: it.imagen_url ?? null,
+      stock: nnum(it.stock, 0),
+      estado: st.estado,
+      estado_cotizacion: st.estado_cotizacion,
+
       solpedId,
       numero_solped: solpedSel?.numero_solpe || 0,
       tipo_solped: solpedSel?.tipo_solped || "No definido",
@@ -746,43 +872,131 @@ const buildItemsOC_Taller = (itemsUI = [], selections = [], nombreUsuario = "", 
       precioTotalConIVA: totalConIVA,
       responsable: nombreUsuario,
 
-      __tempId: it.__tempId || `${itemNo}-${it.descripcion}-${it.codigo_referencial || ""}`,
+      __tempId: String(it.__tempId || ""),
+      __sourceIndex: nnum(it.__sourceIndex, -1),
+      __itemKey: String(it.__key || ""),
     });
   }
 
   return out;
 };
+
 const archivos = ref([]);
+const dragOverArchivos = ref(false);
+let dragCounterArchivos = 0;
 const abrirSelectorArchivos = () => {
   const input = document.getElementById("inputArchivo");
   if (input) input.click();
 };
-const onMultipleFilesSelected = (e) => {
-  const list = Array.from(e.target.files || []);
+
+const archivoYaAgregado = (file) => {
+  const name = String(file?.name || "").trim().toLowerCase();
+  const size = Number(file?.size || 0);
+
+  return archivos.value.some((a) => {
+    const aName = String(a?.name || "").trim().toLowerCase();
+    const aSize = Number(a?.file?.size || 0);
+    return aName === name && aSize === size;
+  });
+};
+
+const procesarArchivosEntrantes = async (files = []) => {
+  const list = Array.from(files || []);
+  if (!list.length) return;
+
+  let agregados = 0;
+
   for (const file of list) {
-    if (!file || file.size === 0 || !file.type) {
+    if (!file || file.size === 0) {
       addToast("warning", `Archivo inválido: ${file?.name || "desconocido"}`);
       continue;
     }
+
+    if (archivoYaAgregado(file)) {
+      addToast("warning", `El archivo "${file.name}" ya fue agregado.`);
+      continue;
+    }
+
+    const t = String(file.type || "").toLowerCase();
+    const esPDF = t.includes("pdf") || String(file.name || "").toLowerCase().endsWith(".pdf");
+    const esIMG = t.startsWith("image/");
+
+    if (!esPDF && !esIMG) {
+      addToast("warning", `Formato no soportado: "${file.name}". Solo PDF o imágenes.`);
+      continue;
+    }
+
     archivos.value.push({
       file,
       name: file.name,
       tipo: file.type,
       previewUrl: URL.createObjectURL(file),
-      __k: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
+      __k: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
     });
+
+    agregados++;
   }
-  if (!archivos.value.length) addToast("warning", "Ningún archivo válido fue seleccionado.");
+
+  if (!agregados) {
+    addToast("warning", "Ningún archivo válido fue agregado.");
+  }
 };
+
+const onMultipleFilesSelected = async (e) => {
+  try {
+    const list = Array.from(e?.target?.files || []);
+    await procesarArchivosEntrantes(list);
+  } finally {
+    try {
+      if (e?.target) e.target.value = "";
+    } catch (err) {
+      console.log(err);
+    }
+  }
+};
+
+const onDragEnterArchivos = () => {
+  dragCounterArchivos += 1;
+  dragOverArchivos.value = true;
+};
+
+const onDragOverArchivos = () => {
+  dragOverArchivos.value = true;
+};
+
+const onDragLeaveArchivos = () => {
+  dragCounterArchivos = Math.max(0, dragCounterArchivos - 1);
+  if (dragCounterArchivos === 0) {
+    dragOverArchivos.value = false;
+  }
+};
+
+const onDropArchivos = async (e) => {
+  dragCounterArchivos = 0;
+  dragOverArchivos.value = false;
+
+  const dt = e?.dataTransfer;
+  if (!dt) return;
+
+  const files = Array.from(dt.files || []);
+  if (!files.length) {
+    addToast("warning", "No se detectaron archivos para subir.");
+    return;
+  }
+
+  await procesarArchivosEntrantes(files);
+};
+
 const eliminarArchivo = (idx) => {
   const a = archivos.value[idx];
-  try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) {console.log(e)}
+  try {
+    if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl);
+  } catch (e) {
+    console.log(e);
+  }
   archivos.value.splice(idx, 1);
   addToast("success", "Archivo eliminado.");
 };
-
-
-
 
 const solpedDisponibles = ref([]);
 const solpedSeleccionadaId = ref("");
@@ -793,6 +1007,7 @@ const autorizacionNombre = ref(null);
 const autorizacionUrlRaw = ref(null);
 const autorizacionEsPDF = ref(false);
 const autorizacionEsImagen = ref(false);
+
 const theAutorizacionReset = () => {
   autorizacionNombre.value = null;
   autorizacionUrlRaw.value = null;
@@ -801,9 +1016,10 @@ const theAutorizacionReset = () => {
 };
 
 const centrosCostoDict = {
-  "27483":"CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
-  "23302-CARPETAS":"CONTRATO 23302 CARPETAS",
+  "27483": "CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
+  "23302-CARPETAS": "CONTRATO 23302 CARPETAS",
 };
+
 const centroCostoTextoAyuda = computed(() => {
   const v = (centroCostoTexto.value || "").trim();
   return centrosCostoDict[v] || "";
@@ -834,12 +1050,8 @@ const onChangeSolped = async () => {
 
     const data = snap.data() || {};
     const st = String(data.estatus || "").trim().toLowerCase();
-    const allowed = [
-      "pendiente",
-      "parcial",
-      "cotizado parcial",
-      "cotizado completado",
-    ];
+    const allowed = ["pendiente", "parcial", "cotizado parcial", "cotizado completado"];
+
     if (!allowed.includes(st)) {
       addToast("warning", "Esta SOLPED no está en estado Pendiente / Parcial / Cotizando.");
       solpedSeleccionada.value = null;
@@ -851,61 +1063,43 @@ const onChangeSolped = async () => {
 
     solpedSeleccionada.value = data;
 
-    centroCostoTexto.value = (data.nombre_centro_costo || data.centro_costo || data.numero_contrato || "").toString();
+    centroCostoTexto.value = (
+      data.nombre_centro_costo ||
+      data.centro_costo ||
+      data.numero_contrato ||
+      ""
+    ).toString();
 
     autorizacionNombre.value = data.autorizacion_nombre || null;
     autorizacionUrlRaw.value = data.autorizacion_url || null;
+
     const guess = String((autorizacionNombre.value || autorizacionUrlRaw.value || "")).toLowerCase();
     autorizacionEsPDF.value = guess.endsWith(".pdf");
     autorizacionEsImagen.value = /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(guess);
 
     const todos = Array.isArray(data.items) ? data.items : [];
+    itemsSolped.value = buildItemsSolpedForUI(todos);
 
-    const normalizados = todos.map((it, idx) => {
-      const base = {
-        ...it,
-        item: nnum(it.item, idx + 1),
-        cantidad: nnum(it.cantidad, 0),
-        cotPorOC: (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {},
-        pendienteRevisionPorOC: (it.pendienteRevisionPorOC && typeof it.pendienteRevisionPorOC === "object") ? it.pendienteRevisionPorOC : {},
-      };
-
-      const { aprobado, reservado, restan } = computeItemCounters(base);
-
-      const withCounters = {
-        ...base,
-        __aprobado: aprobado,
-        __reservado: reservado,
-        __restan: restan,
-      };
-
-      const final = recomputeSolpedItemState(withCounters);
-
-      final.__tempId = final.__tempId || `${final.item}-${normalizePlain(final.descripcion)}-${final.codigo_referencial || ""}`;
-      final.__k = `${final.item}|${final.__tempId}|${idx}`;
-
-      final.cantidad_para_cotizar = 0;
-      final.__invalid = false;
-
-      return final;
-    });
-
-    itemsSolped.value = normalizados
-      .filter((it) => nnum(it.__restan, 0) > 0);
+    for (const it of itemsSolped.value) clampCantidadParaCotizar(it);
 
     if (data.empresa) empresaSeleccionada.value = data.empresa;
+    calcularAprobador();
   } catch (e) {
     console.error(e);
   }
 };
 
-const onCambioMoneda = () => { formatearPrecConValor(precioTotalConIVA.value); };
+const onCambioMoneda = () => {
+  formatearPrecConValor(precioTotalConIVA.value);
+};
+
 const formatearPrecio = (ev) => {
   const input = String(ev?.target?.value ?? "");
   const soloNumeros = input.replace(/\D/g, "");
   const valor = soloNumeros ? parseInt(soloNumeros, 10) : 0;
   formatearPrecConValor(valor);
 };
+
 const formatearPrecConValor = (valor) => {
   precioTotalConIVA.value = valor;
   const m = monedaSeleccionada.value || "CLP";
@@ -923,12 +1117,14 @@ const formatearPrecConValor = (valor) => {
 };
 
 const calcularAprobador = () => {
-  let totalCLP = Number(precioTotalConIVA.value || 0);
+  let totalCLP = nnum(precioTotalConIVA.value, 0);
   const mon = String(monedaSeleccionada.value || "CLP").toUpperCase();
+
   if (mon === "USD") totalCLP *= tipoCambioUSD;
   else if (mon === "EUR") totalCLP *= tipoCambioEUR;
 
   const empresa = String(empresaSeleccionada.value || "").toLowerCase();
+
   if (empresa.includes("xtreme")) {
     if (totalCLP <= 500000) aprobadorSugerido.value = "Guillermo Manzor";
     else if (totalCLP <= 5000000) aprobadorSugerido.value = "Alejandro Candia";
@@ -938,118 +1134,106 @@ const calcularAprobador = () => {
   }
 };
 
-
-
-
-
-async function actualizarSolpedTaller_postOC(solpedId, selections, nombreUsuario, ocNumero, ocDocId) {
+const actualizarSolpedTaller_postOC = async (solpedId, selections, nombreUsuario, estatusInicial) => {
   if (!solpedId) return;
   if (!Array.isArray(selections) || selections.length === 0) return;
 
-  const dref = doc(db, "solped_taller", solpedId);
-  const ocKey = String(ocNumero);
+  const srefDoc = doc(db, "solped_taller", solpedId);
 
-  const result = await runTransaction(db, async (tx) => {
-    const ss = await tx.get(dref);
-    if (!ss.exists()) {
-      return { nuevoEstatusSol: "Pendiente" };
-    }
+  await runTransaction(db, async (tx) => {
+    const ss = await tx.get(srefDoc);
+    if (!ss.exists()) return;
 
     const dataSol = ss.data() || {};
     const originales = Array.isArray(dataSol.items) ? dataSol.items : [];
 
-    const idxByItemNo = new Map();
-    const idxByTempId = new Map();
+    const selByIndex = new Map();
+    const selByKey = new Map();
 
-    originales.forEach((it, i) => {
-      const n = nnum(it?.item, 0);
-      if (n > 0) idxByItemNo.set(n, i);
+    for (const s of selections) {
+      const qty = Math.max(0, nnum(s.qty, 0));
+      if (qty <= 0) continue;
 
-      const t = String(it?.__tempId || "").trim();
-      if (t) idxByTempId.set(t, i);
-    });
-
-    const items = originales.map((x) => ({
-      ...x,
-      item: nnum(x.item, 0),
-      cantidad: nnum(x.cantidad, 0),
-      cotPorOC: (x?.cotPorOC && typeof x.cotPorOC === "object") ? x.cotPorOC : {},
-      pendienteRevisionPorOC:
-        (x?.pendienteRevisionPorOC && typeof x.pendienteRevisionPorOC === "object")
-          ? x.pendienteRevisionPorOC
-          : {},
-    }));
-
-    const findIndex = (sel) => {
-      const itemNo = nnum(sel?.item, 0);
-      if (itemNo && idxByItemNo.has(itemNo)) return idxByItemNo.get(itemNo);
-
-      const t = String(sel?.__tempId || "").trim();
-      if (t && idxByTempId.has(t)) return idxByTempId.get(t);
-
-      return -1;
-    };
-
-    for (const sel of selections) {
-      const idx = findIndex(sel);
-      if (idx < 0) continue;
-
-      const base = { ...items[idx] };
-
-      const { total, restan } = computeItemCounters(base);
-      const req = Math.max(0, nnum(sel?.qty, 0));
-
-
-      const qty = Math.min(req, restan, total);
-
-      if (qty <= 0) {
-        items[idx] = recomputeSolpedItemState(base);
-        continue;
+      if (nnum(s.sourceIndex, -1) >= 0) {
+        selByIndex.set(nnum(s.sourceIndex, -1), qty);
       }
 
-      base.pendienteRevisionPorOC = base.pendienteRevisionPorOC || {};
-      base.pendienteRevisionPorOC[ocKey] = qty;
-
-      items[idx] = recomputeSolpedItemState(base);
+      if (s.key) {
+        selByKey.set(String(s.key), qty);
+      }
     }
 
-    const finalItems = items.map((it) => recomputeSolpedItemState(it));
+    const actualizados = originales.map((it, idx) => {
+      const total = nnum(it?.cantidad, 0);
+      const antes = nnum(it?.cantidad_cotizada, 0);
 
-    const tot = finalItems.length;
+      const identity = itemIdentityKey({
+        ...it,
+        item: nnum(it?.item, idx + 1),
+      });
 
-    const completos = finalItems.filter((it) => {
-      const total = nnum(it.cantidad, 0);
-      const { comprometido } = computeItemCounters(it);
-      return total > 0 && comprometido >= total;
-    }).length;
+      const qtySeleccionada =
+        (selByIndex.has(idx) ? selByIndex.get(idx) : undefined) ??
+        (selByKey.has(identity) ? selByKey.get(identity) : 0);
 
-    const anyComprometido = finalItems.some((it) => {
-      const { comprometido } = computeItemCounters(it);
-      return comprometido > 0;
+      if (qtySeleccionada > 0) {
+        const st = computeEstadoItem({
+          total,
+          antes,
+          nueva: qtySeleccionada,
+        });
+
+        return {
+          ...it,
+          item: nnum(it?.item, idx + 1),
+          cantidad: total,
+          cantidad_cotizada: st.finalCotizada,
+          estado: st.estado,
+          estado_cotizacion: st.estado_cotizacion,
+        };
+      }
+
+      const normalizado = normalizarEstadoCantidades({
+        total,
+        cotizada: antes,
+      });
+
+      return {
+        ...it,
+        item: nnum(it?.item, idx + 1),
+        cantidad: total,
+        cantidad_cotizada: normalizado.finalCotizada,
+        estado: normalizado.estado,
+        estado_cotizacion: normalizado.estado_cotizacion,
+      };
     });
 
-    let nuevoEstatusSol = "Pendiente";
-    if (tot > 0 && completos === tot) nuevoEstatusSol = "Cotizado Completado";
-    else if (anyComprometido) nuevoEstatusSol = "Cotizado Parcial";
+    const allComplete = actualizados.every((it) => {
+      const total = nnum(it?.cantidad, 0);
+      const cot = nnum(it?.cantidad_cotizada, 0);
+      return total <= 0 || cot >= total;
+    });
 
-    tx.update(dref, {
-      items: finalItems,
-      estatus: nuevoEstatusSol,
+    const anyCotizado = actualizados.some((it) => nnum(it?.cantidad_cotizada, 0) > 0);
+
+    const nextEstatus = allComplete
+      ? "Cotizado Completado"
+      : (anyCotizado ? "Cotizado Parcial" : (dataSol.estatus || "Pendiente"));
+
+    tx.update(srefDoc, {
+      items: actualizados,
+      estatus: nextEstatus,
       updated_at: serverTimestamp(),
     });
-
-    return { nuevoEstatusSol };
   });
 
   await addDoc(collection(db, "solped_taller", solpedId, "historialEstados"), {
-    usuario: nombreUsuario,
+    usuario: nombreUsuario || "Sistema",
     fecha: serverTimestamp(),
-    estatus: result?.nuevoEstatusSol || "Cotizado Parcial",
-    detalle: `Se subió cotización (OC Taller N° ${ocNumero})`,
-    ocId: ocDocId,
-    ocNumero,
+    estatus: `Cotización enviada - ${estatusInicial || "Pendiente de Aprobación"}`,
   });
-}
+};
+
 const enviarOC = async () => {
   if (enviando.value) return;
 
@@ -1063,12 +1247,30 @@ const enviarOC = async () => {
     return;
   }
 
-  if (!usuarioActual.value) { addToast("warning", "Debes iniciar sesión."); return; }
-  if (!centroCostoTexto.value.trim()) { addToast("warning", "Ingresa Centro de Costo (texto)"); return; }
-  if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning", "Precio inválido"); return; }
-  if (!monedaSeleccionada.value) { addToast("warning", "Selecciona moneda"); return; }
-  if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
-  if (archivos.value.length === 0) { addToast("warning", "Debes subir al menos un archivo de cotización"); return; }
+  if (!usuarioActual.value) {
+    addToast("warning", "Debes iniciar sesión.");
+    return;
+  }
+  if (!centroCostoTexto.value.trim()) {
+    addToast("warning", "Ingresa Centro de Costo");
+    return;
+  }
+  if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) {
+    addToast("warning", "Precio inválido");
+    return;
+  }
+  if (!monedaSeleccionada.value) {
+    addToast("warning", "Selecciona moneda");
+    return;
+  }
+  if (usarSolped.value && !solpedSeleccionadaId.value) {
+    addToast("warning", "Selecciona una SOLPED o desactiva la opción");
+    return;
+  }
+  if (archivos.value.length === 0) {
+    addToast("warning", "Debes subir al menos un archivo de cotización");
+    return;
+  }
 
   let selections = [];
   if (usarSolped.value && solpedSeleccionadaId.value) {
@@ -1091,7 +1293,7 @@ const enviarOC = async () => {
 
     calcularAprobador();
     const aprobador = aprobadorSugerido.value || "";
-    const estatusInicial = "Revisión Guillermo";
+    const estatusInicial = ESTATUS_FIJO_INICIAL;
 
     const storage = getStorage();
     const subidos = [];
@@ -1108,7 +1310,11 @@ const enviarOC = async () => {
       const up = await uploadBytes(sRef, a.file);
       const url = await getDownloadURL(up.ref);
 
-      subidos.push({ nombre: safeName, tipo: a.tipo || a.file.type || "application/octet-stream", url });
+      subidos.push({
+        nombre: safeName,
+        tipo: a.tipo || a.file.type || "application/octet-stream",
+        url,
+      });
     }
 
     let itemsFinal = [];
@@ -1152,26 +1358,28 @@ const enviarOC = async () => {
       precioTotalConIVA: precioTotalConIVA.value,
       responsable: nombreUsuario,
 
-      ...(usarSolped.value && solpedSeleccionadaId.value ? {
-        solpedId: solpedSeleccionadaId.value,
-        numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
-        tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
-        items: itemsFinal,
-      } : {
-        tipo_solped: "Sin SOLPED",
-        items: [],
-      }),
+      ...(usarSolped.value && solpedSeleccionadaId.value
+        ? {
+            solpedId: solpedSeleccionadaId.value,
+            numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
+            tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
+            items: itemsFinal,
+          }
+        : {
+            tipo_solped: "Sin SOLPED",
+            items: [],
+          }),
     };
 
     const newRef = await addDoc(collection(db, "ordenes_oc_taller"), dataToSave);
+    await updateDoc(newRef, { __docId: newRef.id });
 
     if (usarSolped.value && solpedSeleccionadaId.value) {
       await actualizarSolpedTaller_postOC(
         solpedSeleccionadaId.value,
         selections,
         nombreUsuario,
-        newId,
-        newRef.id
+        estatusInicial
       );
     }
 
@@ -1193,16 +1401,25 @@ const enviarOC = async () => {
 
 const irADetalleOCTaller = (ocOrId) => {
   const id = typeof ocOrId === "string" ? ocOrId : (ocOrId?.__docId || ocOrId?.id || "");
-  if (!id) { addToast("warning", "No se pudo obtener el ID de la OC."); return; }
+  if (!id) {
+    addToast("warning", "No se pudo obtener el ID de la OC.");
+    return;
+  }
   router.push({ name: "OrdenOCTallerDetalle", params: { id } });
 };
 
 function resetFormulario() {
   centroCostoTexto.value = "";
   empresaSeleccionada.value = "Xtreme Servicios";
+
   for (const a of archivos.value) {
-    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) {console.log(e)}
+    try {
+      if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl);
+    } catch (e) {
+      console.log(e);
+    }
   }
+
   archivos.value = [];
   comentario.value = "";
   usarSolped.value = true;
@@ -1213,6 +1430,7 @@ function resetFormulario() {
   precioFormateado.value = "";
   aprobadorSugerido.value = "";
   monedaSeleccionada.value = "CLP";
+  theAutorizacionReset();
 }
 
 const fmtFecha = (f) => {
@@ -1220,7 +1438,9 @@ const fmtFecha = (f) => {
     const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : null);
     if (!d) return "—";
     return d.toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
-  } catch { return "—"; }
+  } catch {
+    return "—";
+  }
 };
 
 const estadoBadgeClass = (estatus) => {
@@ -1230,6 +1450,7 @@ const estadoBadgeClass = (estatus) => {
   if (s.includes("preaprob")) return "bg-info-subtle text-info-emphasis";
   if (s.includes("rechaz") || s.includes("escala")) return "bg-danger-subtle text-danger-emphasis";
   if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
+  if (s.includes("pendiente")) return "bg-warning-subtle text-warning-emphasis";
   return "bg-secondary-subtle text-secondary-emphasis";
 };
 
@@ -1240,7 +1461,10 @@ const ocTallerMesPageSize = 2;
 const ocTallerMesCurrentPage = ref(1);
 let _unsubOCTallerMes = null;
 
-const ocTallerMesTotalPages = computed(() => Math.max(1, Math.ceil(ocTallerMes.value.length / ocTallerMesPageSize)));
+const ocTallerMesTotalPages = computed(() =>
+  Math.max(1, Math.ceil(ocTallerMes.value.length / ocTallerMesPageSize))
+);
+
 const ocTallerMesVisiblePages = computed(() => {
   const maxButtons = 8;
   const pages = [];
@@ -1250,24 +1474,34 @@ const ocTallerMesVisiblePages = computed(() => {
   for (let i = start; i <= end; i++) pages.push(i);
   return pages;
 });
+
 const ocTallerMesPaged = computed(() => {
   const start = (ocTallerMesCurrentPage.value - 1) * ocTallerMesPageSize;
   return ocTallerMes.value.slice(start, start + ocTallerMesPageSize);
 });
+
 const ocTallerMesGoTo = (n) => {
   if (n < 1 || n > ocTallerMesTotalPages.value) return;
   ocTallerMesCurrentPage.value = n;
 };
 
 function suscribirOCTallerMes(nombre) {
-  if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
+  if (_unsubOCTallerMes) {
+    _unsubOCTallerMes();
+    _unsubOCTallerMes = null;
+  }
+
   ocTallerMes.value = [];
   ocTallerMesCurrentPage.value = 1;
   cargandoOCTallerMes.value = true;
 
-  if (!nombre) { cargandoOCTallerMes.value = false; return; }
+  if (!nombre) {
+    cargandoOCTallerMes.value = false;
+    return;
+  }
 
   const { from, to } = rangeUltimosDosMeses();
+
   try {
     const qy = query(
       collection(db, "ordenes_oc_taller"),
@@ -1277,24 +1511,31 @@ function suscribirOCTallerMes(nombre) {
       orderBy("fechaSubida", "desc")
     );
 
-    _unsubOCTallerMes = onSnapshot(qy, (snap) => {
-      let arr = [];
-      snap.forEach((docu) => arr.push({ __docId: docu.id, ...docu.data() }));
-      arr = arr.filter(x => String(x.estatus || "").toLowerCase().includes("proveedor"));
-      arr.sort((a, b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0));
-      ocTallerMes.value = arr;
-      ocTallerMesCurrentPage.value = 1;
-      cargandoOCTallerMes.value = false;
-    }, () => {
-      cargandoOCTallerMes.value = false;
-    });
+    _unsubOCTallerMes = onSnapshot(
+      qy,
+      (snap) => {
+        const arr = [];
+        snap.forEach((docu) => arr.push({ __docId: docu.id, ...docu.data() }));
+        ocTallerMes.value = arr.sort(
+          (a, b) => (b.fechaSubida?.toMillis?.() ?? 0) - (a.fechaSubida?.toMillis?.() ?? 0)
+        );
+        ocTallerMesCurrentPage.value = 1;
+        cargandoOCTallerMes.value = false;
+      },
+      () => {
+        cargandoOCTallerMes.value = false;
+      }
+    );
   } catch {
     cargandoOCTallerMes.value = false;
   }
 }
 
 const desuscribirOCTallerMes = () => {
-  if (_unsubOCTallerMes) { _unsubOCTallerMes(); _unsubOCTallerMes = null; }
+  if (_unsubOCTallerMes) {
+    _unsubOCTallerMes();
+    _unsubOCTallerMes = null;
+  }
   ocTallerMes.value = [];
   ocTallerMesCurrentPage.value = 1;
   cargandoOCTallerMes.value = false;
@@ -1313,7 +1554,10 @@ const resumenPageSize = 10;
 const resumenCurrentPage = ref(1);
 let _unsubResumenUsuarios = null;
 
-const resumenTotalPages = computed(() => Math.max(1, Math.ceil(resumenUsuarios.value.length / resumenPageSize)));
+const resumenTotalPages = computed(() =>
+  Math.max(1, Math.ceil(resumenUsuarios.value.length / resumenPageSize))
+);
+
 const resumenVisiblePages = computed(() => {
   const maxButtons = 8;
   const pages = [];
@@ -1323,10 +1567,12 @@ const resumenVisiblePages = computed(() => {
   for (let i = start; i <= end; i++) pages.push(i);
   return pages;
 });
+
 const resumenUsuariosPaged = computed(() => {
   const start = (resumenCurrentPage.value - 1) * resumenPageSize;
   return resumenUsuarios.value.slice(start, start + resumenPageSize);
 });
+
 const resumenGoTo = (n) => {
   if (n < 1 || n > resumenTotalPages.value) return;
   resumenCurrentPage.value = n;
@@ -1335,7 +1581,7 @@ const resumenGoTo = (n) => {
 function mapEstatusCategoria(estatusRaw) {
   const s = String(estatusRaw || "").toLowerCase().trim();
   if (s.includes("proveedor")) return "Enviada a proveedor";
-  if (s.includes("aprobado")) return "Aprobado";
+  if (s.includes("aprobado") && !s.includes("preaprob")) return "Aprobado";
   if (s.includes("preaprob")) return "Preaprobado";
   if (s.includes("rechaz") || s.includes("escala")) return "Rechazado";
   if (s.includes("pendiente")) return "Pendiente de Aprobación";
@@ -1344,7 +1590,10 @@ function mapEstatusCategoria(estatusRaw) {
 }
 
 function desuscribirResumenUsuarios() {
-  if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
+  if (_unsubResumenUsuarios) {
+    _unsubResumenUsuarios();
+    _unsubResumenUsuarios = null;
+  }
   resumenUsuarios.value = [];
   resumenCurrentPage.value = 1;
   cargandoResumenUsuarios.value = false;
@@ -1354,7 +1603,10 @@ function suscribirResumenUsuarios(nombre) {
   desuscribirResumenUsuarios();
   cargandoResumenUsuarios.value = true;
 
-  if (!nombre) { cargandoResumenUsuarios.value = false; return; }
+  if (!nombre) {
+    cargandoResumenUsuarios.value = false;
+    return;
+  }
 
   const { from, to } = rangeUltimosDosMeses();
 
@@ -1367,38 +1619,42 @@ function suscribirResumenUsuarios(nombre) {
       orderBy("fechaSubida", "desc")
     );
 
-    _unsubResumenUsuarios = onSnapshot(qy, (snap) => {
-      const row = {
-        responsable: nombre,
-        aprobado: 0,
-        rechazado: 0,
-        preaprobado: 0,
-        pendiente: 0,
-        revision: 0,
-        proveedor: 0,
-        otros: 0,
-        total: 0
-      };
+    _unsubResumenUsuarios = onSnapshot(
+      qy,
+      (snap) => {
+        const row = {
+          responsable: nombre,
+          aprobado: 0,
+          rechazado: 0,
+          preaprobado: 0,
+          pendiente: 0,
+          revision: 0,
+          proveedor: 0,
+          otros: 0,
+          total: 0,
+        };
 
-      snap.forEach((d) => {
-        const x = d.data() || {};
-        const cat = mapEstatusCategoria(x.estatus);
-        if (cat === "Aprobado") row.aprobado++;
-        else if (cat === "Rechazado") row.rechazado++;
-        else if (cat === "Preaprobado") row.preaprobado++;
-        else if (cat === "Pendiente de Aprobación") row.pendiente++;
-        else if (cat === "Revisión Guillermo") row.revision++;
-        else if (cat === "Enviada a proveedor") row.proveedor++;
-        else row.otros++;
-        row.total++;
-      });
+        snap.forEach((d) => {
+          const x = d.data() || {};
+          const cat = mapEstatusCategoria(x.estatus);
+          if (cat === "Aprobado") row.aprobado++;
+          else if (cat === "Rechazado") row.rechazado++;
+          else if (cat === "Preaprobado") row.preaprobado++;
+          else if (cat === "Pendiente de Aprobación") row.pendiente++;
+          else if (cat === "Revisión Guillermo") row.revision++;
+          else if (cat === "Enviada a proveedor") row.proveedor++;
+          else row.otros++;
+          row.total++;
+        });
 
-      resumenUsuarios.value = row.total > 0 ? [row] : [];
-      resumenCurrentPage.value = 1;
-      cargandoResumenUsuarios.value = false;
-    }, () => {
-      cargandoResumenUsuarios.value = false;
-    });
+        resumenUsuarios.value = row.total > 0 ? [row] : [];
+        resumenCurrentPage.value = 1;
+        cargandoResumenUsuarios.value = false;
+      },
+      () => {
+        cargandoResumenUsuarios.value = false;
+      }
+    );
   } catch {
     cargandoResumenUsuarios.value = false;
   }
@@ -1415,7 +1671,10 @@ let _unsubAprobadasLiveTaller = null;
 async function refrescarAprobadasConCountTaller() {
   try {
     const nombre = (usuarioActual.value || "").trim();
-    if (!nombre) { totalAprobadasDelUsuarioTaller.value = 0; return; }
+    if (!nombre) {
+      totalAprobadasDelUsuarioTaller.value = 0;
+      return;
+    }
 
     const { from, to } = rangeUltimosDosMeses();
     const qy = query(
@@ -1434,7 +1693,11 @@ async function refrescarAprobadasConCountTaller() {
 }
 
 function suscribirAprobadasLiveMinimaTaller() {
-  if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
+  if (_unsubAprobadasLiveTaller) {
+    _unsubAprobadasLiveTaller();
+    _unsubAprobadasLiveTaller = null;
+  }
+
   const nombre = (usuarioActual.value || "").trim();
   if (!nombre) return;
 
@@ -1449,6 +1712,7 @@ function suscribirAprobadasLiveMinimaTaller() {
       orderBy("fechaSubida", "desc"),
       limit(1)
     );
+
     _unsubAprobadasLiveTaller = onSnapshot(qy, async () => {
       await refrescarAprobadasConCountTaller();
     });
@@ -1469,7 +1733,10 @@ const obtenerNombreUsuario = async () => {
         userRole.value = data.role || "";
       }
     }
-    if (!usuarioActual.value) usuarioActual.value = auth?.user?.displayName || auth?.user?.email || "";
+
+    if (!usuarioActual.value) {
+      usuarioActual.value = auth?.user?.displayName || auth?.user?.email || "";
+    }
   } catch (e) {
     console.error(e);
   } finally {
@@ -1481,19 +1748,24 @@ const cargarSolpedSolicitadas = async () => {
   try {
     let arr = [];
     try {
-    const qy = query(
-      collection(db, "solped_taller"),
-      where("estatus", "in", ["Pendiente","Parcial","Cotizado Parcial","Cotizado Completado"])
-    );
+      const qy = query(
+        collection(db, "solped_taller"),
+        where("estatus", "in", ["Pendiente", "Parcial", "Cotizado Parcial", "Cotizado Completado"])
+      );
       const snap = await getDocs(qy);
-      arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      arr = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     } catch {
       const snap = await getDocs(collection(db, "solped_taller"));
       arr = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(x => ["pendiente","parcial","cotizado parcial","cotizado completado"].includes(String(x.estatus||"").trim().toLowerCase()));
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((x) =>
+          ["pendiente", "parcial", "cotizado parcial", "cotizado completado"].includes(
+            String(x.estatus || "").trim().toLowerCase()
+          )
+        );
     }
-    solpedDisponibles.value = arr.sort((a,b) => (a.numero_solpe||0) - (b.numero_solpe||0));
+
+    solpedDisponibles.value = arr.sort((a, b) => (a.numero_solpe || 0) - (b.numero_solpe || 0));
   } catch (e) {
     console.error(e);
   }
@@ -1546,7 +1818,10 @@ const pagedEquipos = computed(() => {
   const start = (currentPage.value - 1) * equiposPageSize;
   return resultadosEquipos.value.slice(start, start + equiposPageSize);
 });
-const goToPage = (n) => { if (n < 1 || n > totalPages.value) return; currentPage.value = n; };
+const goToPage = (n) => {
+  if (n < 1 || n > totalPages.value) return;
+  currentPage.value = n;
+};
 
 const SEARCH_FIELDS = [
   "clasificacion1",
@@ -1569,7 +1844,10 @@ const normEq = (s) =>
 const compactEq = (s) => normEq(s).replace(/[^a-z0-9]+/g, "");
 
 const splitTokens = (q) =>
-  normEq(q).split(/[^a-z0-9]+/g).filter(Boolean).filter(t => t.length >= 2);
+  normEq(q)
+    .split(/[^a-z0-9]+/g)
+    .filter(Boolean)
+    .filter((t) => t.length >= 2);
 
 const haystackEquipo = (e) => {
   const s = SEARCH_FIELDS.map((k) => normEq(e?.[k])).join(" ");
@@ -1593,7 +1871,6 @@ const scoreEquipo = (e, qRaw, qTokens, qCompact) => {
 
   if (e.__codeCompact && qCompact && e.__codeCompact === qCompact) score += 3000;
   if (e.__codeCompact && qCompact && e.__codeCompact.includes(qCompact)) score += 900;
-
   if (qFull && h.includes(qFull)) score += 400;
 
   for (const t of qTokens) {
@@ -1635,7 +1912,10 @@ const aplicarFiltrosEquiposDebounced = () => {
   debounce = setTimeout(async () => {
     const q = (busquedaEquipo.value || "").trim();
     if (q.length >= 2) await buscarEquipos(q);
-    else { resultadosEquipos.value = []; currentPage.value = 1; }
+    else {
+      resultadosEquipos.value = [];
+      currentPage.value = 1;
+    }
   }, 250);
 };
 
@@ -1650,7 +1930,10 @@ const buscarEquipos = async (q) => {
   }
 
   if (!equiposLoaded.value) await ensureEquiposLoaded();
-  if (!equiposLoaded.value) { resultadosEquipos.value = []; return; }
+  if (!equiposLoaded.value) {
+    resultadosEquipos.value = [];
+    return;
+  }
 
   if (cacheResultados.has(qKey)) {
     resultadosEquipos.value = cacheResultados.get(qKey);
@@ -1698,19 +1981,20 @@ const buscarEquipos = async (q) => {
 
 const copiarEquipo = async (e) => {
   const texto =
-`Código: ${e.codigo || '—'}
-Equipo: ${e.equipo || '—'}
-Marca/Modelo: ${e.marca || '—'} / ${e.modelo || '—'}
-N° Chasis: ${e.numero_chasis || '—'}
-Localización: ${e.localizacion || '—'}
-Año: ${e.ano || '—'}
-Tipo: ${e.tipo_equipo || '—'}
-Clasificación: ${e.clasificacion1 || '—'}`;
+`Código: ${e.codigo || "—"}
+Equipo: ${e.equipo || "—"}
+Marca/Modelo: ${e.marca || "—"} / ${e.modelo || "—"}
+N° Chasis: ${e.numero_chasis || "—"}
+Localización: ${e.localizacion || "—"}
+Año: ${e.ano || "—"}
+Tipo: ${e.tipo_equipo || "—"}
+Clasificación: ${e.clasificacion1 || "—"}`;
+
   try {
     await navigator?.clipboard?.writeText(texto);
-    addToast("success","Datos copiados al portapapeles.");
+    addToast("success", "Datos copiados al portapapeles.");
   } catch {
-    addToast("warning","No se pudo copiar. Selecciona y copia manualmente.");
+    addToast("warning", "No se pudo copiar. Selecciona y copia manualmente.");
   }
 };
 
@@ -1732,10 +2016,12 @@ watch(usuarioActual, async (nv, ov) => {
 
 onMounted(async () => {
   await obtenerNombreUsuario();
+
   if (usuarioActual.value) {
     await refrescarAprobadasConCountTaller();
     suscribirAprobadasLiveMinimaTaller();
   }
+
   await cargarSolpedSolicitadas();
   await cargarSiguienteNumero();
 
@@ -1750,15 +2036,56 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (debounce) clearTimeout(debounce);
   if (_unsubOCTallerMes) _unsubOCTallerMes();
-  if (_unsubAprobadasLiveTaller) { _unsubAprobadasLiveTaller(); _unsubAprobadasLiveTaller = null; }
-  if (_unsubResumenUsuarios) { _unsubResumenUsuarios(); _unsubResumenUsuarios = null; }
+  if (_unsubAprobadasLiveTaller) {
+    _unsubAprobadasLiveTaller();
+    _unsubAprobadasLiveTaller = null;
+  }
+  if (_unsubResumenUsuarios) {
+    _unsubResumenUsuarios();
+    _unsubResumenUsuarios = null;
+  }
+
   for (const a of archivos.value) {
-    try { if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl); } catch(e) {console.log(e)}
+    try {
+      if (a?.previewUrl) URL.revokeObjectURL(a.previewUrl);
+    } catch (e) {
+      console.log(e);
+    }
   }
 });
 </script>
 
 <style scoped>
+.dropzone-upload{
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 28px 18px;
+  text-align: center;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all .2s ease;
+  user-select: none;
+}
+
+.dropzone-upload:hover{
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.dropzone-upload.is-dragging{
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, .06);
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, .08);
+  transform: scale(1.01);
+}
+
+.dropzone-icon{
+  font-size: 42px;
+  line-height: 1;
+  color: #dc2626;
+  margin-bottom: 10px;
+}
+
 .generador-oc-page{ min-height:100vh; }
 
 .card-elevated{

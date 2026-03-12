@@ -1059,6 +1059,7 @@ export default {
         case "preaprobado": return "#ffc107";
         case "casi aprobada": return "#6610f2";
         case "aprobada":
+        case "aprobado":
         case "cotizacion aprobada": return "#198754";
         case "enviada a proveedor":
         case "oc enviada a proveedor":

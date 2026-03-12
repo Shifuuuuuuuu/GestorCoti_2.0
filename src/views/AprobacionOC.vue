@@ -458,12 +458,7 @@ const pickUserName = (u = {}, fallback = '') => {
   );
 };
 
-const actorName = computed(() => {
-  return pickUserName(
-    auth?.profile || {},
-    auth?.user?.displayName || auth?.user?.email || "usuario"
-  );
-});
+
 
 const DEFAULT_APPROVAL_FLOW = {
   nombre: 'Flujo default',
@@ -804,10 +799,29 @@ const estadoBadgeClass = (estatus) => {
   if (s.includes('proveedor')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
+const actualizarEstadoCotizacionItemsOC = (items = [], nuevoEstatus = '') => {
+  const est = String(nuevoEstatus || '').trim().toLowerCase();
+
+  let nuevoEstadoCotizacion = 'en_revision';
+
+  if (est === 'aprobado') {
+    nuevoEstadoCotizacion = 'aprobado';
+  } else if (est === 'rechazado') {
+    nuevoEstadoCotizacion = 'rechazado';
+  } else if (est.includes('preaprob') || est.includes('casi') || est.includes('revision')) {
+    nuevoEstadoCotizacion = 'en_revision';
+  }
+
+  return (items || []).map((it) => ({
+    ...it,
+    estado_cotizacion: nuevoEstadoCotizacion,
+  }));
+};
 const badgeItem = (estado) => {
   const s = (estado || 'pendiente').toLowerCase();
   if (s.includes('aprob')) return 'bg-success-subtle text-success-emphasis';
   if (s.includes('revis')) return 'bg-warning-subtle text-warning-emphasis';
+  if (s.includes('parcial')) return 'bg-warning-subtle text-warning-emphasis';
   if (s.includes('pend')) return 'bg-secondary-subtle text-secondary-emphasis';
   if (s.includes('complet')) return 'bg-primary-subtle text-primary-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
@@ -970,193 +984,9 @@ const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, e
   }
 };
 
-const DEBUG = false;
-const s = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch { return obj; } };
-const dlog = (tag, payload = {}) => {
-  if (!DEBUG) return;
-  try { console.groupCollapsed(`[AprobOC] ${tag}`); console.log(payload); }
-  finally { console.groupEnd?.(); }
-};
 
-const actualizarSolpedConOC = async (oc, aprobador, comentario, estatusOC) => {
-  const solpedId = oc?.solpedId; if (!solpedId) return;
-  const sref = doc(db, 'solpes', String(solpedId));
-  const ss = await getDoc(sref); if (!ss.exists()) return;
 
-  const sdata = ss.data() || {};
-  const itemsSol = Array.isArray(sdata.items) ? [...sdata.items] : [];
-  const ocItems = Array.isArray(oc.items) ? oc.items : [];
-  const ocKey = String(oc.id ?? oc.__docId ?? '');
 
-  dlog('SOLPED:update:init', {
-    solpedId, ocId: oc.id, ocKey,
-    itemsOC: s(ocItems),
-    itemsSolpedBefore: s(itemsSol.map(it => ({
-      item: it.item, desc: it.descripcion, cant: it.cantidad, cot: it.cantidad_cotizada, estado: it.estado, cotPorOC: it.cotPorOC
-    })))
-  });
-
-  let huboAvance = false;
-
-  const norm = (x) => String(x||'').trim().toLowerCase();
-  const idxNI = new Map(), idxCR = new Map(), idxItemNum = new Map(), descCount = new Map();
-
-  itemsSol.forEach((it, i) => {
-    const ni = norm(it.numero_interno);
-    const cr = norm(it.codigo_referencial);
-    const itn = (it.item != null) ? String(it.item) : '';
-    const ds = norm(it.descripcion);
-    if (ni) idxNI.set(ni, i);
-    if (cr) idxCR.set(cr, i);
-    if (itn) idxItemNum.set(itn, i);
-    if (ds) descCount.set(ds, (descCount.get(ds) || 0) + 1);
-  });
-
-  const findIndex = (ocIt) => {
-    const kNI = norm(ocIt.numero_interno);
-    const kCR = norm(ocIt.codigo_referencial);
-    const kIT = (ocIt.item != null) ? String(ocIt.item) : '';
-    const kDS = norm(ocIt.descripcion);
-    if (kNI && idxNI.has(kNI)) return idxNI.get(kNI);
-    if (kCR && idxCR.has(kCR)) return idxCR.get(kCR);
-    if (kIT && idxItemNum.has(kIT)) return idxItemNum.get(kIT);
-    if (kDS && descCount.get(kDS) === 1) return itemsSol.findIndex(s2 => norm(s2.descripcion) === kDS);
-    return -1;
-  };
-
-  ocItems.forEach(ocIt => {
-    const idx = findIndex(ocIt);
-    if (idx < 0) { dlog('SOLPED:update:no-match', { ocIt: s(ocIt) }); return; }
-
-    const before = s(itemsSol[idx]);
-    const sIt = { ...itemsSol[idx] };
-
-    const cantSolic = Number(sIt.cantidad || 0);
-    const ya = Number(sIt.cantidad_cotizada || 0);
-    if (!sIt.cotPorOC || typeof sIt.cotPorOC !== 'object') sIt.cotPorOC = {};
-
-    const totalEnOC = Number(ocIt.cantidad_cotizada || 0);
-    const yaAportadoPorEstaOC = Number(sIt.cotPorOC[ocKey] || 0);
-
-    let delta = totalEnOC - yaAportadoPorEstaOC;
-    let nuevo = ya + delta;
-
-    dlog('SOLPED:update:calc-beforeClamp', {
-      matchIndex: idx, ocIt: s(ocIt), itemBefore: before,
-      cantSolic, ya, totalEnOC, yaAportadoPorEstaOC, delta, nuevo
-    });
-
-    if (!isFinite(delta) || isNaN(delta) || delta <= 0) {
-      dlog('SOLPED:update:skip-delta<=0', { idx, delta, totalEnOC, yaAportadoPorEstaOC });
-      return;
-    }
-
-    if (nuevo > cantSolic) {
-      delta -= (nuevo - cantSolic);
-      nuevo = cantSolic;
-      dlog('SOLPED:update:clamped', { idx, delta, nuevo, cantSolic });
-      if (delta <= 0) return;
-    }
-
-    sIt.cotPorOC[ocKey] = yaAportadoPorEstaOC + delta;
-    sIt.cantidad_cotizada = nuevo;
-
-    itemsSol[idx] = sIt;
-    huboAvance = true;
-
-    dlog('SOLPED:update:item-after', { matchIndex: idx, itemAfter: s(itemsSol[idx]) });
-  });
-
-  let cambiosEstado = false;
-  for (let i = 0; i < itemsSol.length; i++) {
-    const it = itemsSol[i];
-    const cant = Number(it.cantidad || 0);
-    const cot  = Number(it.cantidad_cotizada || 0);
-    const nuevoEstado = (cot >= cant && cant > 0) ? 'completado'
-      : (cot > 0) ? 'parcial'
-        : 'pendiente';
-    if ((it.estado || '') !== nuevoEstado) {
-      itemsSol[i] = { ...it, estado: nuevoEstado };
-      cambiosEstado = true;
-    }
-  }
-
-  const allFull = itemsSol.every(x => Number(x.cantidad_cotizada || 0) >= Number(x.cantidad || 0));
-  const anyCot  = itemsSol.some(x => Number(x.cantidad_cotizada || 0) > 0);
-  const nuevoEstatusSol = allFull
-    ? 'Cotizado Completado'
-    : (anyCot ? 'Cotizado Parcial' : 'Pendiente');
-
-  dlog('SOLPED:update:huboAvance?', { huboAvance, cambiosEstado, nuevoEstatusSol });
-
-  const debeActualizar = huboAvance || cambiosEstado || (String(sdata.estatus || '') !== String(nuevoEstatusSol));
-  if (debeActualizar) {
-    await updateDoc(sref, {
-      items: itemsSol,
-      estatus: nuevoEstatusSol,
-      updated_at: new Date()
-    });
-
-    try {
-      await addDoc(collection(sref, 'historialEstados'), {
-        origen: 'Aprobación OC',
-        usuario: aprobador || '—',
-        estatus: nuevoEstatusSol,
-        detalle: comentario || '',
-        comentario: comentario || '',
-        ocNumero: oc?.id ?? null,
-        fecha: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn('No se pudo registrar historialEstados (operativo) de la SOLPED:', e);
-    }
-  }
-
-  if (estatusOC) {
-    await registrarHistorialSolpedAccionOC({
-      solpedId,
-      ocNumero: oc?.id,
-      usuario: aprobador || '—',
-      estatusOC,
-      comentario: comentario || ''
-    });
-  }
-};
-
-const cerrarSolpedSiCompleta = async (solpedId) => {
-  if (!solpedId) return;
-
-  try {
-    const sref = doc(db, "solpes", String(solpedId));
-    const ss = await getDoc(sref);
-    if (!ss.exists()) return;
-
-    const data = ss.data() || {};
-    const items = Array.isArray(data.items) ? data.items : [];
-    if (!items.length) return;
-
-    const todosCompletos = items.every(
-      (it) => Number(it?.cantidad_cotizada || 0) >= Number(it?.cantidad || 0)
-    );
-    const cur = String(data?.estatus || "").trim().toLowerCase();
-    const yaEstaOk =
-      cur === "cotizado completado" ||
-      cur === "cotizado completada" ||
-      cur === "completado";
-
-    if (todosCompletos && !yaEstaOk) {
-      await updateDoc(sref, {
-        estatus: "Cotizado Completado",
-        updatedAt: serverTimestamp(),
-        updatedBy: actorName.value || undefined,
-      });
-
-      addToast("success", "SOLPED cotizada completa ✔");
-    }
-  } catch (e) {
-    console.error("cerrarSolpedSiCompleta:", e);
-  }
-};
 
 const parseMoneyCLP = (v) => {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
@@ -1207,42 +1037,64 @@ const accionando = ref(false);
 
 const solicitarAclaracion = async (oc) => {
   if (accionando.value) return;
+
   const comentario = (oc._comentarioAccion || '').trim();
-  if (!comentario) { addToast('warning', 'Escribe un comentario antes de solicitar aclaración.'); return; }
-  if (!canActOnOC(oc)) { addToast('warning','No puedes solicitar aclaración en este estado.'); return; }
+  if (!comentario) {
+    addToast('warning', 'Escribe un comentario antes de solicitar aclaración.');
+    return;
+  }
+  if (!canActOnOC(oc)) {
+    addToast('warning', 'No puedes solicitar aclaración en este estado.');
+    return;
+  }
 
   accionando.value = true;
   try {
     const nuevoHistorial = [
       ...((oc.historial || [])),
-      { usuario: usuarioNombre.value || '—', estatus: 'Pendiente de Aprobación', fecha: new Date().toISOString(), comentario }
+      {
+        usuario: usuarioNombre.value || '—',
+        estatus: 'Pendiente de Aprobación',
+        fecha: new Date().toISOString(),
+        comentario
+      }
     ];
-
+    const nuevosItems = actualizarEstadoCotizacionItemsOC(oc.items || [], 'Pendiente de Aprobación');
     await updateDoc(doc(db, 'ordenes_oc', oc.__docId), {
       estatus: 'Pendiente de Aprobación',
-      historial: nuevoHistorial
+      historial: nuevoHistorial,
+      items: nuevosItems
     });
 
     await registrarHistorialSolpedAccionOC({
-      solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
-      estatusOC: 'Pendiente de Aprobación', comentario
+      solpedId: oc.solpedId,
+      ocNumero: oc.id,
+      usuario: usuarioNombre.value || '—',
+      estatusOC: 'Pendiente de Aprobación',
+      comentario
     });
 
     addToast('warning', 'Solicitada aclaración: estado → Pendiente de Aprobación');
     ocs.value = ocs.value.filter(x => x.__docId !== oc.__docId);
   } catch (e) {
     console.error(e);
-    addToast('danger','No se pudo solicitar la aclaración.');
+    addToast('danger', 'No se pudo solicitar la aclaración.');
   } finally {
     accionando.value = false;
   }
 };
-
 const aprobar = async (oc) => {
   if (accionando.value) return;
+
   const comentario = (oc._comentarioAccion || '').trim();
-  if (!comentario) { addToast('warning', 'Escribe un comentario antes de aprobar.'); return; }
-  if (!canActOnOC(oc)) { addToast('warning','No puedes aprobar este estado.'); return; }
+  if (!comentario) {
+    addToast('warning', 'Escribe un comentario antes de aprobar.');
+    return;
+  }
+  if (!canActOnOC(oc)) {
+    addToast('warning', 'No puedes aprobar este estado.');
+    return;
+  }
 
   accionando.value = true;
   try {
@@ -1257,57 +1109,67 @@ const aprobar = async (oc) => {
       return;
     }
 
-    const nuevosItems = (oc.items || []).map((it) =>
-      (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'aprobado' } : it
-    );
+    const nuevosItems = actualizarEstadoCotizacionItemsOC(oc.items || [], nuevoEstatus);
 
     const nuevoHistorial = [
       ...((oc.historial || [])),
-      { usuario: usuarioNombre.value || '—', estatus: nuevoEstatus, fecha: new Date().toISOString(), comentario }
+      {
+        usuario: usuarioNombre.value || '—',
+        estatus: nuevoEstatus,
+        fecha: new Date().toISOString(),
+        comentario
+      }
     ];
 
     await updateDoc(doc(db, 'ordenes_oc', oc.__docId), {
       estatus: nuevoEstatus,
       historial: nuevoHistorial,
-      items: nuevosItems,
-      aprobadoPor: usuarioNombre.value || ''
+      aprobadoPor: usuarioNombre.value || '',
+      items: nuevosItems
     });
 
-    if (String(nuevoEstatus).toLowerCase() === 'aprobado') {
-      await actualizarSolpedConOC({ ...oc, items: nuevosItems }, usuarioNombre.value || '—', comentario, nuevoEstatus);
-      await cerrarSolpedSiCompleta(oc.solpedId);
-    } else {
-      await registrarHistorialSolpedAccionOC({
-        solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
-        estatusOC: nuevoEstatus, comentario
-      });
-    }
+    await registrarHistorialSolpedAccionOC({
+      solpedId: oc.solpedId,
+      ocNumero: oc.id,
+      usuario: usuarioNombre.value || '—',
+      estatusOC: nuevoEstatus,
+      comentario
+    });
 
     addToast('success', `OC → ${nuevoEstatus}`);
     ocs.value = ocs.value.filter(x => x.__docId !== oc.__docId);
   } catch (e) {
     console.error(e);
-    addToast('danger','No se pudo aprobar la OC.');
+    addToast('danger', 'No se pudo aprobar la OC.');
   } finally {
     accionando.value = false;
   }
 };
-
 const rechazar = async (oc) => {
   if (accionando.value) return;
+
   const comentario = (oc._comentarioAccion || '').trim();
-  if (!comentario) { addToast('warning', 'Escribe un comentario antes de rechazar.'); return; }
-  if (!canActOnOC(oc)) { addToast('warning','No puedes rechazar este estado.'); return; }
+  if (!comentario) {
+    addToast('warning', 'Escribe un comentario antes de rechazar.');
+    return;
+  }
+  if (!canActOnOC(oc)) {
+    addToast('warning', 'No puedes rechazar este estado.');
+    return;
+  }
 
   accionando.value = true;
   try {
-    const nuevosItems = (oc.items || []).map((it) =>
-      (String(it.estado||'').toLowerCase().includes('revi')) ? { ...it, estado: 'pendiente' } : it
-    );
+    const nuevosItems = actualizarEstadoCotizacionItemsOC(oc.items || [], 'Rechazado');
 
     const nuevoHistorial = [
       ...((oc.historial || [])),
-      { usuario: usuarioNombre.value || '—', estatus: 'Rechazado', fecha: new Date().toISOString(), comentario }
+      {
+        usuario: usuarioNombre.value || '—',
+        estatus: 'Rechazado',
+        fecha: new Date().toISOString(),
+        comentario
+      }
     ];
 
     await updateDoc(doc(db, 'ordenes_oc', oc.__docId), {
@@ -1317,15 +1179,18 @@ const rechazar = async (oc) => {
     });
 
     await registrarHistorialSolpedAccionOC({
-      solpedId: oc.solpedId, ocNumero: oc.id, usuario: usuarioNombre.value || '—',
-      estatusOC: 'Rechazado', comentario
+      solpedId: oc.solpedId,
+      ocNumero: oc.id,
+      usuario: usuarioNombre.value || '—',
+      estatusOC: 'Rechazado',
+      comentario
     });
 
     addToast('danger', 'OC rechazada.');
     ocs.value = ocs.value.filter(x => x.__docId !== oc.__docId);
   } catch (e) {
     console.error(e);
-    addToast('danger','No se pudo rechazar la OC.');
+    addToast('danger', 'No se pudo rechazar la OC.');
   } finally {
     accionando.value = false;
   }

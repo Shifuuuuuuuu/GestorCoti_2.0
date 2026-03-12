@@ -615,15 +615,16 @@ const estadoBadgeClass = (estatus) => {
   if (s.includes('preaprob')) return 'bg-info-subtle text-info-emphasis';
   if (s.includes('rechaz') || s.includes('escala')) return 'bg-danger-subtle text-danger-emphasis';
   if (s.includes('revisión') || s.includes('revision')) return 'bg-warning-subtle text-warning-emphasis';
-  if (s.includes('solicit')) return 'bg-primary-subtle text-primary-emphasis';
+  if (s.includes('pend')) return 'bg-warning-subtle text-warning-emphasis';
+  if (s.includes('coti'))return 'bg-info-subtle text-info-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
 
 const itemEstadoBadge = (e) => {
   const s = (e || '').toLowerCase();
   if (s.includes('complet')) return 'bg-success-subtle text-success-emphasis';
-  if (s.includes('parcial')) return 'bg-warning-subtle text-warning-emphasis';
-  if (s.includes('pend')) return 'bg-secondary-subtle text-secondary-emphasis';
+  if (s.includes('pend')) return 'bg-warning-subtle text-warning-emphasis';
+  if (s.includes('parcial')) return 'bg-info-subtle text-info-emphasis';
   if (s.includes('revision') || s.includes('revisión')) return 'bg-info-subtle text-info-emphasis';
   return 'bg-secondary-subtle text-secondary-emphasis';
 };
