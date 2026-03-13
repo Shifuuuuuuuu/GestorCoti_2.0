@@ -145,7 +145,6 @@ export function useRoleMenus() {
       visibleMenus.value.filter(
         (x) =>
           x.key === "RecepcionOC" ||
-          x.key === "AdminGestionDocs" ||
           x.key === "Soporte"
       )
     )

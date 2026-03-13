@@ -196,7 +196,7 @@ export const MENU_DEFINITIONS = [
     key: "AdminGestionDocs",
     routeName: "AdminGestionDocs",
     label: "Gestor de Facturas",
-    group: "General",
+    group: "Empresa",
     icon: "bi-folder2-open",
     defaultRoles: ["Admin", "Recepcion_OC", "CargadorDoc"],
   },
@@ -204,7 +204,7 @@ export const MENU_DEFINITIONS = [
     key: "AprobacionDocs",
     routeName: "AprobacionDocs",
     label: "Aprobador de Facturas",
-    group: "General",
+    group: "Empresa",
     icon: "bi-file-earmark-check",
     defaultRoles: ["Admin"],
   },
@@ -220,7 +220,7 @@ export const MENU_DEFINITIONS = [
     key: "AiInspectorView",
     routeName: "AiInspectorView",
     label: "Chatbot",
-    group: "General",
+    group: "Empresa",
     icon: "bi-robot",
     defaultRoles: ["Admin", "Aprobador/Editor"],
   },
@@ -228,7 +228,7 @@ export const MENU_DEFINITIONS = [
     key: "GenerarCertificados",
     routeName: "GenerarCertificados",
     label: "Generador de certificados",
-    group: "General",
+    group: "Admin",
     icon: "bi-award",
     defaultRoles: ["Admin"],
   },
@@ -269,11 +269,6 @@ export function getDefaultMenuKeysByRole(role) {
     .map((item) => item.key);
 }
 
-/**
- * Plantilla opcional por rol:
- * se usa solo si NO hay allow definidos para el usuario.
- * Si el usuario ya tiene allow, manda allow/deny de Firestore.
- */
 export function buildUserPermissionSet({
   role,
   menuPerms,
