@@ -83,7 +83,10 @@
                         </span>
                         <template> ({{ oc.centroCosto || '—' }})</template>
                       </span>
-
+                      <span class="oc-pill" title="SOLPED asociada">
+                        <i class="bi bi-file-earmark-text me-1"></i>
+                        <strong>SOLPED:</strong> {{ oc.numero_solped || '—' }}
+                      </span>
                       <span class="oc-pill" title="Empresa">
                         <i class="bi bi-diagram-3 me-1"></i>
                         <strong>Empresa:</strong>
@@ -255,7 +258,7 @@
                           <td class="text-center">{{ it.cantidad ?? 0 }}</td>
                           <td class="text-center">{{ it.cantidad_cotizada ?? 0 }}</td>
                           <td class="text-center">
-                            <span class="badge" :class="badgeItem(it.estado)">{{ it.estado || 'pendiente' }}</span>
+                            <span class="badge" :class="badgeItem(it.estado)">{{ it.estado_cotizacion || 'pendiente' }}</span>
                           </td>
                           <td class="d-none d-sm-table-cell break-any">{{ it.numero_interno || '—' }}</td>
                           <td class="d-none d-lg-table-cell break-any">{{ it.codigo_referencial || '—' }}</td>

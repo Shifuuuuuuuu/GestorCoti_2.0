@@ -42,6 +42,16 @@
           <i class="bi bi-graph-up-arrow me-1"></i>
           {{ mostrarResumenOC ? "Ocultar resumen OC" : "Resumen OC" }}
         </button>
+        <button
+          type="button"
+          class="btn btn-outline-success btn-sm d-none d-md-inline-flex"
+          @click="abrirCrucePrecios"
+          :disabled="cargandoCrucePrecios"
+        >
+          <span v-if="cargandoCrucePrecios" class="spinner-border spinner-border-sm me-1"></span>
+          <i v-else class="bi bi-shuffle me-1"></i>
+          Cruce de precios
+        </button>
       </div>
 
       <div
@@ -324,7 +334,13 @@
                 <div v-if="usarSolped" class="row g-2 align-items-end">
                   <div class="col-12">
                     <label class="form-label">SOLPED asociada</label>
-                    <select class="form-select" v-model="solpedSeleccionadaId" @change="onChangeSolped">
+                    <select
+                      ref="solpedSelectRef"
+                      class="form-select"
+                      :class="{ 'is-invalid': invalidField === 'solped' }"
+                      v-model="solpedSeleccionadaId"
+                      @change="onChangeSolped"
+                    >
                       <option value="">— Selecciona —</option>
                       <option v-for="solpe in solpedDisponibles" :key="solpe.id" :value="solpe.id">
                         #{{ solpe.numero_solpe }} - {{ solpe.nombre_solped }} ({{ solpe.tipo_solped }}) ·
@@ -353,9 +369,23 @@
                   </div>
                 </div>
                 <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
-                  <div class="card-header bg-white d-flex align-items-center justify-content-between">
-                    <span class="fw-semibold">📦 Ítems de la SOLPED</span>
-                    <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
+                  <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="fw-semibold">📦 Ítems de la SOLPED</div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <small class="text-secondary d-none d-sm-inline">Desliza horizontalmente si es necesario</small>
+
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        @click="abrirCrucePrecios"
+                        :disabled="cargandoCrucePrecios"
+                      >
+                        <span v-if="cargandoCrucePrecios" class="spinner-border spinner-border-sm me-1"></span>
+                        <i v-else class="bi bi-shuffle me-1"></i>
+                        Cruce de precios
+                      </button>
+                    </div>
                   </div>
 
                   <div class="card-body">
@@ -377,21 +407,25 @@
                             <td data-label="Cant. total" class="text-center">{{ it.cantidad }}</td>
                             <td data-label="Cotizado antes" class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
                             <td data-label="Cant. a cotizar">
-                            <input
-                              type="number"
-                              class="form-control form-control-sm"
-                              :class="{ 'is-invalid': it.__invalid }"
-                              min="0"
-                              :max="it.__max"
-                              v-model.number="it.cantidad_para_cotizar"
-                              @input="onInputCantidad(it)"
-                            />
-                            <div class="form-text">
-                              Máx: {{ it.__max }} · Restante: {{ it.__restante }}
-                            </div>
-                            <div v-if="it.__invalid" class="invalid-feedback d-block">
-                              Se ajustó al máximo permitido.
-                            </div>
+                              <input
+                                :ref="(el) => setItemCantidadRef(it.__k, el)"
+                                v-model.number="it.cantidad_para_cotizar"
+                                type="number"
+                                min="0"
+                                :max="it.__max"
+                                class="form-control form-control-sm text-center"
+                                :class="{ 'is-invalid': it.__invalid || invalidField === `item-${it.__k}` }"
+                                @input="onInputCantidad(it); clearInvalidField(`item-${it.__k}`)"
+                              />
+                              <div class="form-text mb-0">
+                                Total: {{ it.cantidad }} ·
+                                Cotizado antes: {{ it.cantidad_cotizada || 0 }} ·
+                                Disponible: {{ it.__max }} ·
+                                Restante: {{ it.__restante }}
+                              </div>
+                              <div v-if="it.__invalid" class="invalid-feedback d-block">
+                                Se ajustó al máximo permitido.
+                              </div>
                             </td>
                           </tr>
                         </tbody>
@@ -478,8 +512,10 @@
                   <div class="input-group">
                     <input class="form-control" :value="nombreCentroCosto || ''" placeholder="Selecciona un centro…" readonly />
                     <button
+                      ref="centroCostoBtnRef"
                       type="button"
                       class="btn btn-outline-primary"
+                      :class="{ 'btn-danger': invalidField === 'centroCosto' }"
                       @click="modalCentroAbierto = true"
                       aria-label="Seleccionar Centro de Costo"
                     >
@@ -494,21 +530,40 @@
                 <div class="row g-3">
                   <div class="col-12 col-md-6">
                     <label class="form-label">N° Patente / Stock</label>
-                    <select class="form-select" v-model="tipoCompra">
+                    <select
+                      ref="tipoCompraRef"
+                      class="form-select"
+                      :class="{ 'is-invalid': invalidField === 'tipoCompra' }"
+                      v-model="tipoCompra"
+                      @change="clearInvalidField('tipoCompra')"
+                    >
                       <option value="stock">Stock</option>
                       <option value="patente">Patente</option>
                     </select>
                   </div>
                   <div class="col-12 col-md-6" v-if="tipoCompra === 'patente'">
                     <label class="form-label">Patente destino</label>
-                    <input class="form-control" v-model="destinoCompra" placeholder="Escribe la patente" />
+                    <input
+                      ref="destinoCompraRef"
+                      class="form-control"
+                      :class="{ 'is-invalid': invalidField === 'destinoCompra' }"
+                      v-model="destinoCompra"
+                      @input="clearInvalidField('destinoCompra')"
+                      placeholder="Escribe la patente"
+                    />
                   </div>
                 </div>
 
                 <div class="row g-3 mt-1">
                   <div class="col-12 col-md-4">
                     <label class="form-label">Moneda</label>
-                    <select class="form-select" v-model="monedaSeleccionada" @change="onCambioMoneda">
+                    <select
+                      ref="monedaRef"
+                      class="form-select"
+                      :class="{ 'is-invalid': invalidField === 'moneda' }"
+                      v-model="monedaSeleccionada"
+                      @change="onCambioMoneda(); clearInvalidField('moneda')"
+                    >
                       <option value="CLP">CLP</option>
                       <option value="USD">USD</option>
                       <option value="EUR">EUR</option>
@@ -518,10 +573,12 @@
                   <div class="col-12 col-md-8">
                     <label class="form-label">Precio Total con IVA</label>
                     <input
+                      ref="precioTotalRef"
                       class="form-control"
+                      :class="{ 'is-invalid': invalidField === 'precioTotalConIVA' }"
                       type="text"
                       :value="precioFormateado"
-                      @input="formatearPrecio($event)"
+                      @input="formatearPrecio($event); clearInvalidField('precioTotalConIVA')"
                       placeholder="$ 0"
                       inputmode="numeric"
                     />
@@ -558,8 +615,12 @@
                   />
 
                   <div
+                    ref="archivosDropzoneRef"
                     class="dropzone-upload"
-                    :class="{ 'is-dragging': dragOverArchivos }"
+                    :class="{
+                      'is-dragging': dragOverArchivos,
+                      'border border-danger': invalidField === 'archivos'
+                    }"
                     @click="abrirSelectorArchivos"
                     @dragenter.prevent="onDragEnterArchivos"
                     @dragover.prevent="onDragOverArchivos"
@@ -922,6 +983,404 @@
         <button type="button" class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
       </div>
     </div>
+    <div v-if="modalCrucePrecios" class="vmodal-backdrop" @click.self="cerrarCrucePrecios">
+      <div class="vmodal vmodal-xxl">
+        <div class="vmodal-header d-flex align-items-center justify-content-between">
+          <div>
+            <h4 class="mb-0">Cruce de precios</h4>
+            <div class="small text-secondary">
+              Selecciona los ítems que quieres comparar. Funciona con SOLPED y también sin SOLPED.
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-outline-secondary btn-sm" @click="cerrarCrucePrecios">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="vmodal-body">
+          <div class="row g-3">
+            <!-- COLUMNA IZQUIERDA -->
+            <div class="col-12 col-xl-4">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div class="fw-semibold">Ítems a cruzar</div>
+
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-dark"
+                    @click="agregarItemManualCruce"
+                  >
+                    <i class="bi bi-plus-lg me-1"></i>
+                    Agregar ítem manual
+                  </button>
+                </div>
+
+                <div class="card-body">
+                  <div v-if="itemsCruceBase.length" class="mb-3">
+                    <div class="small text-secondary mb-2">
+                      Ítems pendientes/parciales disponibles
+                    </div>
+
+                    <div class="list-group cruce-items-list-scroll">
+                      <label
+                        v-for="it in itemsCruceBase"
+                        :key="it.uid"
+                        class="list-group-item d-flex align-items-start gap-2"
+                      >
+                        <input
+                          class="form-check-input mt-1"
+                          type="checkbox"
+                          :value="it.uid"
+                          v-model="selectedCruceKeys"
+                        />
+
+                        <div class="flex-grow-1 minw-0">
+                          <div class="fw-semibold">{{ it.descripcion || "Ítem" }}</div>
+                          <div class="small text-secondary">
+                            Código: {{ it.codigo_referencial || "SIN CÓDIGO" }} ·
+                            N° interno: {{ it.numero_interno || "—" }} ·
+                            Estado: {{ it.estado_cotizacion || it.estado || "—" }}
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div v-if="manualCruceItems.length">
+                    <div class="small text-secondary mb-2">Ítems manuales</div>
+
+                    <div class="cruce-items-list-scroll">
+                      <div
+                        v-for="(it, idx) in manualCruceItems"
+                        :key="it.uid"
+                        class="border rounded p-2 mb-2 bg-light"
+                      >
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <div class="fw-semibold">Manual {{ idx + 1 }}</div>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            @click="eliminarItemManualCruce(it.uid)"
+                          >
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </div>
+
+                        <div class="form-check mb-2">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            :value="it.uid"
+                            v-model="selectedCruceKeys"
+                            :id="`sel-manual-${it.uid}`"
+                          />
+                          <label class="form-check-label" :for="`sel-manual-${it.uid}`">
+                            Usar en cruce
+                          </label>
+                        </div>
+
+                        <div class="mb-2">
+                          <label class="form-label form-label-sm">Descripción</label>
+                          <input v-model="it.descripcion" class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="row g-2">
+                          <div class="col-6">
+                            <label class="form-label form-label-sm">Código</label>
+                            <input v-model="it.codigo_referencial" class="form-control form-control-sm" />
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label form-label-sm">N° interno</label>
+                            <input v-model="it.numero_interno" class="form-control form-control-sm" />
+                          </div>
+                        </div>
+
+                        <div class="mt-2">
+                          <label class="form-label form-label-sm">Cantidad</label>
+                          <input v-model.number="it.cantidad" type="number" min="1" class="form-control form-control-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="!itemsCruceBase.length && !manualCruceItems.length" class="alert alert-warning mb-0">
+                    No hay ítems disponibles. Puedes agregar uno manualmente.
+                  </div>
+                </div>
+
+                <div class="card-footer bg-white d-flex gap-2 flex-wrap">
+
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    @click="limpiarCruceManual"
+                  >
+                    Limpiar comparación
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- COLUMNA DERECHA -->
+            <div class="col-12 col-xl-8">
+              <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div>
+                    <div class="fw-semibold">Comparación manual por proveedor</div>
+                    <div class="small text-secondary">
+                      Ítems seleccionados: {{ selectedCruceItems.length }} · Navegación rápida por ítem · PDF listo para adjuntar al final
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body border-bottom bg-body-tertiary">
+                  <div class="row g-2 small">
+                    <div class="col-12 col-md-3">
+                      <div class="text-secondary">Ítems con mejor opción</div>
+                      <div class="fw-semibold">{{ resumenCruce.itemsConsiderados }}</div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <div class="text-secondary">Subtotal</div>
+                      <div class="fw-semibold">
+                        {{ formatMoneySmart(resumenCruce.subtotal, monedaSeleccionada || "CLP") }}
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <div class="text-secondary">IVA (19%)</div>
+                      <div class="fw-semibold">
+                        {{ formatMoneySmart(resumenCruce.iva, monedaSeleccionada || "CLP") }}
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <div class="text-secondary">Total con IVA</div>
+                      <div class="fw-semibold text-danger">
+                        {{ formatMoneySmart(resumenCruce.totalConIVA, monedaSeleccionada || "CLP") }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                  <div class="card-body cruce-body-scroll">
+                    <div v-if="!cruceManualItems.length" class="text-center text-secondary py-5">
+                      Selecciona uno o más ítems y presiona <strong>Preparar cruce</strong>.
+                    </div>
+
+                    <div v-else-if="activeCruceItem" class="d-flex flex-column gap-3">
+                      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="fw-semibold">
+                          Ítem {{ cruceManualIndex + 1 }} de {{ totalCruceItems }}
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="goCrucePrev"
+                            :disabled="cruceManualIndex === 0"
+                          >
+                            <i class="bi bi-arrow-left me-1"></i>
+                            Anterior
+                          </button>
+
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            @click="guardarYSiguienteCruce"
+                          >
+                            Guardar y seguir
+                            <i class="bi bi-arrow-right ms-1"></i>
+                          </button>
+
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="goCruceNext"
+                            :disabled="cruceManualIndex >= totalCruceItems - 1"
+                          >
+                            Siguiente
+                            <i class="bi bi-arrow-right ms-1"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="card border shadow-sm">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-start flex-wrap gap-2">
+                          <div>
+                            <div class="fw-semibold">{{ activeCruceItem.descripcion || "Ítem" }}</div>
+                            <div class="small text-secondary">
+                              Código: {{ activeCruceItem.codigo_referencial || "SIN CÓDIGO" }} ·
+                              N° interno: {{ activeCruceItem.numero_interno || "—" }}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            @click="agregarProveedorACruce(activeCruceItem.uid)"
+                          >
+                            <i class="bi bi-plus-lg me-1"></i>
+                            Agregar proveedor
+                          </button>
+                        </div>
+
+                        <div class="card-body border-bottom bg-body-tertiary">
+                          <div class="row g-2 small">
+                            <div class="col-6 col-md-3">
+                              <div class="text-secondary">Cant. total</div>
+                              <div class="fw-semibold">{{ activeCruceItem.cantidadTotal }}</div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                              <div class="text-secondary">Cotizado antes</div>
+                              <div class="fw-semibold">{{ activeCruceItem.cotizadoAntes }}</div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                              <div class="text-secondary">Máx. permitido</div>
+                              <div class="fw-semibold text-danger">{{ activeCruceItem.maxPermitido }}</div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                              <div class="text-secondary">Restante</div>
+                              <div class="fw-semibold text-primary">{{ activeCruceItem.restante }}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="card-body p-0">
+                          <div class="table-responsive cruce-table-scroll">
+                            <table class="table table-sm align-middle mb-0">
+                              <thead class="table-light">
+                                <tr>
+                                  <th style="width: 60px;" class="text-center">★</th>
+                                  <th>Proveedor</th>
+                                  <th style="width: 140px;" class="text-center">Cantidad</th>
+                                  <th style="width: 180px;" class="text-end">Precio unitario</th>
+                                  <th style="width: 180px;" class="text-end">Total</th>
+                                  <th style="width: 90px;" class="text-center">Acción</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr
+                                  v-for="op in activeCruceItem.opciones"
+                                  :key="op.uid"
+                                  :class="{ 'table-warning': op.esMejor }"
+                                >
+                                  <td class="text-center">
+                                    <button
+                                      type="button"
+                                      class="btn btn-sm btn-star-choice"
+                                      :class="{ active: op.esMejor }"
+                                      title="Marcar como opción recomendada"
+                                      @click="marcarProveedorMejor(activeCruceItem.uid, op.uid)"
+                                    >
+                                      {{ op.esMejor ? "★" : "☆" }}
+                                    </button>
+                                  </td>
+
+                                  <td>
+                                    <div class="proveedor-field">
+                                      <div class="input-group input-group-sm">
+                                        <input
+                                          v-model="op.proveedor"
+                                          class="form-control form-control-sm"
+                                          placeholder="Nombre proveedor"
+                                          @input="onProveedorInput(activeCruceItem.uid, op.uid)"
+                                          @blur="onProveedorBlur(activeCruceItem.uid, op.uid)"
+                                        />
+                                        <button
+                                          v-if="String(op.proveedor || '').trim()"
+                                          type="button"
+                                          class="btn btn-outline-danger"
+                                          title="Limpiar nombre"
+                                          @click="limpiarNombreProveedor(activeCruceItem.uid, op.uid)"
+                                        >
+                                          <i class="bi bi-x-lg"></i>
+                                        </button>
+                                      </div>
+
+                                      <div
+                                        v-if="proveedoresReutilizables.length"
+                                        class="d-flex flex-wrap gap-1 mt-2"
+                                      >
+                                        <button
+                                          v-for="nombre in proveedoresReutilizablesFiltrados(op.proveedor)"
+                                          :key="`${op.uid}-${nombre}`"
+                                          type="button"
+                                          class="btn btn-sm btn-outline-secondary proveedor-chip"
+                                          @click="reutilizarNombreProveedor(activeCruceItem.uid, op.uid, nombre)"
+                                        >
+                                          {{ nombre }}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  <td class="text-center">
+                                    <input
+                                      v-model.number="activeCruceItem.cantidad"
+                                      type="number"
+                                      min="1"
+                                      :max="activeCruceItem.maxPermitido || 1"
+                                      class="form-control form-control-sm text-center"
+                                      @input="recalcularTotalesItemCruce(activeCruceItem.uid); syncCantidadCruceToSolpedItem(activeCruceItem)"
+                                    />
+                                    <div class="form-text mb-0">
+                                      Máx: {{ activeCruceItem.maxPermitido }} · Restante: {{ activeCruceItem.restante }}
+                                    </div>
+                                  </td>
+
+                                  <td>
+                                    <input
+                                      v-model.number="op.precioUnitario"
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      class="form-control form-control-sm text-end"
+                                      placeholder="0"
+                                      @input="recalcularTotalesItemCruce(activeCruceItem.uid)"
+                                    />
+                                  </td>
+
+                                  <td class="text-end fw-semibold">
+                                    {{ formatMoneySmart(op.total, monedaSeleccionada || "CLP") }}
+                                  </td>
+
+                                  <td class="text-center">
+                                    <button
+                                      type="button"
+                                      class="btn btn-sm btn-outline-danger"
+                                      @click="eliminarProveedorDeCruce(activeCruceItem.uid, op.uid)"
+                                    >
+                                      <i class="bi bi-trash"></i>
+                                    </button>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                <div class="card-footer bg-white d-flex justify-content-end gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    class="btn btn-danger"
+                    @click="generarPdfCruceManual"
+                    :disabled="!cruceManualItems.length"
+                  >
+                    <i class="bi bi-file-earmark-pdf me-1"></i>
+                    Generar PDF y aplicar cruce
+                  </button>
+
+                  <button type="button" class="btn btn-outline-secondary" @click="cerrarCrucePrecios">
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div v-if="busy.on" class="busy-overlay" role="alert" aria-live="polite">
       <div class="busy-card shadow">
         <div class="d-flex align-items-center gap-3">
@@ -955,7 +1414,12 @@ import {
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
+const modalCrucePrecios = ref(false);
 
+
+const manualCruceItems = ref([]);
+const selectedCruceKeys = ref([]);
+const cruceManualItems = ref([]);
 const router = useRouter();
 const route = useRoute();
 const volver = () => router.back();
@@ -1003,12 +1467,637 @@ const itemIdentityKey = (it) => {
   const desc = normalizePlain(it?.descripcion || "");
   return `${itemN}|${ni}|${desc}`;
 };
+const buildProveedorUid = () =>
+  `prov-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-const isItemCompleto = (it) => {
-  const total = num(it?.cantidad, 0);
-  const cot = num(it?.cantidad_cotizada, 0);
-  return total > 0 && cot >= total;
+const getCantidadItemCruce = (item) => {
+  const total = Math.max(0, Number(item?.cantidad ?? 0));
+  const cotizadoAntes = Math.max(0, Number(item?.cantidad_cotizada ?? 0));
+  const disponible = Math.max(0, total - cotizadoAntes);
+
+  if (disponible <= 0) return 0;
+
+  const manual = Number(item?.cantidad_para_cotizar ?? 0);
+  if (Number.isFinite(manual) && manual > 0) {
+    return Math.min(manual, disponible);
+  }
+
+  return disponible;
 };
+
+const crearOpcionProveedor = (nombre = "") => ({
+  uid: buildProveedorUid(),
+  proveedor: nombre,
+  precioUnitario: 0,
+  total: 0,
+  observacion: "",
+  esMejor: false,
+});
+
+const crearCruceManualDesdeItem = (item) => {
+  const cantidadTotal = Number(item?.cantidad ?? 0);
+  const cotizadoAntes = Number(item?.cantidad_cotizada ?? 0);
+  const maxPermitido = Math.max(0, cantidadTotal - cotizadoAntes);
+
+  const cantidadInicialRaw = Number(item?.cantidad_para_cotizar ?? 0);
+
+  const cantidadInicial =
+    maxPermitido > 0
+      ? Math.min(Math.max(0, cantidadInicialRaw), maxPermitido)
+      : 0;
+
+  return {
+    uid: item.uid,
+    descripcion: item.descripcion || "",
+    codigo_referencial: item.codigo_referencial || "",
+    numero_interno: item.numero_interno || "",
+    cantidadTotal,
+    cotizadoAntes,
+    maxPermitido,
+    restante: Math.max(0, maxPermitido - cantidadInicial),
+    cantidad: cantidadInicial,
+    opciones: [
+      crearOpcionProveedor(""),
+      crearOpcionProveedor(""),
+    ],
+  };
+};
+const cruceManualIndex = ref(0);
+
+const activeCruceItem = computed(() => {
+  return cruceManualItems.value[cruceManualIndex.value] || null;
+});
+
+const totalCruceItems = computed(() => cruceManualItems.value.length);
+const onInputCantidad = (it) => {
+  clampCantidadParaCotizar(it);
+};
+const clampCantidadCruceManual = (itemUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const cantidadTotal = Math.max(0, Number(item.cantidadTotal || 0));
+  const cotizadoAntes = Math.max(0, Number(item.cotizadoAntes || 0));
+  const max = Math.max(0, cantidadTotal - cotizadoAntes);
+
+  item.maxPermitido = max;
+
+  let cantidad = Number(item.cantidad || 0);
+
+  if (!Number.isFinite(cantidad)) cantidad = 0;
+  if (cantidad < 0) cantidad = 0;
+  if (cantidad > max) cantidad = max;
+
+  item.cantidad = cantidad;
+  item.restante = Math.max(0, max - cantidad);
+};
+
+const goCrucePrev = () => {
+  if (cruceManualIndex.value > 0) {
+    cruceManualIndex.value -= 1;
+  }
+};
+
+const goCruceNext = () => {
+  if (cruceManualIndex.value < cruceManualItems.value.length - 1) {
+    cruceManualIndex.value += 1;
+  }
+};
+
+const guardarYSiguienteCruce = () => {
+  const item = activeCruceItem.value;
+  if (!item) return;
+
+  clampCantidadCruceManual(item.uid);
+  recalcularTotalesItemCruce(item.uid);
+
+  syncCantidadCruceToSolpedItem(item);
+
+  if (cruceManualIndex.value < cruceManualItems.value.length - 1) {
+    cruceManualIndex.value += 1;
+    addToast("success", "Ítem guardado. Cantidad sincronizada con la SOLPED.");
+  } else {
+    addToast("success", "Último ítem del cruce completado.");
+  }
+};
+
+const syncCruceManualItems = () => {
+  const seleccionados = selectedCruceItems.value || [];
+  const actuales = cruceManualItems.value || [];
+
+  const nuevos = seleccionados.map((it) => {
+    const existe = actuales.find((x) => x.uid === it.uid);
+
+    const cantidadTotal = Number(it?.cantidad ?? 0);
+    const cotizadoAntes = Number(it?.cantidad_cotizada ?? 0);
+    const maxPermitido = Math.max(0, cantidadTotal - cotizadoAntes);
+
+    if (existe) {
+      existe.descripcion = it.descripcion || existe.descripcion;
+      existe.codigo_referencial = it.codigo_referencial || existe.codigo_referencial;
+      existe.numero_interno = it.numero_interno || existe.numero_interno;
+      existe.cantidadTotal = cantidadTotal;
+      existe.cotizadoAntes = cotizadoAntes;
+      existe.maxPermitido = maxPermitido;
+
+      if (!Number.isFinite(Number(existe.cantidad)) || Number(existe.cantidad) <= 0) {
+        existe.cantidad = getCantidadItemCruce(it);
+      }
+
+      clampCantidadCruceManual(existe.uid);
+      recalcularTotalesItemCruce(existe.uid);
+      recalcularMejorOpcion(existe.uid);
+      return existe;
+    }
+
+    const nuevo = crearCruceManualDesdeItem(it);
+    clampCantidadCruceManual(nuevo.uid);
+    return nuevo;
+  });
+
+  cruceManualItems.value = nuevos;
+
+  if (cruceManualIndex.value > cruceManualItems.value.length - 1) {
+    cruceManualIndex.value = Math.max(0, cruceManualItems.value.length - 1);
+  }
+};
+
+const agregarProveedorACruce = (itemUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  item.opciones.push(crearOpcionProveedor(""));
+};
+
+const normalizarProveedorNombre = (s) =>
+  String(s || "").replace(/\s+/g, " ").trim();
+
+const normalizarProveedorNombreSuave = (s) =>
+  String(s || "").replace(/\s{2,}/g, " ");
+
+const proveedoresReutilizables = computed(() => {
+  const usados = new Map();
+
+  for (const item of cruceManualItems.value || []) {
+    for (const op of item.opciones || []) {
+      const nombre = normalizarProveedorNombre(op.proveedor);
+      if (!nombre) continue;
+
+      const key = nombre.toLowerCase();
+      if (!usados.has(key)) {
+        usados.set(key, nombre);
+      }
+    }
+  }
+
+  return Array.from(usados.values());
+});
+
+const proveedoresReutilizablesFiltrados = (actual = "") => {
+  const actualNorm = normalizarProveedorNombre(actual).toLowerCase();
+
+  return proveedoresReutilizables.value.filter((nombre) => {
+    return nombre.toLowerCase() !== actualNorm;
+  });
+};
+
+const reutilizarNombreProveedor = (itemUid, opcionUid, nombre) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const op = item.opciones.find((x) => x.uid === opcionUid);
+  if (!op) return;
+
+  op.proveedor = normalizarProveedorNombre(nombre);
+};
+
+const limpiarNombreProveedor = (itemUid, opcionUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const op = item.opciones.find((x) => x.uid === opcionUid);
+  if (!op) return;
+
+  op.proveedor = "";
+};
+
+const onProveedorInput = (itemUid, opcionUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const op = item.opciones.find((x) => x.uid === opcionUid);
+  if (!op) return;
+
+  op.proveedor = normalizarProveedorNombreSuave(op.proveedor);
+};
+
+const onProveedorBlur = (itemUid, opcionUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const op = item.opciones.find((x) => x.uid === opcionUid);
+  if (!op) return;
+
+  op.proveedor = normalizarProveedorNombre(op.proveedor);
+};
+
+const eliminarProveedorDeCruce = (itemUid, opcionUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const borrada = item.opciones.find((x) => x.uid === opcionUid);
+  item.opciones = item.opciones.filter((x) => x.uid !== opcionUid);
+
+  if (borrada?.esMejor) {
+    item.opciones.forEach((op) => {
+      op.esMejor = false;
+    });
+  }
+};
+
+const recalcularTotalesItemCruce = (itemUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  clampCantidadCruceManual(itemUid);
+
+  const cantidad = Number(item.cantidad || 0);
+
+  item.opciones.forEach((op) => {
+    const pu = Number(op.precioUnitario || 0);
+    op.total = pu > 0 && cantidad > 0 ? pu * cantidad : 0;
+  });
+
+  recalcularMejorOpcion(itemUid);
+};
+
+const recalcularMejorOpcion = (itemUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  const validas = getOpcionesValidasCruce(item);
+  if (!validas.length) {
+    item.opciones.forEach((op) => {
+      op.esMejor = false;
+    });
+    return;
+  }
+
+  const tieneMarcada = validas.some((op) => op.esMejor);
+  if (tieneMarcada) return;
+
+  let masBarata = validas[0];
+  for (const op of validas) {
+    if (Number(op.total || 0) < Number(masBarata.total || 0)) {
+      masBarata = op;
+    }
+  }
+
+  item.opciones.forEach((op) => {
+    op.esMejor = op.uid === masBarata.uid;
+  });
+};
+const marcarProveedorMejor = (itemUid, opcionUid) => {
+  const item = cruceManualItems.value.find((x) => x.uid === itemUid);
+  if (!item) return;
+
+  item.opciones.forEach((op) => {
+    op.esMejor = op.uid === opcionUid;
+  });
+
+  recalcularTotalesItemCruce(itemUid);
+};
+const limpiarCruceManual = () => {
+  cruceManualItems.value = [];
+  manualCruceItems.value = [];
+  selectedCruceKeys.value = [];
+};
+
+
+const validarCruceManual = () => {
+  if (!cruceManualItems.value.length) {
+    addToast("warning", "No hay cruce manual para generar.");
+    return false;
+  }
+
+  for (const item of cruceManualItems.value) {
+    const tieneUnaValida = item.opciones.some((op) => {
+      const proveedor = String(op.proveedor || "").trim();
+      const pu = Number(op.precioUnitario || 0);
+      return proveedor && pu > 0;
+    });
+
+    if (!tieneUnaValida) {
+      addToast("warning", `El ítem "${item.descripcion || item.uid}" no tiene proveedores válidos.`);
+      return false;
+    }
+  }
+
+  return true;
+};
+async function generarPdfCruceManual() {
+  if (!validarCruceManual()) return;
+
+  aplicarCruceAPrecioYItems({ showToast: true, closeModal: false });
+
+  const maxProveedores = Math.max(
+    1,
+    ...cruceManualItems.value.map((item) => getOpcionesValidasCruce(item).length || 0)
+  );
+
+  const usarLandscape = maxProveedores >= 3;
+
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const pdf = new jsPDF({
+    orientation: usarLandscape ? "landscape" : "portrait",
+    unit: "pt",
+    format: "a4",
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const marginX = maxProveedores >= 5 ? 14 : 24;
+
+  const colorRojo = [220, 38, 38];
+  const colorRojoSuave = [254, 242, 242];
+  const colorGrisTexto = [75, 85, 99];
+  const colorGrisLinea = [229, 231, 235];
+  const colorVerdeSuave = [240, 253, 244];
+  const colorNegro = [17, 24, 39];
+  const colorBlanco = [255, 255, 255];
+  const colorAzulSuave = [239, 246, 255];
+
+  let y = 34;
+
+  const drawHeader = () => {
+    pdf.setFillColor(...colorRojo);
+    pdf.roundedRect(marginX, 20, pageWidth - marginX * 2, 54, 12, 12, "F");
+
+    pdf.setTextColor(...colorBlanco);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(18);
+    pdf.text("Cruce de precios", marginX + 16, 44);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.text("Comparación consolidada por ítem y proveedor", marginX + 16, 62);
+
+    y = 92;
+  };
+
+  const ensureSpace = (needed = 120) => {
+    if (y + needed > pageHeight - 35) {
+      pdf.addPage();
+      drawHeader();
+    }
+  };
+
+  const shortenText = (txt, max = 28) => {
+    const s = String(txt || "").trim();
+    if (!s) return "—";
+    if (s.length <= max) return s;
+    return `${s.slice(0, max - 3)}...`;
+  };
+
+  const makeProveedorHeaders = (count) => {
+    const headers = [];
+    for (let i = 0; i < count; i++) {
+      headers.push(`Proveedor ${i + 1}`);
+      headers.push("Total");
+    }
+    return headers;
+  };
+
+  drawHeader();
+
+  // ===== RESUMEN GENERAL =====
+  ensureSpace(95);
+
+  pdf.setFillColor(...colorRojoSuave);
+  pdf.setDrawColor(...colorGrisLinea);
+  pdf.roundedRect(marginX, y, pageWidth - marginX * 2, 58, 10, 10, "FD");
+
+  pdf.setTextColor(...colorNegro);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.text("Resumen general", marginX + 14, y + 18);
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  pdf.setTextColor(...colorGrisTexto);
+
+  const totalCantidad = cruceManualItems.value.reduce(
+    (acc, item) => acc + Number(item?.cantidad || 0),
+    0
+  );
+
+  const totalCotizadoAntes = cruceManualItems.value.reduce(
+    (acc, item) => acc + Number(item?.cotizadoAntes || 0),
+    0
+  );
+
+  pdf.text(`Ítems: ${cruceManualItems.value.length}`, marginX + 14, y + 36);
+  pdf.text(`Cantidad total cotizada: ${totalCantidad}`, marginX + 130, y + 36);
+  pdf.text(`Cotizado antes: ${totalCotizadoAntes}`, marginX + 310, y + 36);
+
+  y += 74;
+
+  // ===== TABLA =====
+  const head = [[
+    "Ítems",
+    "Cantidad",
+    ...makeProveedorHeaders(maxProveedores),
+  ]];
+
+  const body = cruceManualItems.value.map((item) => {
+    const opcionesValidas = getOpcionesValidasCruce(item);
+
+    const row = [
+      item.descripcion || "Sin descripción",
+      String(item.cantidad || 0),
+    ];
+
+    for (let i = 0; i < maxProveedores; i++) {
+      const op = opcionesValidas[i];
+
+      if (op) {
+        row.push(shortenText(op.proveedor || "—", maxProveedores >= 5 ? 14 : 24));
+        row.push(formatMoneySmart(op.total, monedaSeleccionada.value || "CLP"));
+      } else {
+        row.push("—");
+        row.push("—");
+      }
+    }
+
+    return row;
+  });
+
+  // ===== ANCHOS DINÁMICOS =====
+  const availableWidth = pageWidth - marginX * 2;
+
+  let itemColWidth = usarLandscape ? 150 : 125;
+  let qtyColWidth = 52;
+
+  if (maxProveedores >= 5) {
+    itemColWidth = 110;
+    qtyColWidth = 42;
+  }
+
+  const remainingWidth = availableWidth - itemColWidth - qtyColWidth;
+  const pairWidth = Math.max(72, remainingWidth / maxProveedores);
+
+  const providerWidth = Math.max(42, pairWidth * 0.58);
+  const totalWidth = Math.max(30, pairWidth * 0.42);
+
+  const baseFontSize =
+    maxProveedores >= 7 ? 5.8 :
+    maxProveedores >= 6 ? 6.2 :
+    maxProveedores >= 5 ? 6.8 :
+    maxProveedores >= 4 ? 7.2 :
+    8;
+
+  const headFontSize =
+    maxProveedores >= 7 ? 5.6 :
+    maxProveedores >= 6 ? 6 :
+    maxProveedores >= 5 ? 6.4 :
+    maxProveedores >= 4 ? 6.8 :
+    8;
+
+  const cellPadding =
+    maxProveedores >= 6 ? 2.2 :
+    maxProveedores >= 4 ? 3 :
+    5;
+
+  const columnStyles = {
+    0: { cellWidth: itemColWidth },
+    1: { cellWidth: qtyColWidth, halign: "center" },
+  };
+
+  for (let i = 0; i < maxProveedores; i++) {
+    const provCol = 2 + i * 2;
+    const totalCol = provCol + 1;
+
+    columnStyles[provCol] = {
+      cellWidth: providerWidth,
+      halign: "left",
+    };
+
+    columnStyles[totalCol] = {
+      cellWidth: totalWidth,
+      halign: "right",
+    };
+  }
+
+  autoTable(pdf, {
+    startY: y,
+    head,
+    body,
+    margin: { left: marginX, right: marginX },
+    theme: "grid",
+    tableWidth: "auto",
+    styles: {
+      fontSize: baseFontSize,
+      cellPadding,
+      lineColor: colorGrisLinea,
+      lineWidth: 0.6,
+      textColor: colorNegro,
+      overflow: "linebreak",
+      valign: "middle",
+      cellWidth: "wrap",
+    },
+    headStyles: {
+      fillColor: colorRojo,
+      textColor: colorBlanco,
+      fontStyle: "bold",
+      halign: "center",
+      valign: "middle",
+      fontSize: headFontSize,
+    },
+    bodyStyles: {
+      fillColor: colorBlanco,
+    },
+    columnStyles,
+    horizontalPageBreak: maxProveedores >= 6,
+    horizontalPageBreakRepeat: [0, 1],
+
+    didParseCell: function (data) {
+      if (data.section !== "body") return;
+
+      const rowIndex = data.row.index;
+      const item = cruceManualItems.value[rowIndex];
+      if (!item) return;
+
+      const opcionesValidas = getOpcionesValidasCruce(item);
+
+      for (let i = 0; i < maxProveedores; i++) {
+        const op = opcionesValidas[i];
+        if (!op?.esMejor) continue;
+
+        const provCol = 2 + i * 2;
+        const totalCol = provCol + 1;
+
+        if (data.column.index === provCol || data.column.index === totalCol) {
+          data.cell.styles.fillColor = colorVerdeSuave;
+          data.cell.styles.fontStyle = "bold";
+        }
+      }
+    },
+  });
+
+  y = pdf.lastAutoTable.finalY + 20;
+
+  ensureSpace(100);
+
+  pdf.setFillColor(...colorAzulSuave);
+  pdf.setDrawColor(...colorGrisLinea);
+  pdf.roundedRect(marginX, y, pageWidth - marginX * 2, 92, 10, 10, "FD");
+
+  pdf.setTextColor(...colorNegro);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(12);
+  pdf.text("Resumen", marginX + 16, y + 22);
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+
+  pdf.text(
+    `Subtotal: ${formatMoneySmart(resumenCruce.value.subtotal, monedaSeleccionada.value || "CLP")}`,
+    marginX + 16,
+    y + 46
+  );
+
+  pdf.text(
+    `IVA (19%): ${formatMoneySmart(resumenCruce.value.iva, monedaSeleccionada.value || "CLP")}`,
+    marginX + 16,
+    y + 64
+  );
+
+  pdf.setFont("helvetica", "bold");
+  pdf.text(
+    `Total con IVA: ${formatMoneySmart(resumenCruce.value.totalConIVA, monedaSeleccionada.value || "CLP")}`,
+    marginX + 16,
+    y + 82
+  );
+
+  const pdfBlob = pdf.output("blob");
+  const fileName = `cruce_precios_${Date.now()}.pdf`;
+  const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+  archivos.value.unshift({
+    file: pdfFile,
+    name: pdfFile.name,
+    tipo: pdfFile.type,
+    previewUrl: URL.createObjectURL(pdfFile),
+    generatedCruce: true,
+    __k: `${pdfFile.name}-${pdfFile.size}-${Date.now()}-${Math.random()}`,
+  });
+
+  addToast("success", "PDF del cruce agregado a archivos. También se actualizó total con IVA y cantidades.");
+  cerrarCrucePrecios();
+}
 
 const normalizarEstadoCantidades = ({ total, cotizada }) => {
   const t = Math.max(0, num(total, 0));
@@ -1052,36 +2141,35 @@ const computeEstadoItem = ({ total, antes, nueva }) => {
 };
 
 const clampCantidadParaCotizar = (it) => {
-  const total = num(it?.cantidad, 0);
-  const antes = num(it?.cantidad_cotizada, 0);
-  const max = Math.max(0, total - antes);
+  const total = Math.max(0, num(it?.cantidad, 0));
+  const cotizadoAntes = Math.max(0, num(it?.cantidad_cotizada, 0));
+  const disponible = Math.max(0, total - cotizadoAntes);
 
   const raw = num(it?.cantidad_para_cotizar, 0);
-  const v = Math.min(Math.max(0, raw), max);
+  const ajustado = Math.min(Math.max(0, raw), disponible);
 
-  it.__max = max;
-  it.cantidad_para_cotizar = v;
-  it.__restante = Math.max(0, max - v);
-  it.__invalid = raw !== v;
+  it.__max = disponible;
+  it.cantidad_para_cotizar = ajustado;
+  it.__restante = Math.max(0, disponible - ajustado);
+  it.__invalid = raw !== ajustado;
 };
 
-const onInputCantidad = (it) => clampCantidadParaCotizar(it);
 
 const buildItemsSolpedForUI = (solpedItems = []) => {
   return (solpedItems || [])
     .map((it, idx) => {
-      const total = num(it?.cantidad, 0);
-      const antes = num(it?.cantidad_cotizada, 0);
-      const normalizado = normalizarEstadoCantidades({ total, cotizada: antes });
-      const max = Math.max(0, total - normalizado.finalCotizada);
+      const total = Math.max(0, num(it?.cantidad, 0));
+      const cotizadoAntesRaw = Math.max(0, num(it?.cantidad_cotizada, 0));
+      const cotizadoAntes = Math.min(cotizadoAntesRaw, total);
+      const disponible = Math.max(0, total - cotizadoAntes);
 
       const itemNormalizado = {
         ...it,
         item: num(it?.item, idx + 1),
         cantidad: total,
-        cantidad_cotizada: normalizado.finalCotizada,
-        estado: normalizado.estado,
-        estado_cotizacion: normalizado.estado_cotizacion,
+        cantidad_cotizada: cotizadoAntes,
+        estado: disponible === 0 ? "completado" : (cotizadoAntes > 0 ? "parcial" : "pendiente"),
+        estado_cotizacion: disponible === 0 ? "completo" : (cotizadoAntes > 0 ? "parcial" : "pendiente"),
       };
 
       const baseKey = itemIdentityKey(itemNormalizado);
@@ -1092,12 +2180,12 @@ const buildItemsSolpedForUI = (solpedItems = []) => {
         __sourceIndex: idx,
         __key: baseKey,
         __k: `${baseKey}|${idx}`,
-        __max: max,
-        __restante: max,
+        __max: disponible,
+        __restante: 0,
         __invalid: false,
       };
     })
-    .filter((it) => !isItemCompleto(it));
+    .filter((it) => it.__max > 0);
 };
 
 const buildSelections = (itemsUI = []) => {
@@ -1171,7 +2259,7 @@ const mostrarBloqueoAprobadas = computed(() => {
   const esEditor = roleKey === "editor";
   if (!esEditor) return false;
   if (!aprobadasListo.value) return false;
-  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 10;
+  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 30;
 });
 
 const enviando = ref(false);
@@ -1763,7 +2851,148 @@ const usarSolped = ref(true);
 const nuevoIdVisual = ref(null);
 const cargandoNuevoId = ref(false);
 const comentario = ref("");
+const invalidField = ref("");
 
+const solpedSelectRef = ref(null);
+const centroCostoBtnRef = ref(null);
+const tipoCompraRef = ref(null);
+const destinoCompraRef = ref(null);
+const monedaRef = ref(null);
+const precioTotalRef = ref(null);
+const archivosDropzoneRef = ref(null);
+
+const itemCantidadRefs = ref({});
+
+const setItemCantidadRef = (key, el) => {
+  if (!key) return;
+  if (el) itemCantidadRefs.value[key] = el;
+  else delete itemCantidadRefs.value[key];
+};
+
+const clearInvalidField = (key = "") => {
+  if (invalidField.value === key) invalidField.value = "";
+};
+
+const waitNextFrame = () =>
+  new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+const scrollToAndFocus = async (el, extra = {}) => {
+  if (!el) return;
+  await waitNextFrame();
+
+  try {
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: extra.block || "center",
+      inline: "nearest",
+    });
+  } catch(e) {console.log(e)}
+
+  setTimeout(() => {
+    try {
+      if (typeof el.focus === "function") {
+        el.focus({ preventScroll: true });
+      }
+    } catch(e) {console.log(e)}
+  }, 250);
+};
+
+const triggerValidationError = async ({ key, message, el, beforeFocus }) => {
+  invalidField.value = key || "";
+  addToast("warning", message || "Falta completar un campo.");
+
+  if (typeof beforeFocus === "function") {
+    await beforeFocus();
+  }
+
+  await scrollToAndFocus(el);
+};
+
+const validarFormularioAntesDeEnviar = async () => {
+  invalidField.value = "";
+
+  if (!centroCosto.value.trim()) {
+    await triggerValidationError({
+      key: "centroCosto",
+      message: "Falta seleccionar el Centro de Costo.",
+      el: centroCostoBtnRef.value,
+    });
+    return false;
+  }
+
+  if (!tipoCompra.value) {
+    await triggerValidationError({
+      key: "tipoCompra",
+      message: "Falta seleccionar el tipo de compra.",
+      el: tipoCompraRef.value,
+    });
+    return false;
+  }
+
+  if (tipoCompra.value === "patente" && !destinoCompra.value.trim()) {
+    await triggerValidationError({
+      key: "destinoCompra",
+      message: "Falta escribir la patente destino.",
+      el: destinoCompraRef.value,
+    });
+    return false;
+  }
+
+  if (!monedaSeleccionada.value) {
+    await triggerValidationError({
+      key: "moneda",
+      message: "Falta seleccionar la moneda.",
+      el: monedaRef.value,
+    });
+    return false;
+  }
+
+  if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) {
+    await triggerValidationError({
+      key: "precioTotalConIVA",
+      message: "Falta ingresar un precio total con IVA válido.",
+      el: precioTotalRef.value,
+    });
+    return false;
+  }
+
+  if (usarSolped.value && !solpedSeleccionadaId.value) {
+    await triggerValidationError({
+      key: "solped",
+      message: "Falta seleccionar una SOLPED asociada.",
+      el: solpedSelectRef.value,
+    });
+    return false;
+  }
+
+  if (usarSolped.value && solpedSeleccionadaId.value) {
+    const itemsValidos = (itemsSolped.value || []).filter((it) => num(it.cantidad_para_cotizar, 0) > 0);
+
+    if (!itemsValidos.length) {
+      const primerItem = itemsSolped.value?.[0];
+      const itemKey = primerItem?.__k ? `item-${primerItem.__k}` : "solped";
+
+      await triggerValidationError({
+        key: itemKey,
+        message: "Falta ingresar al menos una cantidad a cotizar en los ítems de la SOLPED.",
+        el: primerItem?.__k ? itemCantidadRefs.value[primerItem.__k] : solpedSelectRef.value,
+      });
+      return false;
+    }
+  }
+
+  if (!archivos.value.length) {
+    await triggerValidationError({
+      key: "archivos",
+      message: "Falta adjuntar al menos un archivo.",
+      el: archivosDropzoneRef.value,
+    });
+    return false;
+  }
+
+  invalidField.value = "";
+  return true;
+};
 const prettyBytes = (n) => {
   const x = Number(n || 0);
   if (!x) return "0 B";
@@ -1781,6 +3010,189 @@ const prettyTipo = (t) => {
   if (s.includes("sheet") || s.includes("excel") || s.includes("csv") || s.endsWith(".xlsx") || s.endsWith(".xls") || s.endsWith(".csv")) return "Excel";
   return s;
 };
+
+const buildCruceUid = () => `cruce-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const itemsCruceBase = computed(() => {
+  if (!usarSolped.value) return [];
+
+  return (itemsSolped.value || [])
+    .map((it) => {
+      const cantidad = Math.max(0, Number(it?.cantidad ?? 0));
+      const cantidadCotizada = Math.max(0, Number(it?.cantidad_cotizada ?? 0));
+      const disponible = Math.max(0, cantidad - cantidadCotizada);
+
+      return {
+        ...it,
+        cantidad,
+        cantidad_cotizada: cantidadCotizada,
+        restante_cruce: disponible,
+        uid: it.__key || buildCruceUid(),
+        source: "solped",
+      };
+    })
+    .filter((it) => it.restante_cruce > 0);
+});
+
+const selectedCruceItems = computed(() => {
+  const base = itemsCruceBase.value;
+  const manual = manualCruceItems.value;
+  const all = [...base, ...manual];
+  return all.filter((x) => selectedCruceKeys.value.includes(x.uid));
+});
+
+const cerrarCrucePrecios = () => {
+  modalCrucePrecios.value = false;
+  cruceManualIndex.value = 0;
+};
+const formatMoneySmart = (value, moneda = "CLP") => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+
+  try {
+    return n.toLocaleString("es-CL", {
+      style: "currency",
+      currency: moneda || "CLP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  } catch {
+    return `${moneda || "CLP"} ${n.toLocaleString("es-CL")}`;
+  }
+};
+
+const IVA_RATE = 0.19;
+
+const roundMoney = (v) => {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n);
+};
+
+const getOpcionesValidasCruce = (item) => {
+  return (item?.opciones || []).filter((op) => {
+    const proveedor = String(op?.proveedor || "").trim();
+    const pu = Number(op?.precioUnitario || 0);
+    return proveedor && pu > 0;
+  });
+};
+
+const getMejorOpcionCruce = (item) => {
+  const validas = getOpcionesValidasCruce(item);
+  if (!validas.length) return null;
+
+  const marcada = validas.find((op) => op.esMejor);
+  if (marcada) return marcada;
+
+  // si no hay estrella, usa la válida más barata
+  return [...validas].sort((a, b) => Number(a.total || 0) - Number(b.total || 0))[0] || null;
+};
+
+const resumenCruce = computed(() => {
+  let subtotal = 0;
+  let itemsConsiderados = 0;
+  let itemsDestacados = 0;
+
+  for (const item of cruceManualItems.value || []) {
+    const mejor = getMejorOpcionCruce(item);
+    if (!mejor) continue;
+
+    const total = Number(mejor.total || 0);
+    if (total > 0) {
+      subtotal += total;
+      itemsConsiderados += 1;
+      if (mejor.esMejor) itemsDestacados += 1;
+    }
+  }
+
+  const iva = subtotal * IVA_RATE;
+  const totalConIVA = subtotal + iva;
+
+  return {
+    itemsConsiderados,
+    itemsDestacados,
+    subtotal: roundMoney(subtotal),
+    iva: roundMoney(iva),
+    totalConIVA: roundMoney(totalConIVA),
+  };
+});
+
+const syncCantidadCruceToSolpedItem = (cruceItem) => {
+  if (!cruceItem) return;
+  if (!usarSolped.value) return;
+  if (!itemsSolped.value?.length) return;
+
+  const idx = itemsSolped.value.findIndex((it) => it.__key === cruceItem.uid);
+  if (idx < 0) return;
+
+  const target = itemsSolped.value[idx];
+  const cantidadCruce = Math.max(0, Number(cruceItem.cantidad || 0));
+
+  target.cantidad_para_cotizar = Math.min(cantidadCruce, Number(target.__max || 0));
+  clampCantidadParaCotizar(target);
+};
+
+const aplicarCruceAPrecioYItems = ({ showToast = true, closeModal = false } = {}) => {
+  // 1) copiar cantidades del cruce hacia SOLPED
+  if (usarSolped.value && itemsSolped.value?.length) {
+    for (const item of cruceManualItems.value || []) {
+      syncCantidadCruceToSolpedItem(item);
+    }
+  }
+
+  // 2) calcular precio total con IVA desde las opciones destacadas / mejores
+  const totalCruce = Number(resumenCruce.value.totalConIVA || 0);
+
+  if (totalCruce > 0) {
+    formatearPrecConValor(totalCruce);
+  }
+
+  if (showToast) {
+    if (totalCruce > 0) {
+      addToast(
+        "success",
+        "Cruce aplicado: cantidades copiadas a la SOLPED y total con IVA actualizado."
+      );
+    } else {
+      addToast(
+        "warning",
+        "Se copiaron cantidades, pero no había proveedores válidos destacados para calcular el total."
+      );
+    }
+  }
+
+  if (closeModal) {
+    cerrarCrucePrecios();
+  }
+};
+const agregarItemManualCruce = () => {
+  const uid = buildCruceUid();
+  manualCruceItems.value.push({
+    uid,
+    source: "manual",
+    item: manualCruceItems.value.length + 1,
+    descripcion: "",
+    codigo_referencial: "",
+    numero_interno: "",
+    cantidad: 1,
+    estado: "pendiente",
+    estado_cotizacion: "pendiente",
+  });
+};
+
+const eliminarItemManualCruce = (uid) => {
+  manualCruceItems.value = manualCruceItems.value.filter((x) => x.uid !== uid);
+  selectedCruceKeys.value = selectedCruceKeys.value.filter((x) => x !== uid);
+};
+
+const abrirCrucePrecios = async () => {
+  modalCrucePrecios.value = true;
+
+  if (usarSolped.value && itemsCruceBase.value.length && !selectedCruceKeys.value.length) {
+    selectedCruceKeys.value = itemsCruceBase.value.map((x) => x.uid);
+  }
+};
+
+
 
 const obtenerNombreUsuario = async () => {
   try {
@@ -2620,30 +4032,19 @@ const enviarOC = async () => {
 
   calcularAprobador();
   if (aprobadorMeta.bloquea) {
-    addToast("danger", "No hay aprobador disponible (inactivo/vacaciones o config no válida). No se puede enviar.");
+    addToast(
+      "danger",
+      "No hay aprobador disponible (inactivo/vacaciones o config no válida). No se puede enviar."
+    );
     return;
   }
 
-  if (!centroCosto.value.trim()) { addToast("warning", "Selecciona Centro de Costo"); return; }
-  if (!tipoCompra.value) { addToast("warning", "Selecciona tipo de compra"); return; }
-  if (tipoCompra.value === "patente" && !destinoCompra.value.trim()) { addToast("warning", "Ingresa la patente"); return; }
-  if (!precioTotalConIVA.value || precioTotalConIVA.value <= 0) { addToast("warning", "Precio inválido"); return; }
-  if (!monedaSeleccionada.value) { addToast("warning", "Selecciona moneda"); return; }
-  if (usarSolped.value && !solpedSeleccionadaId.value) { addToast("warning", "Selecciona una SOLPED o desactiva la opción"); return; }
+  const formOk = await validarFormularioAntesDeEnviar();
+  if (!formOk) return;
 
   let selections = [];
   if (usarSolped.value && solpedSeleccionadaId.value) {
     selections = buildSelections(itemsSolped.value);
-    if (!selections.length) {
-      addToast("warning", "Debes ingresar al menos una 'Cant. a cotizar' (mayor a 0) para enviar la cotización.");
-      return;
-    }
-  }
-
-  const tieneAlMenosUnAdjunto = archivos.value.length > 0;
-  if (!tieneAlMenosUnAdjunto) {
-    addToast("warning", "Debes adjuntar al menos un archivo (o reutilizar el/los adjuntos de la SOLPED).");
-    return;
   }
 
   enviando.value = true;
@@ -2652,6 +4053,7 @@ const enviarOC = async () => {
   try {
     let nombreUsuario = auth?.user?.displayName || auth?.user?.email || "Desconocido";
     const uid = myUid.value;
+
     if (uid) {
       const usnap = await getDoc(doc(db, "Usuarios", uid));
       if (usnap.exists()) {
@@ -2662,7 +4064,11 @@ const enviarOC = async () => {
 
     setBusy(true, "Enviando cotización…", "Calculando número…", 10);
 
-    const qy = query(collection(db, "ordenes_oc"), orderBy("id", "desc"), limit(1));
+    const qy = query(
+      collection(db, "ordenes_oc"),
+      orderBy("id", "desc"),
+      limit(1)
+    );
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
     const newId = Number(lastId) + 1;
@@ -2681,6 +4087,7 @@ const enviarOC = async () => {
     let itemsOC = [];
     if (usarSolped.value && solpedSeleccionadaId.value) {
       itemsOC = buildItemsOCFromUI(itemsSolped.value);
+
       if (!itemsOC.length) {
         addToast("warning", "No hay ítems válidos para cotizar (revisa cantidades).");
         return;
@@ -2696,7 +4103,12 @@ const enviarOC = async () => {
     for (const a of archivos.value) {
       doneAdj++;
       const pct = Math.min(90, 10 + Math.round((doneAdj / totalAdj) * 80));
-      setBusy(true, "Enviando cotización…", `Subiendo adjunto ${doneAdj} de ${totalAdj}`, pct);
+      setBusy(
+        true,
+        "Enviando cotización…",
+        `Subiendo adjunto ${doneAdj} de ${totalAdj}`,
+        pct
+      );
 
       if (a?.fromSolped && a?.url) {
         subidos.push({
@@ -2738,12 +4150,14 @@ const enviarOC = async () => {
       destinoCompra: tipoCompra.value === "patente" ? destinoCompra.value : "",
       estatus: estatusInicial,
       fechaSubida: serverTimestamp(),
-      historial: [{
-        usuario: nombreUsuario,
-        estatus: estatusInicial,
-        fecha: new Date().toISOString(),
-        comentario: comentarioFinal,
-      }],
+      historial: [
+        {
+          usuario: nombreUsuario,
+          estatus: estatusInicial,
+          fecha: new Date().toISOString(),
+          comentario: comentarioFinal,
+        },
+      ],
       responsable: nombreUsuario,
       comentario: comentarioFinal,
       numero_contrato: centroCosto.value,
@@ -2763,14 +4177,16 @@ const enviarOC = async () => {
       empresa: empresaElegida,
       archivosStorage: subidos,
 
-      ...(usarSolped.value && solpedSeleccionadaId.value ? {
-        solpedId: solpedSeleccionadaId.value,
-        numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
-        tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
-        items: itemsOC,
-      } : {
-        tipo_solped: "Sin SOLPED",
-      }),
+      ...(usarSolped.value && solpedSeleccionadaId.value
+        ? {
+            solpedId: solpedSeleccionadaId.value,
+            numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
+            tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
+            items: itemsOC,
+          }
+        : {
+            tipo_solped: "Sin SOLPED",
+          }),
     };
 
     const newDocRef = await addDoc(collection(db, "ordenes_oc"), dataToSave);
@@ -2778,7 +4194,12 @@ const enviarOC = async () => {
     await updateDoc(newDocRef, { __docId: newDocId });
 
     if (usarSolped.value && solpedSeleccionadaId.value) {
-      await actualizarSolpedAsociada(solpedSeleccionadaId.value, selections, nombreUsuario, estatusInicial);
+      await actualizarSolpedAsociada(
+        solpedSeleccionadaId.value,
+        selections,
+        nombreUsuario,
+        estatusInicial
+      );
     }
 
     setBusy(true, "Listo ✅", "Cotización enviada correctamente", 100);
@@ -2790,9 +4211,14 @@ const enviarOC = async () => {
 
     for (const a of archivos.value) {
       try {
-        if (a?.previewUrl && !a?.fromSolped) URL.revokeObjectURL(a.previewUrl);
-      } catch (e) { console.log(e); }
+        if (a?.previewUrl && !a?.fromSolped) {
+          URL.revokeObjectURL(a.previewUrl);
+        }
+      } catch (e) {
+        console.log(e);
+      }
     }
+
     archivos.value = [];
 
     comentario.value = "";
@@ -2827,6 +4253,7 @@ const enviarOC = async () => {
     aprobadorMeta.regla = null;
 
     monedaSeleccionada.value = "CLP";
+    invalidField.value = "";
 
     await cargarSiguienteNumero();
 
@@ -3026,7 +4453,14 @@ const toggleResumenOC = () => {
   if (mostrarResumenOC.value) suscribirResumenOC(usuarioActual.value);
   else desuscribirResumenOC();
 };
-
+watch(
+  () => selectedCruceItems.value.map((x) => x.uid).join("|"),
+  () => {
+    if (modalCrucePrecios.value) {
+      syncCruceManualItems();
+    }
+  }
+);
 watch(() => usuarioActual.value, async (nv) => {
   if (!nv) return;
   await refrescarAprobadasConCount();
@@ -3034,7 +4468,14 @@ watch(() => usuarioActual.value, async (nv) => {
   if (mostrarMisOC.value) suscribirMisOC();
   if (mostrarResumenOC.value) suscribirResumenOC(nv);
 });
-
+watch(
+  () => modalCrucePrecios.value,
+  (open) => {
+    if (open && usarSolped.value && itemsCruceBase.value.length && !selectedCruceKeys.value.length) {
+      selectedCruceKeys.value = itemsCruceBase.value.map((x) => x.uid);
+    }
+  }
+);
 onMounted(async () => {
   computeIsDesktop();
   window.addEventListener("resize", onResize);
@@ -3189,7 +4630,7 @@ onBeforeUnmount(() => {
 }
 .vmodal {
   width: 100%;
-  max-width: 560px;
+  max-width: 1600px;
   border-radius: .75rem;
   box-shadow: 0 20px 50px rgba(0,0,0,.25);
   overflow: hidden;
@@ -3248,7 +4689,58 @@ onBeforeUnmount(() => {
 .oc-header { padding: .9rem .9rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
 .oc-body { padding: .9rem; overflow: auto; }
 .oc-footer { margin-top: auto; padding: .9rem; border-top: 1px solid #e5e7eb; display: flex; gap: .5rem; justify-content: flex-end; }
+.best-star{
+  font-size: 1.2rem;
+  color: #f59e0b;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
 
+.btn-star-choice{
+  border: 0;
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #94a3b8;
+  padding: 0.15rem 0.35rem;
+  border-radius: 10px;
+  transition: all .18s ease;
+}
+
+.btn-star-choice:hover{
+  transform: scale(1.08);
+  background: rgba(245, 158, 11, 0.08);
+  color: #f59e0b;
+}
+
+.btn-star-choice.active{
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.22);
+}
+
+.table-warning td{
+  background: rgba(245, 158, 11, 0.08) !important;
+}
+.cruce-items-list-scroll{
+  max-height: 48vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.cruce-items-list-scroll::-webkit-scrollbar{
+  width: 8px;
+}
+
+.cruce-items-list-scroll::-webkit-scrollbar-thumb{
+  background: rgba(148, 163, 184, 0.7);
+  border-radius: 999px;
+}
+
+.cruce-items-list-scroll::-webkit-scrollbar-track{
+  background: rgba(226, 232, 240, 0.5);
+  border-radius: 999px;
+}
 .floating-equipos-btn {
   position: fixed;
   right: 16px;
@@ -3294,5 +4786,46 @@ onBeforeUnmount(() => {
   font-size: 44px;
   line-height: 1;
   color: #16a34a;
+}
+.vmodal-xxl{
+  max-width: min(1700px, 96vw);
+}
+
+.cruce-body-scroll{
+  max-height: 72vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.cruce-table-scroll{
+  max-height: 48vh;
+  overflow: auto;
+}
+
+.cruce-table-scroll table thead th{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8f9fa !important;
+}
+.proveedor-field {
+  min-width: 220px;
+}
+
+.proveedor-chip {
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.74rem;
+  line-height: 1.1;
+}
+.proveedor-field {
+  min-width: 220px;
+}
+
+.proveedor-field .form-control {
+  white-space: nowrap;
+}
+.proveedor-chip:hover {
+  transform: translateY(-1px);
 }
 </style>

@@ -1,4 +1,3 @@
-<!-- src/views/RecepcionOC.vue -->
 <template>
   <div class="container-fluid py-3">
     <div v-if="busy.on" class="busy-overlay">
@@ -12,6 +11,7 @@
         </div>
       </div>
     </div>
+
     <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
       <div>
         <h4 class="mb-0">Recepción OC Casa Matriz</h4>
@@ -23,23 +23,34 @@
 
       <div class="d-flex gap-2 flex-wrap align-items-center">
         <div class="btn-group btn-group-sm">
-          <button class="btn btn-outline-dark" :class="{active: source==='empresa'}" @click="source='empresa'">
+          <button class="btn btn-outline-dark" :class="{ active: source === 'empresa' }" @click="source = 'empresa'">
             Empresa
           </button>
-          <button class="btn btn-outline-dark" :class="{active: source==='taller'}" @click="source='taller'">
+          <button class="btn btn-outline-dark" :class="{ active: source === 'taller' }" @click="source = 'taller'">
             Taller
           </button>
         </div>
 
-        <select v-model="statusFiltro" class="form-select form-select-sm" style="width: 280px" title="Filtrar por estatus">
+        <select
+          v-model="statusFiltro"
+          class="form-select form-select-sm"
+          style="width: 280px"
+          title="Filtrar por estatus"
+        >
           <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
         </select>
 
-        <select v-model.number="pageSize" class="form-select form-select-sm" style="width: 120px" title="Cantidad">
-          <option v-for="n in [10,20,30,40,50]" :key="n" :value="n">{{ n }}</option>
+        <select
+          v-model.number="pageSize"
+          class="form-select form-select-sm"
+          style="width: 120px"
+          title="Cantidad"
+        >
+          <option v-for="n in [10, 20, 30, 40, 50]" :key="n" :value="n">{{ n }}</option>
         </select>
+
         <div class="form-check form-switch ms-1" title="Mostrar solo OCs recepcionables (SOLPED cotizada completa)">
-          <input class="form-check-input" type="checkbox" id="onlyRecep" v-model="onlyRecepcionables">
+          <input class="form-check-input" type="checkbox" id="onlyRecep" v-model="onlyRecepcionables" />
           <label class="form-check-label small text-muted" for="onlyRecep">Solo recepcionables</label>
         </div>
 
@@ -48,7 +59,9 @@
         </button>
       </div>
     </div>
+
     <div class="row g-3">
+      <!-- LISTA -->
       <div class="col-12 col-lg-4">
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
@@ -59,6 +72,7 @@
                 Buscando (servidor)
               </span>
             </div>
+
             <div class="d-flex align-items-center gap-2" style="min-width: 220px; max-width: 360px; width: 100%;">
               <div class="input-group input-group-sm">
                 <span class="input-group-text">
@@ -103,7 +117,7 @@
                 </div>
               </div>
 
-              <div v-if="filteredList.length===0" class="text-muted text-center py-4">
+              <div v-if="filteredList.length === 0" class="text-muted text-center py-4">
                 <template v-if="!searchOc">
                   No hay OCs con estatus <b>{{ statusFiltro }}</b>.
                 </template>
@@ -118,22 +132,28 @@
                   :key="o.id"
                   type="button"
                   class="list-group-item list-group-item-action position-relative"
-                  :class="{active: selectedId===o.id}"
+                  :class="{ active: selectedId === o.id }"
                   @click="selectOc(o)"
                 >
                   <div class="d-flex justify-content-between align-items-start gap-2">
                     <div class="me-2 minw-0">
                       <div class="d-flex gap-2 flex-wrap align-items-center">
-                        <span class="badge text-bg-primary">OC {{ ocNumero(o) }}</span>
+                        <span class="badge text-bg-primary">Coti {{ ocNumero(o) }}</span>
                         <span class="badge text-bg-secondary" v-if="o.empresa">{{ o.empresa }}</span>
-                        <span class="badge text-bg-dark">{{ (o.estatus||'').toString() }}</span>
-                        <span v-if="o._solpedInfo?.exists" class="badge"
-                              :class="o._solpedInfo?.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'">
+                        <span class="badge text-bg-dark">{{ (o.estatus || '').toString() }}</span>
+
+                        <span
+                          v-if="o._solpedInfo?.exists"
+                          class="badge"
+                          :class="o._solpedInfo?.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'"
+                        >
                           {{ o._solpedInfo?.estatus || 'SOLPED' }}
                         </span>
 
-                        <span v-else-if="o.solpedId || o.numero_solped || o.numero_solpe"
-                              class="badge text-bg-light text-dark border">
+                        <span
+                          v-else-if="o.solpedId || o.numero_solped || o.numero_solpe"
+                          class="badge text-bg-light text-dark border"
+                        >
                           SOLPED…
                         </span>
 
@@ -143,7 +163,7 @@
                       </div>
 
                       <div class="fw-semibold mt-1 text-truncate" style="max-width: 320px;">
-                        {{ o.archivoOC?.nombre || o.archivoOC?.name || o.nombre || "Orden de compra" }}
+                        {{ ocDisplayName(o) }}
                       </div>
 
                       <small class="text-muted d-block text-truncate" style="max-width: 320px;">
@@ -170,6 +190,8 @@
           </div>
         </div>
       </div>
+
+      <!-- DETALLE -->
       <div class="col-12 col-lg-8">
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
@@ -180,18 +202,21 @@
 
               <span v-if="currentOc?.solpedId" class="badge text-bg-secondary">Con SOLPED</span>
               <span v-else-if="currentOc" class="badge text-bg-warning text-dark">Sin SOLPED</span>
-              <span v-if="currentOc?._solpedInfo?.exists"
-                    class="badge"
-                    :class="currentOc._solpedInfo.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'">
+
+              <span
+                v-if="currentOc?._solpedInfo?.exists"
+                class="badge"
+                :class="currentOc._solpedInfo.isOk ? 'text-bg-success' : 'text-bg-warning text-dark'"
+              >
                 {{ currentOc._solpedInfo.estatus }}
               </span>
             </div>
 
             <div class="d-flex gap-2 align-items-center flex-wrap">
               <a
-                v-if="currentOc?.archivoOC?.url"
+                v-if="getPrimaryOcFile(currentOc)?.url"
                 class="btn btn-outline-dark btn-sm"
-                :href="currentOc.archivoOC.url"
+                :href="getPrimaryOcFile(currentOc)?.url"
                 target="_blank"
                 rel="noopener"
               >
@@ -199,7 +224,7 @@
               </a>
 
               <button
-                v-if="currentOc && (itemsUI.length>0)"
+                v-if="currentOc && (itemsUI.length > 0)"
                 class="btn btn-success btn-sm"
                 :disabled="!canFinalize"
                 @click="finalizeRecepcion"
@@ -245,13 +270,35 @@
                       <div><span class="text-muted">Contrato:</span> {{ currentOc.numero_contrato || currentOc.numero_interno || "—" }}</div>
                       <div><span class="text-muted">Comentario:</span> {{ currentOc.comentario || "—" }}</div>
                       <div><span class="text-muted">SOLPED:</span> {{ currentOc.numero_solped || currentOc.numero_solpe || "—" }}</div>
+                      <div><span class="text-muted">Archivo OC:</span> {{ ocDisplayName(currentOc) }}</div>
+                    </div>
+
+                    <div class="mt-3">
+                      <div class="small text-muted mb-1">Archivo(s) OC:</div>
+
+                      <div v-if="getAllOcFiles(currentOc).length" class="d-flex flex-column gap-1">
+                        <a
+                          v-for="(a, idx) in getAllOcFiles(currentOc)"
+                          :key="`${a.url || a.nombre || a.name || 'oc'}-${idx}`"
+                          class="btn btn-outline-dark btn-sm text-start"
+                          :href="a.url"
+                          target="_blank"
+                          rel="noopener"
+                        >
+                          <i class="bi bi-file-earmark-pdf me-2"></i>{{ a.nombre || a.name || "Archivo OC" }}
+                        </a>
+                      </div>
+                      <div v-else class="text-muted small">Sin archivo OC</div>
                     </div>
 
                     <div class="mt-3">
                       <div class="small text-muted mb-1">Cotizaciones/adjuntos:</div>
-                      <div v-if="Array.isArray(currentOc.archivosStorage) && currentOc.archivosStorage.length" class="d-flex flex-column gap-1">
+                      <div
+                        v-if="Array.isArray(currentOc.archivosStorage) && currentOc.archivosStorage.length"
+                        class="d-flex flex-column gap-1"
+                      >
                         <a
-                          v-for="(a,idx) in currentOc.archivosStorage"
+                          v-for="(a, idx) in currentOc.archivosStorage"
                           :key="idx"
                           class="btn btn-outline-secondary btn-sm text-start"
                           :href="a.url"
@@ -273,7 +320,7 @@
                       Regla: <b>0</b> → No llegó · <b>1..(cotizado-1)</b> → Parcial · <b>cotizado</b> → Completa.
                     </div>
 
-                    <div v-if="itemsUI.length===0" class="mt-3">
+                    <div v-if="itemsUI.length === 0" class="mt-3">
                       <div class="alert alert-warning mb-0">
                         Esta OC no tiene ítems (o vienen vacíos). Aquí solo puedes cambiar el estatus.
                       </div>
@@ -292,7 +339,11 @@
 
                       <div class="mt-2">
                         <label class="form-label small text-muted mb-1">Comentario (opcional)</label>
-                        <input v-model="statusOnlyNota" class="form-control form-control-sm" placeholder="Ej: sin ítems, solo cambio estatus…" />
+                        <input
+                          v-model="statusOnlyNota"
+                          class="form-control form-control-sm"
+                          placeholder="Ej: sin ítems, solo cambio estatus…"
+                        />
                       </div>
                     </div>
 
@@ -307,7 +358,8 @@
                   </div>
                 </div>
               </div>
-              <div v-if="itemsUI.length>0" class="mt-3">
+
+              <div v-if="itemsUI.length > 0" class="mt-3">
                 <div class="table-responsive">
                   <table class="table table-sm align-middle">
                     <thead>
@@ -367,13 +419,11 @@
                   Tip: escribe la cantidad y presiona <b>Enter</b> para pasar al siguiente ítem.
                 </div>
               </div>
-
             </template>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -412,7 +462,7 @@ const actorName = computed(
 
 const ESTADO_ENVIADA = "Enviada a proveedor";
 const ESTADO_PARTIAL = "Recepcion parcial en casa matriz";
-const ESTADO_OK      = "Recepcion completa en casa matriz";
+const ESTADO_OK = "Recepcion completa en casa matriz";
 
 const SOLPED_OK_ESTATUS = new Set([
   "Cotizado Completo",
@@ -421,10 +471,10 @@ const SOLPED_OK_ESTATUS = new Set([
 ]);
 
 const COL_EMPRESA = "ordenes_oc";
-const COL_TALLER  = "ordenes_oc_taller";
+const COL_TALLER = "ordenes_oc_taller";
 
 const SOLPED_EMPRESA = "solpes";
-const SOLPED_TALLER  = "solped_taller";
+const SOLPED_TALLER = "solped_taller";
 
 const statusOptions = [ESTADO_ENVIADA, ESTADO_PARTIAL, ESTADO_OK];
 const statusFiltro = ref(ESTADO_ENVIADA);
@@ -483,6 +533,74 @@ function ensurePdfName(name) {
   const n = String(name || "").trim();
   if (!n) return "";
   return /\.pdf$/i.test(n) ? n : `${n}.pdf`;
+}
+
+function toArray(v) {
+  return Array.isArray(v) ? v : [];
+}
+
+function getOcProviderFiles(docData) {
+  return toArray(docData?.archivosOCProveedor)
+    .filter((a) => a && (a.url || a.nombre || a.name));
+}
+
+function getArchivoOCFiles(docData) {
+  const raw = docData?.archivoOC;
+
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((a) => a && (a.url || a.nombre || a.name))
+      .map((a) => ({
+        ...a,
+        _source: "archivoOC[]",
+      }));
+  }
+
+  if (raw && typeof raw === "object" && (raw.url || raw.nombre || raw.name)) {
+    return [
+      {
+        ...raw,
+        _source: "archivoOC",
+      },
+    ];
+  }
+
+  return [];
+}
+
+function getAllOcFiles(docData) {
+  const files = [
+    ...getArchivoOCFiles(docData),
+    ...getOcProviderFiles(docData).map((item) => ({
+      ...item,
+      _source: "archivosOCProveedor",
+    })),
+  ];
+
+  const seen = new Set();
+  return files.filter((f) => {
+    const key = `${f?.url || ""}|${f?.nombre || f?.name || ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getPrimaryOcFile(docData) {
+  const files = getAllOcFiles(docData);
+  return files[0] || null;
+}
+
+function getOcNameCandidates(docData) {
+  return getAllOcFiles(docData)
+    .map((f) => String(f?.nombre || f?.name || "").trim())
+    .filter(Boolean);
+}
+
+function ocDisplayName(docData) {
+  const firstName = getOcNameCandidates(docData)[0];
+  if (firstName) return firstName;
+  return docData?.nombre || "Orden de compra";
 }
 
 function clearSearch() {
@@ -552,7 +670,14 @@ async function fetchSolpedMetaForOc(oc, isTaller) {
 
   const solpedCol = isTaller ? SOLPED_TALLER : SOLPED_EMPRESA;
 
-  let meta = { exists: false, estatus: "", isOk: false, faltantesTotal: 0, numero_solpe: null, solpedId: null };
+  let meta = {
+    exists: false,
+    estatus: "",
+    isOk: false,
+    faltantesTotal: 0,
+    numero_solpe: null,
+    solpedId: null,
+  };
 
   try {
     if (oc?.solpedId) {
@@ -572,6 +697,7 @@ async function fetchSolpedMetaForOc(oc, isTaller) {
         };
       }
     }
+
     if (!meta.exists) {
       const num = oc?.numero_solped ?? oc?.numero_solpe;
       if (num != null && String(num).trim() !== "") {
@@ -611,15 +737,18 @@ async function fetchSolpedMetaForOc(oc, isTaller) {
 
 async function hydrateSolpedMetaForList(ocs, isTaller) {
   if (!Array.isArray(ocs) || !ocs.length) return;
-  const targets = ocs.filter(o => !!solpedKeyFromOc(o));
+
+  const targets = ocs.filter((o) => !!solpedKeyFromOc(o));
   if (!targets.length) return;
-  const metas = await Promise.all(targets.map(o => fetchSolpedMetaForOc(o, isTaller)));
+
+  const metas = await Promise.all(targets.map((o) => fetchSolpedMetaForOc(o, isTaller)));
   const mapById = new Map();
+
   targets.forEach((o, i) => {
     mapById.set(o.id, metas[i]);
   });
 
-  const out = ocs.map(o => ({
+  const out = ocs.map((o) => ({
     ...o,
     _solpedInfo: mapById.get(o.id) || o._solpedInfo || null,
   }));
@@ -628,8 +757,17 @@ async function hydrateSolpedMetaForList(ocs, isTaller) {
   else listEmpresa.value = out;
 
   if (isSearchMode.value) {
-    if (isTaller) serverTaller.value = serverTaller.value.map(o => ({ ...o, _solpedInfo: mapById.get(o.id) || o._solpedInfo || null }));
-    else serverEmpresa.value = serverEmpresa.value.map(o => ({ ...o, _solpedInfo: mapById.get(o.id) || o._solpedInfo || null }));
+    if (isTaller) {
+      serverTaller.value = serverTaller.value.map((o) => ({
+        ...o,
+        _solpedInfo: mapById.get(o.id) || o._solpedInfo || null,
+      }));
+    } else {
+      serverEmpresa.value = serverEmpresa.value.map((o) => ({
+        ...o,
+        _solpedInfo: mapById.get(o.id) || o._solpedInfo || null,
+      }));
+    }
   }
 }
 
@@ -652,8 +790,14 @@ let unsubEmpresa = null;
 let unsubTaller = null;
 
 function stopSubs() {
-  if (unsubEmpresa) { unsubEmpresa(); unsubEmpresa = null; }
-  if (unsubTaller) { unsubTaller(); unsubTaller = null; }
+  if (unsubEmpresa) {
+    unsubEmpresa();
+    unsubEmpresa = null;
+  }
+  if (unsubTaller) {
+    unsubTaller();
+    unsubTaller = null;
+  }
 }
 
 function subscribeAll() {
@@ -712,7 +856,7 @@ function autoPickFirstIfMissing() {
   if (searchOc.value) return;
 
   const base = baseList.value;
-  if (selectedId.value && base.some(x => x.id === selectedId.value)) return;
+  if (selectedId.value && base.some((x) => x.id === selectedId.value)) return;
 
   const first = base[0];
   selectedId.value = first?.id || "";
@@ -726,6 +870,7 @@ watch([statusFiltro, pageSize], () => {
   subscribeAll();
   if (isSearchMode.value) runServerSearchDebounced(true);
 });
+
 let _searchTimer = null;
 let _searchToken = 0;
 
@@ -793,7 +938,7 @@ function buildArchivoNombreVariants(raw) {
     }
   }
 
-  return Array.from(out).map(x => String(x).trim()).filter(Boolean).slice(0, 14);
+  return Array.from(out).map((x) => String(x).trim()).filter(Boolean).slice(0, 14);
 }
 
 function buildPrefixCandidates(raw) {
@@ -815,13 +960,19 @@ function buildPrefixCandidates(raw) {
 
   if (base.length >= 3) out.add(base);
 
-  return Array.from(out).map(x => String(x).trim()).filter(x => x.length >= 2).slice(0, 10);
+  return Array.from(out).map((x) => String(x).trim()).filter((x) => x.length >= 2).slice(0, 10);
 }
 
 function docMatchesContains(docData, qNorm) {
+  const ocNames = getOcNameCandidates(docData).join(" | ");
+
+  const archivoOCNombres = Array.isArray(docData?.archivoOC)
+    ? docData.archivoOC.map((a) => a?.nombre || a?.name || "").filter(Boolean).join(" | ")
+    : [docData?.archivoOC?.nombre, docData?.archivoOC?.name].filter(Boolean).join(" | ");
+
   const blob = normalizeText([
-    docData?.archivoOC?.nombre,
-    docData?.archivoOC?.name,
+    ocNames,
+    archivoOCNombres,
     docData?.nombre,
     ocNumero(docData),
     docData?.idNumero,
@@ -844,6 +995,13 @@ function docMatchesContains(docData, qNorm) {
   return blob.includes(qNorm);
 }
 
+function exactOcFileNameMatch(docData, variants = []) {
+  const names = getOcNameCandidates(docData).map((n) => normalizeText(n));
+  if (!names.length || !variants.length) return false;
+
+  const normalizedVariants = variants.map((v) => normalizeText(v));
+  return normalizedVariants.some((v) => names.includes(v));
+}
 async function searchInCollection(colName, termRaw, status) {
   const term = String(termRaw || "").trim();
   const qNorm = normalizeText(term);
@@ -856,12 +1014,13 @@ async function searchInCollection(colName, termRaw, status) {
 
   const addSnap = (snap) => {
     if (!snap?.docs?.length) return;
-    snap.docs.forEach(d => {
+    snap.docs.forEach((d) => {
       if (!merged.has(d.id)) merged.set(d.id, normalizeDocForUI(d));
     });
   };
 
   const nameVariants = buildArchivoNombreVariants(term);
+
   for (const v of nameVariants) {
     addSnap(await safeTryQuery(query(
       collection(db, colName),
@@ -869,6 +1028,7 @@ async function searchInCollection(colName, termRaw, status) {
       where("archivoOC.nombre", "==", v),
       limit(SEARCH_LIMIT)
     )));
+
     addSnap(await safeTryQuery(query(
       collection(db, colName),
       where("estatus", "==", status),
@@ -886,6 +1046,7 @@ async function searchInCollection(colName, termRaw, status) {
       where("id", "==", n),
       limit(SEARCH_LIMIT)
     )));
+
     addSnap(await safeTryQuery(query(
       collection(db, colName),
       where("estatus", "==", status),
@@ -899,6 +1060,7 @@ async function searchInCollection(colName, termRaw, status) {
       where("numero_oc", "==", n),
       limit(SEARCH_LIMIT)
     )));
+
     addSnap(await safeTryQuery(query(
       collection(db, colName),
       where("estatus", "==", status),
@@ -919,39 +1081,40 @@ async function searchInCollection(colName, termRaw, status) {
     ));
     addSnap(snap);
   }
+  let snap = await safeTryQuery(query(
+    collection(db, colName),
+    where("estatus", "==", status),
+    orderBy("fechaSubida", "desc"),
+    limit(SCAN_LIMIT)
+  ));
 
-  if (merged.size < 6) {
-    let snap = await safeTryQuery(query(
+  if (!snap) {
+    snap = await safeTryQuery(query(
       collection(db, colName),
       where("estatus", "==", status),
-      orderBy("fechaSubida", "desc"),
       limit(SCAN_LIMIT)
     ));
+  }
 
-    if (!snap) {
-      snap = await safeTryQuery(query(
-        collection(db, colName),
-        where("estatus", "==", status),
-        limit(SCAN_LIMIT)
-      ));
-    }
+  if (snap?.docs?.length) {
+    for (const d of snap.docs) {
+      const normed = normalizeDocForUI(d);
 
-    if (snap?.docs?.length) {
-      for (const d of snap.docs) {
-        if (merged.has(d.id)) continue;
-        const normed = normalizeDocForUI(d);
-        if (docMatchesContains(normed, qNorm)) {
-          merged.set(d.id, normed);
-          if (merged.size >= SEARCH_LIMIT) break;
-        }
+      if (!merged.has(d.id) && exactOcFileNameMatch(normed, nameVariants)) {
+        merged.set(d.id, normed);
+        continue;
       }
+
+      if (!merged.has(d.id) && docMatchesContains(normed, qNorm)) {
+        merged.set(d.id, normed);
+      }
+
+      if (merged.size >= SEARCH_LIMIT) break;
     }
   }
 
-  const arr = Array.from(merged.values());
-  return arr;
+  return Array.from(merged.values());
 }
-
 async function runServerSearch() {
   const q = normalizeText(searchOc.value);
   if (!q || q.length < 2) {
@@ -994,6 +1157,7 @@ async function runServerSearch() {
       empresa: emp,
       taller: tal,
     };
+
     await hydrateSolpedMetaForList(serverEmpresa.value, false);
     await hydrateSolpedMetaForList(serverTaller.value, true);
 
@@ -1024,12 +1188,13 @@ function ensureSelectionValidForCurrentBase() {
     return;
   }
 
-  if (!selectedId.value || !base.some(x => x.id === selectedId.value)) {
+  if (!selectedId.value || !base.some((x) => x.id === selectedId.value)) {
     selectedId.value = base[0].id;
   }
 
   nextTick(() => loadRecepcionFromExisting());
 }
+
 const baseList = computed(() => {
   const normal = source.value === "empresa" ? listEmpresa.value : listTaller.value;
   const server = source.value === "empresa" ? serverEmpresa.value : serverTaller.value;
@@ -1043,7 +1208,7 @@ const filteredList = computed(() => {
   if (qn) arr = arr.filter((o) => docMatchesContains(o, qn));
 
   if (onlyRecepcionables.value) {
-    arr = arr.filter(o => {
+    arr = arr.filter((o) => {
       const inf = o?._solpedInfo;
       if (!inf || !inf.exists) return false;
       return !!inf.isOk;
@@ -1053,7 +1218,7 @@ const filteredList = computed(() => {
   return arr;
 });
 
-const currentOc = computed(() => baseList.value.find(x => x.id === selectedId.value) || null);
+const currentOc = computed(() => baseList.value.find((x) => x.id === selectedId.value) || null);
 
 function selectOc(o) {
   selectedId.value = o.id;
@@ -1111,6 +1276,7 @@ const itemsUI = computed(() => {
 
   return items.map((it, idx) => {
     const key = String(it.__tempId || it.key || it.descripcion || it.nombre || it.codigo_referencial || it.codigo || idx);
+
     const qtyBaseRaw =
       it.cantidad_cotizada ??
       it.cantidad ??
@@ -1160,7 +1326,7 @@ function onQtyCommit(it) {
 }
 
 function advanceQty(currentKey) {
-  const keys = itemsUI.value.map(x => x.key);
+  const keys = itemsUI.value.map((x) => x.key);
   const idx = keys.indexOf(currentKey);
   const nextKey = idx >= 0 ? keys[idx + 1] : null;
 
@@ -1204,12 +1370,12 @@ watch(
 );
 
 function countEstado(st) {
-  return itemsUI.value.filter(it => itemEstado(it.key, it.qtyBase) === st).length;
+  return itemsUI.value.filter((it) => itemEstado(it.key, it.qtyBase) === st).length;
 }
 
 function calcFinalEstatusFromItems() {
   if (itemsUI.value.length === 0) return currentOc.value?.estatus || ESTADO_ENVIADA;
-  const allComplete = itemsUI.value.every(it => itemEstado(it.key, it.qtyBase) === "completa");
+  const allComplete = itemsUI.value.every((it) => itemEstado(it.key, it.qtyBase) === "completa");
   return allComplete ? ESTADO_OK : ESTADO_PARTIAL;
 }
 
@@ -1239,7 +1405,7 @@ const canFinalize = computed(() => {
 
 function buildRecepcionPayload() {
   const nowIso = new Date().toISOString();
-  const items = itemsUI.value.map(it => {
+  const items = itemsUI.value.map((it) => {
     const recibido = clamp(getQty(it.key), 0, it.qtyBase);
     const estado = itemEstado(it.key, it.qtyBase);
     return {
@@ -1267,6 +1433,7 @@ function buildHistorialEntry(estatus, comentario = "") {
     usuario: actorName.value,
   };
 }
+
 async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
   const solpedStatus = (nuevoEstatus === ESTADO_OK)
     ? "Pedido en Casa matriz"
@@ -1351,7 +1518,7 @@ async function finalizeRecepcion() {
     await updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName);
 
     const arr = filteredList.value.length ? filteredList.value : baseList.value;
-    const idx = arr.findIndex(x => x.id === ocDoc.id);
+    const idx = arr.findIndex((x) => x.id === ocDoc.id);
     const next = idx >= 0 ? (arr[idx + 1] || arr[0]) : arr[0];
     selectedId.value = next?.id || "";
   } catch (e) {
@@ -1361,6 +1528,7 @@ async function finalizeRecepcion() {
     setBusy(false);
   }
 }
+
 const statusOnlyValue = ref(ESTADO_ENVIADA);
 const statusOnlyNota = ref("");
 
@@ -1405,17 +1573,23 @@ async function updateStatusOnly() {
 </script>
 
 <style scoped>
-.bg-light-subtle { background: rgba(0,0,0,.03); }
+.bg-light-subtle {
+  background: rgba(0, 0, 0, 0.03);
+}
 
-.list-wrap { max-height: 72vh; overflow: auto; }
+.list-wrap {
+  max-height: 72vh;
+  overflow: auto;
+}
 
 .list-group-item.active {
   color: #111 !important;
-  background: rgba(var(--bs-info-rgb), .14) !important;
-  border-color: rgba(var(--bs-info-rgb), .35) !important;
+  background: rgba(var(--bs-info-rgb), 0.14) !important;
+  border-color: rgba(var(--bs-info-rgb), 0.35) !important;
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px rgba(var(--bs-info-rgb), .22);
+  box-shadow: inset 0 0 0 1px rgba(var(--bs-info-rgb), 0.22);
 }
+
 .list-group-item.active::before {
   content: "";
   position: absolute;
@@ -1425,22 +1599,26 @@ async function updateStatusOnly() {
   width: 6px;
   background: var(--bs-primary);
 }
-.list-group-item:hover { background: rgba(var(--bs-primary-rgb), .08); }
+
+.list-group-item:hover {
+  background: rgba(var(--bs-primary-rgb), 0.08);
+}
 
 .busy-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.38);
+  background: rgba(0, 0, 0, 0.38);
   z-index: 2000;
   display: grid;
   place-items: center;
   padding: 16px;
 }
+
 .busy-card {
   background: #fff;
   border-radius: 16px;
   padding: 18px;
   width: min(700px, 96vw);
-  border: 1px solid rgba(0,0,0,.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 </style>
