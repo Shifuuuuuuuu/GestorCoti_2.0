@@ -82,6 +82,11 @@
                         <i class="bi bi-coin me-1"></i>
                         <strong>Total:</strong> {{ formatMoneyCL(ocMonto(oc)) }}
                       </span>
+
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-calculator me-1"></i>
+                        <strong>Evalúa en CLP:</strong> {{ formatMoneyCL(ocMontoHomologadoCLP(oc)) }}
+                      </span>
                     </div>
                   </div>
 
@@ -322,63 +327,80 @@ import { useAuthStore } from "../stores/authService";
 
 const ENABLE_DELEGATION = false;
 
+const FIXED_CURRENCY_TO_CLP: Record<string, number> = {
+  clp: 1,
+  euro: 1000,
+  eur: 1000,
+  usd: 1000,
+  dolar: 1000,
+  dolares: 1000,
+  dólar: 1000,
+  dólares: 1000,
+  uf: 40000,
+};
+
+const normalizeCurrency = (currency: any) => {
+  return String(currency || "clp")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+};
+
+const getCurrencyFactorToCLP = (currency: any) => {
+  const key = normalizeCurrency(currency);
+  return FIXED_CURRENCY_TO_CLP[key] || 1;
+};
+
 const parseMoney = (v: any): number => {
-  if (v == null) return 0;
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (v == null) return 0;
 
-  let s = String(v).trim();
-  if (!s) return 0;
+  const raw = String(v).trim();
+  if (!raw) return 0;
 
-  let negative = false;
-  if (s.includes("(") && s.includes(")")) {
-    negative = true;
-    s = s.replace(/[()]/g, "");
+  const cleaned = raw.replace(/[^\d,.-]/g, "");
+  if (!cleaned) return 0;
+
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  if (hasComma && hasDot) {
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+    const decimalSep = lastComma > lastDot ? "," : ".";
+    const thousandSep = decimalSep === "," ? "." : ",";
+
+    const normalized = cleaned
+      .replace(new RegExp(`\\${thousandSep}`, "g"), "")
+      .replace(decimalSep, ".");
+
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : 0;
   }
 
-  s = s
-    .replace(/\s+/g, "")
-    .replace(/[A-Za-z$€£¥₩₽₺₫₴₱₦₲₡₵₸₭₮₢₠₣]/g, "");
-
-  s = s.replace(/[^0-9.,+-]/g, "");
-  s = s.replace(/\+/g, "");
-
-  if (s.includes("-")) {
-    s = s.replace(/(?!^)-/g, "");
-    if (s.startsWith("-")) negative = true;
-    s = s.replace(/-/g, "");
-  }
-
-  if (!s) return 0;
-
-  const lastDot = s.lastIndexOf(".");
-  const lastComma = s.lastIndexOf(",");
-
-  if (lastDot >= 0 && lastComma >= 0) {
-    const decSep = lastDot > lastComma ? "." : ",";
-    const thouSep = decSep === "." ? "," : ".";
-    s = s.split(thouSep).join("");
-    s = s.replace(decSep, ".");
-  } else if (lastComma >= 0) {
-    const parts = s.split(",");
-    if (parts.length === 2 && parts[1].length > 0 && parts[1].length <= 2) {
-      s = parts[0].split(".").join("") + "." + parts[1];
-    } else {
-      s = s.split(",").join("");
-      s = s.split(".").join("");
+  if (hasComma && !hasDot) {
+    const parts = cleaned.split(",");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const n = Number(cleaned.replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
     }
-  } else if (lastDot >= 0) {
-    const parts = s.split(".");
-    if (parts.length === 2 && parts[1].length > 0 && parts[1].length <= 2) {
-      s = parts[0].split(",").join("") + "." + parts[1];
-    } else {
-      s = s.split(".").join("");
-      s = s.split(",").join("");
-    }
+    const n = Number(cleaned.replace(/,/g, ""));
+    return Number.isFinite(n) ? n : 0;
   }
 
-  const n = Number(s);
-  if (!Number.isFinite(n)) return 0;
-  return negative ? -Math.abs(n) : n;
+  if (hasDot && !hasComma) {
+    const parts = cleaned.split(".");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : 0;
+    }
+    const n = Number(cleaned.replace(/\./g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
 };
 
 const formatMoneyCL = (n: any) => {
@@ -387,7 +409,7 @@ const formatMoneyCL = (n: any) => {
   return Math.round(safe).toLocaleString("es-CL");
 };
 
-const ocMonto = (oc: any): number => {
+const ocMontoOriginal = (oc: any): number => {
   const candidates = [
     oc?.precioTotalConIVA,
     oc?.totalConIva,
@@ -398,11 +420,23 @@ const ocMonto = (oc: any): number => {
     oc?.precioTotal,
     oc?.precio_total,
   ];
+
   for (const c of candidates) {
     const n = parseMoney(c);
     if (Number.isFinite(n) && n !== 0) return n;
   }
+
   return parseMoney(oc?.precioTotalConIVA);
+};
+
+const ocMonto = (oc: any): number => {
+  return ocMontoOriginal(oc);
+};
+
+const ocMontoHomologadoCLP = (oc: any): number => {
+  const monto = ocMontoOriginal(oc);
+  const factor = getCurrencyFactorToCLP(oc?.moneda);
+  return Math.round(monto * factor);
 };
 
 const normalizeCompany = (raw: any) => {
@@ -817,7 +851,7 @@ const stepMax = (v: any) => {
   return n > 0 ? n : MAX_INF;
 };
 
-const nextStatusFromStep = (idx: number, monto: number) => {
+const nextStatusFromStep = (idx: number, montoCLP: number) => {
   const steps = stepsCfg.value;
   const st = steps[idx];
   const min = stepMin(st.min);
@@ -825,22 +859,33 @@ const nextStatusFromStep = (idx: number, monto: number) => {
   const approveTo = String(st.approveTo || "Aprobado").trim() || "Aprobado";
   const overTo = String(st.overTo || "").trim();
 
-  if (!monto || monto <= 0) throw new Error("Monto inválido: OC sin total (0 o vacío).");
-  if (monto < min) throw new Error(`Monto ${monto.toLocaleString("es-CL")} < mínimo de la etapa (${min.toLocaleString("es-CL")}).`);
+  if (!montoCLP || montoCLP <= 0) {
+    throw new Error("Monto inválido: OC sin total válido para aprobación.");
+  }
 
-  if (monto > max) {
+  if (montoCLP < min) {
+    throw new Error(
+      `El monto homologado (${montoCLP.toLocaleString("es-CL")} CLP) es menor al mínimo de la etapa (${min.toLocaleString("es-CL")} CLP).`
+    );
+  }
+
+  if (montoCLP > max) {
     if (overTo) return overTo;
+
     const fallbackNext = steps[idx + 1]?.inStatus;
     if (fallbackNext) return String(fallbackNext).trim();
-    throw new Error(`Monto excede el máximo (${max.toLocaleString("es-CL")}) y no hay overTo.`);
+
+    throw new Error(
+      `El monto homologado (${montoCLP.toLocaleString("es-CL")} CLP) excede el máximo (${max.toLocaleString("es-CL")} CLP) y no hay overTo.`
+    );
   }
+
   return approveTo;
 };
-
 const computeNextStatusAutoSkip = (oc: any) => {
   const steps = stepsCfg.value;
   const uid = myUid.value;
-  const monto = ocMonto(oc);
+  const montoCLP = ocMontoHomologadoCLP(oc);
 
   let idx = stepIndexFromOCStatus(oc?.estatus);
   if (idx < 0) return "Aprobado";
@@ -852,7 +897,7 @@ const computeNextStatusAutoSkip = (oc: any) => {
     if (visited.has(idx)) break;
     visited.add(idx);
 
-    const next = nextStatusFromStep(idx, monto);
+    const next = nextStatusFromStep(idx, montoCLP);
     const nextIdx = stepIndexFromOCStatus(next);
 
     if (!ENABLE_DELEGATION) return next;
@@ -1011,6 +1056,7 @@ const aprobar = async (oc: any) => {
       items: nuevosItems,
       aprobadoPor: usuarioNombre.value || "",
       montoParseado: ocMonto(oc),
+      montoAprobacionCLP: ocMontoHomologadoCLP(oc),
     });
 
     await registrarHistorialSolpedAccionOC_Taller({

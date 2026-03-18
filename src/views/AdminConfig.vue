@@ -164,10 +164,31 @@
                     <div class="fw-semibold">Etapas</div>
 
                     <div class="d-flex align-items-center gap-2">
-                      <div class="d-flex align-items-center gap-2">
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
                         <span class="small text-body-secondary">Monto de prueba</span>
-                        <input type="number" class="form-control form-control-sm" style="width:160px"
-                               v-model.number="previewMonto" min="0" />
+
+                        <input
+                          type="number"
+                          class="form-control form-control-sm"
+                          style="width:160px"
+                          v-model.number="previewMonto"
+                          min="0"
+                        />
+
+                        <select
+                          class="form-select form-select-sm"
+                          style="width:100px"
+                          v-model="previewMoneda"
+                        >
+                          <option value="CLP">CLP</option>
+                          <option value="EUR">EUR</option>
+                          <option value="USD">USD</option>
+                          <option value="UF">UF</option>
+                        </select>
+
+                        <span class="badge bg-info-subtle text-info-emphasis">
+                          CLP homologado: {{ money(previewMontoCLP) }}
+                        </span>
                       </div>
 
                       <button class="btn btn-outline-primary btn-sm" @click="addStep">
@@ -638,6 +659,33 @@ const seedLoading = ref(false);
 
 const previewMonto = ref<number>(500001);
 
+const previewMoneda = ref<"CLP"|"EUR"|"USD"|"UF">("CLP");
+
+const FIXED_CURRENCY_TO_CLP: Record<string, number> = {
+  clp: 1,
+  euro: 1000,
+  eur: 1000,
+  usd: 1000,
+  dolar: 1000,
+  dolares: 1000,
+  uf: 40000,
+};
+
+const normalizeCurrency = (currency: string) =>
+  String(currency || "clp")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const getCurrencyFactorToCLP = (currency: string) => {
+  const key = normalizeCurrency(currency);
+  return FIXED_CURRENCY_TO_CLP[key] || 1;
+};
+
+const previewMontoCLP = computed(() => {
+  return Math.round(Number(previewMonto.value || 0) * getCurrencyFactorToCLP(previewMoneda.value));
+});
 
 const toasts = ref<{id:number,type:'success'|'warning'|'danger',text:string}[]>([]);
 const addToast = (type:'success'|'warning'|'danger', text:string, timeout=2600) => {
@@ -860,7 +908,7 @@ const delegationPreview = (idx:number): null | { toIdx:number; toStep:Step } => 
   const steps = stepsDraft.value;
   if (!steps[idx]) return null;
 
-  const eff = resolveEffectiveIdx(idx, previewMonto.value);
+  const eff = resolveEffectiveIdx(idx, previewMontoCLP.value);
   if (eff < 0) return null;
   if (eff === idx) return null;
 

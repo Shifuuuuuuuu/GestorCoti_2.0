@@ -103,6 +103,12 @@
                         <strong>Total:</strong>
                         {{ (oc.precioTotalConIVA ?? 0).toLocaleString('es-CL') }}
                       </span>
+
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-calculator me-1"></i>
+                        <strong>Evalúa en CLP:</strong>
+                        {{ getMontoHomologadoCLP(oc.precioTotalConIVA, oc.moneda).toLocaleString('es-CL') }}
+                      </span>
                     </div>
                   </div>
 
@@ -988,15 +994,90 @@ const registrarHistorialSolpedAccionOC = async ({ solpedId, ocNumero, usuario, e
 };
 
 
+const FIXED_CURRENCY_TO_CLP = {
+  clp: 1,
+  euro: 1000,
+  eur: 1000,
+  usd: 1000,
+  dolar: 1000,
+  dolares: 1000,
+  dólar: 1000,
+  dólares: 1000,
+  uf: 40000,
+};
 
+const normalizeCurrency = (currency) => {
+  return String(currency || "clp")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+};
 
+const getCurrencyFactorToCLP = (currency) => {
+  const key = normalizeCurrency(currency);
+  return FIXED_CURRENCY_TO_CLP[key] || 1;
+};
 
-const parseMoneyCLP = (v) => {
+const parseMoneyNumber = (v) => {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (v == null) return 0;
-  const s = String(v).trim();
-  const digits = s.replace(/[^\d]/g, "");
-  return digits ? parseInt(digits, 10) : 0;
+
+  const raw = String(v).trim();
+  if (!raw) return 0;
+
+  const cleaned = raw.replace(/[^\d,.-]/g, "");
+
+  if (!cleaned) return 0;
+
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  // Caso 1: tiene coma y punto -> asumimos que el último separador es decimal
+  if (hasComma && hasDot) {
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+    const decimalSep = lastComma > lastDot ? "," : ".";
+    const thousandSep = decimalSep === "," ? "." : ",";
+
+    const normalized = cleaned
+      .replace(new RegExp(`\\${thousandSep}`, "g"), "")
+      .replace(decimalSep, ".");
+
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Caso 2: solo coma
+  if (hasComma && !hasDot) {
+    const parts = cleaned.split(",");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const n = Number(cleaned.replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    }
+    const n = Number(cleaned.replace(/,/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Caso 3: solo punto
+  if (hasDot && !hasComma) {
+    const parts = cleaned.split(".");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : 0;
+    }
+    const n = Number(cleaned.replace(/\./g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const getMontoHomologadoCLP = (montoRaw, monedaRaw) => {
+  const monto = parseMoneyNumber(montoRaw);
+  const factor = getCurrencyFactorToCLP(monedaRaw);
+  return Math.round(monto * factor);
 };
 
 const MAX_INF = Number.MAX_SAFE_INTEGER;
@@ -1006,10 +1087,11 @@ const stepMax = (v) => {
   return n > 0 ? n : MAX_INF;
 };
 
-const computeNextStatusOnApprove = (steps, currentStatus, montoRaw) => {
-  const monto = parseMoneyCLP(montoRaw);
-  if (!monto || monto <= 0) {
-    throw new Error("Monto inválido: OC sin precioTotalConIVA (0 o vacío).");
+const computeNextStatusOnApprove = (steps, currentStatus, montoRaw, monedaRaw) => {
+  const montoCLP = getMontoHomologadoCLP(montoRaw, monedaRaw);
+
+  if (!montoCLP || montoCLP <= 0) {
+    throw new Error("Monto inválido: la OC no tiene un total válido para evaluar la aprobación.");
   }
 
   const idx = findStepIndexByStatus(steps, currentStatus);
@@ -1022,15 +1104,21 @@ const computeNextStatusOnApprove = (steps, currentStatus, montoRaw) => {
   const approveTo = String(st.approveTo || "Aprobado").trim() || "Aprobado";
   const overTo = String(st.overTo || "").trim();
 
-  if (monto < min) {
-    throw new Error(`Monto ${monto.toLocaleString("es-CL")} < mínimo de esta etapa (${min.toLocaleString("es-CL")}).`);
+  if (montoCLP < min) {
+    throw new Error(
+      `El monto homologado (${montoCLP.toLocaleString("es-CL")} CLP) es menor al mínimo de esta etapa (${min.toLocaleString("es-CL")} CLP).`
+    );
   }
 
-  if (monto > max) {
+  if (montoCLP > max) {
     if (overTo) return overTo;
+
     const next = steps[idx + 1]?.inStatus;
     if (next) return String(next).trim();
-    throw new Error(`Monto excede el máximo de esta etapa (${max.toLocaleString("es-CL")}) y no hay overTo.`);
+
+    throw new Error(
+      `El monto homologado (${montoCLP.toLocaleString("es-CL")} CLP) excede el máximo de esta etapa (${max.toLocaleString("es-CL")} CLP) y no hay transición configurada.`
+    );
   }
 
   return approveTo;
@@ -1105,7 +1193,12 @@ const aprobar = async (oc) => {
 
     let nuevoEstatus = "Aprobado";
     try {
-      nuevoEstatus = computeNextStatusOnApprove(steps, oc.estatus, oc.precioTotalConIVA);
+      nuevoEstatus = computeNextStatusOnApprove(
+        steps,
+        oc.estatus,
+        oc.precioTotalConIVA,
+        oc.moneda
+      );
     } catch (err) {
       addToast("warning", err?.message || "No se pudo determinar el siguiente estado según el monto.");
       accionando.value = false;

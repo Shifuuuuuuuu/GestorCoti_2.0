@@ -2546,6 +2546,23 @@ const centrosCostoLista = ref([
   { key: "31155", name: "DIVISION ANDINA 4600031155 Y 23302 CARPETAS" },
   { key: "23302", name: "CONTRATO 23302" },
   { key: "GPLA", name: "GPLA 4600031750" },
+  { key: "BETON_CALAMA", name: "PLANTA BETON CALAMA" },
+  { key: "FLUMECAR_CALAMA", name: "PLANTA FLUMECAR CALAMA" },
+  { key: "URBANA_CALAMA", name: "PLANTA URBANA CALAMA" },
+  { key: "KM13_ANDINA", name: "PLANTA KM13 ANDINA" },
+  { key: "NV17_ANDINA", name: "PLANTA NV17 ANDINA" },
+  { key: "SAN_BERNARDO", name: "PLANTA SAN BERNANDO" },
+  { key: "ARIDO_NOS", name: "PLANTA DE ÁRIDO NOS" },
+  { key: "OLIVAR", name: "PLANTA OLIVAR" },
+  { key: "CANECHAL", name: "PLANTA CANECHE" },
+  { key: "COLON", name: "PLANTA COLÓN" },
+  { key: "AGUA_DULCE", name: "PLANTA AGUA DULCE" },
+  { key: "ESMERALDA", name: "PLANTA ESMERALDA" },
+  { key: "ESTOCADA_8", name: "PLANTA ESTOCADA 8" },
+  { key: "OP14", name: "PLANTA OP14" },
+  { key: "ANDES_NORTE", name: "PLANTA ANDES NORTE" },
+  { key: "CHANCHADO", name: "PLANTA CHANCHADO" },
+
 ]);
 
 const centrosFiltrados = computed(() => {

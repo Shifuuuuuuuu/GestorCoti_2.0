@@ -14,7 +14,7 @@
 
     <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
       <div>
-        <h4 class="mb-0">Recepción OC Casa Matriz</h4>
+        <h4 class="mb-0">Recepción OC</h4>
         <small class="text-muted">
           OCs desde <b>Empresa</b> y <b>Taller</b>. Solo se puede recepcionar si la SOLPED está
           en <b>Cotizado Completo / Cotizado Completado / Completado</b>.
@@ -31,6 +31,7 @@
           </button>
         </div>
 
+       <div class="d-flex flex-column">
         <select
           v-model="statusFiltro"
           class="form-select form-select-sm"
@@ -39,6 +40,7 @@
         >
           <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
         </select>
+      </div>
 
         <select
           v-model.number="pageSize"
@@ -460,10 +462,39 @@ const actorName = computed(
     "usuario"
 );
 
-const ESTADO_ENVIADA = "Enviada a proveedor";
-const ESTADO_PARTIAL = "Recepcion parcial en casa matriz";
-const ESTADO_OK = "Recepcion completa en casa matriz";
+function normalizeName(s) {
+  return String(s || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
+const RECEPCION_SPECIAL_USERS = new Set([
+  normalizeName("Griselle Matus"),
+  normalizeName("Axel Basic Contreras"),
+]);
+
+const currentUserFullName = ref("");
+const isSpecialRecepcionUser = computed(() =>
+  RECEPCION_SPECIAL_USERS.has(normalizeName(currentUserFullName.value || actorName.value))
+);
+
+const ESTADO_ENVIADA = "Enviada a proveedor";
+
+const ESTADO_PARTIAL_DEFAULT = "Recepcion parcial en casa matriz";
+const ESTADO_OK_DEFAULT = "Recepcion completa en casa matriz";
+
+const ESTADO_PARTIAL_SPECIAL = "Recepción parcial del pedido";
+const ESTADO_OK_SPECIAL = "Recepción completa del pedido";
+
+const ESTADO_PARTIAL = computed(() =>
+  isSpecialRecepcionUser.value ? ESTADO_PARTIAL_SPECIAL : ESTADO_PARTIAL_DEFAULT
+);
+
+const ESTADO_OK = computed(() =>
+  isSpecialRecepcionUser.value ? ESTADO_OK_SPECIAL : ESTADO_OK_DEFAULT
+);
 const SOLPED_OK_ESTATUS = new Set([
   "Cotizado Completo",
   "Cotizado Completado",
@@ -476,7 +507,12 @@ const COL_TALLER = "ordenes_oc_taller";
 const SOLPED_EMPRESA = "solpes";
 const SOLPED_TALLER = "solped_taller";
 
-const statusOptions = [ESTADO_ENVIADA, ESTADO_PARTIAL, ESTADO_OK];
+const statusOptions = computed(() => [
+  ESTADO_ENVIADA,
+  ESTADO_PARTIAL.value,
+  ESTADO_OK.value,
+]);
+
 const statusFiltro = ref(ESTADO_ENVIADA);
 
 const onlyRecepcionables = ref(true);
@@ -661,7 +697,39 @@ function computeFaltantesFromSolpedItems(items = []) {
   }
   return faltantes;
 }
+async function loadCurrentUserFullName() {
+  const uid = auth?.user?.uid;
+  if (!uid) {
+    currentUserFullName.value = actorName.value || "";
+    return;
+  }
 
+  try {
+    let snap = await getDoc(doc(db, "Usuarios", uid));
+    if (!snap.exists()) snap = await getDoc(doc(db, "usuarios", uid));
+
+    if (snap.exists()) {
+      const data = snap.data() || {};
+      currentUserFullName.value =
+        data.fullName ||
+        data.Nombre_completo ||
+        data.nombre ||
+        data.name ||
+        auth?.user?.displayName ||
+        auth?.user?.email ||
+        "";
+      return;
+    }
+  } catch (e) {
+    console.warn("No se pudo leer Usuario actual:", e?.message || e);
+  }
+
+  currentUserFullName.value =
+    auth?.user?.displayName ||
+    auth?.user?.email ||
+    actorName.value ||
+    "";
+}
 async function fetchSolpedMetaForOc(oc, isTaller) {
   const key = solpedKeyFromOc(oc);
   if (!key) return null;
@@ -862,7 +930,10 @@ function autoPickFirstIfMissing() {
   selectedId.value = first?.id || "";
 }
 
-onMounted(() => subscribeAll());
+onMounted(async () => {
+  await loadCurrentUserFullName();
+  subscribeAll();
+});
 onBeforeUnmount(() => stopSubs());
 
 watch([statusFiltro, pageSize], () => {
@@ -1375,8 +1446,9 @@ function countEstado(st) {
 
 function calcFinalEstatusFromItems() {
   if (itemsUI.value.length === 0) return currentOc.value?.estatus || ESTADO_ENVIADA;
+
   const allComplete = itemsUI.value.every((it) => itemEstado(it.key, it.qtyBase) === "completa");
-  return allComplete ? ESTADO_OK : ESTADO_PARTIAL;
+  return allComplete ? ESTADO_OK.value : ESTADO_PARTIAL.value;
 }
 
 const canEditRecepcion = computed(() => {
@@ -1435,7 +1507,14 @@ function buildHistorialEntry(estatus, comentario = "") {
 }
 
 async function updateSolpedTrazabilidad(ocDoc, nuevoEstatus, colName) {
-  const solpedStatus = (nuevoEstatus === ESTADO_OK)
+  const est = String(nuevoEstatus || "").trim();
+
+  const isCompleta =
+    est === ESTADO_OK.value ||
+    est === ESTADO_OK_DEFAULT ||
+    est === ESTADO_OK_SPECIAL;
+
+  const solpedStatus = isCompleta
     ? "Pedido en Casa matriz"
     : "Parcial, Pedido en Casa matriz";
 
@@ -1496,7 +1575,6 @@ async function finalizeRecepcion() {
   const colName = currentCollection.value;
   const ocDoc = currentOc.value;
   const nuevoEstatus = calcFinalEstatusFromItems();
-
   try {
     setBusy(true, "Finalizando…", "Guardando recepción y cambiando estatus");
 
@@ -1533,11 +1611,18 @@ const statusOnlyValue = ref(ESTADO_ENVIADA);
 const statusOnlyNota = ref("");
 
 watch(
-  () => currentOc.value?.id,
+  () => [currentOc.value?.id, isSpecialRecepcionUser.value],
   () => {
     statusOnlyValue.value = currentOc.value?.estatus || ESTADO_ENVIADA;
+
+    const allowed = new Set(statusOptions.value);
+    if (!allowed.has(statusOnlyValue.value)) {
+      statusOnlyValue.value = ESTADO_ENVIADA;
+    }
+
     statusOnlyNota.value = "";
-  }
+  },
+  { immediate: true }
 );
 
 async function updateStatusOnly() {

@@ -392,7 +392,173 @@
             </div>
           </div>
         </div>
+        <div class="col-12">
+          <div class="card shadow-sm border-0">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <div class="fw-medium">Promedio de cierre de SOLPED por cotizador</div>
+              <span class="badge bg-dark-subtle text-dark-emphasis">
+                {{ cotizadorLeadPayload.rows.length }} cotizadores
+              </span>
+            </div>
 
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 table-sticky">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="min-width: 220px;">Cotizador</th>
+                      <th class="text-end">Prom. ponderado</th>
+                      <th class="text-end">Completadas</th>
+                      <th class="text-end">En proceso</th>
+                      <th class="text-end">Total</th>
+                      <th style="width: 110px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template v-for="row in cotizadorLeadPayload.rows" :key="row.cotizador">
+                      <tr>
+                        <td class="fw-medium">{{ row.cotizador }}</td>
+                        <td class="text-end fw-semibold">{{ row.promedioDiasPonderado.toFixed(1) }} d</td>
+                        <td class="text-end">{{ row.completadas }}</td>
+                        <td class="text-end">{{ row.enProceso }}</td>
+                        <td class="text-end">{{ row.total }}</td>
+                        <td class="text-end">
+                        <button
+                          class="btn btn-sm btn-outline-primary"
+                          @click="toggleCotizadorDetalle(row.cotizador)"
+                        >
+                          {{ cotizadorExpandido[row.cotizador] ? 'Ocultar' : 'Ver detalle' }}
+                        </button>
+                        </td>
+                      </tr>
+
+                      <tr v-if="cotizadorExpandido[row.cotizador]">
+                        <td colspan="99" class="bg-light">
+                          <div class="cotizador-detalle-card">
+                            <div class="row g-2 align-items-end mb-3">
+                              <div class="col-12 col-md-4">
+                                <label class="form-label form-label-sm mb-1">Filtrar por estatus</label>
+                                <select
+                                  class="form-select form-select-sm"
+                                  :value="getCotizadorFiltroEstado(row.cotizador)"
+                                  @change="setCotizadorFiltroEstado(row.cotizador, $event.target.value)"
+                                >
+                                  <option value="">Todos</option>
+                                  <option
+                                    v-for="st in getCotizadorDetalleEstados(row)"
+                                    :key="`${row.cotizador}-st-${st}`"
+                                    :value="st"
+                                  >
+                                    {{ st }}
+                                  </option>
+                                </select>
+                              </div>
+
+                              <div class="col-12 col-md-3">
+                                <label class="form-label form-label-sm mb-1">Mostrar</label>
+                                <select
+                                  class="form-select form-select-sm"
+                                  :value="getCotizadorPageSize(row.cotizador)"
+                                  @change="setCotizadorPageSize(row.cotizador, Number($event.target.value))"
+                                >
+                                  <option :value="10">10</option>
+                                  <option :value="20">20</option>
+                                  <option :value="30">30</option>
+                                  <option :value="40">40</option>
+                                  <option :value="50">50</option>
+                                </select>
+                              </div>
+
+                              <div class="col-12 col-md-5">
+                                <div class="small text-muted text-md-end">
+                                  Mostrando
+                                  <strong>{{ getCotizadorDetallePaginado(row).length }}</strong>
+                                  de
+                                  <strong>{{ getCotizadorDetalleFiltrado(row).length }}</strong>
+                                  registros
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              class="table-responsive cotizador-detalle-scroll"
+                              :class="{ 'cotizador-detalle-scroll-activo': getCotizadorDetalleFiltrado(row).length > 50 }"
+                            >
+                              <table class="table table-sm mb-0">
+                                <thead>
+                                  <tr>
+                                    <th>N° SOLPED</th>
+                                    <th>Nombre</th>
+                                    <th>Estatus</th>
+                                    <th class="text-end">Días</th>
+                                    <th class="text-end">Cant. Ítems</th>
+                                    <th>Inicio</th>
+                                    <th>Fin</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr
+                                    v-for="d in getCotizadorDetallePaginado(row)"
+                                    :key="`${row.cotizador}-${d.origen}-${d.id}-${d.numero_solpe}`"
+                                  >
+                                    <td>{{ d.numero_solpe || '—' }}</td>
+                                    <td>{{ d.nombre_solped }}</td>
+                                    <td>{{ d.estatus }}</td>
+                                    <td class="text-end fw-semibold">{{ d.dias.toFixed(1) }}</td>
+                                    <td class="text-end">{{ d.peso }}</td>
+                                    <td>{{ fmtFechaSolo(d.fechaInicio) }}</td>
+                                    <td>{{ d.enCurso ? 'En curso' : fmtFechaSolo(d.fechaFin) }}</td>
+                                  </tr>
+
+                                  <tr v-if="!getCotizadorDetalleFiltrado(row).length">
+                                    <td colspan="99" class="text-center text-muted py-3">Sin detalle.</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <div
+                              v-if="getCotizadorDetalleFiltrado(row).length"
+                              class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3"
+                            >
+                              <div class="small text-muted">
+                                Página {{ getCotizadorPagina(row.cotizador) }} de {{ getCotizadorDetalleTotalPages(row) }}
+                              </div>
+
+                              <div class="btn-group btn-group-sm">
+                                <button
+                                  class="btn btn-outline-secondary"
+                                  :disabled="getCotizadorPagina(row.cotizador) <= 1"
+                                  @click="setCotizadorPagina(row.cotizador, getCotizadorPagina(row.cotizador) - 1)"
+                                >
+                                  Anterior
+                                </button>
+
+                                <button
+                                  class="btn btn-outline-secondary"
+                                  :disabled="getCotizadorPagina(row.cotizador) >= getCotizadorDetalleTotalPages(row)"
+                                  @click="setCotizadorPagina(row.cotizador, getCotizadorPagina(row.cotizador) + 1)"
+                                >
+                                  Siguiente
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+
+                    <tr v-if="!cotizadorLeadPayload.rows.length">
+                      <td colspan="99" class="text-center text-muted py-3">
+                        Sin datos para cotizadores con los filtros actuales.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="card shadow-sm border-0 mt-4">
           <div class="card-header d-flex justify-content-between align-items-center">
             <div class="fw-medium">Quién pide más {{ tituloSegmento }} (HOY)</div>
@@ -505,6 +671,14 @@
 import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/stores/firebase";
+const cotizadorLeadPayload = ref({
+  rows: [],
+});
+
+const cotizadorExpandido = ref({});
+const cotizadorDetalleFiltros = ref({});
+const cotizadorDetallePaginacion = ref({});
+const cotizadorDetallePageSize = ref({});
 
 const OC_ESTATUS_CANON = [
   "Aprobado",
@@ -648,6 +822,95 @@ const cOcTipoSolpedMontoPie = ref(null);
 
 const cOcStatusByUser = ref(null);
 
+function fmtFechaSolo(v) {
+  const d = normalizarFecha(v);
+  if (!(d instanceof Date) || isNaN(d.getTime()) || d.getTime() === 0) return "—";
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function getCotizadorFiltroEstado(nombre) {
+  return cotizadorDetalleFiltros.value[nombre] || "";
+}
+
+function setCotizadorFiltroEstado(nombre, value) {
+  cotizadorDetalleFiltros.value[nombre] = value || "";
+  cotizadorDetallePaginacion.value[nombre] = 1;
+}
+
+function getCotizadorPageSize(nombre) {
+  return Number(cotizadorDetallePageSize.value[nombre] || 10);
+}
+
+function setCotizadorPageSize(nombre, value) {
+  cotizadorDetallePageSize.value[nombre] = Number(value || 10);
+  cotizadorDetallePaginacion.value[nombre] = 1;
+}
+
+function getCotizadorPagina(nombre) {
+  return Number(cotizadorDetallePaginacion.value[nombre] || 1);
+}
+
+function setCotizadorPagina(nombre, page) {
+  cotizadorDetallePaginacion.value[nombre] = Math.max(1, Number(page || 1));
+}
+
+function getCotizadorDetalleEstados(row) {
+  const set = new Set(
+    (row?.detalle || [])
+      .map(d => String(d.estatus || "").trim())
+      .filter(Boolean)
+  );
+  return [...set].sort((a, b) => a.localeCompare(b, "es"));
+}
+
+function getCotizadorDetalleFiltrado(row) {
+  const estado = getCotizadorFiltroEstado(row.cotizador);
+  let arr = [...(row?.detalle || [])];
+
+  if (estado) {
+    arr = arr.filter(d => String(d.estatus || "").trim() === estado);
+  }
+
+  return arr;
+}
+
+function getCotizadorDetalleTotalPages(row) {
+  const total = getCotizadorDetalleFiltrado(row).length;
+  const size = getCotizadorPageSize(row.cotizador);
+  return Math.max(1, Math.ceil(total / size));
+}
+
+function getCotizadorDetallePaginado(row) {
+  const arr = getCotizadorDetalleFiltrado(row);
+  const size = getCotizadorPageSize(row.cotizador);
+  const totalPages = Math.max(1, Math.ceil(arr.length / size));
+
+  let page = getCotizadorPagina(row.cotizador);
+  if (page > totalPages) {
+    page = totalPages;
+    cotizadorDetallePaginacion.value[row.cotizador] = page;
+  }
+
+  const start = (page - 1) * size;
+  const end = start + size;
+
+  return arr.slice(start, end);
+}
+
+function toggleCotizadorDetalle(nombre) {
+  cotizadorExpandido.value[nombre] = !cotizadorExpandido.value[nombre];
+
+  if (cotizadorExpandido.value[nombre]) {
+    if (!cotizadorDetallePaginacion.value[nombre]) cotizadorDetallePaginacion.value[nombre] = 1;
+    if (!cotizadorDetallePageSize.value[nombre]) cotizadorDetallePageSize.value[nombre] = 10;
+    if (!(nombre in cotizadorDetalleFiltros.value)) cotizadorDetalleFiltros.value[nombre] = "";
+  }
+}
 let charts = {
   topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
   tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
@@ -896,7 +1159,157 @@ function canonSolpedStatus(raw) {
 
   return txt;
 }
+function esCotizadoCompletado(raw) {
+  const n = _normTxt(raw || "");
 
+  return [
+    _normTxt("Cotizado Completado"),
+    _normTxt("Completado"),
+    _normTxt("Pedido en Casa matriz"),
+    _normTxt("Parcial, Pedido en Casa matriz"),
+  ].includes(n);
+}
+function esSolpedRechazada(raw) {
+  const n = _normTxt(raw || "");
+  return n.includes("rechaz");
+}
+
+function fechaInicioSolped(sol, origen = "empresa") {
+  if (origen === "taller") {
+    if (sol?.creado_en) return normalizarFecha(sol.creado_en);
+    if (sol?.fecha) return normalizarFecha(sol.fecha);
+    if (sol?.createdAt) return normalizarFecha(sol.createdAt);
+    if (sol?.fechaSubida) return normalizarFecha(sol.fechaSubida);
+    return new Date(0);
+  }
+
+  if (sol?.createdAt) return normalizarFecha(sol.createdAt);
+  if (sol?.creado_en) return normalizarFecha(sol.creado_en);
+  if (sol?.fecha) return normalizarFecha(sol.fecha);
+  if (sol?.fechaSubida) return normalizarFecha(sol.fechaSubida);
+  return new Date(0);
+}
+
+function fechaFinSolped(sol) {
+  if (esCotizadoCompletado(sol.estatus || sol.estado || "")) {
+    return normalizarFecha(sol.updated_at || sol.updatedAt || sol.fechaActualizacion);
+  }
+  return new Date();
+}
+
+function diasEntreFechas(inicio, fin) {
+  const ms = fin - inicio;
+  return Math.max(0, ms / (1000 * 60 * 60 * 24));
+}
+
+function pesoSolped(sol) {
+  const items = Array.isArray(sol.items) ? sol.items : [];
+  return Math.max(1, items.length);
+}
+
+function numeroSolpedOf(sol) {
+  return Number(sol.numero_solpe || sol.numeroSolpe || sol.numero_solped || sol.numeroSolped || 0);
+}
+
+function nombreSolpedOf(sol) {
+  return String(sol.nombre_solped || sol.nombre || sol.descripcion || "Sin nombre");
+}
+
+function cotizadoresDeSolped(sol, origen = "empresa") {
+  if (origen === "taller") {
+    const arr = Array.isArray(sol.cotizadores) ? sol.cotizadores : [];
+    return arr.map(x => String(x || "").trim()).filter(Boolean);
+  }
+
+  const arr = Array.isArray(sol.dirigidoA) ? sol.dirigidoA : [];
+  return arr.map(x => String(x || "").trim()).filter(Boolean);
+}
+
+function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
+  const map = new Map();
+  const ahora = new Date();
+
+  const pushSol = (sol, origen) => {
+    const estatusRaw = sol.estatus || sol.estado || "";
+    if (esSolpedRechazada(estatusRaw)) return;
+
+    const cotizadores = cotizadoresDeSolped(sol, origen);
+    if (!cotizadores.length) return;
+
+    const completo = esCotizadoCompletado(estatusRaw);
+
+    const inicio = fechaInicioSolped(sol, origen);
+    const fin = completo ? fechaFinSolped(sol) : ahora;
+
+    if (!(inicio instanceof Date) || isNaN(inicio.getTime())) return;
+    if (!(fin instanceof Date) || isNaN(fin.getTime())) return;
+
+    const dias = diasEntreFechas(inicio, fin);
+    const peso = pesoSolped(sol);
+
+    const detalle = {
+      id: sol.id || "",
+      numero_solpe: numeroSolpedOf(sol),
+      nombre_solped: nombreSolpedOf(sol),
+      estatus: String(estatusRaw || "—"),
+      origen,
+      dias,
+      peso,
+      fechaInicio: inicio,
+      fechaFin: completo ? fin : null,
+      enCurso: !completo,
+      empresa: sol.empresa || "",
+      contrato: sol.numero_contrato || sol.centro_costo || "",
+      itemsCount: Array.isArray(sol.items) ? sol.items.length : 0,
+    };
+
+    for (const cot of cotizadores) {
+      if (!map.has(cot)) {
+        map.set(cot, {
+          cotizador: cot,
+          totalPeso: 0,
+          totalDiasXPeso: 0,
+          completadas: 0,
+          enProceso: 0,
+          total: 0,
+          detalle: [],
+        });
+      }
+
+      const row = map.get(cot);
+      row.totalPeso += peso;
+      row.totalDiasXPeso += dias * peso;
+      row.total += 1;
+
+      if (completo) row.completadas += 1;
+      else row.enProceso += 1;
+
+      row.detalle.push(detalle);
+    }
+  };
+
+  for (const sol of solEmpresa || []) pushSol(sol, "empresa");
+  for (const sol of solTaller || []) pushSol(sol, "taller");
+
+  const rows = [...map.values()]
+    .map(r => ({
+      ...r,
+      promedioDiasPonderado: r.totalPeso ? (r.totalDiasXPeso / r.totalPeso) : 0,
+      detalle: [...(r.detalle || [])].sort((a, b) => {
+        const na = Number(a.numero_solpe || 0);
+        const nb = Number(b.numero_solpe || 0);
+
+        if (nb !== na) return nb - na;
+
+        const fa = normalizarFecha(a.fechaInicio).getTime();
+        const fb = normalizarFecha(b.fechaInicio).getTime();
+        return fb - fa;
+      }),
+    }))
+    .sort((a, b) => b.promedioDiasPonderado - a.promedioDiasPonderado);
+
+  return { rows };
+}
 const CATALOG_TTL_MS = 12 * 60 * 60 * 1000;
 function catKey() { return `dashCatV2:${segmento.value}`; }
 function getCatalogCache() {
@@ -1064,13 +1477,18 @@ async function cargarTodo(force=false) {
 
   if (!force) {
     const hit = getCache();
-    if (hit) { pintarDesdePayload(hit); isLoading.value = false; return; }
+    if (hit) {
+      pintarDesdePayload(hit);
+      isLoading.value = false;
+      return;
+    }
   }
 
   const { start, end } = rangoDeMes(filtroMes.value);
   const startStr = `${filtroMes.value}-01`;
   const endStr = (() => {
-    const y = Number(filtroMes.value.slice(0,4)), m = Number(filtroMes.value.slice(5));
+    const y = Number(filtroMes.value.slice(0,4));
+    const m = Number(filtroMes.value.slice(5));
     const d = new Date(y, m, 1);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
   })();
@@ -1080,61 +1498,162 @@ async function cargarTodo(force=false) {
     let solDocsMesTaller = [];
     let ocDocsMes = [];
     let ocDocsMesTaller = [];
+
     let solAllForPend = [];
+    let solAllEmpresaWide = [];
+    let solAllTallerWide = [];
 
     if (segmento.value === 'empresa') {
-      const solQ = query(collection(db, "solpes"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
-      const ocQ  = query(collection(db, "ordenes_oc"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
+      const solQ = query(
+        collection(db, "solpes"),
+        where("fecha", ">=", startStr),
+        where("fecha", "<", endStr),
+        orderBy("fecha", "asc")
+      );
 
-      const [solSnap, ocSnap, solPendSnap] = await Promise.allSettled([
+      const ocQ = query(
+        collection(db, "ordenes_oc"),
+        where("fechaSubida", ">=", start),
+        where("fechaSubida", "<", end),
+        orderBy("fechaSubida", "asc")
+      );
+
+      const [solSnap, ocSnap, solPendSnap, solWideSnap] = await Promise.allSettled([
         getDocs(solQ),
         getDocs(ocQ),
         getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(2500))),
+        getDocs(query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(4000))),
       ]);
 
-      solDocsMes = solSnap.status === "fulfilled" ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
-      ocDocsMes  = ocSnap.status  === "fulfilled" ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))  : [];
-      solAllForPend = solPendSnap.status === "fulfilled" ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      solDocsMes = solSnap.status === "fulfilled"
+        ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      ocDocsMes = ocSnap.status === "fulfilled"
+        ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      solAllForPend = solPendSnap.status === "fulfilled"
+        ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      solAllEmpresaWide = solWideSnap.status === "fulfilled"
+        ? solWideSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
     }
 
     if (segmento.value === 'taller') {
-      const solQ = query(collection(db, "solped_taller"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
-      const ocQ  = query(collection(db, "ordenes_oc_taller"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
+      const solQ = query(
+        collection(db, "solped_taller"),
+        where("fecha", ">=", startStr),
+        where("fecha", "<", endStr),
+        orderBy("fecha", "asc")
+      );
 
-      const [solSnap, ocSnap, solPendSnap] = await Promise.allSettled([
+      const ocQ = query(
+        collection(db, "ordenes_oc_taller"),
+        where("fechaSubida", ">=", start),
+        where("fechaSubida", "<", end),
+        orderBy("fechaSubida", "asc")
+      );
+
+      const [solSnap, ocSnap, solPendSnap, solWideSnap] = await Promise.allSettled([
         getDocs(solQ),
         getDocs(ocQ),
         getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(2500))),
+        getDocs(query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(4000))),
       ]);
 
-      solDocsMesTaller = solSnap.status === "fulfilled" ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
-      ocDocsMesTaller  = ocSnap.status  === "fulfilled" ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))  : [];
-      solAllForPend = solPendSnap.status === "fulfilled" ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      solDocsMesTaller = solSnap.status === "fulfilled"
+        ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      ocDocsMesTaller = ocSnap.status === "fulfilled"
+        ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      solAllForPend = solPendSnap.status === "fulfilled"
+        ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      solAllTallerWide = solWideSnap.status === "fulfilled"
+        ? solWideSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
     }
 
     if (segmento.value === 'general') {
-      const solEmpQ = query(collection(db, "solpes"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
-      const solTalQ = query(collection(db, "solped_taller"), where("fecha", ">=", startStr), where("fecha", "<", endStr), orderBy("fecha", "asc"));
-      const ocEmpQ  = query(collection(db, "ordenes_oc"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
-      const ocTalQ  = query(collection(db, "ordenes_oc_taller"), where("fechaSubida", ">=", start), where("fechaSubida", "<", end), orderBy("fechaSubida", "asc"));
+      const solEmpQ = query(
+        collection(db, "solpes"),
+        where("fecha", ">=", startStr),
+        where("fecha", "<", endStr),
+        orderBy("fecha", "asc")
+      );
 
-      const [solEmp, solTal, ocEmp, ocTal, pendEmp, pendTal] = await Promise.allSettled([
+      const solTalQ = query(
+        collection(db, "solped_taller"),
+        where("fecha", ">=", startStr),
+        where("fecha", "<", endStr),
+        orderBy("fecha", "asc")
+      );
+
+      const ocEmpQ = query(
+        collection(db, "ordenes_oc"),
+        where("fechaSubida", ">=", start),
+        where("fechaSubida", "<", end),
+        orderBy("fechaSubida", "asc")
+      );
+
+      const ocTalQ = query(
+        collection(db, "ordenes_oc_taller"),
+        where("fechaSubida", ">=", start),
+        where("fechaSubida", "<", end),
+        orderBy("fechaSubida", "asc")
+      );
+
+      const [solEmp, solTal, ocEmp, ocTal, pendEmp, pendTal, wideEmp, wideTal] = await Promise.allSettled([
         getDocs(solEmpQ),
         getDocs(solTalQ),
         getDocs(ocEmpQ),
         getDocs(ocTalQ),
-        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(1500))),
-        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(1500))),
+        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(2500))),
+        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(2500))),
+        getDocs(query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(4000))),
+        getDocs(query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(4000))),
       ]);
 
-      solDocsMes = solEmp.status === "fulfilled" ? solEmp.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
-      solDocsMesTaller = solTal.status === "fulfilled" ? solTal.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
-      ocDocsMes = ocEmp.status === "fulfilled" ? ocEmp.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
-      ocDocsMesTaller = ocTal.status === "fulfilled" ? ocTal.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      solDocsMes = solEmp.status === "fulfilled"
+        ? solEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
 
-      const pendA = pendEmp.status === "fulfilled" ? pendEmp.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
-      const pendB = pendTal.status === "fulfilled" ? pendTal.value.docs.map(d => ({ id:d.id, ...d.data() })) : [];
+      solDocsMesTaller = solTal.status === "fulfilled"
+        ? solTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      ocDocsMes = ocEmp.status === "fulfilled"
+        ? ocEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      ocDocsMesTaller = ocTal.status === "fulfilled"
+        ? ocTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      const pendA = pendEmp.status === "fulfilled"
+        ? pendEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      const pendB = pendTal.status === "fulfilled"
+        ? pendTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
       solAllForPend = [...pendA, ...pendB];
+
+      solAllEmpresaWide = wideEmp.status === "fulfilled"
+        ? wideEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
+
+      solAllTallerWide = wideTal.status === "fulfilled"
+        ? wideTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
+        : [];
     }
 
     const baseSolMes = (segmento.value === "empresa") ? solDocsMes
@@ -1149,12 +1668,14 @@ async function cargarTodo(force=false) {
     responsableOptions.value = uniqSorted(baseOCMes.map(o => (o.responsable || '—').toString()));
 
     const solMes = baseSolMes.filter(x => {
-      const f = x.fechaSubida || x.creado_en || x.fecha;
+      const f = x.fechaSubida || x.creado_en || x.fecha || x.createdAt;
       if (!isInRange(f, start, end)) return false;
 
       if (segmento.value === 'empresa' && filtroEmpresa.value) {
         const emp = String(x.empresa || x.empresas || '');
-        if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+        if (isExactEmpresa.value
+          ? (emp !== filtroEmpresa.value)
+          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
       if (segmento.value === 'empresa') {
@@ -1196,10 +1717,15 @@ async function cargarTodo(force=false) {
       }
     }
 
-    if (segmento.value === "empresa") await fetchByNumero("solpes");
-    else if (segmento.value === "taller") await fetchByNumero("solped_taller");
-    else {
-      await Promise.allSettled([fetchByNumero("solpes"), fetchByNumero("solped_taller")]);
+    if (segmento.value === "empresa") {
+      await fetchByNumero("solpes");
+    } else if (segmento.value === "taller") {
+      await fetchByNumero("solped_taller");
+    } else {
+      await Promise.allSettled([
+        fetchByNumero("solpes"),
+        fetchByNumero("solped_taller")
+      ]);
     }
 
     const solIndexAllByNumero = buildSolIndexByNumero(solIndexDocs);
@@ -1210,11 +1736,14 @@ async function cargarTodo(force=false) {
 
       if (segmento.value === 'empresa' && filtroEmpresa.value) {
         const emp = String(x.empresa || x.empresas || '');
-        if (isExactEmpresa.value ? (emp !== filtroEmpresa.value) : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+        if (isExactEmpresa.value
+          ? (emp !== filtroEmpresa.value)
+          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
       }
 
       const valContrato = (x.numero_contrato || x.numeroContrato || '').toString();
       const valCC = (x.nombre_centro_costo || x.centroCostoNombre || x.centro_costo || x.centroCosto || x.centroCostoTexto || '').toString();
+
       if (segmento.value === 'empresa') {
         if (filtroContratoSel.value && valContrato && valContrato !== filtroContratoSel.value) return false;
       } else if (segmento.value === 'taller') {
@@ -1231,7 +1760,10 @@ async function cargarTodo(force=false) {
           let ok = false;
           for (const n of ns) {
             const sol = solIndexAllByNumero.get(n);
-            if (solMatchesSolpedFilters(sol)) { ok = true; break; }
+            if (solMatchesSolpedFilters(sol)) {
+              ok = true;
+              break;
+            }
           }
           if (!ok) return false;
         } else {
@@ -1253,31 +1785,47 @@ async function cargarTodo(force=false) {
     kpis.value.gastoMes = totalOC;
     kpis.value.ticketProm = ocFiltradas.length ? Math.round(totalOC / ocFiltradas.length) : 0;
 
-    const setSol = new Set(solMes.map(x => Number(x.numero_solpe || x.numeroSolpe || x.numero_solped || x.numeroSolped)).filter(Boolean));
+    const setSol = new Set(
+      solMes
+        .map(x => Number(x.numero_solpe || x.numeroSolpe || x.numero_solped || x.numeroSolped))
+        .filter(Boolean)
+    );
+
     const setOcSol = new Set();
     for (const o of ocFiltradas) ocSolpeNums(o).forEach(n => setOcSol.add(n));
+
     const match = [...setSol].filter(n => setOcSol.has(n)).length;
     const conversionPct = setSol.size ? (100 * match / setSol.size) : 0;
 
     const toDays = (ms) => (ms / (1000*60*60*24));
     const leadTimes = [];
+
     for (const o of ocFiltradas) {
       const fInicio = normalizarFecha(o.fechaSubida || o.fecha || o.creado_en);
       let fAprob = o.fechaAprobacion ? normalizarFecha(o.fechaAprobacion) : null;
+
       if (!fAprob && Array.isArray(o.historial)) {
         const ap = o.historial.find(h => _normTxt(h.estatus||"") === "aprobado");
         if (ap?.fecha) fAprob = normalizarFecha(ap.fecha);
       }
-      if (fInicio && fAprob && fAprob > fInicio) leadTimes.push(toDays(fAprob - fInicio));
+
+      if (fInicio && fAprob && fAprob > fInicio) {
+        leadTimes.push(toDays(fAprob - fInicio));
+      }
     }
-    const leadtimePromDias = leadTimes.length ? (leadTimes.reduce((a,b)=>a+b,0) / leadTimes.length) : 0;
+
+    const leadtimePromDias = leadTimes.length
+      ? (leadTimes.reduce((a,b)=>a+b,0) / leadTimes.length)
+      : 0;
 
     const rechazadas = ocFiltradas.filter(o => _normTxt(o.estatus||"") === "rechazado").length;
     const rechazoPct = ocFiltradas.length ? (100 * rechazadas / ocFiltradas.length) : 0;
 
     let comentariosTallerMes = 0;
     if (segmento.value !== 'empresa') {
-      for (const s of solMes) if (Array.isArray(s.comentarios)) comentariosTallerMes += s.comentarios.length;
+      for (const s of solMes) {
+        if (Array.isArray(s.comentarios)) comentariosTallerMes += s.comentarios.length;
+      }
     }
 
     kpisExtra.value = { conversionPct, leadtimePromDias, rechazoPct, comentariosTallerMes };
@@ -1291,19 +1839,23 @@ async function cargarTodo(force=false) {
       }
       return [...m.entries()].sort((a,b) => b[1]-a[1]);
     };
+
     const contarValores = (list) => {
       const m = new Map();
       for (const k of list) m.set(k, (m.get(k) || 0) + 1);
       return [...m.entries()].sort((a,b) => b[1]-a[1]);
     };
+
     const agruparSuma = (arr, getKey, getVal) => {
       const m = new Map();
       for (const x of arr) {
-        const k = getKey(x); const v = Number(getVal(x) || 0);
+        const k = getKey(x);
+        const v = Number(getVal(x) || 0);
         m.set(k, (m.get(k) || 0) + v);
       }
       return [...m.entries()].sort((a,b) => b[1]-a[1]);
     };
+
     const agruparConteo = (arr, getKey) => {
       const m = {};
       for (const x of arr) {
@@ -1320,11 +1872,13 @@ async function cargarTodo(force=false) {
 
     const mapCount = new Map();
     const mapSpend = new Map();
+
     for (const o of ocFiltradas) {
       const resp = (o.responsable || '—').toString();
       mapCount.set(resp, (mapCount.get(resp) || 0) + 1);
       mapSpend.set(resp, (mapSpend.get(resp) || 0) + ocMonto(o));
     }
+
     const topOCEntries = [...mapCount.entries()].sort((a,b)=> b[1]-a[1]).slice(0, 10);
     const topOCLabels = topOCEntries.map(([k]) => k);
     const topOCValues = topOCEntries.map(([,v]) => v);
@@ -1336,8 +1890,9 @@ async function cargarTodo(force=false) {
       (x) => ocMonto(x)
     ).slice(0, 12);
 
-    const conteoContrato = contarPor(ocFiltradas, (x) =>
-      (x.numero_contrato || x.nombre_centro_costo || x.centroCosto || x.centroCostoNombre || x.centro_costo || x.centroCostoTexto || '—').toString()
+    const conteoContrato = contarPor(
+      ocFiltradas,
+      (x) => (x.numero_contrato || x.nombre_centro_costo || x.centroCosto || x.centroCostoNombre || x.centro_costo || x.centroCostoTexto || '—').toString()
     ).slice(0, 12);
 
     const distEstatus = agruparConteo(solMes, (x) => canonSolpedStatus(x.estatus || x.estado || '—'));
@@ -1349,18 +1904,22 @@ async function cargarTodo(force=false) {
       const key = fx.toISOString().slice(0,10);
       bucket.set(key, (bucket.get(key) || 0) + ocMonto(o));
     }
+
     const serieDiariaGasto = (startD, endD) => {
       const labels = [];
       const values = [];
       const d = new Date(startD);
+
       while (d < endD) {
         const k = d.toISOString().slice(0,10);
         labels.push(k);
         values.push(bucket.get(k) || 0);
         d.setDate(d.getDate()+1);
       }
+
       return { labels, values };
     };
+
     const serieGasto = serieDiariaGasto(start, end);
 
     const aprobEntries = [];
@@ -1372,6 +1931,7 @@ async function cargarTodo(force=false) {
         });
       }
     }
+
     const topAprobadores = contarValores(aprobEntries).slice(0, 10);
     const distMoneda = agruparConteo(ocFiltradas, (x) => (x.moneda || 'CLP').toString().toUpperCase());
 
@@ -1380,25 +1940,30 @@ async function cargarTodo(force=false) {
       hoyList.map(x => ({ nombre: (x.usuario || x.nombre_solicitante || x.usuario_sesion || x.dirigidoA?.[0] || '—') })),
       (r) => (r && r.nombre) || '—'
     ).slice(0, 10);
+
     topHoy.value = topHoyArr.map(([nombre, cantidad]) => ({ nombre, cantidad }));
 
     const pendientesPorDirigidoA = (solList, allowedStatuses = ['pendiente']) => {
       const allow = new Set(allowedStatuses.map(_normTxt));
       const soloPermitidos = solList.filter(s => allow.has(_normTxt(s.estatus || s.estado || '')));
       const m = new Map();
+
       const add = (name) => {
         const k = String(name || '—').trim();
         if (!k) return;
         m.set(k, (m.get(k) || 0) + 1);
       };
+
       for (const s of soloPermitidos) {
         const da = s.dirigidoA;
         if (Array.isArray(da)) da.forEach(add);
         else if (typeof da === 'string') {
           const parts = da.split(/[,;|]/).map(v => v.trim()).filter(Boolean);
-          if (parts.length) parts.forEach(add); else add(da);
+          if (parts.length) parts.forEach(add);
+          else add(da);
         }
       }
+
       return [...m.entries()].sort((a,b)=> b[1]-a[1]);
     };
 
@@ -1413,16 +1978,26 @@ async function cargarTodo(force=false) {
     const aggByKey = (ocs, getKey) => {
       const mCount = new Map();
       const mMonto = new Map();
+
       for (const o of ocs) {
         const k = String(getKey(o) || '—').trim() || '—';
         mCount.set(k, (mCount.get(k) || 0) + 1);
         mMonto.set(k, (mMonto.get(k) || 0) + ocMonto(o));
       }
+
       const labels = [...mCount.keys()].sort((a,b)=>a.localeCompare(b,'es'));
       const counts = labels.map(l => mCount.get(l) || 0);
       const montos = labels.map(l => mMonto.get(l) || 0);
-      return { labels, counts, montos, totalCount: ocs.length, totalMonto: montos.reduce((a,b)=>a+b,0) };
+
+      return {
+        labels,
+        counts,
+        montos,
+        totalCount: ocs.length,
+        totalMonto: montos.reduce((a,b)=>a+b,0)
+      };
     };
+
     const ocTipoAgg = aggByKey(ocFiltradas, ocTipoOC);
     const ocTipoSolpedAgg = aggByKey(ocFiltradas, (o) => ocTipoSolped(o, solIndexAllByNumero));
 
@@ -1438,11 +2013,19 @@ async function cargarTodo(force=false) {
     } catch (e) {
       console.warn("No se pudo cargar Usuarios (role=editor). VS quedará vacío.", e);
     }
-    let editorContratosAgg = { editors: [], topAll: [], perEditorTop: {}, totals: { totalSolpes: 0, uniqueContratos: 0 } };
+
+    let editorContratosAgg = {
+      editors: [],
+      topAll: [],
+      perEditorTop: {},
+      totals: { totalSolpes: 0, uniqueContratos: 0 }
+    };
+
     try {
       const solEmpresaOnly = (solMes || []).filter(s =>
         (s.numero_contrato || s.numeroContrato || s.nombre_centro_costo || s.nombreCentroCosto)
       );
+
       if (editorsSet.size) {
         editorContratosAgg = buildEditorContratosAgg(solEmpresaOnly, [...editorsSet]);
       }
@@ -1454,6 +2037,7 @@ async function cargarTodo(force=false) {
       const n = _normTxt(s || "");
       return n === "aprobado" || n === "preaprobado" || n.includes("revision") || n.includes("revisión");
     };
+
     const isSubidaProveedor = (s) => _normTxt(s || "").includes("proveedor");
 
     const porResp = new Map();
@@ -1463,8 +2047,10 @@ async function cargarTodo(force=false) {
 
       const est = o.estatus || "";
       const cur = porResp.get(resp) || { aprobadas: 0, subidas: 0 };
+
       if (isAprobadaLike(est)) cur.aprobadas += 1;
       if (isSubidaProveedor(est)) cur.subidas += 1;
+
       porResp.set(resp, cur);
     }
 
@@ -1478,10 +2064,13 @@ async function cargarTodo(force=false) {
 
     const perUser = new Map();
     const perUserTotal = new Map();
+
     for (const o of ocFiltradas) {
       const user = (o.responsable || "—").toString().trim() || "—";
       const st = canonOcStatus(o.estatus);
+
       if (!perUser.has(user)) perUser.set(user, new Map());
+
       const m = perUser.get(user);
       m.set(st, (m.get(st) || 0) + 1);
       perUserTotal.set(user, (perUserTotal.get(user) || 0) + 1);
@@ -1502,42 +2091,83 @@ async function cargarTodo(force=false) {
     const rows = usersTop.map((u) => {
       const counts = {};
       let total = 0;
+
       for (const st of OC_ESTATUS_CANON) {
         const v = perUser.get(u)?.get(st) || 0;
         counts[st] = v;
         total += v;
       }
+
       return { user: u, counts, total };
     });
+
+    // ===== NUEVO BLOQUE: lead time ponderado por cotizador =====
+    const solEmpresaFuenteLead = (segmento.value === "taller")
+      ? []
+      : (solAllEmpresaWide.length ? solAllEmpresaWide : solDocsMes);
+
+    const solTallerFuenteLead = (segmento.value === "empresa")
+      ? []
+      : (solAllTallerWide.length ? solAllTallerWide : solDocsMesTaller);
+
+    const solEmpresaFiltradasLead = (solEmpresaFuenteLead || []).filter((s) => {
+      if (segmento.value !== 'taller' && filtroEmpresa.value) {
+        const emp = String(s.empresa || "");
+        if (isExactEmpresa.value
+          ? (emp !== filtroEmpresa.value)
+          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+      }
+
+      if (filtroEstatusSolped.value && _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)) return false;
+      if (filtroTipoSolped.value && _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)) return false;
+      if (filtroContratoSel.value && String(s.numero_contrato || s.numeroContrato || "") !== filtroContratoSel.value) return false;
+
+      return true;
+    });
+
+    const solTallerFiltradasLead = (solTallerFuenteLead || []).filter((s) => {
+      if (filtroEstatusSolped.value && _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)) return false;
+      if (filtroTipoSolped.value && _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)) return false;
+      if (filtroCentroCostoSel.value && String(s.centro_costo || s.centroCosto || "") !== filtroCentroCostoSel.value) return false;
+
+      return true;
+    });
+
+    const cotizadorLeadAgg = buildCotizadorLeadAgg(
+      solEmpresaFiltradasLead,
+      solTallerFiltradasLead
+    );
 
     const payload = {
       kpis: { ...kpis.value },
       kpisExtra: { ...kpisExtra.value },
       topCreadores,
       topOC: { labels: topOCLabels, counts: topOCValues, spends: topOCSpends },
-      gastoContrato, conteoContrato,
-      distEstatus, distTipoSolped, distMoneda,
+      gastoContrato,
+      conteoContrato,
+      distEstatus,
+      distTipoSolped,
+      distMoneda,
       serieGasto,
       topAprobadores,
       topHoy: topHoy.value,
       solpedPend: { labels: pendLabels, values: pendValues },
       solpedPendAll: { labels: pendAllLabels, values: pendAllValues },
-
       vsEditors: { labels: vsLabels, aprobadas: vsAprobadas, subidas: vsSubidas },
-
       ocTipoAgg,
       ocTipoSolpedAgg,
-
       ocStatusByUser: {
         users: usersTop,
         rows,
         datasets: datasetsStatus,
       },
       editorContratosAgg,
+      cotizadorLeadAgg,
     };
 
     const thisKey = cacheKey();
     const asJSON = JSON.stringify(payload);
+
     if (thisKey !== _lastPayloadKey || asJSON !== _lastPayloadJSON) {
       pintarDesdePayload(payload);
       _lastPayloadKey = thisKey;
@@ -1546,7 +2176,9 @@ async function cargarTodo(force=false) {
     }
   } catch (err) {
     console.error(err);
-    lastError.value = (err && err.message) ? err.message : 'No se pudieron cargar las estadísticas.';
+    lastError.value = (err && err.message)
+      ? err.message
+      : 'No se pudieron cargar las estadísticas.';
   } finally {
     isLoading.value = false;
   }
@@ -1746,7 +2378,7 @@ function pintarDesdePayload(p){
     perEditorTop: {},
     totals: { totalSolpes: 0, uniqueContratos: 0 },
   };
-
+  cotizadorLeadPayload.value = p.cotizadorLeadAgg || { rows: [] };
   drawBar(cTopCreadores.value, 'topCread', (p.topCreadores||[]).map(([k])=>k), (p.topCreadores||[]).map(([,v])=>v), 'Creadas');
   drawPie(cEstatusPie.value, 'estatusPie', Object.keys(p.distEstatus || {}), Object.values(p.distEstatus || {}));
   drawLineMoney(cGastoLine.value, 'gastoLine', p.serieGasto.labels, p.serieGasto.values, 'Gasto diario');
@@ -1888,4 +2520,26 @@ canvas{ width:100% !important; height:100% !important; display:block; }
 .offcanvas-body{ padding: 1rem; overflow: auto; }
 
 select.form-select { max-width: 100%; text-overflow: ellipsis; }
+.cotizador-detalle-card{
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.cotizador-detalle-scroll{
+  overflow-x: auto;
+}
+
+.cotizador-detalle-scroll-activo{
+  max-height: 520px;
+  overflow-y: auto;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px;
+}
+
+.form-label-sm{
+  font-size: .82rem;
+  font-weight: 600;
+}
 </style>
