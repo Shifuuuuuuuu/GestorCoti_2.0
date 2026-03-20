@@ -232,6 +232,54 @@ export const MENU_DEFINITIONS = [
     icon: "bi-award",
     defaultRoles: ["Admin"],
   },
+  {
+    key: "SolpedPlantas",
+    routeName: "SolpedPlantas",
+    label: "Generador de Solped Plantas",
+    group: "Plantas",
+    icon: "bi bi-buildings",
+    defaultRoles: ["Admin", "Generador solped"],
+  },
+  {
+    key: "AprobacionSolped",
+    routeName: "AprobacionSolped",
+    label: "Aprobador de Solped Plantas",
+    group: "Plantas",
+    icon: "bi bi-file-check",
+    defaultRoles: ["Admin", "Aprobador SOLPED"],
+  },
+  {
+    key: "HistorialSolpedPlanta",
+    routeName: "HistorialSolpedPlanta",
+    label: "Historial Plantas",
+    group: "Plantas",
+    icon: "bi bi-file-richtext",
+    defaultRoles: ["Admin", "Aprobador/Editor","Editor","Generador solped","Aprobador SOLPED"],
+  },
+  {
+    key: "GeneradorCotizacionPlantas",
+    routeName: "GeneradorCotizacionPlantas",
+    label: "Generador Cotización Plantas",
+    group: "Plantas",
+    icon: "bi bi-clipboard2-plus",
+    defaultRoles: ["Admin", "Editor"],
+  },
+  {
+    key: "AprobacionCotizacionesPlantas",
+    routeName: "AprobacionCotizacionesPlantas",
+    label: "Aprobador Cotización Plantas",
+    group: "Plantas",
+    icon: "bi bi-clipboard2-check",
+    defaultRoles: ["Admin", "Aprobador/Editor"],
+  },
+  {
+    key: "HistorialCotizacionesPlantas",
+    routeName: "HistorialCotizacionesPlantas",
+    label: "Historial Cotización Plantas",
+    group: "Plantas",
+    icon: "bi bi-file-text",
+    defaultRoles: ["Admin", "Aprobador/Editor","Editor","Aprobador SOLPED"],
+  }
 ];
 
 export const MENU_BY_KEY = Object.fromEntries(
@@ -337,6 +385,7 @@ export const ROLE_MENU_TEMPLATES = {
   Editor: getDefaultMenuKeysByRole("Editor"),
   Recepcion_OC: getDefaultMenuKeysByRole("Recepcion_OC"),
   CargadorDoc: getDefaultMenuKeysByRole("CargadorDoc"),
+  "Aprobador SOLPED": getDefaultMenuKeysByRole("Aprobador SOLPED")
 };
 
 export function getRoleMenuTemplate(role) {

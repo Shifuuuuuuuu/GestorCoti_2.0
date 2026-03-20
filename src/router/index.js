@@ -18,12 +18,10 @@ const GeneradorOC = () => import("../views/GeneradorOC.vue");
 const OCDetalle = () => import("../views/OCDetalle.vue");
 const SolpedDetalle = () => import("../views/SolpedDetalle.vue");
 const HistorialOC = () => import("../views/HistorialOC.vue");
-
 const OrdenOCTallerDetalle = () => import("../views/OCDetalleTaller.vue");
 const SolpedTallerDetalle = () => import("../views/SolpedDetalleTaller.vue");
 const GeneradorOCTaller = () => import("../views/GeneradorOCTaller.vue");
 const HistorialOCTaller = () => import("../views/HistorialOCTaller.vue");
-
 const AdminSolpes = () => import("../views/AdminSolpes.vue");
 const AdminSolpedTaller = () => import("../views/AdminSolpedTaller.vue");
 const AdminOrdenesOC = () => import("../views/AdminOrdenesOC.vue");
@@ -45,6 +43,15 @@ const GenerarCotizacion = () => import("../views/GenerarCotizacion.vue");
 const GenerarCertificados = () => import("../views/GenerarCertificados.vue");
 const VerifyCertificado = () => import("../views/VerifyCertificado.vue");
 const NotFound = () => import("../views/NotFound.vue");
+const SolpedPlantas = () => import("../views/SolpedPlantas.vue");
+const AprobacionSolped = () => import("../views/AprobacionSolped.vue");
+const HistorialSolpedPlanta = () => import("../views/HistorialSolpedPlanta.vue");
+const GeneradorCotizacionPlantas = () => import("../views/GeneradorCotizacionPlantas.vue");
+const AprobacionCotizacionesPlantas = () => import("../views/AprobacionCotizacionesPlantas.vue");
+const HistorialCotizacionesPlantas = () => import("../views/HistorialCotizacionesPlantas.vue");
+const DetalleCotizacionPlanta = () => import("../views/DetalleCotizacionPlanta.vue");
+const DetalleSolpedPlanta = () => import("../views/DetalleSolpedPlanta.vue")
+
 const routes = [
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
   { path: "/", redirect: { name: "Inicio" } },
@@ -96,7 +103,14 @@ const routes = [
   { path: "/generador-certificados", name: "GenerarCertificados", component: GenerarCertificados, meta: { requiresAuth: true, menuKey: "GenerarCertificados" } },
 
   { path: "/verify-certificado", component: VerifyCertificado },
-
+  { path: "/solped-plantas", name:"SolpedPlantas" , component: SolpedPlantas, meta: { requiresAuth: true, menuKey: "SolpedPlantas"}},
+  { path: "/aprobacion-plantas", name: "AprobacionSolped", component : AprobacionSolped, meta: { requiresAuth: true, menuKey: "AprobacionSolped" }},
+  { path: "/historial-plantas", name: "HistorialSolpedPlanta", component: HistorialSolpedPlanta, meta: { requiresAuth: true, menuKey: "HistorialSolpedPlanta"}},
+  { path: "/generador-coti-plantas", name: "GeneradorCotizacionPlantas", component: GeneradorCotizacionPlantas, meta: { requiresAuth: true, menuKey: "GeneradorCotizacionPlantas"}},
+  { path: "/aprobador-coti-plantas", name: "AprobacionCotizacionesPlantas", component: AprobacionCotizacionesPlantas, meta: { requiresAuth: true, menuKey: "AprobacionCotizacionesPlantas"}},
+  { path: "/historial-coti-plantas", name: "HistorialCotizacionesPlantas", component: HistorialCotizacionesPlantas, meta: { requiresAuth: true, menuKey: "HistorialCotizacionesPlantas"}},
+{ path: "/detalle-coti-planta/:id", name: "DetalleCotizacionPlanta", component: DetalleCotizacionPlanta, meta: { requiresAuth: true, menuKey: "HistorialCotizacionesPlantas"}},
+{ path: "/detalle-solped-planta/:id", name: "DetalleSolpedPlanta", component: DetalleSolpedPlanta, meta: { requiresAuth: true, menuKey: "HistorialSolpedPlanta"}},
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound, meta: { public: true },
 },
 ];

@@ -190,19 +190,13 @@
                   <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="badge" :style="estadoChipStyle(s)">{{ s.estatus }}</span>
 
-                    <div class="dropdown" v-if="canChangeStatus">
-                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                        Cambiar Estado
-                      </button>
-                      <ul class="dropdown-menu dropdown-menu-end">
-                        <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Cotizado Parcial')">Cotizado Parcial</button></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Cotizado Completado')">Cotizado Completado</button></li>
-                      </ul>
-                    </div>
-
+                    <button
+                      v-if="canChangeStatus"
+                      class="btn btn-sm btn-outline-secondary"
+                      @click.stop="abrirBarraEstadoSolped(s)"
+                    >
+                      Cambiar Estado
+                    </button>
                     <button
                       v-if="canCopySolped"
                       class="btn btn-sm btn-outline-primary"
@@ -281,18 +275,13 @@
                             </span>
                           </td>
                           <td class="text-end d-none d-lg-table-cell">
-                            <div class="dropdown" v-if="canChangeStatus">
-                              <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                                Cambiar ítem
-                              </button>
-                              <ul class="dropdown-menu dropdown-menu-end">
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'rechazado')">rechazado</button></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">pendiente</button></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'revisión')">revisión</button></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">completado</button></li>
-                              </ul>
-                            </div>
+                            <button
+                              v-if="canChangeStatus"
+                              class="btn btn-sm btn-outline-secondary"
+                              @click.stop="abrirBarraEstadoItem(s, it)"
+                            >
+                              Cambiar ítem
+                            </button>
                           </td>
                         </tr>
                       </tbody>
@@ -323,17 +312,13 @@
                         <span v-else class="text-secondary small">Sin imagen</span>
 
                         <div class="ms-auto" v-if="canChangeStatus">
-                          <div class="dropup">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                          <div class="ms-auto" v-if="canChangeStatus">
+                            <button
+                              class="btn btn-sm btn-outline-secondary"
+                              @click.stop="abrirBarraEstadoItem(s, it)"
+                            >
                               Cambiar ítem
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                              <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">Pendiente</button></li>
-                              <li><button class="dropdown-item" @click="setItemStatus(s, it, 'cotizando')">Cotizando</button></li>
-                              <li><button class="dropdown-item" @click="setItemStatus(s, it, 'en bodega')">En bodega</button></li>
-                              <li><hr class="dropdown-divider"></li>
-                              <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">Completado</button></li>
-                            </ul>
                           </div>
                         </div>
                       </div>
@@ -484,10 +469,6 @@
                            @change="toggleTempSolicitante(u)">
                     <label class="form-check-label" :for="'u_'+normalize(u)">{{ u }}</label>
                   </div>
-                </div>
-                <div>
-                  <input class="form-check-input" type="checkbox" id="chkOnlyMineDesk" v-model="onlyMine" @change="persistOnlyMine">
-                  <label class="form-check-label" for="chkOnlyMineDesk"> Mis SOLPED</label>
                 </div>
                 <div class="mb-0">
                   <label class="form-label">Tamaño de página</label>
@@ -720,6 +701,140 @@
         </div>
       </template>
     </div>
+    <transition name="bottom-sheet">
+      <div
+        v-if="floatingEstadoSolped && canChangeStatus"
+        class="floating-action-bar"
+      >
+        <div class="floating-card shadow-lg">
+          <div class="floating-handle"></div>
+
+          <div class="floating-header">
+            <div>
+              <div class="fw-bold">Cambio de estado SOLPED</div>
+              <div class="small text-muted">
+                SOLPED #{{ floatingEstadoSolped.numero_solpe || '—' }} ·
+                {{ floatingEstadoSolped.tipo_solped || 'Sin tipo' }}
+              </div>
+            </div>
+
+            <button
+              class="btn btn-sm btn-light rounded-circle"
+              @click="cerrarBarraEstado"
+            >
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="floating-actions">
+            <button
+              class="btn btn-outline-warning btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Pendiente')"
+            >
+              <i class="bi bi-clock-history me-2"></i>
+              Pendiente
+            </button>
+
+            <button
+              class="btn btn-outline-danger btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Rechazado')"
+            >
+              <i class="bi bi-x-circle me-2"></i>
+              Rechazado
+            </button>
+
+            <button
+              class="btn btn-outline-info btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Cotizado Parcial')"
+            >
+              <i class="bi bi-hourglass-split me-2"></i>
+              Cotizado Parcial
+            </button>
+
+            <button
+              class="btn btn-outline-success btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Cotizado Completado')"
+            >
+              <i class="bi bi-check-circle me-2"></i>
+              Cotizado Completado
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="bottom-sheet">
+      <div
+        v-if="floatingEstadoItem && canChangeStatus"
+        class="floating-action-bar"
+      >
+        <div class="floating-card shadow-lg">
+          <div class="floating-handle"></div>
+
+          <div class="floating-header">
+            <div>
+              <div class="fw-bold">Cambio de estado ítem</div>
+              <div class="small text-muted">
+                SOLPED #{{ floatingEstadoItem.solpe?.numero_solpe || '—' }} ·
+                Ítem {{ floatingEstadoItem.item?.item || '—' }}
+                <span v-if="floatingEstadoItem.item?.descripcion">
+                  · {{ floatingEstadoItem.item.descripcion }}
+                </span>
+              </div>
+            </div>
+
+            <button
+              class="btn btn-sm btn-light rounded-circle"
+              @click="cerrarBarraEstado"
+            >
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="floating-actions">
+            <button
+              class="btn btn-outline-danger btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'rechazado')"
+            >
+              <i class="bi bi-x-circle me-2"></i>
+              Rechazado
+            </button>
+
+            <button
+              class="btn btn-outline-warning btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'pendiente')"
+            >
+              <i class="bi bi-clock-history me-2"></i>
+              Pendiente
+            </button>
+
+            <button
+              class="btn btn-outline-primary btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'revisión')"
+            >
+              <i class="bi bi-search me-2"></i>
+              Revisión
+            </button>
+
+            <button
+              class="btn btn-outline-success btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'completado')"
+            >
+              <i class="bi bi-check-circle me-2"></i>
+              Completado
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -742,7 +857,11 @@ export default {
     const volver = () => router.back();
 
     const error = ref("");
+    const statusUpdatingSolpedId = ref(null);
+    const statusUpdatingItemKey = ref(null);
 
+    const floatingEstadoSolped = ref(null);
+    const floatingEstadoItem = ref(null);
     const loading = ref(true);
     const loadingSearch = ref(false);
     const numeroBusqueda = ref("");
@@ -1228,6 +1347,8 @@ export default {
     };
 
     const onExpandCard = async (s) => {
+      cerrarBarraEstado();
+
       const newId = (solpeExpandidaId.value === s.id) ? null : s.id;
       if (solpeExpandidaId.value && solpeExpandidaId.value !== newId) {
         stopOCListener(solpeExpandidaId.value);
@@ -1244,7 +1365,6 @@ export default {
         initDropdownsIn();
       }
     };
-
     const marcarComentariosVistos = async (s) => {
       try {
         const uid = myUid.value;
@@ -1354,6 +1474,8 @@ export default {
     const pagedList = computed(() => filteredAll.value.slice(pageFrom.value - 1, pageTo.value));
 
     const goPage = async (p) => {
+      cerrarBarraEstado();
+
       if (p < 1) p = 1;
       if (p > totalPages.value) p = totalPages.value;
       writeViewState({ page: p, scrollY: window.scrollY || 0 });
@@ -1398,12 +1520,30 @@ export default {
       await nextTick();
       requestAnimationFrame(() => { window.scrollTo(0, savedScrollY.value || 0); });
     };
+    const abrirBarraEstadoSolped = (solpe) => {
+      floatingEstadoItem.value = null;
+      floatingEstadoSolped.value = solpe;
+    };
 
-    const setStatus = async (s, estatus) => {
+    const abrirBarraEstadoItem = (solpe, item) => {
+      floatingEstadoSolped.value = null;
+      floatingEstadoItem.value = { solpe, item };
+    };
+
+    const cerrarBarraEstado = () => {
+      floatingEstadoSolped.value = null;
+      floatingEstadoItem.value = null;
+    };
+    const cambiarEstadoSolped = async (s, estatus) => {
       if (!canChangeStatus.value) {
         error.value = "No tienes permisos para cambiar el estado.";
         return;
       }
+
+      if (!s?.id) return;
+
+      statusUpdatingSolpedId.value = s.id;
+
       try {
         savedScrollY.value = window.scrollY;
 
@@ -1433,21 +1573,30 @@ export default {
 
         await addDoc(
           collection(db, "solped_taller", s.id, "historialEstados"),
-          { fecha: new Date(), estatus, usuario }
+          { fecha: new Date(), estatus, usuario, comentario: `Cambio de estado de SOLPED a ${estatus}` }
         );
 
+        cerrarBarraEstado();
         restoreScrollSoon();
       } catch (e) {
         console.error(e);
         error.value = "Error al actualizar estatus.";
+      } finally {
+        statusUpdatingSolpedId.value = null;
       }
     };
 
-    const setItemStatus = async (solpe, item, nuevo) => {
+    const cambiarEstadoItem = async (solpe, item, nuevo) => {
       if (!canChangeStatus.value) {
         error.value = "No tienes permisos para cambiar el estado del ítem.";
         return;
       }
+
+      if (!solpe?.id || !item) return;
+
+      const key = `${solpe.id}_${item.item}`;
+      statusUpdatingItemKey.value = key;
+
       try {
         savedScrollY.value = window.scrollY;
 
@@ -1455,13 +1604,27 @@ export default {
         const itemsUpd = (solpe.items || []).map(it =>
           (String(it.item) === String(item.item)) ? { ...it, estado: nuevo } : it
         );
+
         await updateDoc(refd, { items: itemsUpd });
         solpe.items = itemsUpd;
 
+        await addDoc(
+          collection(db, "solped_taller", solpe.id, "historialEstados"),
+          {
+            fecha: new Date(),
+            estatus: solpe?.estatus || "Pendiente",
+            usuario: myFullName.value || auth?.user?.displayName || auth?.user?.email || "Anónimo",
+            comentario: `Cambio estado ítem ${item.item} a ${nuevo}`
+          }
+        );
+
+        cerrarBarraEstado();
         restoreScrollSoon();
       } catch (e) {
         console.error(e);
         error.value = "No se pudo cambiar el estado del ítem.";
+      } finally {
+        statusUpdatingItemKey.value = null;
       }
     };
     const agregarComentario = async (s) => {
@@ -1798,6 +1961,7 @@ export default {
       savingEdit.value = false;
       editForm.value = {};
       editItems.value = [];
+      cerrarBarraEstado();
       nextTick().then(async () => {
         disposeDropdowns();
         await ensureDropdownClass();
@@ -1946,7 +2110,15 @@ export default {
       toggleTempSolicitante, clearTempSolicitantes, applySolicitantesFiltro,
       removeEstatus, removeSolicitante,
       abrirImagen, abrirImagenNuevaPestana,
-      setStatus, setItemStatus,
+      floatingEstadoSolped,
+      floatingEstadoItem,
+      statusUpdatingSolpedId,
+      statusUpdatingItemKey,
+      abrirBarraEstadoSolped,
+      abrirBarraEstadoItem,
+      cerrarBarraEstado,
+      cambiarEstadoSolped,
+      cambiarEstadoItem,
       descargarExcel, volver, onExpandCard, marcarComentariosVistos,
       abrirAutorizacion, descargarAutorizacion, agregarComentario,
       buscarSolpeExacta, goOC, verDetalleSolped, limpiarBusquedaExacta,
@@ -2190,7 +2362,88 @@ export default {
   visibility: hidden;
   pointer-events: none;
 }
+.bottom-sheet-enter-active,
+.bottom-sheet-leave-active{
+  transition: opacity .22s ease, transform .22s ease;
+}
 
+.bottom-sheet-enter-from,
+.bottom-sheet-leave-to{
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.floating-action-bar{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  z-index: 1090;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 12px;
+}
+
+.floating-card{
+  width: min(920px, 100%);
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(10px);
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(15,23,42,.18);
+  padding: .8rem 1rem 1rem;
+  pointer-events: auto;
+}
+
+.floating-handle{
+  width: 56px;
+  height: 5px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  margin: 0 auto .9rem;
+}
+
+.floating-header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .9rem;
+}
+
+.floating-actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.btn-pill{
+  border-radius: 999px;
+  padding: .7rem 1rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px){
+  .floating-action-bar{
+    bottom: 10px;
+    padding: 0 10px;
+  }
+
+  .floating-card{
+    border-radius: 18px;
+    padding: .75rem .85rem .9rem;
+  }
+
+  .floating-actions{
+    flex-direction: column;
+  }
+
+  .floating-actions .btn{
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
 :global(body.filters-open .btn-menu-flotante),
 :global(body.filters-open .btn-hamburguesa){
   visibility: hidden;

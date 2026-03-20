@@ -235,26 +235,13 @@
 
                   <div class="d-flex align-items-center gap-2 flex-shrink-0">
                     <span class="badge" :style="estadoChipStyle(s)">{{ s.estatus }}</span>
-                    <div v-if="canChangeStatus" class="dropdown" @click.stop>
-                      <button
-                        class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                        data-bs-toggle="dropdown"
-                        data-bs-display="static"
-                        data-bs-offset="0,6"
-                        data-bs-boundary="viewport"
-                        aria-expanded="false"
-                        @click.stop
-                      >
-                        Cambiar Estado
-                      </button>
-                      <ul class="dropdown-menu dropdown-menu-end" @click.stop>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Rechazado')">Rechazado</button></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Pendiente')">Pendiente</button></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Cotizado Parcial')">Cotizado Parcial</button></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><button class="dropdown-item" @click="setStatus(s,'Cotizado Completado')">Cotizado Completado</button></li>
-                      </ul>
-                    </div>
+                    <button
+                      v-if="canChangeStatus"
+                      class="btn btn-sm btn-outline-secondary"
+                      @click.stop="abrirBarraEstadoSolped(s)"
+                    >
+                      Cambiar Estado
+                    </button>
 
                     <button
                       v-if="isGenerador"
@@ -345,25 +332,13 @@
                             </span>
                           </td>
                           <td class="text-end d-none d-sm-table-cell">
-                              <div v-if="canChangeStatus" class="dropdown dropdown-keep" @click.stop>
-                                <button
-                                  class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                  data-bs-toggle="dropdown"
-                                  data-bs-reference="parent"
-                                  data-bs-offset="0,8"
-                                  aria-expanded="false"
-                                  @click.stop
-                                >
-                                  Cambiar ítem
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end" @click.stop>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'rechazado')">rechazado</button></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'pendiente')">pendiente</button></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'revisión')">revisión</button></li>
-                                  <li><hr class="dropdown-divider"></li>
-                                  <li><button class="dropdown-item" @click="setItemStatus(s, it, 'completado')">completado</button></li>
-                                </ul>
-                              </div>
+                            <button
+                              v-if="canChangeStatus"
+                              class="btn btn-sm btn-outline-secondary"
+                              @click.stop="abrirBarraEstadoItem(s, it)"
+                            >
+                              Cambiar ítem
+                            </button>
 
                           </td>
                         </tr>
@@ -1027,6 +1002,140 @@
         </div>
       </div>
     </div>
+    <transition name="bottom-sheet">
+      <div
+        v-if="floatingEstadoSolped && canChangeStatus"
+        class="floating-action-bar"
+      >
+        <div class="floating-card shadow-lg">
+          <div class="floating-handle"></div>
+
+          <div class="floating-header">
+            <div>
+              <div class="fw-bold">Cambio de estado SOLPED</div>
+              <div class="small text-muted">
+                SOLPED #{{ floatingEstadoSolped.numero_solpe || '—' }} ·
+                {{ floatingEstadoSolped.nombre_solped || 'Sin nombre' }}
+              </div>
+            </div>
+
+            <button
+              class="btn btn-sm btn-light rounded-circle"
+              @click="cerrarBarraEstado"
+            >
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="floating-actions">
+            <button
+              class="btn btn-outline-danger btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Rechazado')"
+            >
+              <i class="bi bi-x-circle me-2"></i>
+              Rechazado
+            </button>
+
+            <button
+              class="btn btn-outline-warning btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Pendiente')"
+            >
+              <i class="bi bi-clock-history me-2"></i>
+              Pendiente
+            </button>
+
+            <button
+              class="btn btn-outline-info btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Cotizado Parcial')"
+            >
+              <i class="bi bi-hourglass-split me-2"></i>
+              Cotizado Parcial
+            </button>
+
+            <button
+              class="btn btn-outline-success btn-pill"
+              :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Cotizado Completado')"
+            >
+              <i class="bi bi-check-circle me-2"></i>
+              Cotizado Completado
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="bottom-sheet">
+      <div
+        v-if="floatingEstadoItem && canChangeStatus"
+        class="floating-action-bar"
+      >
+        <div class="floating-card shadow-lg">
+          <div class="floating-handle"></div>
+
+          <div class="floating-header">
+            <div>
+              <div class="fw-bold">Cambio de estado ítem</div>
+              <div class="small text-muted">
+                SOLPED #{{ floatingEstadoItem.solpe?.numero_solpe || '—' }} ·
+                Ítem {{ floatingEstadoItem.item?.item || '—' }}
+                <span v-if="floatingEstadoItem.item?.descripcion">
+                  · {{ floatingEstadoItem.item.descripcion }}
+                </span>
+              </div>
+            </div>
+
+            <button
+              class="btn btn-sm btn-light rounded-circle"
+              @click="cerrarBarraEstado"
+            >
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="floating-actions">
+            <button
+              class="btn btn-outline-danger btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'rechazado')"
+            >
+              <i class="bi bi-x-circle me-2"></i>
+              Rechazado
+            </button>
+
+            <button
+              class="btn btn-outline-warning btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'pendiente')"
+            >
+              <i class="bi bi-clock-history me-2"></i>
+              Pendiente
+            </button>
+
+            <button
+              class="btn btn-outline-primary btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'revisión')"
+            >
+              <i class="bi bi-search me-2"></i>
+              Revisión
+            </button>
+
+            <button
+              class="btn btn-outline-success btn-pill"
+              :disabled="statusUpdatingItemKey === `${floatingEstadoItem.solpe.id}_${floatingEstadoItem.item.item}`"
+              @click="cambiarEstadoItem(floatingEstadoItem.solpe, floatingEstadoItem.item, 'completado')"
+            >
+              <i class="bi bi-check-circle me-2"></i>
+              Completado
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -2271,10 +2380,28 @@ const agregarComentario = async (s) => {
     addToast('danger','Error al guardar el comentario.');
   }
 };
-const setStatus = async (s, estatus) => {
-  if (!canChangeStatus.value) return;
+const abrirBarraEstadoSolped = (solpe) => {
+  floatingEstadoItem.value = null;
+  floatingEstadoSolped.value = solpe;
+};
+
+const abrirBarraEstadoItem = (solpe, item) => {
+  floatingEstadoSolped.value = null;
+  floatingEstadoItem.value = { solpe, item };
+};
+
+const cerrarBarraEstado = () => {
+  floatingEstadoSolped.value = null;
+  floatingEstadoItem.value = null;
+};
+const cambiarEstadoSolped = async (s, estatus) => {
+  if (!canChangeStatus.value || !s?.id) return;
+
+  statusUpdatingSolpedId.value = s.id;
+
   try {
     const refd = doc(db, 'solpes', s.id);
+
     if (estatus === 'Completado') {
       const itemsUpd = (s.items || []).map(it => ({ ...it, estado: 'completado' }));
       await updateDoc(refd, { estatus, items: itemsUpd });
@@ -2282,23 +2409,65 @@ const setStatus = async (s, estatus) => {
     } else {
       await updateDoc(refd, { estatus });
     }
-    await addDoc(collection(db, 'solpes', s.id, 'historialEstados'), { fecha: new Date(), estatus, usuario: myFullName.value || '—' });
+
+    await addDoc(collection(db, 'solpes', s.id, 'historialEstados'), {
+      fecha: new Date(),
+      estatus,
+      usuario: myFullName.value || '—',
+      comentario: `Cambio de estado de SOLPED a ${estatus}`
+    });
+
     s.estatus = estatus;
+    cerrarBarraEstado();
     addToast('success', `SOLPED #${s.numero_solpe} → "${estatus}"`);
-  } catch (e) {console.error(e);  addToast('danger','Error al actualizar estatus.'); }
+  } catch (e) {
+    console.error(e);
+    addToast('danger', 'Error al actualizar estado de la SOLPED.');
+  } finally {
+    statusUpdatingSolpedId.value = null;
+  }
 };
-const setItemStatus = async (solpe, item, nuevo) => {
-  if (!canChangeStatus.value) return;
+const cambiarEstadoItem = async (solpe, item, nuevo) => {
+  if (!canChangeStatus.value || !solpe?.id || !item) return;
+
+  const key = `${solpe.id}_${item.item}`;
+  statusUpdatingItemKey.value = key;
+
   try {
     const refd = doc(db, 'solpes', solpe.id);
-    const itemsUpd = (solpe.items || []).map(it => (String(it.item)===String(item.item)) ? { ...it, estado: nuevo } : it);
+
+    const itemsUpd = (solpe.items || []).map(it =>
+      String(it.item) === String(item.item)
+        ? { ...it, estado: nuevo }
+        : it
+    );
+
     await updateDoc(refd, { items: itemsUpd });
+
+    await addDoc(collection(db, 'solpes', solpe.id, 'historialEstados'), {
+      fecha: new Date(),
+      estatus: solpe?.estatus || 'Pendiente',
+      usuario: myFullName.value || '—',
+      comentario: `Cambio estado ítem ${item.item} a ${nuevo}`
+    });
+
     solpe.items = itemsUpd;
+    cerrarBarraEstado();
     addToast('success', `Ítem ${item.item} → ${nuevo}`);
-  } catch (e) { console.error(e); addToast('danger','No se pudo cambiar el estado del ítem.'); }
+  } catch (e) {
+    console.error(e);
+    addToast('danger', 'No se pudo cambiar el estado del ítem.');
+  } finally {
+    statusUpdatingItemKey.value = null;
+  }
 };
 const ocBySolped = ref({});
 const ocLoadingSet = ref(new Set());
+const statusUpdatingSolpedId = ref(null);
+const statusUpdatingItemKey = ref(null);
+
+const floatingEstadoSolped = ref(null);
+const floatingEstadoItem = ref(null);
 const isLoadingOC = (id) => ocLoadingSet.value.has(id);
 const ocListFor = (id) => ocBySolped.value[id] || [];
 const fetchOCs = async (solpedId) => {
@@ -2552,6 +2721,8 @@ const marcarComentariosVistos = async (s) => {
   } catch (e) {console.error(e);}
 };
 const onExpandCard = async (s) => {
+  cerrarBarraEstado();
+
   solpeExpandidaId.value = (solpeExpandidaId.value === s.id) ? null : s.id;
   if (solpeExpandidaId.value === s.id) {
     await marcarComentariosVistos(s);
@@ -3454,7 +3625,88 @@ async function guardarEdicion() {
   border-radius: 12px;
   overflow: hidden;
 }
+.bottom-sheet-enter-active,
+.bottom-sheet-leave-active{
+  transition: opacity .22s ease, transform .22s ease;
+}
 
+.bottom-sheet-enter-from,
+.bottom-sheet-leave-to{
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.floating-action-bar{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  z-index: 1090;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 12px;
+}
+
+.floating-card{
+  width: min(920px, 100%);
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(10px);
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(15,23,42,.18);
+  padding: .8rem 1rem 1rem;
+  pointer-events: auto;
+}
+
+.floating-handle{
+  width: 56px;
+  height: 5px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  margin: 0 auto .9rem;
+}
+
+.floating-header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .9rem;
+}
+
+.floating-actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.btn-pill{
+  border-radius: 999px;
+  padding: .7rem 1rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px){
+  .floating-action-bar{
+    bottom: 10px;
+    padding: 0 10px;
+  }
+
+  .floating-card{
+    border-radius: 18px;
+    padding: .75rem .85rem .9rem;
+  }
+
+  .floating-actions{
+    flex-direction: column;
+  }
+
+  .floating-actions .btn{
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
 @media (max-width: 768px) {
   .attachment-row {
     flex-direction: column;

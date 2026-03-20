@@ -626,7 +626,7 @@ const usuarioActual = ref("");
 const userRole = ref("");
 
 const APPLY_TO_ROLES = ["editor"];
-const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 20);
+const MAX_OC_APROBADAS_TALLER = Number(import.meta.env.VITE_MAX_OC_APROBADAS_TALLER ?? 10);
 
 const totalAprobadasDelUsuarioTaller = ref(0);
 const bloqueoPorAprobadasTaller = computed(() => {

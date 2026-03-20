@@ -14,7 +14,7 @@ const route = useRoute();
 const auth = useAuthStore();
 const ui = useUIStore();
 
-const { empresaMenu, tallerMenu, adminMenu, recepcionMenu } = useRoleMenus();
+const { empresaMenu, tallerMenu, adminMenu, recepcionMenu, plantaMenu } = useRoleMenus();
 
 const fullName = computed(
   () =>
@@ -876,6 +876,24 @@ watch(
             >
               {{ unreadAprobTaller }}
             </span>
+          </a>
+        </template>
+      </div>
+            <div v-if="plantaMenu.length" class="group">
+        <div class="group-title">Plantas</div>
+
+        <template v-for="(it, i) in plantaMenu" :key="'e-' + i">
+          <hr v-if="it === null" class="divider" />
+
+          <a
+            v-else
+            href="#"
+            class="item"
+            :class="{ active: isActive(it.name) }"
+            @click.prevent="go({ name: it.name })"
+          >
+            <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
+            <span class="item-text">{{ it.text }}</span>
           </a>
         </template>
       </div>

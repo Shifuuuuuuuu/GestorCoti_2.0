@@ -2251,7 +2251,7 @@ const bloqueoPorAprobadas = computed(() => {
   if (!esEditor) return false;
   if (!aprobadasListo.value) return false;
   if (!aprobadasState.ok) return true;
-  return totalAprobadasDelUsuario.value >= 20;
+  return totalAprobadasDelUsuario.value >= 10;
 });
 
 const mostrarBloqueoAprobadas = computed(() => {
@@ -2259,7 +2259,7 @@ const mostrarBloqueoAprobadas = computed(() => {
   const esEditor = roleKey === "editor";
   if (!esEditor) return false;
   if (!aprobadasListo.value) return false;
-  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 30;
+  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 10;
 });
 
 const enviando = ref(false);

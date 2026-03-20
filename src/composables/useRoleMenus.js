@@ -139,6 +139,9 @@ export function useRoleMenus() {
   const adminMenu = computed(() =>
     compactMenu(visibleMenus.value.filter((x) => x.group === "Admin"))
   );
+  const plantaMenu = computed(() =>
+    compactMenu(visibleMenus.value.filter((x) => x.group === "Plantas"))
+  );
 
   const recepcionMenu = computed(() =>
     compactMenu(
@@ -154,6 +157,7 @@ export function useRoleMenus() {
     empresaMenu,
     tallerMenu,
     adminMenu,
+    plantaMenu,
     recepcionMenu,
     visibleMenus,
   };

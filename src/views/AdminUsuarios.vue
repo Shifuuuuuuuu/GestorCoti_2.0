@@ -695,7 +695,15 @@ const ccLista = Object.entries(centrosCosto).map(([key, label]) => ({ key, label
 const nombreContrato = (k) => centrosCosto[k] || k;
 
 const FUNCTIONS_REGION = 'southamerica-west1';
-const rolesDisponibles = ['Admin','Aprobador/Editor','Generador solped','Editor',"Recepcion_OC","CargadorDoc"];
+const rolesDisponibles = [
+  'Admin',
+  'Aprobador/Editor',
+  'Aprobador SOLPED',
+  'Generador solped',
+  'Editor',
+  'Recepcion_OC',
+  'CargadorDoc'
+];
 const empresasDisponibles = ['Xtreme Servicio', 'Xtreme Mining', 'Xtreme Hormigones'];
 
 const MENU_KEYS = MENU_DEFINITIONS.map((x) => ({
