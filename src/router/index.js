@@ -51,7 +51,8 @@ const AprobacionCotizacionesPlantas = () => import("../views/AprobacionCotizacio
 const HistorialCotizacionesPlantas = () => import("../views/HistorialCotizacionesPlantas.vue");
 const DetalleCotizacionPlanta = () => import("../views/DetalleCotizacionPlanta.vue");
 const DetalleSolpedPlanta = () => import("../views/DetalleSolpedPlanta.vue")
-
+const AdminSolpedPlantas = () => import ("../views/AdminSolpedPlantas.vue")
+const AdminCotizacionPlantas = () => import ("../views/AdminCotizacionPlantas.vue")
 const routes = [
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
   { path: "/", redirect: { name: "Inicio" } },
@@ -109,8 +110,10 @@ const routes = [
   { path: "/generador-coti-plantas", name: "GeneradorCotizacionPlantas", component: GeneradorCotizacionPlantas, meta: { requiresAuth: true, menuKey: "GeneradorCotizacionPlantas"}},
   { path: "/aprobador-coti-plantas", name: "AprobacionCotizacionesPlantas", component: AprobacionCotizacionesPlantas, meta: { requiresAuth: true, menuKey: "AprobacionCotizacionesPlantas"}},
   { path: "/historial-coti-plantas", name: "HistorialCotizacionesPlantas", component: HistorialCotizacionesPlantas, meta: { requiresAuth: true, menuKey: "HistorialCotizacionesPlantas"}},
-{ path: "/detalle-coti-planta/:id", name: "DetalleCotizacionPlanta", component: DetalleCotizacionPlanta, meta: { requiresAuth: true, menuKey: "HistorialCotizacionesPlantas"}},
-{ path: "/detalle-solped-planta/:id", name: "DetalleSolpedPlanta", component: DetalleSolpedPlanta, meta: { requiresAuth: true, menuKey: "HistorialSolpedPlanta"}},
+  { path: "/detalle-coti-planta/:id", name: "DetalleCotizacionPlanta", component: DetalleCotizacionPlanta, meta: { requiresAuth: true, menuKey: "HistorialCotizacionesPlantas"}},
+  { path: "/detalle-solped-planta/:id", name: "DetalleSolpedPlanta", component: DetalleSolpedPlanta, meta: { requiresAuth: true, menuKey: "HistorialSolpedPlanta"}},
+  { path: "/admin-solped-plantas", name: "AdminSolpedPlantas", component: AdminSolpedPlantas, meta: { requiresAuth: true, menuKey: "AdminSolpedPlantas"}},
+  { path: "/admin-coti-plantas", name: "AdminCotizacionPlantas", component: AdminCotizacionPlantas, meta: { requiresAuth: true, menuKey: "AdminCotizacionPlantas"}},
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound, meta: { public: true },
 },
 ];

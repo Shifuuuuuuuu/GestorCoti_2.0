@@ -565,14 +565,13 @@
 
                   <td :data-label="'Cantidad'">
                     <input
-                      type="number"
-                      min="1"
-                      step="1"
+                      type="text"
+                      inputmode="numeric"
                       class="form-control form-control-sm"
-                      v-model.number="item.cantidad"
-                      placeholder="1"
-                      @input="clampCantidad(i)"
-                      @blur="ensureCantidad(i)"
+                      v-model="item.cantidadInput"
+                      placeholder="01"
+                      @input="onCantidadInput(i)"
+                      @blur="onCantidadBlur(i)"
                     />
                   </td>
 
@@ -1374,6 +1373,7 @@ const descargarPlantillaItems = () => {
             descripcion: desc,
             codigo_referencial: cod,
             cantidad: isNaN(cant) ? 1 : Math.max(1, Math.floor(cant)),
+            cantidadInput: formatCantidad(isNaN(cant) ? 1 : Math.max(1, Math.floor(cant))),
             stock: isNaN(stk) ? null : stk,
             numero_interno: nro,
             prioridad,
@@ -1513,7 +1513,8 @@ const descargarPlantillaItems = () => {
           id: idx + 1,
           descripcion: (it.descripcion || "").toUpperCase(),
           codigo_referencial: (it.codigo_referencial || "").toUpperCase(),
-          cantidad: Number(it.cantidad || 0),
+          cantidad: Number(it.cantidad || 1),
+          cantidadInput: formatCantidad(it.cantidad || 1),
           stock: Number(it.stock || 0),
           numero_interno: (it.numero_interno || "").toUpperCase(),
           prioridad: it.prioridad || "MEDIA",
@@ -1586,26 +1587,17 @@ const descargarPlantillaItems = () => {
       return JSON.stringify(base);
     };
 
-    const clampCantidad = (i) => {
-      const v = Number(form.items[i]?.cantidad ?? 1);
-      if (!Number.isFinite(v) || v < 1) form.items[i].cantidad = 1;
-      else form.items[i].cantidad = Math.floor(v);
+    const parseCantidad = (value) => {
+      const limpio = String(value ?? "").replace(/\D/g, "");
+      const num = Number(limpio);
+      if (!Number.isFinite(num) || num < 1) return 1;
+      return Math.floor(num);
     };
 
-    const ensureCantidad = (i) => {
-      let v = Number(form.items[i]?.cantidad ?? 1);
-      if (!Number.isFinite(v) || v < 1) {
-        form.items[i].cantidad = 1;
-        addToast("warning", `La cantidad del ítem #${i + 1} se ajustó a 1 (mínimo permitido).`);
-        return;
-      }
-      const floored = Math.floor(v);
-      if (floored !== v) {
-        form.items[i].cantidad = floored;
-        addToast("warning", `La cantidad del ítem #${i + 1} se redondeó a ${floored}.`);
-      }
+    const formatCantidad = (value) => {
+      const num = parseCantidad(value);
+      return String(num).padStart(2, "0");
     };
-
     const applySerialized = (raw) => {
       try {
         const data = JSON.parse(raw || "{}");
@@ -1626,7 +1618,8 @@ const descargarPlantillaItems = () => {
                 id: it.id ?? i + 1,
                 descripcion: (it.descripcion || "").toUpperCase(),
                 codigo_referencial: (it.codigo_referencial || "").toUpperCase(),
-                cantidad: Number(it.cantidad || 0),
+                cantidad: Number(it.cantidad || 1),
+                cantidadInput: formatCantidad(it.cantidad || 1),
                 stock: Number(it.stock || 0),
                 numero_interno: (it.numero_interno || "").toUpperCase(),
                 prioridad: it.prioridad || "MEDIA",
@@ -2183,11 +2176,13 @@ const descargarPlantillaItems = () => {
 
     const agregarFila = () => {
       const nid = form.items.length ? form.items[form.items.length - 1].id + 1 : 1;
+
       form.items.push({
         id: nid,
         descripcion: "",
         codigo_referencial: "",
         cantidad: 1,
+        cantidadInput: "01",
         stock: null,
         numero_interno: "",
         prioridad: "MEDIA",
@@ -2616,8 +2611,6 @@ const descargarPlantillaItems = () => {
       descargarPlantillaItems,
       guardarSolped,
       eliminarImagenItem,
-      clampCantidad,
-      ensureCantidad
     };
   }
 };

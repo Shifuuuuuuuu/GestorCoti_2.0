@@ -221,17 +221,22 @@ function playNotif() {
 
 const unreadEmpresa = ref(0);
 const unreadTaller = ref(0);
+const unreadPlantas = ref(0);
 
 const empresaTimes = ref([]);
 const tallerTimes = ref([]);
+const plantasTimes = ref([]);
 
 const empresaIds = ref(new Set());
 const tallerIds = ref(new Set());
+const plantasIds = ref(new Set());
 
 const bounceEmpresa = ref(false);
 const bounceTaller = ref(false);
+const bouncePlantas = ref(false);
 let bounceTimerEmp = null;
 let bounceTimerTal = null;
+let bounceTimerPla = null;
 
 function triggerBounceEmpresa() {
   bounceEmpresa.value = false;
@@ -249,12 +254,20 @@ function triggerBounceTaller() {
     bounceTimerTal = setTimeout(() => (bounceTaller.value = false), 1100);
   });
 }
-
+function triggerBouncePlantas() {
+  bouncePlantas.value = false;
+  requestAnimationFrame(() => {
+    bouncePlantas.value = true;
+    if (bounceTimerPla) clearTimeout(bounceTimerPla);
+    bounceTimerPla = setTimeout(() => (bouncePlantas.value = false), 1100);
+  });
+}
 const isViewingEmpresa = computed(() => route.name === "historial-solped");
 const isViewingTaller = computed(() => route.name === "HistorialSolpedTaller");
-
+const isViewingPlantas = computed(() => route.name === "HistorialSolpedPlanta");
 const SEEN_KEY_EMPRESA = computed(() => `seen_solpes_empresa_${auth?.user?.uid || "anon"}`);
 const SEEN_KEY_TALLER = computed(() => `seen_solpes_taller_${auth?.user?.uid || "anon"}`);
+const SEEN_KEY_PLANTAS = computed(() => `seen_solpes_plantas_${auth?.user?.uid || "anon"}`);
 const getSeen = (k) => Number(localStorage.getItem(k) || "0");
 const setSeen = (k, ms) => localStorage.setItem(k, String(ms));
 
@@ -296,15 +309,22 @@ function getMsFromSolpeTaller(d) {
   const iso = String(d?.fecha || "").trim();
   return tsToMs(iso);
 }
-
+function getMsFromSolpePlantas(d) {
+  const msTs = tsToMs(d?.createdAt) || tsToMs(d?.fecha_str) || tsToMs(d?.updated_at);
+  if (msTs) return msTs;
+  const iso = String(d?.fecha || "").trim();
+  return tsToMs(iso);
+}
 function recomputeSolpesUnread() {
   const since = getStartOfTodayMs();
 
   const seenEmpresa = getSeen(SEEN_KEY_EMPRESA.value);
   const seenTaller = getSeen(SEEN_KEY_TALLER.value);
+  const seenPlantas = getSeen(SEEN_KEY_PLANTAS.value);
 
   const minEmpresa = Math.max(since, seenEmpresa);
   const minTaller = Math.max(since, seenTaller);
+  const minPlantas = Math.max(since, seenPlantas);
 
   unreadEmpresa.value = isViewingEmpresa.value
     ? 0
@@ -314,8 +334,13 @@ function recomputeSolpesUnread() {
     ? 0
     : tallerTimes.value.filter((t) => t > minTaller).length;
 
+  unreadPlantas.value = isViewingPlantas.value
+    ? 0
+    : plantasTimes.value.filter((t) => t > minPlantas).length;
+
   if (!isViewingEmpresa.value && unreadEmpresa.value > 0) triggerBounceEmpresa();
   if (!isViewingTaller.value && unreadTaller.value > 0) triggerBounceTaller();
+  if (!isViewingPlantas.value && unreadPlantas.value > 0) triggerBouncePlantas();
 }
 
 function markSeenEmpresa() {
@@ -326,20 +351,29 @@ function markSeenTaller() {
   setSeen(SEEN_KEY_TALLER.value, Date.now());
   recomputeSolpesUnread();
 }
-
+function markSeenPlantas() {
+  setSeen(SEEN_KEY_PLANTAS.value, Date.now());
+  recomputeSolpesUnread();
+}
 const unreadAprobEmpresa = ref(0);
 const unreadAprobTaller = ref(0);
+const unreadAprobPlantas = ref(0);
 
 const aprobEmpresaTimes = ref([]);
 const aprobTallerTimes = ref([]);
+const aprobPlantasTimes = ref([]);
 
 const aprobEmpresaIds = ref(new Set());
 const aprobTallerIds = ref(new Set());
+const aprobPlantasIds = ref(new Set());
 
 const bounceAprobEmpresa = ref(false);
 const bounceAprobTaller = ref(false);
+const bounceAprobPlantas = ref(false);
+
 let bounceTimerAprobEmp = null;
 let bounceTimerAprobTal = null;
+let bounceTimerAprobPla = null;
 
 function triggerBounceAprobEmpresa() {
   bounceAprobEmpresa.value = false;
@@ -357,32 +391,31 @@ function triggerBounceAprobTaller() {
     bounceTimerAprobTal = setTimeout(() => (bounceAprobTaller.value = false), 1100);
   });
 }
-
+function triggerBounceAprobPlantas() {
+  bounceAprobPlantas.value = false;
+  requestAnimationFrame(() => {
+    bounceAprobPlantas.value = true;
+    if (bounceTimerAprobPla) clearTimeout(bounceTimerAprobPla);
+    bounceTimerAprobPla = setTimeout(() => (bounceAprobPlantas.value = false), 1100);
+  });
+}
 const canSeeAprobBadges = computed(() => {
   return (
     isAprobadorEditorRole.value ||
     isGuillermo.value ||
     isJuanCubillos.value ||
-    isAlejandroCandia.value ||
-    roleKey.value === "admin"
+    isAlejandroCandia.value
   );
 });
 
 function statusVariantsFor(stage) {
   if (stage === "guillermo") return ["Revisión Guillermo", "Revision Guillermo"];
   if (stage === "juan") return ["Preaprobado", "Pre Aprobado", "Pre-aprobado"];
-  if (stage === "alejandro") return ["Casi Aprobado", "Casi aprobado", "Casi-aprobado"];
+  if (stage === "alejandro") return ["Casi Aprobado", "Casi aprobado", "Casi-aprobado", "Pendiente de Aprobación"];
   return [];
 }
 
 const aprobStatusesEmpresa = computed(() => {
-  if (roleKey.value === "admin") {
-    return [
-      ...statusVariantsFor("guillermo"),
-      ...statusVariantsFor("juan"),
-      ...statusVariantsFor("alejandro"),
-    ];
-  }
   if (isGuillermo.value) return statusVariantsFor("guillermo");
   if (isJuanCubillos.value) return statusVariantsFor("juan");
   if (isAlejandroCandia.value) return statusVariantsFor("alejandro");
@@ -399,7 +432,9 @@ const aprobStatusesEmpresa = computed(() => {
 const aprobStatusesTaller = computed(() => {
   return aprobStatusesEmpresa.value;
 });
-
+const aprobStatusesPlantas = computed(() => {
+  return aprobStatusesEmpresa.value;
+});
 function getMsFromOC(oc) {
   let ms = tsToMs(oc?.fechaSubida);
   if (!ms && typeof oc?.fechaSubida === "string") ms = tsToMs(oc.fechaSubida);
@@ -409,21 +444,33 @@ function getMsFromOC(oc) {
   }
   return ms;
 }
-
+function getMsFromCotPlantas(oc) {
+  let ms = tsToMs(oc?.fechaSubida) || tsToMs(oc?.createdAt);
+  if (!ms && typeof oc?.fechaSubida === "string") ms = tsToMs(oc.fechaSubida);
+  if (!ms) {
+    const h0 = Array.isArray(oc?.historial) ? oc.historial[0] : null;
+    ms = tsToMs(h0?.fecha);
+  }
+  return ms;
+}
 const isViewingAprobEmpresa = computed(() => route.name === "AprobacionOC");
 const isViewingAprobTaller = computed(() => route.name === "AprobacionOCTaller");
+const isViewingAprobPlantas = computed(() => route.name === "AprobacionCotizacionesPlantas");
 
 const SEEN_KEY_APROB_EMP = computed(() => `seen_aprob_oc_empresa_${auth?.user?.uid || "anon"}`);
 const SEEN_KEY_APROB_TAL = computed(() => `seen_aprob_oc_taller_${auth?.user?.uid || "anon"}`);
+const SEEN_KEY_APROB_PLA = computed(() => `seen_aprob_oc_plantas_${auth?.user?.uid || "anon"}`);
 
 function recomputeAprobUnread() {
   const since = getStartOfTodayMs();
 
   const seenEmp = getSeen(SEEN_KEY_APROB_EMP.value);
   const seenTal = getSeen(SEEN_KEY_APROB_TAL.value);
+  const seenPla = getSeen(SEEN_KEY_APROB_PLA.value);
 
   const minEmp = Math.max(since, seenEmp);
   const minTal = Math.max(since, seenTal);
+  const minPla = Math.max(since, seenPla);
 
   unreadAprobEmpresa.value = isViewingAprobEmpresa.value
     ? 0
@@ -433,8 +480,13 @@ function recomputeAprobUnread() {
     ? 0
     : aprobTallerTimes.value.filter((t) => t > minTal).length;
 
+  unreadAprobPlantas.value = isViewingAprobPlantas.value
+    ? 0
+    : aprobPlantasTimes.value.filter((t) => t > minPla).length;
+
   if (!isViewingAprobEmpresa.value && unreadAprobEmpresa.value > 0) triggerBounceAprobEmpresa();
   if (!isViewingAprobTaller.value && unreadAprobTaller.value > 0) triggerBounceAprobTaller();
+  if (!isViewingAprobPlantas.value && unreadAprobPlantas.value > 0) triggerBounceAprobPlantas();
 }
 
 function markSeenAprobEmpresa() {
@@ -445,7 +497,10 @@ function markSeenAprobTaller() {
   setSeen(SEEN_KEY_APROB_TAL.value, Date.now());
   recomputeAprobUnread();
 }
-
+function markSeenAprobPlantas() {
+  setSeen(SEEN_KEY_APROB_PLA.value, Date.now());
+  recomputeAprobUnread();
+}
 const unreadSoportes = ref(0);
 const soportesTimes = ref([]);
 const soportesIds = ref(new Set());
@@ -493,14 +548,18 @@ function markSeenSoportes() {
 watch(
   () => route.name,
   (name) => {
-    if (isEditorRole.value) {
+    if (isEditorRole.value || isAprobadorEditorRole.value || roleKey.value === "aprobador_solped") {
       if (name === "historial-solped") markSeenEmpresa();
       if (name === "HistorialSolpedTaller") markSeenTaller();
+      if (name === "HistorialSolpedPlanta") markSeenPlantas();
     }
+
     if (canSeeAprobBadges.value) {
       if (name === "AprobacionOC") markSeenAprobEmpresa();
       if (name === "AprobacionOCTaller") markSeenAprobTaller();
+      if (name === "AprobacionCotizacionesPlantas") markSeenAprobPlantas();
     }
+
     if (isAdminRole.value) {
       if (name === "SoporteGestion") markSeenSoportes();
     }
@@ -510,22 +569,28 @@ watch(
 
 let unsubSolpesEmp = null;
 let unsubSolpesTal = null;
+let unsubSolpesPla = null;
 let unsubAprobEmp = null;
 let unsubAprobTal = null;
-
+let unsubAprobPla = null;
 let tickTimer = null;
 
 function stopAllBadges() {
   if (unsubSolpesEmp) unsubSolpesEmp();
   if (unsubSolpesTal) unsubSolpesTal();
+  if (unsubSolpesPla) unsubSolpesPla();
   if (unsubAprobEmp) unsubAprobEmp();
   if (unsubAprobTal) unsubAprobTal();
+  if (unsubAprobPla) unsubAprobPla();
   if (unsubSoportes) unsubSoportes();
 
   unsubSolpesEmp = null;
   unsubSolpesTal = null;
+  unsubSolpesPla = null;
+
   unsubAprobEmp = null;
   unsubAprobTal = null;
+  unsubAprobPla = null;
   unsubSoportes = null;
 
   if (tickTimer) window.clearInterval(tickTimer);
@@ -533,38 +598,56 @@ function stopAllBadges() {
 
   if (bounceTimerEmp) clearTimeout(bounceTimerEmp);
   if (bounceTimerTal) clearTimeout(bounceTimerTal);
+  if (bounceTimerPla) clearTimeout(bounceTimerPla);
+
   if (bounceTimerAprobEmp) clearTimeout(bounceTimerAprobEmp);
   if (bounceTimerAprobTal) clearTimeout(bounceTimerAprobTal);
+  if (bounceTimerAprobPla) clearTimeout(bounceTimerAprobPla);
   if (bounceTimerSup) clearTimeout(bounceTimerSup);
 
   bounceTimerEmp = null;
   bounceTimerTal = null;
+  bounceTimerPla = null;
+
   bounceTimerAprobEmp = null;
   bounceTimerAprobTal = null;
+  bounceTimerAprobPla = null;
   bounceTimerSup = null;
 
   empresaIds.value = new Set();
   tallerIds.value = new Set();
+  plantasIds.value = new Set();
+
   aprobEmpresaIds.value = new Set();
   aprobTallerIds.value = new Set();
+  aprobPlantasIds.value = new Set();
   soportesIds.value = new Set();
 
   empresaTimes.value = [];
   tallerTimes.value = [];
+  plantasTimes.value = [];
+
   aprobEmpresaTimes.value = [];
   aprobTallerTimes.value = [];
+  aprobPlantasTimes.value = [];
   soportesTimes.value = [];
 
   unreadEmpresa.value = 0;
   unreadTaller.value = 0;
+  unreadPlantas.value = 0;
+
   unreadAprobEmpresa.value = 0;
   unreadAprobTaller.value = 0;
+  unreadAprobPlantas.value = 0;
   unreadSoportes.value = 0;
 
   bounceEmpresa.value = false;
   bounceTaller.value = false;
+  bouncePlantas.value = false;
+
   bounceAprobEmpresa.value = false;
   bounceAprobTaller.value = false;
+  bounceAprobPlantas.value = false;
   bounceSoportes.value = false;
 }
 
@@ -645,6 +728,40 @@ function startAllBadges() {
 
         tallerIds.value = newIds;
         tallerTimes.value = todayDocs.map(getMsFromSolpeTaller).filter(Boolean);
+        recomputeSolpesUnread();
+      }
+    );
+    unsubSolpesPla = onSnapshot(
+      query(collection(db, "solpeds_plantas"), where("estatus", "==", "Pendiente")),
+      (snap) => {
+        const since = getStartOfTodayMs();
+
+        const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const mine = raw.filter((d) => arrayHasName(d?.dirigidoA, myNorm));
+
+        const todayDocs = mine
+          .filter((d) => isPendingStatus(d?.estatus))
+          .filter((d) => {
+            const ms = getMsFromSolpePlantas(d);
+            return ms && ms >= since;
+          });
+
+        const newIds = new Set(todayDocs.map((x) => x.id));
+        const prev = plantasIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
+
+        if (isViewingPlantas.value) {
+          if (todayDocs.length) setSeen(SEEN_KEY_PLANTAS.value, Date.now());
+        } else {
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBouncePlantas();
+          }
+        }
+
+        plantasIds.value = newIds;
+        plantasTimes.value = todayDocs.map(getMsFromSolpePlantas).filter(Boolean);
         recomputeSolpesUnread();
       }
     );
@@ -730,6 +847,44 @@ function startAllBadges() {
       },
       (err) => console.error("[BADGE] ordenes_oc_taller error:", err)
     );
+    const stListPla = aprobStatusesPlantas.value.slice(0, 10);
+    const qPla =
+      stListPla.length === 1
+        ? query(collection(db, "cotizaciones_plantas"), where("estatus", "==", stListPla[0]))
+        : query(collection(db, "cotizaciones_plantas"), where("estatus", "in", stListPla));
+
+    unsubAprobPla = onSnapshot(
+      qPla,
+      (snap) => {
+        const raw = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const todayDocs = raw.filter((d) => {
+          const ms = getMsFromCotPlantas(d);
+          if (!ms || ms < since) return false;
+          const st = String(d?.estatus || "").trim();
+          return stListPla.includes(st);
+        });
+
+        const newIds = new Set(todayDocs.map((x) => x.id));
+        const prev = aprobPlantasIds.value;
+        const isFirstLoad = prev.size === 0;
+        const added = [...newIds].filter((id) => !prev.has(id));
+
+        if (isViewingAprobPlantas.value) {
+          if (todayDocs.length) setSeen(SEEN_KEY_APROB_PLA.value, Date.now());
+        } else {
+          if (added.length && !isFirstLoad) {
+            playNotif();
+            triggerBounceAprobPlantas();
+          }
+        }
+
+        aprobPlantasIds.value = newIds;
+        aprobPlantasTimes.value = todayDocs.map(getMsFromCotPlantas).filter(Boolean);
+        recomputeAprobUnread();
+      },
+      (err) => console.error("[BADGE] cotizaciones_plantas error:", err)
+    );
   }
   if (isAdminRole.value) {
     unsubSoportes = onSnapshot(
@@ -765,10 +920,12 @@ function startAllBadges() {
 
     empresaTimes.value = empresaTimes.value.filter((ms) => ms >= since);
     tallerTimes.value = tallerTimes.value.filter((ms) => ms >= since);
+    plantasTimes.value = plantasTimes.value.filter((ms) => ms >= since);
     recomputeSolpesUnread();
 
     aprobEmpresaTimes.value = aprobEmpresaTimes.value.filter((ms) => ms >= since);
     aprobTallerTimes.value = aprobTallerTimes.value.filter((ms) => ms >= since);
+    aprobPlantasTimes.value = aprobPlantasTimes.value.filter((ms) => ms >= since);
     recomputeAprobUnread();
 
     recomputeSoportesUnread();
@@ -879,10 +1036,10 @@ watch(
           </a>
         </template>
       </div>
-            <div v-if="plantaMenu.length" class="group">
+      <div v-if="plantaMenu.length" class="group">
         <div class="group-title">Plantas</div>
 
-        <template v-for="(it, i) in plantaMenu" :key="'e-' + i">
+        <template v-for="(it, i) in plantaMenu" :key="'p-' + i">
           <hr v-if="it === null" class="divider" />
 
           <a
@@ -894,6 +1051,24 @@ watch(
           >
             <i v-if="it.icon" :class="['bi', it.icon, 'me-2']"></i>
             <span class="item-text">{{ it.text }}</span>
+
+            <span
+              v-if="(isEditorRole || isAprobadorEditorRole || roleKey === 'aprobador_solped') && it.name === 'HistorialSolpedPlanta' && unreadPlantas > 0"
+              class="ms-auto notif-badge"
+              :class="{ 'badge-bounce': bouncePlantas }"
+              title="SOLPED plantas pendientes de hoy"
+            >
+              {{ unreadPlantas }}
+            </span>
+
+            <span
+              v-if="canSeeAprobBadges && it.name === 'AprobacionCotizacionesPlantas' && unreadAprobPlantas > 0"
+              class="ms-auto notif-badge"
+              :class="{ 'badge-bounce': bounceAprobPlantas }"
+              title="Cotizaciones plantas para aprobar (hoy)"
+            >
+              {{ unreadAprobPlantas }}
+            </span>
           </a>
         </template>
       </div>

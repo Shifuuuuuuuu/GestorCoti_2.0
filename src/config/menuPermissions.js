@@ -128,6 +128,14 @@ export const MENU_DEFINITIONS = [
     defaultRoles: ["Admin"],
   },
   {
+    key: "AdminSolpedPlantas",
+    routeName: "AdminSolpedPlantas",
+    label: "Admin SOLPED (PLANTAS)",
+    group: "Admin",
+    icon: "bi bi-building-add",
+    defaultRoles: ["Admin"],
+  },
+  {
     key: "AdminOrdenesOC",
     routeName: "AdminOrdenesOC",
     label: "Admin OC",
@@ -141,6 +149,14 @@ export const MENU_DEFINITIONS = [
     label: "Admin OC (Taller)",
     group: "Admin",
     icon: "bi-file-earmark-ruled",
+    defaultRoles: ["Admin"],
+  },
+  {
+    key: "AdminCotizacionPlantas",
+    routeName: "AdminCotizacionPlantas",
+    label: "Admin OC (PLANTAS)",
+    group: "Admin",
+    icon: "bi bi-building-gear",
     defaultRoles: ["Admin"],
   },
   {
@@ -279,9 +295,8 @@ export const MENU_DEFINITIONS = [
     group: "Plantas",
     icon: "bi bi-file-text",
     defaultRoles: ["Admin", "Aprobador/Editor","Editor","Aprobador SOLPED"],
-  }
+  },
 ];
-
 export const MENU_BY_KEY = Object.fromEntries(
   MENU_DEFINITIONS.map((item) => [normKey(item.key), item])
 );

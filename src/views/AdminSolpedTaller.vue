@@ -942,9 +942,9 @@ const ESTATUS_OPC = [
 const COTIZADORES_OPCIONES = [
   "Guillermo Manzor",
   "María José Ballesteros",
-  "Ricardo Santibañez",
-  "Felipe Gonzalez",
-  "Cindy Quiroga"
+  "Cindy Quiroga",
+  "Camila Ricci",
+  "Luis Orellana"
 ];
 
 
@@ -1439,8 +1439,6 @@ async function guardarEdicion(){
       cotPorOC: (it.cotPorOC && typeof it.cotPorOC === "object") ? it.cotPorOC : {}
     }));
 
-    safe.updated_at = serverTimestamp();
-
     await updateDoc(dref, safe);
     addToast("success", "SOLPED Taller actualizada.");
     cerrarEditor();
@@ -1668,7 +1666,6 @@ async function crearNueva(){
 
     const payload = deepClone(nuevo.value);
     payload.creado_en = serverTimestamp();
-    payload.updated_at = serverTimestamp();
 
     const docRef = await addDoc(collection(db, "solped_taller"), payload);
 

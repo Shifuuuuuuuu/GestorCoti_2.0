@@ -1,4 +1,3 @@
-<!-- src/App.vue -->
 <script setup>
 import { onMounted, watch, computed } from "vue";
 import { useRoute } from "vue-router";
@@ -8,8 +7,18 @@ import AppShell from "@/layouts/AppShell.vue";
 
 import ToastCenterOC from "@/components/ToastCenterOC.vue";
 import ToastCenterOCTaller from "@/components/ToastCenterOCTaller.vue";
+import ToastCenterSolped from "@/components/ToastCenterSolped.vue";
+import ToastCenterSolpedTaller from "@/components/ToastCenterSolpedTaller.vue";
+import ToastCenterSolpedPlantas from "@/components/ToastCenterSolpedPlantas.vue";
+
+import ToastCenterSolpedCotizada from "@/components/ToastCenterSolpedCotizada.vue";
+import ToastCenterSolpedTallerCotizada from "@/components/ToastCenterSolpedTallerCotizada.vue";
+import ToastCenterSolpedPlantaCotizada from "@/components/ToastCenterSolpedPlantaCotizada.vue";
+
 import { useOCNotifications } from "@/composables/useOCNotifications";
 import { useOCNotificationTaller } from "@/composables/useOCNotificationTaller";
+import { useSolpedNotifications } from "@/composables/useSolpedNotifications";
+import { useSolpedCotizadoNotifications } from "@/composables/useSolpedCotizadoNotifications";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -29,9 +38,10 @@ watch(
 
 useOCNotifications();
 useOCNotificationTaller();
+useSolpedNotifications();
+useSolpedCotizadoNotifications();
 
 const hideShellRoutes = ["login", "NotFound"];
-
 const showShell = computed(() => !hideShellRoutes.includes(String(route.name || "")));
 </script>
 
@@ -44,6 +54,13 @@ const showShell = computed(() => !hideShellRoutes.includes(String(route.name || 
 
   <ToastCenterOC />
   <ToastCenterOCTaller />
+  <ToastCenterSolped />
+  <ToastCenterSolpedTaller />
+  <ToastCenterSolpedPlantas />
+
+  <ToastCenterSolpedCotizada />
+  <ToastCenterSolpedTallerCotizada />
+  <ToastCenterSolpedPlantaCotizada />
 </template>
 
 <style>

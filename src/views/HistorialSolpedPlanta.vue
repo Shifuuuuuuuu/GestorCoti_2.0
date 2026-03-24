@@ -280,7 +280,7 @@
                     </button>
 
                     <button
-                      v-if="puedeEditarSolped(s)"
+                      v-if="puedeEditarSolped(s) && !isAdmin"
                       class="btn btn-sm btn-outline-primary"
                       title="Editar SOLPED Planta"
                       @click.stop="abrirEditar(s)"
@@ -299,7 +299,14 @@
                       Descargar Excel
                       <i class="bi bi-file-earmark-excel ms-1" aria-hidden="true"></i>
                     </button>
-
+                    <button
+                      v-if="puedeGenerarCotizacion(s)"
+                      class="btn btn-outline-warning btn-sm"
+                      @click.stop="irAGenerarCotizacion(s)"
+                      title="Generar cotización"
+                    >
+                      Generar OC
+                    </button>
                     <button
                       class="btn btn-outline-info btn-sm"
                       @click.stop="verDetalleSolped(s)"
@@ -1181,10 +1188,10 @@
             <button
               class="btn btn-outline-success btn-pill"
               :disabled="statusUpdatingSolpedId === floatingEstadoSolped.id"
-              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Cotizado Completo')"
+              @click="cambiarEstadoSolped(floatingEstadoSolped, 'Cotizado Completado')"
             >
               <i class="bi bi-check-circle me-2"></i>
-              Cotizado Completo
+              Cotizado Completado
             </button>
 
             <button
@@ -1306,7 +1313,21 @@ function verDetalleSolped(solpe) {
     }
   });
 }
+function irAGenerarCotizacion(solpe) {
+  if (!solpe?.id) return;
+  if (!puedeGenerarCotizacion(solpe)) {
+    addToast('danger', 'No tienes permiso para generar esta cotización.');
+    return;
+  }
 
+  router.push({
+    name: 'GeneradorCotizacionPlantas',
+    query: {
+      fromSolpedId: String(solpe.id),
+      from: 'historial-plantas'
+    }
+  });
+}
 function verDetalleCotizacion(oc, solpe = null) {
   if (!oc?.__docId) return;
 
@@ -1378,7 +1399,41 @@ const computeIsDesktop = () => { isDesktop.value = window.innerWidth >= 992; };
 const showSidebar = ref(true);
 const showFiltersMobile = ref(false);
 const dragAdjuntos = ref(false);
+const puedeGenerarCotizacion = (s) => {
+  const aprob = estadoPlano(s?.estadoAprobacionSolped);
+  const estatus = estadoPlano(s?.estatus);
 
+  const items = Array.isArray(s?.items) ? s.items : [];
+  const tienePendientes = items.some(it => {
+    const total = Number(it?.cantidad || 0);
+    const cotizada = Number(it?.cantidad_cotizada || 0);
+    return total - cotizada > 0;
+  });
+
+  const miNombre = String(myFullName.value || auth?.user?.displayName || '')
+    .trim()
+    .toLowerCase();
+
+  const dirigidos = Array.isArray(s?.dirigidoA)
+    ? s.dirigidoA
+        .map(x => {
+          if (typeof x === 'string') return x;
+          if (x && typeof x === 'object') return x.fullName || x.nombre || x.email || x.uid || '';
+          return '';
+        })
+        .map(x => String(x || '').trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+
+  const estaDirigidoAMi = !!miNombre && dirigidos.includes(miNombre);
+
+  return (
+    estaDirigidoAMi &&
+    aprob === 'solped aprobada' &&
+    (estatus === 'pendiente' || estatus === 'cotizado parcial') &&
+    tienePendientes
+  );
+};
 const estadoPlano = (v) =>
   String(v || '')
     .normalize('NFD')
@@ -1597,7 +1652,6 @@ const listaEstatus = [
   'Solped Aprobada',
   'Solped Rechazada',
   'Cotizado Parcial',
-  'Cotizado Completo',
   'Cotizado Completado',
   'Rechazado'
 ];
@@ -1643,7 +1697,6 @@ const getColorByStatus = (estatus) => {
     case 'rechazado': return '#dc3545';
     case 'cotizado parcial':
     case 'parcial': return '#0dcaf0';
-    case 'cotizado completo':
     case 'cotizado completado':
     case 'completado': return '#20c997';
     case 'en revision':

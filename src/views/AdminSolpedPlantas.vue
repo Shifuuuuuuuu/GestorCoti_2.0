@@ -1,10 +1,11 @@
-<!-- src/views/AdminSolpes.vue -->
+<!-- src/views/AdminSolpedPlantas.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="admin-solpes-page">
     <div class="container py-4">
       <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-        <h1 class="h4 fw-semibold mb-0">Admin · SOLPES</h1>
+        <h1 class="h4 fw-semibold mb-0">Admin · SOLPED Plantas</h1>
+
         <div class="d-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto">
           <div class="input-group toolbar-item flex-grow-1" style="min-width: 240px; max-width: 360px;">
             <span class="input-group-text">#</span>
@@ -21,16 +22,24 @@
               v-if="busquedaActiva"
               class="btn btn-outline-danger"
               @click="limpiarBusqueda"
-              title="Limpiar búsqueda">
+              title="Limpiar búsqueda"
+            >
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
+
           <button class="btn btn-outline-primary toolbar-item" @click="mobileFiltersOpen = true">
             <i class="bi bi-funnel me-1"></i> Filtros
-            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
+            <span
+              v-if="hasActiveFilters"
+              class="badge bg-primary-subtle text-primary-emphasis ms-2"
+            >
+              {{ totalFiltrosActivos }}
+            </span>
           </button>
+
           <button class="btn btn-primary toolbar-item" @click="abrirModalNueva">
-            <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED
+            <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED Plantas
           </button>
         </div>
       </div>
@@ -46,6 +55,11 @@
         <span v-if="filtroUsuario" class="badge bg-light text-dark border">
           Usuario: {{ filtroUsuario }}
           <button class="btn-close btn-close-white ms-2 small" @click="filtroUsuario=''; aplicarFiltros()"></button>
+        </span>
+
+        <span v-if="filtroEstadoAprob" class="badge bg-light text-dark border">
+          Aprobación: {{ filtroEstadoAprob }}
+          <button class="btn-close btn-close-white ms-2 small" @click="filtroEstadoAprob=''; aplicarFiltros()"></button>
         </span>
 
         <span v-for="es in filtroEstatus" :key="es" class="badge bg-light text-dark border">
@@ -64,8 +78,11 @@
         <div class="card-header d-flex align-items-center justify-content-between">
           <div class="fw-semibold">
             Listado ({{ rows.length }} / pág.)
-            <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">paginación desactivada</span>
+            <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">
+              paginación desactivada
+            </span>
           </div>
+
           <div class="d-flex d-md-none gap-2">
             <div class="input-group input-group-sm">
               <span class="input-group-text">#</span>
@@ -88,22 +105,25 @@
                 <th class="minw-220">Centro de Costo</th>
                 <th style="width:160px;">Empresa</th>
                 <th style="width:140px;">Estatus</th>
+                <th style="width:180px;">Aprobación SOLPED</th>
                 <th style="width:160px;">Fecha</th>
                 <th style="width:180px;">Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="cargando">
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                   <div class="spinner-border" role="status"></div>
                   <div class="small text-secondary mt-2">Cargando…</div>
                 </td>
               </tr>
+
               <tr v-else-if="rows.length === 0">
-                <td colspan="6" class="text-center py-4 text-secondary">
+                <td colspan="7" class="text-center py-4 text-secondary">
                   Sin resultados.
                 </td>
               </tr>
+
               <tr v-else v-for="r in rows" :key="r.__id">
                 <td class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</td>
                 <td>
@@ -115,6 +135,11 @@
                   <span class="badge" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
                 </td>
                 <td>
+                  <span class="badge" :class="badgeEstadoClass(r.estadoAprobacionSolped)">
+                    {{ r.estadoAprobacionSolped || 'Pendiente' }}
+                  </span>
+                </td>
+                <td>
                   <div class="small">{{ prettyFecha(r.fecha) }}</div>
                 </td>
                 <td>
@@ -124,9 +149,6 @@
                     </button>
                     <button class="btn btn-outline-danger" @click="abrirConfirm(r)" title="Eliminar">
                       <i class="bi bi-trash3"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary" @click="irADetalle(r)" title="Ver detalle">
-                      <i class="bi bi-box-arrow-up-right"></i>
                     </button>
                   </div>
                 </td>
@@ -159,6 +181,7 @@
                 <div class="text-truncate"><span class="text-secondary">Centro:</span> {{ r.nombre_centro_costo || '—' }}</div>
                 <div class="text-truncate"><span class="text-secondary">Contrato:</span> {{ r.numero_contrato || '—' }}</div>
                 <div class="text-truncate"><span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}</div>
+                <div class="text-truncate"><span class="text-secondary">Aprobación:</span> {{ r.estadoAprobacionSolped || 'Pendiente' }}</div>
                 <div class="text-truncate" v-if="r.usuario"><span class="text-secondary">Usuario:</span> {{ r.usuario }}</div>
               </div>
 
@@ -188,7 +211,8 @@
                 class="page-item"
                 v-for="n in visiblePageButtons"
                 :key="n"
-                :class="{ active: currentPage === n }">
+                :class="{ active: currentPage === n }"
+              >
                 <button class="page-link" @click="goToPage(n)">{{ n }}</button>
               </li>
 
@@ -213,7 +237,7 @@
     <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
       <div class="offcanvas-panel">
         <div class="offcanvas-header">
-          <div class="fw-semibold"><i class="bi bi-funnel me-2"></i>Filtros · SOLPES</div>
+          <div class="fw-semibold"><i class="bi bi-funnel me-2"></i>Filtros · SOLPED Plantas</div>
           <button class="btn-close" @click="mobileFiltersOpen=false" aria-label="Cerrar"></button>
         </div>
 
@@ -252,6 +276,14 @@
             </div>
 
             <div class="col-12 col-sm-6">
+              <label class="form-label">Estado aprobación SOLPED</label>
+              <select class="form-select" v-model="filtroEstadoAprob">
+                <option value="">Todos</option>
+                <option v-for="s in ESTADO_APROB_OPC" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-sm-6">
               <div class="d-flex align-items-center justify-content-between mb-1">
                 <label class="form-label mb-0 fw-semibold">
                   <i class="bi bi-person-circle me-1 text-primary"></i>
@@ -286,7 +318,7 @@
               </div>
             </div>
 
-            <div class="col-12">
+            <div class="col-12 col-sm-6">
               <label class="form-label">Fecha</label>
               <input class="form-control" type="date" v-model="filtroFecha">
             </div>
@@ -304,7 +336,7 @@
     <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel editor-panel">
         <div class="offcanvas-header editor-header">
-          <div class="fw-semibold text-truncate">Editar SOLPED</div>
+          <div class="fw-semibold text-truncate">Editar SOLPED Plantas</div>
           <button class="btn-close" @click="cerrarEditor" aria-label="Cerrar"></button>
         </div>
 
@@ -347,6 +379,22 @@
               </select>
             </div>
 
+            <div class="col-12 col-md-3">
+              <label class="form-label">Estado aprobación</label>
+              <select class="form-select" v-model="edit.estadoAprobacionSolped">
+                <option v-for="s in ESTADO_APROB_OPC" :key="'ea-'+s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">Prioridad SOLPED</label>
+              <select class="form-select" v-model="edit.prioridad_solped">
+                <option>ALTA</option>
+                <option>MEDIA</option>
+                <option>BAJA</option>
+              </select>
+            </div>
+
             <div class="col-12">
               <label class="form-label">Centro de Costo</label>
 
@@ -377,13 +425,48 @@
               <label class="form-label">Usuario</label>
               <input class="form-control" v-model="edit.usuario" placeholder="Ej: ADMIN">
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Tipo SOLPED</label>
-              <input class="form-control" v-model="edit.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
+              <input class="form-control" v-model="edit.tipo_solped" placeholder="REPUESTOS">
             </div>
+
             <div class="col-12 col-md-4">
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="edit.nombre_solped">
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Aprobador SOLPED</label>
+              <input class="form-control" v-model="edit.aprobadorSolped" placeholder="Ej: Ricardo Prouvay">
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Usuario aprobación</label>
+              <input class="form-control" v-model="edit.usuario_aprobacion_solped" placeholder="Ej: Ricardo Prouvay">
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Días estimados gestión</label>
+              <input class="form-control" v-model.number="edit.dias_estimados_gestion" type="number" min="0">
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Requiere aprobación</label>
+              <select class="form-select" v-model="edit.requiereAprobacionSolped">
+                <option :value="true">Sí</option>
+                <option :value="false">No</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Tipo flujo</label>
+              <input class="form-control" v-model="edit.tipo_flujo" readonly>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Comentario aprobación SOLPED</label>
+              <textarea class="form-control" rows="2" v-model="edit.comentario_aprobacion_solped"></textarea>
             </div>
 
             <div class="col-12">
@@ -395,7 +478,7 @@
                 </label>
               </div>
             </div>
-            <!-- ✅ MULTI ADJUNTOS (con campos nombre/tamano/tipo/url/comentarios) -->
+
             <div class="col-12">
               <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
 
@@ -425,9 +508,7 @@
               <div class="mt-2" v-if="(edit.autorizaciones?.length || 0) > 0">
                 <div class="small text-secondary mb-1">Actuales:</div>
                 <div class="list-group">
-                  <div class="list-group-item py-2"
-                       v-for="(a, i) in edit.autorizaciones"
-                       :key="(a.url || a.nombre || 'adj') + '-' + i">
+                  <div class="list-group-item py-2" v-for="(a, i) in edit.autorizaciones" :key="(a.url || a.nombre || 'adj') + '-' + i">
                     <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                       <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-file-earmark-text"></i>
@@ -458,9 +539,11 @@
               <div class="mt-2" v-if="archivosAutorizacionEdit.length">
                 <div class="small text-secondary mb-1">Por subir (se agregan al guardar):</div>
                 <div class="d-flex flex-wrap gap-2">
-                  <span class="badge rounded-pill text-bg-warning border"
-                        v-for="(f, idx) in archivosAutorizacionEdit"
-                        :key="f.name + f.size + f.lastModified">
+                  <span
+                    class="badge rounded-pill text-bg-warning border"
+                    v-for="(f, idx) in archivosAutorizacionEdit"
+                    :key="f.name + f.size + f.lastModified"
+                  >
                     {{ f.name }}
                     <button class="btn btn-sm btn-link text-dark ms-1 p-0 align-baseline" @click="removePendingEdit(idx)">×</button>
                   </span>
@@ -484,7 +567,8 @@
                       <th style="width:60px;">Ítem</th>
                       <th>Descripción</th>
                       <th style="width:100px;">Cant.</th>
-                      <th style="width:110px;">Cotizada</th>
+                      <th style="width:100px;">Stock</th>
+                      <th style="width:130px;">Prioridad</th>
                       <th style="width:160px;">Código ref.</th>
                       <th style="width:140px;">Estado</th>
                       <th style="width:140px;">Img</th>
@@ -493,7 +577,7 @@
                   </thead>
                   <tbody>
                     <tr v-if="!edit.items?.length">
-                      <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
+                      <td colspan="9" class="text-center text-secondary">Sin ítems.</td>
                     </tr>
                     <tr v-for="(it, idx) in edit.items" :key="idx">
                       <td class="fw-semibold">{{ it.item }}</td>
@@ -502,7 +586,8 @@
                         <div class="text-secondary text-truncate">{{ it.numero_interno || '—' }}</div>
                       </td>
                       <td>{{ it.cantidad ?? 0 }}</td>
-                      <td>{{ it.cantidad_cotizada ?? 0 }}</td>
+                      <td>{{ it.stock ?? 0 }}</td>
+                      <td>{{ it.prioridad || 'MEDIA' }}</td>
                       <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
                       <td>{{ it.estado || '—' }}</td>
                       <td>
@@ -535,7 +620,10 @@
                     <div class="small mt-1 text-truncate-3"><span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}</div>
                     <div class="small mt-1">
                       <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
-                      <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
+                      <span class="text-secondary">Stock:</span> {{ it.stock ?? 0 }}
+                    </div>
+                    <div class="small mt-1">
+                      <span class="text-secondary">Prioridad:</span> {{ it.prioridad || 'MEDIA' }}
                     </div>
                     <div class="small text-truncate mt-1">
                       <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
@@ -556,22 +644,8 @@
                   </div>
                 </div>
               </div>
-            <div class="col-12 col-sm-6 col-md-6">
-              <label class="form-label">updated_at</label>
-              <input
-                class="form-control"
-                :value="edit.updated_at_input"
-                @input="onUpdatedAtInput"
-                inputmode="numeric"
-                maxlength="19"
-                placeholder="yyyy/mm/dd hh:mm:ss"
-              >
-              <div class="form-text">
-                Escribe solo números si quieres. El formato se completa automático.
-                Ejemplo: 20260320143055 → 2026/03/20 14:30:55
-              </div>
             </div>
-            </div>
+
             <!-- Historial -->
             <div class="col-12">
               <div class="d-flex align-items-center justify-content-between mb-1">
@@ -654,31 +728,61 @@
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
-          <h5 class="mb-0">Nueva SOLPED</h5>
+          <h5 class="mb-0">Nueva SOLPED Plantas</h5>
         </div>
+
         <div class="vmodal-body">
           <div class="row g-3">
             <div class="col-md-3">
               <label class="form-label">N° SOLPE</label>
               <input class="form-control" v-model.number="nuevo.numero_solpe" type="number" min="0">
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Fecha</label>
               <input class="form-control" type="datetime-local" v-model="nuevo.fechaInput">
             </div>
+
             <div class="col-md-3">
               <label class="form-label">Empresa</label>
               <select class="form-select" v-model="nuevo.empresa">
                 <option>Xtreme Servicio</option>
-                <option>Xtreme Servicios</option>
+                <option>Xtreme Hormigones</option>
                 <option>Xtreme Mining</option>
               </select>
             </div>
+
             <div class="col-md-2">
               <label class="form-label">Estatus</label>
               <select class="form-select" v-model="nuevo.estatus">
                 <option v-for="s in ESTATUS_OPC" :key="'nw-'+s" :value="s">{{ s }}</option>
               </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Estado aprobación</label>
+              <select class="form-select" v-model="nuevo.estadoAprobacionSolped">
+                <option v-for="s in ESTADO_APROB_OPC" :key="'na-'+s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Prioridad SOLPED</label>
+              <select class="form-select" v-model="nuevo.prioridad_solped">
+                <option>ALTA</option>
+                <option>MEDIA</option>
+                <option>BAJA</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Aprobador SOLPED</label>
+              <input class="form-control" v-model="nuevo.aprobadorSolped" placeholder="Ej: Ricardo Prouvay">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Días estimados gestión</label>
+              <input class="form-control" v-model.number="nuevo.dias_estimados_gestion" type="number" min="0">
             </div>
 
             <div class="col-12">
@@ -693,6 +797,7 @@
                     </option>
                   </select>
                 </div>
+
                 <div class="col-12 col-md-8">
                   <select class="form-select" v-model="selectedCentroNuevoName" @change="onCentroNuevoNameChange">
                     <option value="">— Nombre centro de costo —</option>
@@ -712,13 +817,38 @@
               <label class="form-label">Usuario</label>
               <input class="form-control" v-model="nuevo.usuario" placeholder="ADMIN">
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Tipo SOLPED</label>
-              <input class="form-control" v-model="nuevo.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
+              <input class="form-control" v-model="nuevo.tipo_solped" placeholder="REPUESTOS">
             </div>
+
             <div class="col-md-4">
               <label class="form-label">Nombre SOLPED</label>
               <input class="form-control" v-model="nuevo.nombre_solped">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Usuario aprobación</label>
+              <input class="form-control" v-model="nuevo.usuario_aprobacion_solped">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Requiere aprobación</label>
+              <select class="form-select" v-model="nuevo.requiereAprobacionSolped">
+                <option :value="true">Sí</option>
+                <option :value="false">No</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Tipo flujo</label>
+              <input class="form-control" v-model="nuevo.tipo_flujo" readonly>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Comentario aprobación SOLPED</label>
+              <input class="form-control" v-model="nuevo.comentario_aprobacion_solped">
             </div>
 
             <div class="col-12">
@@ -731,7 +861,6 @@
               </div>
             </div>
 
-            <!-- ✅ MULTI ADJUNTOS NUEVA -->
             <div class="col-12">
               <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
               <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -754,28 +883,81 @@
               </div>
 
               <div class="mt-2" v-if="archivosAutorizacionNuevo.length">
+                <div class="small text-secondary mb-1">Pendientes:</div>
                 <div class="d-flex flex-wrap gap-2">
-                  <span class="badge rounded-pill text-bg-warning border"
-                        v-for="(f, idx) in archivosAutorizacionNuevo"
-                        :key="f.name + f.size + f.lastModified">
+                  <span
+                    class="badge rounded-pill text-bg-warning border"
+                    v-for="(f, idx) in archivosAutorizacionNuevo"
+                    :key="f.name + f.size + f.lastModified"
+                  >
                     {{ f.name }}
                     <button class="btn btn-sm btn-link text-dark ms-1 p-0 align-baseline" @click="removePendingNuevo(idx)">×</button>
                   </span>
                 </div>
               </div>
+            </div>
 
-              <div class="form-text mt-1">
-                Se subirán al crear la SOLPED.
+            <div class="col-12">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="fw-semibold">Ítems</div>
+                <button class="btn btn-sm btn-outline-primary" @click="abrirModalItemNuevo()">
+                  <i class="bi bi-plus-lg me-1"></i> Agregar ítem
+                </button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Ítem</th>
+                      <th>Descripción</th>
+                      <th>Cant.</th>
+                      <th>Stock</th>
+                      <th>Prioridad</th>
+                      <th>Estado</th>
+                      <th>Imagen</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!nuevo.items.length">
+                      <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
+                    </tr>
+                    <tr v-for="(it, idx) in nuevo.items" :key="'ni-'+idx">
+                      <td>{{ it.item }}</td>
+                      <td>{{ it.descripcion || '—' }}</td>
+                      <td>{{ it.cantidad ?? 0 }}</td>
+                      <td>{{ it.stock ?? 0 }}</td>
+                      <td>{{ it.prioridad || 'MEDIA' }}</td>
+                      <td>{{ it.estado || 'pendiente' }}</td>
+                      <td>
+                        <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
+                        <span v-else>—</span>
+                      </td>
+                      <td>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-secondary" @click="abrirModalItemNuevo(it, idx)">
+                            <i class="bi bi-pencil"></i>
+                          </button>
+                          <button class="btn btn-outline-danger" @click="eliminarItemNuevo(idx)">
+                            <i class="bi bi-trash3"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
+
           </div>
         </div>
 
-        <div class="vmodal-footer">
-          <button class="btn btn-secondary" @click="cerrarModalNueva">Cancelar</button>
-          <button class="btn btn-primary" :disabled="creando" @click="crearNueva">
-            <span v-if="creando" class="spinner-border spinner-border-sm me-2"></span>
-            Crear
+        <div class="vmodal-footer d-flex justify-content-end gap-2">
+          <button class="btn btn-outline-secondary" @click="cerrarModalNueva">Cancelar</button>
+          <button class="btn btn-primary" :disabled="guardandoNueva" @click="crearNueva">
+            <span v-if="guardandoNueva" class="spinner-border spinner-border-sm me-2"></span>
+            Crear SOLPED
           </button>
         </div>
       </div>
@@ -783,35 +965,48 @@
 
     <!-- Modal Item -->
     <div v-if="modalItem" class="vmodal-backdrop" @click.self="cerrarModalItem">
-      <div class="vmodal" style="max-width: 720px;">
+      <div class="vmodal" style="max-width: 760px;">
         <div class="vmodal-header">
-          <h5 class="mb-0">{{ isEditItem ? 'Editar ítem' : 'Nuevo ítem' }}</h5>
+          <h5 class="mb-0">{{ itemModeNuevo ? 'Ítem · Nueva SOLPED' : 'Ítem · Editar SOLPED' }}</h5>
         </div>
+
         <div class="vmodal-body">
           <div class="row g-3">
             <div class="col-md-2">
               <label class="form-label">Ítem</label>
-              <input class="form-control" v-model.number="itemForm.item" type="number" min="1" :readonly="true">
-              <div class="form-text">Autonumérico.</div>
+              <input class="form-control" v-model.number="itemForm.item" type="number" min="1">
             </div>
+
             <div class="col-md-10">
               <label class="form-label">Descripción</label>
               <input class="form-control" v-model="itemForm.descripcion">
             </div>
 
-            <div class="col-md-3">
-              <label class="form-label">Cantidad</label>
-              <input class="form-control" v-model.number="itemForm.cantidad" type="number" min="0">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Cotizada</label>
-              <input class="form-control" v-model.number="itemForm.cantidad_cotizada" type="number" min="0">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Código ref.</label>
+            <div class="col-md-4">
+              <label class="form-label">Código referencial</label>
               <input class="form-control" v-model="itemForm.codigo_referencial">
             </div>
-            <div class="col-md-3">
+
+            <div class="col-md-2">
+              <label class="form-label">Cantidad</label>
+              <input class="form-control" v-model.number="itemForm.cantidad" type="number" min="1">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Stock</label>
+              <input class="form-control" v-model.number="itemForm.stock" type="number" min="0">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Prioridad</label>
+              <select class="form-select" v-model="itemForm.prioridad">
+                <option>ALTA</option>
+                <option>MEDIA</option>
+                <option>BAJA</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
               <label class="form-label">Estado</label>
               <select class="form-select" v-model="itemForm.estado">
                 <option>pendiente</option>
@@ -826,10 +1021,10 @@
               <label class="form-label">N° interno</label>
               <input class="form-control" v-model="itemForm.numero_interno" placeholder="opcional">
             </div>
+
             <div class="col-md-6">
               <label class="form-label">Subir imagen (opcional)</label>
-              <input id="inputImagenItem" type="file" class="form-control"
-                accept="image/*" @change="onImagenItem">
+              <input id="inputImagenItem" type="file" class="form-control" accept="image/*" @change="onImagenItem">
               <div class="form-text">Se guarda en Storage.</div>
               <div v-if="itemForm.imagen_url" class="small mt-1">
                 <a :href="itemForm.imagen_url" target="_blank">Ver imagen</a>
@@ -837,6 +1032,7 @@
             </div>
           </div>
         </div>
+
         <div class="vmodal-footer">
           <button class="btn btn-secondary" @click="cerrarModalItem">Cancelar</button>
           <button class="btn btn-primary" @click="guardarItemForm">
@@ -884,55 +1080,64 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { db } from "../stores/firebase";
-import {
-  collection, query, where, orderBy, limit, startAfter, onSnapshot,
-  doc, addDoc, updateDoc, deleteDoc, Timestamp, getDocs
-} from "firebase/firestore";
-import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useRouter } from "vue-router";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+  onSnapshot,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  Timestamp
+} from "firebase/firestore";
+import {
+  getStorage,
+  ref as sref,
+  uploadBytes,
+  getDownloadURL
+} from "firebase/storage";
+import { db } from "@/stores/firebase";
 
-const PAGE_SIZE = 20;
+const router = useRouter();
+const tz = "America/Santiago";
+
+const SOLPES_COLLECTION = "solpeds_plantas";
+const HISTORIAL_SUBCOL = "historialEstados";
+const PAGE_SIZE = 10;
+
 const ESTATUS_OPC = [
   "Pendiente",
   "Revisión",
   "Rechazado",
-  "Cotizado Parcial",
-  "Cotizado Completado",
-  "OC enviada a proveedor",
+  "Aprobada",
+  "En Proceso",
+  "Completada"
 ];
+
+const ESTADO_APROB_OPC = [
+  "Pendiente",
+  "Solped Aprobada",
+  "Solped Rechazada"
+];
+
 const DIRIGIDO_OPCIONES = [
-  "Guillermo Manzor","María José Ballesteros","Ricardo Santibañez","Felipe Gonzalez", "Cindy Quiroga"
+  "María José Ballesteros",
+  "Ricardo Prouvay",
+  "Rodrigo Baeza"
 ];
 
 const centrosCosto = {
-  "30858": "CONTRATO 30858 INFRA CHUQUICAMATA",
-  "27483": "CONTRATO 27483 SUM. HORMIGON CHUQUICAMATA",
-  "PPCALAMA": "PLANTA PREDOSIFICADO CALAMA",
-  "20915": "CONTRATO 20915 SUM. HORMIGON DAND",
-  "CASAMATRIZ": "CASA MATRIZ",
-  "PPSB": "PLANTA PREDOSIFICADO SAN BERNARDO",
-  "PHUSB": "PLANTA HORMIGON URB.SAN BERNARDO",
-  "PHURAN": "PLANTA HORMIGON URB. RANCAGUA",
-  "PARAN": "PLANTA ARIDOS RANCAGUA",
-  "PASB": "PLANTA ARIDOS SAN BERNARDO",
-  "22368": "CONTRATO 22368 SUM HORMIGON DET",
-  "28662": "CONTRATO 28662 CARPETAS",
-  "29207": "CONTRATO 29207 MINERIA",
-  "23302": "CONTRATO MANTENCIÓN Y REPARACIÓN DE INFRAESTRUCTURA DAND",
-  "SANJOAQUIN": "SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN",
-  "CANECHE": "CONTRATO TALLER CANECHE",
-  "30-10-11": "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM",
-  "10-10-20": "TALLER SAN BERNARDO",
-  "31155": "DIVISION ANDINA 4600031155",
-  "23302": "CONTRATO 23302",
-  "GPLA": "GPLA 4600031750",
   "BETON_CALAMA": "PLANTA BETON CALAMA",
   "FLUMECAR_CALAMA": "PLANTA FLUMECAR CALAMA",
   "URBANA_CALAMA": "PLANTA URBANA CALAMA",
@@ -950,9 +1155,7 @@ const centrosCosto = {
   "ANDES_NORTE": "PLANTA ANDES NORTE",
   "CHANCHADO": "PLANTA CHANCHADO",
 };
-const centrosOpts = Object.entries(centrosCosto).map(([k,v]) => ({key:k, name:v}));
-
-const router = useRouter();
+const centrosOpts = Object.entries(centrosCosto).map(([k, v]) => ({ key: k, name: v }));
 
 const rows = ref([]);
 const cargando = ref(true);
@@ -969,514 +1172,15 @@ const filtroFecha = ref("");
 const filtroUsuario = ref("");
 const filtroEstatus = ref([]);
 const filtroEstatusHeader = ref("");
+const filtroEstadoAprob = ref("");
 let unsubFilter = null;
 
 const usuariosOpts = ref([]);
 let unsubUsuarios = null;
-
-const hasActiveFilters = computed(() =>
-  !!filtroFecha.value || !!filtroUsuario.value || (filtroEstatus.value?.length || 0) > 0
-);
-const totalFiltrosActivos = computed(() => {
-  let n = 0;
-  if (filtroFecha.value) n++;
-  if (filtroUsuario.value) n++;
-  n += (filtroEstatus.value?.length || 0);
-  return n;
-});
 const usuariosLoading = ref(false);
 const usuariosLoadedOnce = ref(false);
 
-async function cargarUsuariosCreadoras({ force = false } = {}) {
-  if (usuariosLoading.value) return;
-  if (usuariosLoadedOnce.value && !force) return;
-
-  usuariosLoading.value = true;
-  try {
-    const set = new Set();
-    let cursor = null;
-    const PAGE = 1000;
-
-    while (true) {
-      const qy = cursor
-        ? query(collection(db, "solpes"), orderBy("usuario"), startAfter(cursor), limit(PAGE))
-        : query(collection(db, "solpes"), orderBy("usuario"), limit(PAGE));
-
-      const snap = await getDocs(qy);
-      if (snap.empty) break;
-
-      snap.forEach((d) => {
-        const u = (d.data()?.usuario ?? "").toString().trim();
-        if (u) set.add(u);
-      });
-
-      cursor = snap.docs[snap.docs.length - 1];
-      if (snap.size < PAGE) break;
-    }
-
-    usuariosOpts.value = Array.from(set).sort((a, b) =>
-      a.localeCompare(b, "es", { sensitivity: "base" })
-    );
-
-    usuariosLoadedOnce.value = true;
-  } catch (e) {
-    console.error(e);
-    addToast("warning", "No se pudieron cargar los usuarios (creadores) para el filtro.");
-  } finally {
-    usuariosLoading.value = false;
-  }
-}
-
-const toasts = ref([]);
-const addToast = (type, text, timeout = 2600) => {
-  const id = Date.now() + Math.random();
-  toasts.value.push({ id, type, text });
-  setTimeout(() => closeToast(id), timeout);
-};
-const closeToast = (id) => { toasts.value = toasts.value.filter(t => t.id !== id); };
-
-const tz = "America/Santiago";
-function pad(n){ return n.toString().padStart(2,"0"); }
-function toInputLocal(date){
-  const d = new Date(date);
-  const y = d.getFullYear();
-  const m = pad(d.getMonth()+1);
-  const day = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mm = pad(d.getMinutes());
-  return `${y}-${m}-${day}T${hh}:${mm}`;
-}
-function fromInputToDate(inputStr){
-  if (!inputStr) return null;
-  const hasTime = inputStr.includes("T");
-  if (hasTime) {
-    const [dPart,tPart] = inputStr.split("T");
-    const [Y,M,D] = dPart.split("-").map(n=>parseInt(n,10));
-    const [h,mi] = tPart.split(":").map(n=>parseInt(n,10));
-    return new Date(Y, (M-1), D, h, mi, 0, 0);
-  } else {
-    const [Y,M,D] = inputStr.split("-").map(n=>parseInt(n,10));
-    return new Date(Y, (M-1), D, 0, 0, 0, 0);
-  }
-}
-function toCLString(date){
-  try{
-    return new Date(date).toLocaleString("es-CL", {
-      timeZone: tz, year:"numeric", month:"long", day:"numeric",
-      hour:"numeric", minute:"2-digit", second:"2-digit", hour12:true
-    });
-  }catch{ return ""; }
-}
-function displayTs(ts){
-  try{
-    if (!ts) return "";
-    const d = ts.toDate ? ts.toDate() : ts;
-    return toCLString(d);
-  }catch{ return ""; }
-}
-function formatTimestampEditable(ts) {
-  try {
-    if (!ts) return "";
-    const d = ts?.toDate ? ts.toDate() : new Date(ts);
-    if (isNaN(d.getTime())) return "";
-
-    const y = d.getFullYear();
-    const m = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    const hh = pad(d.getHours());
-    const mm = pad(d.getMinutes());
-    const ss = pad(d.getSeconds());
-
-    return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
-  } catch {
-    return "";
-  }
-}
-function formatUpdatedAtInput(value) {
-  const digits = String(value || "").replace(/\D/g, "").slice(0, 14);
-
-  let out = "";
-
-  if (digits.length >= 1) out += digits.slice(0, 4);
-  if (digits.length >= 5) out += "/" + digits.slice(4, 6);
-  if (digits.length >= 7) out += "/" + digits.slice(6, 8);
-  if (digits.length >= 9) out += " " + digits.slice(8, 10);
-  if (digits.length >= 11) out += ":" + digits.slice(10, 12);
-  if (digits.length >= 13) out += ":" + digits.slice(12, 14);
-
-  return out;
-}
-function onUpdatedAtInput(e) {
-  const formatted = formatUpdatedAtInput(e?.target?.value || "");
-  edit.value.updated_at_input = formatted;
-}
-function parseEditableTimestamp(input) {
-  const raw = String(input || "").trim();
-  if (!raw) return null;
-
-  const m = raw.match(
-    /^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/
-  );
-
-  if (!m) return null;
-
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  const day = Number(m[3]);
-  const hour = Number(m[4]);
-  const minute = Number(m[5]);
-  const second = Number(m[6]);
-
-  const d = new Date(year, month - 1, day, hour, minute, second, 0);
-
-  if (
-    isNaN(d.getTime()) ||
-    d.getFullYear() !== year ||
-    d.getMonth() !== month - 1 ||
-    d.getDate() !== day ||
-    d.getHours() !== hour ||
-    d.getMinutes() !== minute ||
-    d.getSeconds() !== second
-  ) {
-    return null;
-  }
-
-  return d;
-}
-const visiblePageButtons = computed(() => {
-  const maxButtons = 7;
-  const pages = [];
-  let start = Math.max(1, currentPage.value - Math.floor(maxButtons/2));
-  for (let i=0; i<maxButtons; i++) pages.push(start+i);
-  return pages;
-});
-
-
-const inputAutorizacionEditEl = ref(null);
-const inputAutorizacionNuevoEl = ref(null);
-
-const archivosAutorizacionEdit = ref([]);
-const archivosAutorizacionNuevo = ref([]);
-
-function abrirSelectorAutorizacionEdit(){ inputAutorizacionEditEl.value?.click(); }
-function abrirSelectorAutorizacionNuevo(){ inputAutorizacionNuevoEl.value?.click(); }
-
-function uniqFilesMerge(prev, filesToAdd){
-  const map = new Map();
-  for (const f of prev) map.set(`${f.name}-${f.size}-${f.lastModified}`, f);
-  for (const f of filesToAdd) map.set(`${f.name}-${f.size}-${f.lastModified}`, f);
-  return Array.from(map.values());
-}
-function onArchivosAutorizacionEdit(e){
-  const list = Array.from(e?.target?.files || []);
-  if (!list.length) return;
-  archivosAutorizacionEdit.value = uniqFilesMerge(archivosAutorizacionEdit.value, list);
-  if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
-}
-function onArchivosAutorizacionNuevo(e){
-  const list = Array.from(e?.target?.files || []);
-  if (!list.length) return;
-  archivosAutorizacionNuevo.value = uniqFilesMerge(archivosAutorizacionNuevo.value, list);
-  if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
-}
-function removePendingEdit(idx){ archivosAutorizacionEdit.value.splice(idx, 1); }
-function removePendingNuevo(idx){ archivosAutorizacionNuevo.value.splice(idx, 1); }
-
-function removeAdjuntoEdit(i){
-  const arr = Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : [];
-  arr.splice(i, 1);
-  edit.value.autorizaciones = arr;
-}
-
-function prettyBytes(bytes){
-  try{
-    const b = Number(bytes || 0);
-    if (!b) return "0 B";
-    const units = ["B","KB","MB","GB"];
-    let v = b;
-    let i = 0;
-    while (v >= 1024 && i < units.length-1){ v/=1024; i++; }
-    return `${v.toFixed(i===0?0:1)} ${units[i]}`;
-  }catch{
-    return "";
-  }
-}
-
-function slugEmpresa(emp){
-  return String(emp || "Empresa")
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/[^\w\-]/g, "");
-}
-function safeFileName(name){
-  return String(name || "archivo")
-    .replace(/[^\w.\-() ]+/g, "_")
-    .trim();
-}
-
-function normalizeAdjuntosFromRow(row){
-  const arr = Array.isArray(row?.autorizaciones) ? row.autorizaciones : [];
-
-  if (arr.length) {
-    return arr.map(a => ({
-      nombre: a?.nombre ?? a?.name ?? "archivo",
-      tamano: Number(a?.tamano ?? a?.size ?? 0) || 0,
-      tipo: a?.tipo ?? a?.contentType ?? "",
-      url: a?.url ?? a?.downloadURL ?? null,
-      comentarios: Array.isArray(a?.comentarios) ? a.comentarios : []
-    }));
-  }
-
-  if (row?.autorizacion_url || row?.autorizacion_nombre) {
-    return [{
-      nombre: row.autorizacion_nombre || "autorizacion",
-      tamano: Number(row.autorizacion_size ?? 0) || 0,
-      tipo: row.autorizacion_contentType || "",
-      url: row.autorizacion_url || null,
-      comentarios: []
-    }];
-  }
-
-  return [];
-}
-
-async function uploadAdjuntos({ solpeId, empresa, numero_solpe }, files){
-  if (!files?.length) return [];
-  const storage = getStorage();
-
-  const empresaSlug = slugEmpresa(empresa);
-  const folio = (numero_solpe != null && numero_solpe !== "" && !isNaN(Number(numero_solpe)))
-    ? String(Number(numero_solpe))
-    : String(solpeId);
-
-  const baseFolder = `solped_adjuntos/${empresaSlug}_${folio}`;
-  const batchFolder = `${Date.now()}`;
-
-  const results = [];
-  for (const f of files) {
-    const fileName = safeFileName(f.name);
-    const path = `${baseFolder}/${batchFolder}/${fileName}`;
-
-    const sRef = sref(storage, path);
-    const up = await uploadBytes(sRef, f);
-    const url = await getDownloadURL(up.ref);
-
-    results.push({
-      nombre: f.name || fileName,
-      tamano: Number(f.size || 0),
-      tipo: f.type || "",
-      url,
-      comentarios: []
-    });
-  }
-  return results;
-}
-function cleanupSubs(){
-  if (unsubList){ unsubList(); unsubList=null; }
-  if (unsubSearch){ unsubSearch(); unsubSearch=null; }
-  if (unsubFilter){ unsubFilter(); unsubFilter=null; }
-  if (unsubUsuarios){ unsubUsuarios(); unsubUsuarios=null; }
-  if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
-}
-
-function cargarUsuarios(){
-  try{
-    const qy = query(collection(db, "solpes"), orderBy("usuario"), limit(500));
-    unsubUsuarios = onSnapshot(qy, (snap) => {
-      const set = new Set();
-      snap.forEach(d => {
-        const u = (d.data()?.usuario || "").toString().trim();
-        if (u) set.add(u);
-      });
-      usuariosOpts.value = Array.from(set);
-    });
-  }catch(e){
-    console.error(e);
-    addToast("warning","No se pudieron cargar los usuarios para el filtro.");
-  }
-  return cargarUsuariosCreadoras();
-}
-
-function subscribePage(page){
-  cleanupSubs();
-  cargarUsuarios();
-  cargando.value = true;
-  busquedaActiva.value = false;
-
-  let qy;
-  if (page === 1) {
-    qy = query(collection(db, "solpes"), orderBy("numero_solpe", "desc"), limit(PAGE_SIZE + 1));
-  } else {
-    const prevCursor = pageCursors.value[page-2];
-    if (!prevCursor) { cargando.value = false; return; }
-    qy = query(
-      collection(db, "solpes"),
-      orderBy("numero_solpe", "desc"),
-      startAfter(prevCursor),
-      limit(PAGE_SIZE + 1)
-    );
-  }
-
-  unsubList = onSnapshot(qy, (snap) => {
-    const arr = [];
-    const snaps = [];
-    snap.forEach(d => { arr.push({ __id: d.id, ...d.data() }); snaps.push(d); });
-    hasNextPage.value = arr.length > PAGE_SIZE;
-
-    const pageDocs = arr.slice(0, PAGE_SIZE);
-    rows.value = pageDocs;
-
-    const lastSnap = snaps[pageDocs.length-1];
-    if (lastSnap) pageCursors.value[page-1] = lastSnap;
-
-    cargando.value = false;
-  }, (err) => {
-    console.error("onSnapshot page:", err);
-    addToast("danger", "Error listando SOLPES.");
-    cargando.value = false;
-  });
-}
-
-function goToPage(n){
-  if (hasActiveFilters.value || busquedaActiva.value) return;
-  if (n < 1) return;
-  if (n > currentPage.value + 1 && !hasNextPage.value) return;
-  currentPage.value = n;
-  subscribePage(n);
-}
-
-function onBuscarNumero(){
-  const qstr = (buscarNumero.value ?? "").trim();
-  if (!qstr) { limpiarBusqueda(); return; }
-  const n = parseInt(qstr, 10);
-  if (isNaN(n)) { addToast("warning", "Ingresa un número válido."); return; }
-
-  cleanupSubs();
-  cargarUsuarios();
-  cargando.value = true;
-  busquedaActiva.value = true;
-
-  const qy = query(
-    collection(db, "solpes"),
-    where("numero_solpe", "==", n),
-    orderBy("numero_solpe", "desc"),
-    limit(5)
-  );
-
-  unsubSearch = onSnapshot(qy, (snap) => {
-    const arr = [];
-    snap.forEach(d => arr.push({ __id: d.id, ...d.data() }));
-    rows.value = arr;
-    cargando.value = false;
-    hasNextPage.value = false;
-  }, (err) => {
-    console.error("onSnapshot search:", err);
-    addToast("danger", "Error al buscar.");
-    cargando.value = false;
-  });
-}
-
-function limpiarBusqueda(){
-  buscarNumero.value = "";
-  busquedaActiva.value = false;
-  currentPage.value = 1;
-  subscribePage(1);
-}
-
-function onChangeEstatusHeader(){
-  filtroEstatus.value = filtroEstatusHeader.value ? [filtroEstatusHeader.value] : [];
-  aplicarFiltros();
-}
-function removeEstatus(es){
-  filtroEstatus.value = filtroEstatus.value.filter(x => x!==es);
-  if (filtroEstatusHeader.value === es) filtroEstatusHeader.value = "";
-  aplicarFiltros();
-}
-
-function buildFilterQuery(){
-  const wh = [];
-  let order = null;
-
-  if (filtroFecha.value) {
-    const d0 = new Date(filtroFecha.value + "T00:00");
-    const d1 = new Date(filtroFecha.value + "T23:59:59.999");
-    const ts0 = Timestamp.fromDate(d0);
-    const ts1 = Timestamp.fromDate(d1);
-    wh.push(where("fecha_ts", ">=", ts0));
-    wh.push(where("fecha_ts", "<=", ts1));
-    order = orderBy("fecha_ts", "desc");
-  } else {
-    order = orderBy("numero_solpe","desc");
-  }
-
-  if (filtroUsuario.value) wh.push(where("usuario","==", filtroUsuario.value));
-  if (filtroEstatus.value.length === 1) {
-    wh.push(where("estatus","==", filtroEstatus.value[0]));
-  } else if (filtroEstatus.value.length >= 2 && filtroEstatus.value.length <= 10) {
-    wh.push(where("estatus","in", filtroEstatus.value));
-  }
-
-  return query(collection(db, "solpes"), ...wh, order, limit(120));
-}
-
-function aplicarFiltros(){
-  if (!hasActiveFilters.value){
-    currentPage.value = 1;
-    subscribePage(1);
-    return;
-  }
-
-  cleanupSubs();
-  cargarUsuarios();
-  cargando.value = true;
-  busquedaActiva.value = false;
-
-  const qy = buildFilterQuery();
-
-  unsubFilter = onSnapshot(qy, (snap) => {
-    let arr = [];
-    snap.forEach(d => arr.push({ __id: d.id, ...d.data() }));
-
-    if (filtroEstatus.value.length > 10) {
-      const set = new Set(filtroEstatus.value);
-      arr = arr.filter(r => set.has(r.estatus));
-    }
-
-    rows.value = arr;
-    cargando.value = false;
-    hasNextPage.value = false;
-  }, (err) => {
-    console.error("onSnapshot filter:", err);
-    addToast("danger", "Error aplicando filtros (puede requerir índice compuesto en Firestore).");
-    cargando.value = false;
-  });
-}
-
-function limpiarFiltros(){
-  filtroFecha.value = "";
-  filtroUsuario.value = "";
-  filtroEstatus.value = [];
-  filtroEstatusHeader.value = "";
-  aplicarFiltros();
-}
-
-const badgeClass = (estatus) => {
-  const s = ((estatus || '') + '').toLowerCase();
-  if (s.includes('complet'))   return 'bg-success-subtle text-success-emphasis';
-  if (s.includes('cotiz'))     return 'bg-info-subtle text-info-emphasis';
-  if (s.includes('rechaz') || s.includes('escala')) return 'bg-danger-subtle text-danger-emphasis';
-  if (s.includes('revisión') || s.includes('revision')) return 'bg-warning-subtle text-warning-emphasis';
-  if (s.includes('pendiente')) return 'bg-secondary-subtle text-secondary-emphasis';
-  if (s.includes('parcial'))   return 'bg-primary-subtle text-primary-emphasis';
-  if (s.includes('proveedor')) return 'bg-dark-subtle text-dark-emphasis';
-  return 'bg-secondary-subtle text-secondary-emphasis';
-};
-
 const mobileFiltersOpen = ref(false);
-function mobileApplyFilters(){
-  aplicarFiltros();
-  mobileFiltersOpen.value = false;
-}
 
 const editorAbierto = ref(false);
 const seleccion = ref(null);
@@ -1489,484 +1193,189 @@ const selectedCentroEditName = ref("");
 const historialEstadosLive = ref([]);
 let unsubHistorial = null;
 const guardandoHist = ref(false);
-const histForm = ref({ fechaInput: "", estatus: "", comentario: "", usuario: "" });
-
-function setCentroFromKey(targetObj, key){
-  if (!key || !centrosCosto[key]) {
-    targetObj.numero_contrato = "";
-    targetObj.nombre_centro_costo = "";
-    return;
-  }
-  targetObj.numero_contrato = key;
-  targetObj.nombre_centro_costo = centrosCosto[key];
-}
-function setCentroFromName(targetObj, name){
-  if (!name) { setCentroFromKey(targetObj, ""); return ""; }
-  const key = Object.keys(centrosCosto).find(k => centrosCosto[k] === name) || "";
-  setCentroFromKey(targetObj, key);
-  return key;
-}
-
-function onCentroEditKeyChange(){
-  setCentroFromKey(edit.value, selectedCentroEditKey.value);
-  selectedCentroEditName.value = edit.value.nombre_centro_costo || "";
-}
-function onCentroEditNameChange(){
-  const key = setCentroFromName(edit.value, selectedCentroEditName.value);
-  selectedCentroEditKey.value = key;
-}
-
-function subscribeHistorialEstados(solpeId){
-  if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
-  try{
-    const qy = query(
-      collection(db, "solpes", solpeId, "historialEstados"),
-      orderBy("fecha","desc"),
-      limit(100)
-    );
-    unsubHistorial = onSnapshot(qy, (snap)=>{
-      const arr=[];
-      snap.forEach(d=>arr.push({__id:d.id, ...d.data()}));
-      historialEstadosLive.value = arr;
-    }, (err)=>{
-      console.error("historialEstados:", err);
-      addToast("warning","No se pudo cargar historial.");
-    });
-  }catch(e){
-    console.error(e);
-    addToast("warning","No se pudo suscribir al historial.");
-  }
-}
-
-function resetHistForm(){
-  histForm.value = {
-    fechaInput: toInputLocal(new Date()),
-    estatus: "",
-    comentario: "",
-    usuario: edit.value?.usuario || ""
-  };
-}
-
-function pickRowDate(row){
-  try{
-    if (row?.fecha_ts?.toDate) return row.fecha_ts.toDate();
-    if (row?.fecha instanceof Date) return row.fecha;
-    if (typeof row?.fecha === "string") {
-      const d = new Date(row.fecha);
-      if (!isNaN(d.getTime())) return d;
-    }
-    if (typeof row?.fecha_str === "string") {
-      const d = new Date(row.fecha_str);
-      if (!isNaN(d.getTime())) return d;
-    }
-  }catch(e){ console.log(e) }
-  return null;
-}
-
-function abrirEditor(row){
-  seleccion.value = row;
-
-  const d = pickRowDate(row);
-  const originalTs = row?.fecha_ts ?? (d ? Timestamp.fromDate(d) : null);
-  const originalStr = row?.fecha_str ?? row?.fecha ?? (d ? toCLString(d) : "");
-
-  edit.value = {
-    fechaInput: d ? toInputLocal(d) : "",
-    __fecha_ts: originalTs,
-    __fecha_str: originalStr,
-
-    updated_at_input: formatTimestampEditable(row?.updated_at),
-    __updated_at_original: row?.updated_at ?? null,
-
-    autorizaciones: normalizeAdjuntosFromRow(row),
-
-    dirigidoA: Array.isArray(row.dirigidoA) ? [...row.dirigidoA] : [],
-    empresa: row.empresa ?? "Xtreme Servicio",
-    estatus: row.estatus ?? "Pendiente",
-    items: Array.isArray(row.items) ? JSON.parse(JSON.stringify(row.items)) : [],
-    nombre_centro_costo: row.nombre_centro_costo ?? "",
-    nombre_solped: row.nombre_solped ?? "",
-    numero_contrato: row.numero_contrato ?? "",
-    numero_solpe: row.numero_solpe ?? null,
-    tipo_solped: row.tipo_solped ?? "",
-    usuario: row.usuario ?? ""
-  };
-
-  selectedCentroEditKey.value = edit.value.numero_contrato || "";
-  selectedCentroEditName.value = edit.value.nombre_centro_costo || (centrosCosto[selectedCentroEditKey.value] || "");
-  if (selectedCentroEditKey.value && centrosCosto[selectedCentroEditKey.value]) {
-    edit.value.nombre_centro_costo = centrosCosto[selectedCentroEditKey.value];
-    selectedCentroEditName.value = edit.value.nombre_centro_costo;
-  } else if (selectedCentroEditName.value) {
-    const k = setCentroFromName(edit.value, selectedCentroEditName.value);
-    selectedCentroEditKey.value = k;
-  }
-
-  subscribeHistorialEstados(row.__id);
-  resetHistForm();
-
-  editorAbierto.value = true;
-  archivosAutorizacionEdit.value = [];
-  if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
-}
-
-const irADetalle = (row) => {
-  const id = row?.__id;
-  if (!id) { addToast("warning", "No se encontró el ID del documento."); return; }
-  router.push({ name: "SolpedDetalle", params: { id } });
-};
-
-function cerrarEditor(){
-  editorAbierto.value = false;
-  seleccion.value = null;
-  edit.value = {};
-  archivosAutorizacionEdit.value = [];
-  selectedCentroEditKey.value = "";
-  selectedCentroEditName.value = "";
-  if (inputAutorizacionEditEl.value) inputAutorizacionEditEl.value.value = "";
-  if (unsubHistorial){ unsubHistorial(); unsubHistorial=null; }
-}
-
-async function guardarEdicion(){
-  if (!seleccion.value) return;
-  guardando.value = true;
-
-  try {
-    const id = seleccion.value.__id;
-    const dref = doc(db, "solpes", id);
-
-    if (archivosAutorizacionEdit.value.length) {
-      const added = await uploadAdjuntos({
-        solpeId: id,
-        empresa: edit.value.empresa,
-        numero_solpe: edit.value.numero_solpe
-      }, archivosAutorizacionEdit.value);
-
-      const current = Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : [];
-      edit.value.autorizaciones = [...current, ...added];
-      archivosAutorizacionEdit.value = [];
-    }
-
-    if (typeof edit.value.numero_solpe === "string") {
-      const n = parseInt(edit.value.numero_solpe, 10);
-      edit.value.numero_solpe = isNaN(n) ? null : n;
-    }
-
-    const items = (edit.value.items || []).map(it => ({
-      ...it,
-      item: Number(it.item ?? 0),
-      cantidad: Number(it.cantidad ?? 0),
-      cantidad_cotizada: Number(it.cantidad_cotizada ?? 0)
-    }));
-
-    const fecha_str = (edit.value.__fecha_str ?? seleccion.value.fecha_str ?? seleccion.value.fecha ?? "") || "";
-    const fecha_ts  = (edit.value.__fecha_ts ?? seleccion.value.fecha_ts) ?? null;
-
-    const autorizaciones = Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : [];
-    const firstAdj = autorizaciones[0] || null;
-    let updatedAtToSave = edit.value.__updated_at_original ?? null;
-
-    const updatedAtRaw = String(edit.value.updated_at_input || "").trim();
-    if (updatedAtRaw) {
-      const parsedUpdatedAt = parseEditableTimestamp(updatedAtRaw);
-      if (!parsedUpdatedAt) {
-        addToast("warning", "El campo updated_at debe tener formato yyyy/mm/dd hh:mm:ss");
-        guardando.value = false;
-        return;
-      }
-      updatedAtToSave = Timestamp.fromDate(parsedUpdatedAt);
-    }
-    const payload = {
-      autorizaciones,
-      autorizacion_nombre: firstAdj?.nombre ?? null,
-      autorizacion_url: firstAdj?.url ?? null,
-
-      dirigidoA: Array.isArray(edit.value.dirigidoA) ? edit.value.dirigidoA : [],
-      empresa: edit.value.empresa ?? "Xtreme Servicio",
-      estatus: edit.value.estatus ?? "Pendiente",
-      items,
-      nombre_centro_costo: edit.value.nombre_centro_costo ?? "",
-      nombre_solped: edit.value.nombre_solped ?? "",
-      numero_contrato: edit.value.numero_contrato ?? "",
-      numero_solpe: edit.value.numero_solpe ?? null,
-      tipo_solped: edit.value.tipo_solped ?? "",
-      usuario: edit.value.usuario ?? "",
-
-      fecha_str,
-      fecha: fecha_str,
-      ...(fecha_ts ? { fecha_ts } : {}),
-      ...(updatedAtToSave ? { updated_at: updatedAtToSave } : {})
-    };
-    await updateDoc(dref, payload);
-    addToast("success", "SOLPED actualizada.");
-    cerrarEditor();
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo guardar.");
-  } finally {
-    guardando.value = false;
-  }
-}
+const histForm = ref({
+  fechaInput: "",
+  estatus: "",
+  comentario: "",
+  usuario: ""
+});
 
 const modalNueva = ref(false);
-const creando = ref(false);
+const guardandoNueva = ref(false);
 const nuevo = ref({});
-
 const selectedCentroNuevoKey = ref("");
 const selectedCentroNuevoName = ref("");
 
-function defaultNueva(){
-  return {
-    autorizaciones: [],
-    autorizacion_nombre: null,
-    autorizacion_url: null,
-
-    dirigidoA: [],
-    empresa: "Xtreme Servicio",
-    estatus: "Pendiente",
-    items: [],
-    nombre_centro_costo: "",
-    nombre_solped: "",
-    numero_contrato: "",
-    numero_solpe: null,
-    tipo_solped: "",
-    usuario: "",
-    fechaInput: toInputLocal(new Date())
-  };
-}
-function abrirModalNueva(){
-  nuevo.value = defaultNueva();
-  selectedCentroNuevoKey.value = "";
-  selectedCentroNuevoName.value = "";
-  archivosAutorizacionNuevo.value = [];
-  if (inputAutorizacionNuevoEl.value) inputAutorizacionNuevoEl.value.value = "";
-  modalNueva.value = true;
-}
-function cerrarModalNueva(){ modalNueva.value = false; }
-
-function onCentroNuevoKeyChange(){
-  setCentroFromKey(nuevo.value, selectedCentroNuevoKey.value);
-  selectedCentroNuevoName.value = nuevo.value.nombre_centro_costo || "";
-}
-function onCentroNuevoNameChange(){
-  const key = setCentroFromName(nuevo.value, selectedCentroNuevoName.value);
-  selectedCentroNuevoKey.value = key;
-}
-
-async function crearNueva(){
-  try {
-    creando.value = true;
-
-    if (typeof nuevo.value.numero_solpe === "string") {
-      const n = parseInt(nuevo.value.numero_solpe, 10);
-      nuevo.value.numero_solpe = isNaN(n) ? null : n;
-    }
-
-    const picked = fromInputToDate(nuevo.value.fechaInput) || new Date();
-    const fecha_str = toCLString(picked);
-    const fecha_ts = Timestamp.fromDate(picked);
-
-    const payloadBase = {
-      autorizaciones: [],
-      autorizacion_nombre: null,
-      autorizacion_url: null,
-
-      dirigidoA: Array.isArray(nuevo.value.dirigidoA) ? nuevo.value.dirigidoA : [],
-      empresa: nuevo.value.empresa ?? "Xtreme Servicio",
-      estatus: nuevo.value.estatus ?? "Pendiente",
-      items: [],
-      nombre_centro_costo: nuevo.value.nombre_centro_costo ?? "",
-      nombre_solped: nuevo.value.nombre_solped ?? "",
-      numero_contrato: nuevo.value.numero_contrato ?? "",
-      numero_solpe: nuevo.value.numero_solpe ?? null,
-      tipo_solped: nuevo.value.tipo_solped ?? "",
-      usuario: nuevo.value.usuario ?? "",
-      fecha_str,
-      fecha: fecha_str,
-      fecha_ts,
-      createdAt: Timestamp.now()
-    };
-
-    const docRef = await addDoc(collection(db, "solpes"), payloadBase);
-
-    if (archivosAutorizacionNuevo.value.length) {
-      const added = await uploadAdjuntos({
-        solpeId: docRef.id,
-        empresa: nuevo.value.empresa,
-        numero_solpe: nuevo.value.numero_solpe
-      }, archivosAutorizacionNuevo.value);
-
-      const firstAdj = added[0] || null;
-
-      await updateDoc(doc(db, "solpes", docRef.id), {
-        autorizaciones: added,
-        autorizacion_nombre: firstAdj?.nombre ?? null,
-        autorizacion_url: firstAdj?.url ?? null,
-      });
-    }
-    addToast("success", "SOLPED creada.");
-    cerrarModalNueva();
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo crear la SOLPED.");
-  } finally {
-    creando.value = false;
-  }
-}
-
-async function guardarHistorial(){
-  if (!seleccion.value?.__id) return;
-  try{
-    guardandoHist.value = true;
-    const d = fromInputToDate(histForm.value.fechaInput) || new Date();
-    const data = {
-      fecha: Timestamp.fromDate(d),
-      comentario: (histForm.value.comentario || "").trim(),
-      estatus: (histForm.value.estatus || "").trim(),
-      usuario: (histForm.value.usuario || "").trim()
-    };
-    await addDoc(collection(db, "solpes", seleccion.value.__id, "historialEstados"), data);
-    addToast("success","Historial agregado.");
-    resetHistForm();
-  }catch(e){
-    console.error(e);
-    addToast("danger","No se pudo agregar al historial.");
-  }finally{
-    guardandoHist.value = false;
-  }
-}
-async function eliminarHistorialDoc(hid){
-  if (!seleccion.value?.__id || !hid) return;
-  try{
-    await deleteDoc(doc(db, "solpes", seleccion.value.__id, "historialEstados", hid));
-    addToast("success","Entrada de historial eliminada.");
-  }catch(e){
-    console.error(e);
-    addToast("danger","No se pudo eliminar la entrada.");
-  }
-}
-
-const confirmOpen = ref(false);
-const confirmRow  = ref(null);
-const eliminando  = ref(false);
-
-function abrirConfirm(row){
-  confirmRow.value = row;
-  confirmOpen.value = true;
-}
-function cerrarConfirm(){
-  if (eliminando.value) return;
-  confirmOpen.value = false;
-  confirmRow.value = null;
-}
-async function confirmarEliminar(){
-  if (!confirmRow.value?.__id) return;
-  const id = confirmRow.value.__id;
-  try {
-    eliminando.value = true;
-    await deleteDoc(doc(db, "solpes", id));
-    confirmOpen.value = false;
-    confirmRow.value = null;
-    addToast("success", "SOLPED eliminada.");
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo eliminar.");
-  } finally {
-    eliminando.value = false;
-  }
-}
+const archivosAutorizacionEdit = ref([]);
+const archivosAutorizacionNuevo = ref([]);
+const inputAutorizacionEditEl = ref(null);
+const inputAutorizacionNuevoEl = ref(null);
 
 const modalItem = ref(false);
-const isEditItem = ref(false);
-const itemIndex = ref(-1);
 const itemForm = ref({
   item: 1,
   descripcion: "",
-  cantidad: 0,
-  cantidad_cotizada: 0,
   codigo_referencial: "",
-  estado: "Pendiente",
+  cantidad: 1,
+  stock: 0,
+  prioridad: "MEDIA",
+  estado: "pendiente",
   numero_interno: "",
-  imagen_url: null
+  imagen_url: ""
 });
-const imagenItemFile = ref(null);
+const isEditItem = ref(false);
+const itemIndex = ref(-1);
+const itemModeNuevo = ref(false);
 
-function abrirModalItem(it=null, idx=-1){
-  const arr = Array.isArray(edit.value.items) ? edit.value.items : [];
-  if (!it) {
-    const maxIt = arr.reduce((m, a) => Math.max(m, Number(a?.item ?? 0)), 0);
-    itemForm.value = {
-      item: maxIt + 1,
-      descripcion: "",
-      cantidad: 0,
-      cantidad_cotizada: 0,
-      codigo_referencial: "",
-      estado: "Pendiente",
-      numero_interno: "",
-      imagen_url: null
-    };
-    isEditItem.value = false; itemIndex.value = -1;
-  } else {
-    itemForm.value = JSON.parse(JSON.stringify(it));
-    isEditItem.value = true; itemIndex.value = idx;
-  }
-  imagenItemFile.value = null;
-  const el = document.getElementById("inputImagenItem");
-  if (el) el.value = "";
-  modalItem.value = true;
-}
-function cerrarModalItem(){ modalItem.value = false; }
-function onImagenItem(e){
-  const f = (e.target.files || [])[0];
-  imagenItemFile.value = f || null;
-}
+const confirmOpen = ref(false);
+const confirmRow = ref(null);
+const eliminando = ref(false);
 
-async function guardarItemForm(){
-  try {
-    if (imagenItemFile.value && seleccion.value) {
-      const storage = getStorage();
-      const id = seleccion.value.__id;
-      const path = `solpes/${id}/items/${Date.now()}_${imagenItemFile.value.name}`;
-      const sRef = sref(storage, path);
-      const up = await uploadBytes(sRef, imagenItemFile.value);
-      const url = await getDownloadURL(up.ref);
-      itemForm.value.imagen_url = url;
-    }
-    const normalized = {
-      ...itemForm.value,
-      item: Number(itemForm.value.item ?? 0),
-      cantidad: Number(itemForm.value.cantidad ?? 0),
-      cantidad_cotizada: Number(itemForm.value.cantidad_cotizada ?? 0)
-    };
-    if (!Array.isArray(edit.value.items)) edit.value.items = [];
-    if (isEditItem.value && itemIndex.value >= 0) edit.value.items.splice(itemIndex.value, 1, normalized);
-    else edit.value.items.push(normalized);
-    modalItem.value = false;
-  } catch (e) {
-    console.error(e);
-    addToast("danger", "No se pudo guardar el ítem.");
-  }
+const toasts = ref([]);
+
+const hasActiveFilters = computed(() =>
+  !!filtroFecha.value ||
+  !!filtroUsuario.value ||
+  !!filtroEstadoAprob.value ||
+  (filtroEstatus.value?.length || 0) > 0
+);
+
+const totalFiltrosActivos = computed(() => {
+  let n = 0;
+  if (filtroFecha.value) n++;
+  if (filtroUsuario.value) n++;
+  if (filtroEstadoAprob.value) n++;
+  n += (filtroEstatus.value?.length || 0);
+  return n;
+});
+
+const visiblePageButtons = computed(() => {
+  const arr = [];
+  const start = Math.max(1, currentPage.value - 2);
+  const end = currentPage.value + 2;
+  for (let i = start; i <= end; i++) arr.push(i);
+  return arr;
+});
+
+function addToast(type, text, timeout = 2600) {
+  const id = Date.now() + Math.random();
+  toasts.value.push({ id, type, text });
+  setTimeout(() => closeToast(id), timeout);
+}
+function closeToast(id) {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 
-function eliminarItem(idx){
-  edit.value.items.splice(idx, 1);
+function cleanupSubs() {
+  if (unsubList) { unsubList(); unsubList = null; }
+  if (unsubSearch) { unsubSearch(); unsubSearch = null; }
+  if (unsubFilter) { unsubFilter(); unsubFilter = null; }
+  if (unsubUsuarios) { unsubUsuarios(); unsubUsuarios = null; }
+  if (unsubHistorial) { unsubHistorial(); unsubHistorial = null; }
 }
 
-function toCL(date) {
+function slugEmpresa(v) {
+  return String(v || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/[^\w-]/g, "");
+}
+
+function safeFileName(name) {
+  return String(name || "archivo")
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+    .replace(/\s+/g, "_");
+}
+
+function prettyBytes(bytes) {
+  const b = Number(bytes || 0);
+  if (!b) return "0 B";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function badgeClass(status) {
+  const s = String(status || "").toLowerCase();
+  if (s.includes("aprob")) return "bg-success-subtle text-success-emphasis";
+  if (s.includes("rechaz")) return "bg-danger-subtle text-danger-emphasis";
+  if (s.includes("revisión") || s.includes("revision")) return "bg-warning-subtle text-warning-emphasis";
+  if (s.includes("pendiente")) return "bg-secondary-subtle text-secondary-emphasis";
+  if (s.includes("proceso")) return "bg-info-subtle text-info-emphasis";
+  if (s.includes("complet")) return "bg-primary-subtle text-primary-emphasis";
+  return "bg-secondary-subtle text-secondary-emphasis";
+}
+
+function badgeEstadoClass(estado) {
+  const e = String(estado || "Pendiente").toLowerCase();
+  if (e.includes("aprobada") || e === "aprobado") return "bg-success-subtle text-success-emphasis";
+  if (e.includes("rechazada") || e === "rechazado") return "bg-danger-subtle text-danger-emphasis";
+  return "bg-warning-subtle text-warning-emphasis";
+}
+
+function toInputLocal(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toCLString(date) {
   try {
     return new Date(date).toLocaleString("es-CL", {
       timeZone: tz,
       year: "numeric",
-      month: "short",
+      month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
+      second: "2-digit",
+      hour12: false
     });
   } catch {
     return "";
   }
 }
+
+function formatTimestampEditable(ts) {
+  const d = asDateAny(ts);
+  if (!d) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function normalizeUpdatedAtInput(v) {
+  const raw = String(v || "").replace(/\D/g, "").slice(0, 14);
+  if (!raw) return "";
+  const yyyy = raw.slice(0, 4);
+  const mm = raw.slice(4, 6);
+  const dd = raw.slice(6, 8);
+  const hh = raw.slice(8, 10);
+  const mi = raw.slice(10, 12);
+  const ss = raw.slice(12, 14);
+  let out = yyyy;
+  if (mm) out += `/${mm}`;
+  if (dd) out += `/${dd}`;
+  if (hh) out += ` ${hh}`;
+  if (mi) out += `:${mi}`;
+  if (ss) out += `:${ss}`;
+  return out;
+}
+
+function parseUpdatedAtInput(v) {
+  const s = String(v || "").trim();
+  const m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, se] = m;
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se));
+  return isNaN(dt.getTime()) ? null : Timestamp.fromDate(dt);
+}
+
+function onUpdatedAtInput(ev) {
+  edit.value.updated_at_input = normalizeUpdatedAtInput(ev?.target?.value ?? "");
+}
+
 function asDateAny(v) {
   if (!v) return null;
   if (typeof v?.toDate === "function") {
@@ -1984,17 +1393,858 @@ function asDateAny(v) {
   }
   return null;
 }
+
+function toCL(date) {
+  try {
+    return new Date(date).toLocaleString("es-CL", {
+      timeZone: tz,
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+  } catch {
+    return "";
+  }
+}
+
 function displayDate(row) {
   const d = asDateAny(row?.fecha_ts) || asDateAny(row?.fecha_str) || asDateAny(row?.fecha);
   return d ? toCL(d) : "—";
 }
+
 function prettyFecha(v) {
   const d = asDateAny(v);
   return d ? toCL(d) : "—";
 }
 
-onMounted(() => { subscribePage(1); });
-onBeforeUnmount(() => { cleanupSubs(); });
+function displayTs(v) {
+  return prettyFecha(v);
+}
+
+function normalizeAdjuntosFromRow(row) {
+  if (Array.isArray(row?.autorizaciones)) {
+    return row.autorizaciones.map((a) => ({
+      nombre: a?.nombre ?? "archivo",
+      tamano: Number(a?.tamano ?? a?.size ?? 0) || 0,
+      tipo: a?.tipo ?? a?.contentType ?? "",
+      url: a?.url ?? a?.downloadURL ?? null,
+      comentarios: Array.isArray(a?.comentarios) ? a.comentarios : []
+    }));
+  }
+  if (row?.autorizacion_url || row?.autorizacion_nombre) {
+    return [{
+      nombre: row.autorizacion_nombre || "autorizacion",
+      tamano: Number(row.autorizacion_size ?? 0) || 0,
+      tipo: row.autorizacion_contentType || "",
+      url: row.autorizacion_url || null,
+      comentarios: []
+    }];
+  }
+  return [];
+}
+
+async function uploadAdjuntos({ solpeId, empresa, numero_solpe }, files) {
+  if (!files?.length) return [];
+
+  const empresaSlug = slugEmpresa(empresa);
+  const folio = (numero_solpe != null && numero_solpe !== "" && !isNaN(Number(numero_solpe)))
+    ? String(Number(numero_solpe))
+    : String(solpeId);
+
+  const baseFolder = `solped_adjuntos/${empresaSlug}_${folio}`;
+  const batchFolder = `${Date.now()}`;
+
+  const results = [];
+  for (const f of files) {
+    const fileName = safeFileName(f.name);
+    const path = `${baseFolder}/${batchFolder}/${fileName}`;
+
+    const refStorage = sref(getStorage(), path);
+    const up = await uploadBytes(refStorage, f);
+    const url = await getDownloadURL(up.ref);
+
+    results.push({
+      nombre: f.name || fileName,
+      tamano: Number(f.size || 0),
+      tipo: f.type || "",
+      url,
+      comentarios: []
+    });
+  }
+  return results;
+}
+
+function setCentroFromKey(targetObj, key) {
+  if (!key || !centrosCosto[key]) {
+    targetObj.numero_contrato = "";
+    targetObj.nombre_centro_costo = "";
+    return;
+  }
+  targetObj.numero_contrato = key;
+  targetObj.nombre_centro_costo = centrosCosto[key];
+}
+function setCentroFromName(targetObj, name) {
+  if (!name) { setCentroFromKey(targetObj, ""); return ""; }
+  const key = Object.keys(centrosCosto).find(k => centrosCosto[k] === name) || "";
+  setCentroFromKey(targetObj, key);
+  return key;
+}
+function onCentroEditKeyChange() {
+  setCentroFromKey(edit.value, selectedCentroEditKey.value);
+  selectedCentroEditName.value = edit.value.nombre_centro_costo || "";
+}
+function onCentroEditNameChange() {
+  const key = setCentroFromName(edit.value, selectedCentroEditName.value);
+  selectedCentroEditKey.value = key;
+}
+function onCentroNuevoKeyChange() {
+  setCentroFromKey(nuevo.value, selectedCentroNuevoKey.value);
+  selectedCentroNuevoName.value = nuevo.value.nombre_centro_costo || "";
+}
+function onCentroNuevoNameChange() {
+  const key = setCentroFromName(nuevo.value, selectedCentroNuevoName.value);
+  selectedCentroNuevoKey.value = key;
+}
+
+async function cargarUsuariosCreadoras({ force = false } = {}) {
+  if (usuariosLoading.value) return;
+  if (usuariosLoadedOnce.value && !force) return;
+
+  usuariosLoading.value = true;
+  try {
+    const set = new Set();
+    let cursor = null;
+    const PAGE = 1000;
+
+    while (true) {
+      const qy = cursor
+        ? query(collection(db, SOLPES_COLLECTION), orderBy("usuario"), startAfter(cursor), limit(PAGE))
+        : query(collection(db, SOLPES_COLLECTION), orderBy("usuario"), limit(PAGE));
+
+      const snap = await getDocs(qy);
+      if (snap.empty) break;
+
+      snap.forEach((d) => {
+        const u = (d.data()?.usuario || "").toString().trim();
+        if (u) set.add(u);
+      });
+
+      cursor = snap.docs[snap.docs.length - 1];
+      if (snap.size < PAGE) break;
+    }
+
+    usuariosOpts.value = Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+    usuariosLoadedOnce.value = true;
+  } catch (e) {
+    console.error(e);
+    addToast("warning", "No se pudieron cargar usuarios.");
+  } finally {
+    usuariosLoading.value = false;
+  }
+}
+
+function cargarUsuarios() {
+  try {
+    const qy = query(collection(db, SOLPES_COLLECTION), orderBy("usuario"), limit(500));
+    unsubUsuarios = onSnapshot(qy, (snap) => {
+      const set = new Set();
+      snap.forEach((d) => {
+        const u = (d.data()?.usuario || "").toString().trim();
+        if (u) set.add(u);
+      });
+      usuariosOpts.value = Array.from(set);
+    });
+  } catch (e) {
+    console.error(e);
+    addToast("warning", "No se pudieron cargar los usuarios para el filtro.");
+  }
+  return cargarUsuariosCreadoras();
+}
+
+function subscribePage(page) {
+  cleanupSubs();
+  cargarUsuarios();
+  cargando.value = true;
+  busquedaActiva.value = false;
+
+  let qy;
+  if (page === 1) {
+    qy = query(collection(db, SOLPES_COLLECTION), orderBy("numero_solpe", "desc"), limit(PAGE_SIZE + 1));
+  } else {
+    const prevCursor = pageCursors.value[page - 2];
+    if (!prevCursor) { cargando.value = false; return; }
+    qy = query(
+      collection(db, SOLPES_COLLECTION),
+      orderBy("numero_solpe", "desc"),
+      startAfter(prevCursor),
+      limit(PAGE_SIZE + 1)
+    );
+  }
+
+  unsubList = onSnapshot(qy, (snap) => {
+    const arr = [];
+    const snaps = [];
+    snap.forEach((d) => { arr.push({ __id: d.id, ...d.data() }); snaps.push(d); });
+    hasNextPage.value = arr.length > PAGE_SIZE;
+
+    const pageDocs = arr.slice(0, PAGE_SIZE);
+    rows.value = pageDocs;
+
+    const lastSnap = snaps[pageDocs.length - 1];
+    if (lastSnap) pageCursors.value[page - 1] = lastSnap;
+
+    cargando.value = false;
+  }, (err) => {
+    console.error("onSnapshot page:", err);
+    addToast("danger", "Error listando SOLPED Plantas.");
+    cargando.value = false;
+  });
+}
+
+function buildFilterQuery() {
+  const wh = [where("tipo_flujo", "==", "planta")];
+
+  if (filtroFecha.value) {
+    const ini = new Date(`${filtroFecha.value}T00:00:00`);
+    const fin = new Date(`${filtroFecha.value}T23:59:59`);
+    wh.push(where("createdAt", ">=", Timestamp.fromDate(ini)));
+    wh.push(where("createdAt", "<=", Timestamp.fromDate(fin)));
+  }
+
+  if (filtroUsuario.value) wh.push(where("usuario", "==", filtroUsuario.value));
+  if (filtroEstadoAprob.value) wh.push(where("estadoAprobacionSolped", "==", filtroEstadoAprob.value));
+  if (filtroEstatus.value?.length === 1) wh.push(where("estatus", "==", filtroEstatus.value[0]));
+
+  return query(collection(db, SOLPES_COLLECTION), ...wh, orderBy("createdAt", "desc"), limit(100));
+}
+
+function aplicarFiltros() {
+  if (!hasActiveFilters.value) {
+    currentPage.value = 1;
+    subscribePage(1);
+    return;
+  }
+
+  cleanupSubs();
+  cargando.value = true;
+  busquedaActiva.value = false;
+
+  try {
+    const qy = buildFilterQuery();
+    unsubFilter = onSnapshot(qy, (snap) => {
+      let arr = [];
+      snap.forEach((d) => arr.push({ __id: d.id, ...d.data() }));
+
+      if (filtroEstatus.value?.length > 1) {
+        arr = arr.filter(r => filtroEstatus.value.includes(r.estatus));
+      }
+
+      rows.value = arr;
+      cargando.value = false;
+    }, (e) => {
+      console.error(e);
+      addToast("danger", "No se pudieron aplicar filtros.");
+      cargando.value = false;
+    });
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudieron aplicar filtros.");
+    cargando.value = false;
+  }
+}
+
+function limpiarFiltros() {
+  filtroFecha.value = "";
+  filtroUsuario.value = "";
+  filtroEstatus.value = [];
+  filtroEstatusHeader.value = "";
+  filtroEstadoAprob.value = "";
+  if (busquedaActiva.value) limpiarBusqueda();
+  else aplicarFiltros();
+}
+
+function removeEstatus(es) {
+  filtroEstatus.value = filtroEstatus.value.filter(x => x !== es);
+  if (!filtroEstatus.value.length) filtroEstatusHeader.value = "";
+  aplicarFiltros();
+}
+
+function onChangeEstatusHeader() {
+  filtroEstatus.value = filtroEstatusHeader.value ? [filtroEstatusHeader.value] : [];
+}
+
+function mobileApplyFilters() {
+  aplicarFiltros();
+  mobileFiltersOpen.value = false;
+}
+
+function goToPage(n) {
+  if (hasActiveFilters.value || busquedaActiva.value) return;
+  if (n < 1) return;
+  if (n > currentPage.value + 1 && !hasNextPage.value) return;
+  currentPage.value = n;
+  subscribePage(n);
+}
+
+function onBuscarNumero() {
+  const qstr = (buscarNumero.value ?? "").trim();
+  if (!qstr) { limpiarBusqueda(); return; }
+  const n = parseInt(qstr, 10);
+  if (isNaN(n)) { addToast("warning", "Ingresa un número válido."); return; }
+
+  cleanupSubs();
+  cargando.value = true;
+  busquedaActiva.value = true;
+
+  try {
+    const qy = query(collection(db, SOLPES_COLLECTION), where("numero_solpe", "==", n), limit(30));
+    unsubSearch = onSnapshot(qy, (snap) => {
+      const arr = [];
+      snap.forEach((d) => arr.push({ __id: d.id, ...d.data() }));
+      rows.value = arr;
+      cargando.value = false;
+    }, (e) => {
+      console.error(e);
+      addToast("danger", "No se pudo buscar la SOLPED.");
+      cargando.value = false;
+    });
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo buscar la SOLPED.");
+    cargando.value = false;
+  }
+}
+
+function limpiarBusqueda() {
+  buscarNumero.value = "";
+  busquedaActiva.value = false;
+  if (hasActiveFilters.value) aplicarFiltros();
+  else {
+    currentPage.value = 1;
+    subscribePage(1);
+  }
+}
+
+function subscribeHistorialEstados(solpeId) {
+  if (unsubHistorial) { unsubHistorial(); unsubHistorial = null; }
+  try {
+    const qy = query(
+      collection(db, SOLPES_COLLECTION, solpeId, HISTORIAL_SUBCOL),
+      orderBy("fecha", "desc"),
+      limit(100)
+    );
+    unsubHistorial = onSnapshot(qy, (snap) => {
+      const arr = [];
+      snap.forEach((d) => arr.push({ __id: d.id, ...d.data() }));
+      historialEstadosLive.value = arr;
+    }, (err) => {
+      console.error("historialEstados:", err);
+      addToast("warning", "No se pudo cargar historial.");
+    });
+  } catch (e) {
+    console.error(e);
+    addToast("warning", "No se pudo suscribir al historial.");
+  }
+}
+
+function resetHistForm() {
+  histForm.value = {
+    fechaInput: toInputLocal(new Date()),
+    estatus: "",
+    comentario: "",
+    usuario: edit.value?.usuario || ""
+  };
+}
+
+function pickRowDate(row) {
+  try {
+    if (row?.fecha_ts?.toDate) return row.fecha_ts.toDate();
+    if (row?.fecha instanceof Date) return row.fecha;
+    if (typeof row?.fecha === "string") {
+      const d = new Date(row.fecha);
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (typeof row?.fecha_str === "string") {
+      const d = new Date(row.fecha_str);
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (row?.createdAt?.toDate) return row.createdAt.toDate();
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function abrirEditor(row) {
+  seleccion.value = row;
+
+  const d = pickRowDate(row);
+  const originalTs = row?.fecha_ts ?? (d ? Timestamp.fromDate(d) : null);
+  const originalStr = row?.fecha_str ?? row?.fecha ?? (d ? toCLString(d) : "");
+
+  edit.value = {
+    fechaInput: d ? toInputLocal(d) : "",
+    __fecha_ts: originalTs,
+    __fecha_str: originalStr,
+    updated_at_input: formatTimestampEditable(row?.updated_at),
+    __updated_at_original: row?.updated_at ?? null,
+
+    autorizaciones: normalizeAdjuntosFromRow(row),
+
+    dirigidoA: Array.isArray(row.dirigidoA) ? [...row.dirigidoA] : [],
+    empresa: row.empresa ?? "Xtreme Servicio",
+    estatus: row.estatus ?? "Pendiente",
+    estadoAprobacionSolped: row.estadoAprobacionSolped ?? "Pendiente",
+    comentario_aprobacion_solped: row.comentario_aprobacion_solped ?? "",
+    fecha_aprobacion_solped: row.fecha_aprobacion_solped ?? null,
+    aprobadorSolped: row.aprobadorSolped ?? "",
+    usuario_aprobacion_solped: row.usuario_aprobacion_solped ?? "",
+    dias_estimados_gestion: Number(row.dias_estimados_gestion ?? 1),
+    prioridad_solped: row.prioridad_solped ?? "MEDIA",
+    requiereAprobacionSolped: !!row.requiereAprobacionSolped,
+    tipo_flujo: row.tipo_flujo ?? "planta",
+
+    numero_solpe: Number(row.numero_solpe ?? 0),
+    numero_contrato: row.numero_contrato ?? "",
+    nombre_centro_costo: row.nombre_centro_costo ?? "",
+    usuario: row.usuario ?? "",
+    tipo_solped: row.tipo_solped ?? "",
+    nombre_solped: row.nombre_solped ?? "",
+    items: Array.isArray(row.items) ? row.items.map((it, i) => ({
+      item: Number(it.item ?? i + 1),
+      descripcion: it.descripcion ?? "",
+      cantidad: Number(it.cantidad ?? 0),
+      stock: Number(it.stock ?? 0),
+      prioridad: it.prioridad ?? "MEDIA",
+      codigo_referencial: it.codigo_referencial ?? "",
+      estado: it.estado ?? "pendiente",
+      numero_interno: it.numero_interno ?? "",
+      imagen_url: it.imagen_url ?? ""
+    })) : []
+  };
+
+  selectedCentroEditKey.value = edit.value.numero_contrato || "";
+  selectedCentroEditName.value = edit.value.nombre_centro_costo || "";
+
+  editorAbierto.value = true;
+  subscribeHistorialEstados(row.__id);
+  resetHistForm();
+}
+
+function cerrarEditor() {
+  editorAbierto.value = false;
+  seleccion.value = null;
+  edit.value = {};
+  historialEstadosLive.value = [];
+  if (unsubHistorial) { unsubHistorial(); unsubHistorial = null; }
+}
+
+function abrirSelectorAutorizacionEdit() {
+  inputAutorizacionEditEl.value?.click?.();
+}
+function abrirSelectorAutorizacionNuevo() {
+  inputAutorizacionNuevoEl.value?.click?.();
+}
+function onArchivosAutorizacionEdit(ev) {
+  const files = Array.from(ev?.target?.files || []);
+  archivosAutorizacionEdit.value.push(...files);
+  ev.target.value = "";
+}
+function onArchivosAutorizacionNuevo(ev) {
+  const files = Array.from(ev?.target?.files || []);
+  archivosAutorizacionNuevo.value.push(...files);
+  ev.target.value = "";
+}
+function removeAdjuntoEdit(i) {
+  edit.value.autorizaciones.splice(i, 1);
+}
+function removePendingEdit(i) {
+  archivosAutorizacionEdit.value.splice(i, 1);
+}
+function removePendingNuevo(i) {
+  archivosAutorizacionNuevo.value.splice(i, 1);
+}
+
+async function guardarHistorial() {
+  if (!seleccion.value?.__id) return;
+  if (!histForm.value.estatus?.trim()) {
+    addToast("warning", "Debes indicar un estatus para el historial.");
+    return;
+  }
+
+  guardandoHist.value = true;
+  try {
+    await addDoc(collection(db, SOLPES_COLLECTION, seleccion.value.__id, HISTORIAL_SUBCOL), {
+      fecha: histForm.value.fechaInput ? Timestamp.fromDate(new Date(histForm.value.fechaInput)) : Timestamp.now(),
+      estatus: histForm.value.estatus || "",
+      comentario: histForm.value.comentario || "",
+      usuario: histForm.value.usuario || edit.value.usuario || "ADMIN"
+    });
+    resetHistForm();
+    addToast("success", "Historial agregado.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo guardar historial.");
+  } finally {
+    guardandoHist.value = false;
+  }
+}
+
+async function eliminarHistorialDoc(id) {
+  if (!seleccion.value?.__id || !id) return;
+  try {
+    await deleteDoc(doc(db, SOLPES_COLLECTION, seleccion.value.__id, HISTORIAL_SUBCOL, id));
+    addToast("success", "Registro de historial eliminado.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo eliminar historial.");
+  }
+}
+
+async function guardarEdicion() {
+  if (!seleccion.value?.__id) return;
+
+  guardando.value = true;
+  try {
+    let nuevosAdjuntos = [];
+    if (archivosAutorizacionEdit.value.length) {
+      nuevosAdjuntos = await uploadAdjuntos(
+        {
+          solpeId: seleccion.value.__id,
+          empresa: edit.value.empresa,
+          numero_solpe: edit.value.numero_solpe
+        },
+        archivosAutorizacionEdit.value
+      );
+    }
+
+    const fechaBase = edit.value.fechaInput ? new Date(edit.value.fechaInput) : pickRowDate(seleccion.value) || new Date();
+    const updatedAtTs = parseUpdatedAtInput(edit.value.updated_at_input);
+
+    const payload = {
+      numero_solpe: Number(edit.value.numero_solpe ?? 0),
+      empresa: edit.value.empresa ?? "Xtreme Servicio",
+      estatus: edit.value.estatus ?? "Pendiente",
+      estadoAprobacionSolped: edit.value.estadoAprobacionSolped ?? "Pendiente",
+      comentario_aprobacion_solped: edit.value.comentario_aprobacion_solped ?? "",
+      aprobadorSolped: edit.value.aprobadorSolped ?? "",
+      usuario_aprobacion_solped: edit.value.usuario_aprobacion_solped ?? "",
+      dias_estimados_gestion: Number(edit.value.dias_estimados_gestion ?? 1),
+      prioridad_solped: edit.value.prioridad_solped ?? "MEDIA",
+      requiereAprobacionSolped: !!edit.value.requiereAprobacionSolped,
+      tipo_flujo: "planta",
+
+      fecha: edit.value.fechaInput || "",
+      fecha_ts: Timestamp.fromDate(fechaBase),
+      fecha_str: edit.value.__fecha_str || toCLString(fechaBase),
+
+      numero_contrato: edit.value.numero_contrato ?? "",
+      nombre_centro_costo: edit.value.nombre_centro_costo ?? "",
+      usuario: edit.value.usuario ?? "",
+      tipo_solped: edit.value.tipo_solped ?? "",
+      nombre_solped: edit.value.nombre_solped ?? "",
+      dirigidoA: Array.isArray(edit.value.dirigidoA) ? edit.value.dirigidoA : [],
+      autorizaciones: [...(Array.isArray(edit.value.autorizaciones) ? edit.value.autorizaciones : []), ...nuevosAdjuntos],
+      items: (Array.isArray(edit.value.items) ? edit.value.items : []).map((it, idx) => ({
+        item: Number(it.item ?? idx + 1),
+        descripcion: it.descripcion ?? "",
+        cantidad: Number(it.cantidad ?? 0),
+        stock: Number(it.stock ?? 0),
+        prioridad: it.prioridad ?? "MEDIA",
+        codigo_referencial: it.codigo_referencial ?? "",
+        estado: it.estado ?? "pendiente",
+        numero_interno: it.numero_interno ?? "",
+        imagen_url: it.imagen_url ?? ""
+      }))
+    };
+
+    if (updatedAtTs) payload.updated_at = updatedAtTs;
+
+    if (
+      payload.estadoAprobacionSolped === "Solped Aprobada" ||
+      payload.estadoAprobacionSolped === "Solped Rechazada"
+    ) {
+      payload.fecha_aprobacion_solped = edit.value.fecha_aprobacion_solped || Timestamp.now();
+    }
+
+    await updateDoc(doc(db, SOLPES_COLLECTION, seleccion.value.__id), payload);
+
+    archivosAutorizacionEdit.value = [];
+    addToast("success", "SOLPED Plantas actualizada.");
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo guardar la edición.");
+  } finally {
+    guardando.value = false;
+  }
+}
+
+function defaultNuevo() {
+  const now = new Date();
+  return {
+    numero_solpe: null,
+    fechaInput: toInputLocal(now),
+    empresa: "Xtreme Servicio",
+    estatus: "Pendiente",
+    estadoAprobacionSolped: "Pendiente",
+    comentario_aprobacion_solped: "",
+    fecha_aprobacion_solped: null,
+    aprobadorSolped: "",
+    usuario_aprobacion_solped: "",
+    dias_estimados_gestion: 1,
+    prioridad_solped: "MEDIA",
+    requiereAprobacionSolped: false,
+    tipo_flujo: "planta",
+    numero_contrato: "",
+    nombre_centro_costo: "",
+    usuario: "",
+    tipo_solped: "",
+    nombre_solped: "",
+    dirigidoA: [],
+    autorizaciones: [],
+    items: []
+  };
+}
+
+function abrirModalNueva() {
+  nuevo.value = defaultNuevo();
+  selectedCentroNuevoKey.value = "";
+  selectedCentroNuevoName.value = "";
+  archivosAutorizacionNuevo.value = [];
+  modalNueva.value = true;
+}
+
+function cerrarModalNueva() {
+  modalNueva.value = false;
+  nuevo.value = {};
+  archivosAutorizacionNuevo.value = [];
+}
+
+async function crearNueva() {
+  guardandoNueva.value = true;
+  try {
+    const fechaBase = nuevo.value.fechaInput ? new Date(nuevo.value.fechaInput) : new Date();
+
+    const payloadBase = {
+      numero_solpe: Number(nuevo.value.numero_solpe ?? 0),
+      empresa: nuevo.value.empresa ?? "Xtreme Servicio",
+      estatus: nuevo.value.estatus ?? "Pendiente",
+      estadoAprobacionSolped: nuevo.value.estadoAprobacionSolped ?? "Pendiente",
+      comentario_aprobacion_solped: nuevo.value.comentario_aprobacion_solped ?? "",
+      fecha_aprobacion_solped: null,
+      aprobadorSolped: nuevo.value.aprobadorSolped ?? "",
+      usuario_aprobacion_solped: nuevo.value.usuario_aprobacion_solped ?? "",
+      dias_estimados_gestion: Number(nuevo.value.dias_estimados_gestion ?? 1),
+      prioridad_solped: nuevo.value.prioridad_solped ?? "MEDIA",
+      requiereAprobacionSolped: !!nuevo.value.requiereAprobacionSolped,
+      tipo_flujo: "planta",
+
+      fecha: nuevo.value.fechaInput || "",
+      fecha_ts: Timestamp.fromDate(fechaBase),
+      fecha_str: Timestamp.fromDate(fechaBase),
+      createdAt: Timestamp.now(),
+
+      numero_contrato: nuevo.value.numero_contrato ?? "",
+      nombre_centro_costo: nuevo.value.nombre_centro_costo ?? "",
+      usuario: nuevo.value.usuario ?? "",
+      tipo_solped: nuevo.value.tipo_solped ?? "",
+      nombre_solped: nuevo.value.nombre_solped ?? "",
+
+      dirigidoA: Array.isArray(nuevo.value.dirigidoA) ? nuevo.value.dirigidoA : [],
+      autorizaciones: [],
+      items: (Array.isArray(nuevo.value.items) ? nuevo.value.items : []).map((it, idx) => ({
+        item: Number(it.item ?? idx + 1),
+        descripcion: it.descripcion ?? "",
+        cantidad: Number(it.cantidad ?? 0),
+        stock: Number(it.stock ?? 0),
+        prioridad: it.prioridad ?? "MEDIA",
+        codigo_referencial: it.codigo_referencial ?? "",
+        estado: it.estado ?? "pendiente",
+        numero_interno: it.numero_interno ?? "",
+        imagen_url: it.imagen_url ?? ""
+      }))
+    };
+
+    const refNew = await addDoc(collection(db, SOLPES_COLLECTION), payloadBase);
+
+    if (archivosAutorizacionNuevo.value.length) {
+      const adj = await uploadAdjuntos(
+        {
+          solpeId: refNew.id,
+          empresa: payloadBase.empresa,
+          numero_solpe: payloadBase.numero_solpe
+        },
+        archivosAutorizacionNuevo.value
+      );
+      await updateDoc(doc(db, SOLPES_COLLECTION, refNew.id), { autorizaciones: adj });
+    }
+
+    await addDoc(collection(db, SOLPES_COLLECTION, refNew.id, HISTORIAL_SUBCOL), {
+      fecha: Timestamp.now(),
+      estatus: payloadBase.estadoAprobacionSolped || payloadBase.estatus || "Pendiente",
+      comentario: "Creación de SOLPED de plantas",
+      usuario: payloadBase.usuario || "ADMIN"
+    });
+
+    addToast("success", "SOLPED Plantas creada.");
+    cerrarModalNueva();
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo crear la SOLPED.");
+  } finally {
+    guardandoNueva.value = false;
+  }
+}
+
+function abrirModalItem(it = null, idx = -1) {
+  itemModeNuevo.value = false;
+  isEditItem.value = idx >= 0;
+  itemIndex.value = idx;
+  itemForm.value = it
+    ? {
+        item: Number(it.item ?? 1),
+        descripcion: it.descripcion ?? "",
+        codigo_referencial: it.codigo_referencial ?? "",
+        cantidad: Number(it.cantidad ?? 1),
+        stock: Number(it.stock ?? 0),
+        prioridad: it.prioridad ?? "MEDIA",
+        estado: it.estado ?? "pendiente",
+        numero_interno: it.numero_interno ?? "",
+        imagen_url: it.imagen_url ?? ""
+      }
+    : {
+        item: (edit.value.items?.length || 0) + 1,
+        descripcion: "",
+        codigo_referencial: "",
+        cantidad: 1,
+        stock: 0,
+        prioridad: "MEDIA",
+        estado: "pendiente",
+        numero_interno: "",
+        imagen_url: ""
+      };
+  modalItem.value = true;
+}
+
+function abrirModalItemNuevo(it = null, idx = -1) {
+  itemModeNuevo.value = true;
+  isEditItem.value = idx >= 0;
+  itemIndex.value = idx;
+  itemForm.value = it
+    ? {
+        item: Number(it.item ?? 1),
+        descripcion: it.descripcion ?? "",
+        codigo_referencial: it.codigo_referencial ?? "",
+        cantidad: Number(it.cantidad ?? 1),
+        stock: Number(it.stock ?? 0),
+        prioridad: it.prioridad ?? "MEDIA",
+        estado: it.estado ?? "pendiente",
+        numero_interno: it.numero_interno ?? "",
+        imagen_url: it.imagen_url ?? ""
+      }
+    : {
+        item: (nuevo.value.items?.length || 0) + 1,
+        descripcion: "",
+        codigo_referencial: "",
+        cantidad: 1,
+        stock: 0,
+        prioridad: "MEDIA",
+        estado: "pendiente",
+        numero_interno: "",
+        imagen_url: ""
+      };
+  modalItem.value = true;
+}
+
+function cerrarModalItem() {
+  modalItem.value = false;
+  itemIndex.value = -1;
+  isEditItem.value = false;
+}
+
+async function onImagenItem(ev) {
+  try {
+    const file = ev?.target?.files?.[0];
+    if (!file) return;
+
+    const storage = getStorage();
+    const path = `solped_images/${Date.now()}_${safeFileName(file.name)}`;
+    const refStorage = sref(storage, path);
+    const up = await uploadBytes(refStorage, file);
+    const url = await getDownloadURL(up.ref);
+    itemForm.value.imagen_url = url;
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo subir la imagen del ítem.");
+  }
+}
+
+function guardarItemForm() {
+  const normalized = {
+    ...itemForm.value,
+    item: Number(itemForm.value.item ?? 0),
+    cantidad: Number(itemForm.value.cantidad ?? 0),
+    stock: Number(itemForm.value.stock ?? 0),
+    prioridad: itemForm.value.prioridad ?? "MEDIA",
+    estado: itemForm.value.estado ?? "pendiente"
+  };
+
+  if (itemModeNuevo.value) {
+    if (!Array.isArray(nuevo.value.items)) nuevo.value.items = [];
+    if (isEditItem.value && itemIndex.value >= 0) nuevo.value.items.splice(itemIndex.value, 1, normalized);
+    else nuevo.value.items.push(normalized);
+  } else {
+    if (!Array.isArray(edit.value.items)) edit.value.items = [];
+    if (isEditItem.value && itemIndex.value >= 0) edit.value.items.splice(itemIndex.value, 1, normalized);
+    else edit.value.items.push(normalized);
+  }
+
+  modalItem.value = false;
+}
+
+function eliminarItem(idx) {
+  edit.value.items.splice(idx, 1);
+}
+function eliminarItemNuevo(idx) {
+  nuevo.value.items.splice(idx, 1);
+}
+
+function abrirConfirm(r) {
+  confirmRow.value = r;
+  confirmOpen.value = true;
+}
+function cerrarConfirm() {
+  confirmOpen.value = false;
+  confirmRow.value = null;
+}
+async function confirmarEliminar() {
+  if (!confirmRow.value?.__id) return;
+  eliminando.value = true;
+  try {
+    await deleteDoc(doc(db, SOLPES_COLLECTION, confirmRow.value.__id));
+    addToast("success", "SOLPED eliminada.");
+    cerrarConfirm();
+  } catch (e) {
+    console.error(e);
+    addToast("danger", "No se pudo eliminar la SOLPED.");
+  } finally {
+    eliminando.value = false;
+  }
+}
+
+function irADetalle(r) {
+  router.push({ name: "SolpedDetallePlantas", params: { id: r.__id } });
+}
+
+onMounted(() => {
+  subscribePage(1);
+});
+onBeforeUnmount(() => {
+  cleanupSubs();
+});
 </script>
 
 <style scoped>
@@ -2009,15 +2259,20 @@ onBeforeUnmount(() => { cleanupSubs(); });
 .toolbar-item .input-group-text { height: 38px; }
 
 .offcanvas-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  display: grid; place-items: end; z-index: 1080;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: grid;
+  place-items: end;
+  z-index: 1080;
 }
 .offcanvas-panel{
   width: min(860px, 100%);
   height: 100vh;
   box-shadow: -12px 0 32px rgba(0,0,0,.25);
   animation: slideIn .22s ease-out;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
 }
@@ -2025,60 +2280,84 @@ onBeforeUnmount(() => { cleanupSubs(); });
   padding: .9rem 1rem;
   border-bottom: 1px solid #eee;
 }
-.offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
+.offcanvas-footer{
+  border-top: 1px solid #eee;
+  border-bottom: 0;
+}
 .offcanvas-body{
   padding: 1rem;
   overflow: auto;
-  flex: 1 1 auto;
-  min-height: 0;
 }
-@keyframes slideIn{
-  from{ transform: translateX(20px); opacity:.0; }
-  to{ transform: translateX(0); opacity:1; }
+.editor-panel{
+  width: min(1100px, 100%);
 }
-@media (max-width: 575.98px){
-  .list-group-item{ border-left: 0; border-right: 0; }
+.editor-header{
+  background: var(--bs-light-bg-subtle, #f8f9fa);
+}
+.editor-body{
+  background: var(--bs-body-bg);
+}
+.editor-footer{
+  background: var(--bs-light-bg-subtle, #f8f9fa);
 }
 
 .vmodal-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  z-index: 1080; display: grid; place-items: center; padding: 1rem;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 1090;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
 }
 .vmodal{
-  width: 100%; max-width: 640px;  border-radius: .75rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
+  width: min(1100px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
-  border: 1px solid rgba(0,0,0,.05);
+  border-radius: 1rem;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
 }
-.vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
+.vmodal-header,
+.vmodal-footer{
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid #eee;
 }
-.vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
+.vmodal-footer{
+  border-top: 1px solid #eee;
+  border-bottom: 0;
+}
+.vmodal-body{
+  padding: 1rem 1.1rem;
+}
 
 .toast-stack{
-  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
-  display: flex; flex-direction: column; gap: 10px;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
 }
 .toast-box{
-  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  min-width: 260px;
+  max-width: 420px;
+  border-radius: .9rem;
+  padding: .85rem 1rem;
+  display: flex;
+  align-items: center;
+  color: #fff;
+  box-shadow: 0 14px 24px rgba(0,0,0,.18);
 }
-.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
-.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
-.btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
+.toast-success{ background: linear-gradient(135deg, #16a34a, #22c55e); }
+.toast-warning{ background: linear-gradient(135deg, #d97706, #f59e0b); }
+.toast-danger{ background: linear-gradient(135deg, #dc2626, #ef4444); }
 
-.confirm-icon{
-  width: 38px; height: 38px;
-  border-radius: 10px;
-  display: grid; place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626);
-  color: #fff; font-size: 18px;
-  box-shadow: 0 6px 18px rgba(220,38,38,.35);
+.btn-close-white{
+  filter: invert(1) grayscale(100%) brightness(200%);
 }
-.table td, .table th { vertical-align: middle; }
 
 .text-truncate-2{
   display: -webkit-box;
@@ -2089,5 +2368,34 @@ onBeforeUnmount(() => { cleanupSubs(); });
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.confirm-icon{
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 1.1rem;
+}
+
+@keyframes slideIn{
+  from{ transform: translateX(24px); opacity: 0; }
+  to{ transform: translateX(0); opacity: 1; }
+}
+
+@media (max-width: 576px){
+  .toast-stack{
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+  .toast-box{
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
 }
 </style>

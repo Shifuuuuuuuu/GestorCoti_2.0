@@ -165,7 +165,7 @@
           <div class="col-12 col-xxl-6">
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">Top creadores de {{ tituloSegmento }} (mes)</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cTopCreadores"></canvas></div>
+              <div class="card-body chart-fixed-h"><canvas ref="topCreadoresCanvas"></canvas></div>
             </div>
           </div>
 
@@ -181,7 +181,7 @@
 
               <div class="card-body">
                 <div class="chart-fixed-h">
-                  <canvas ref="cTopOC"></canvas>
+                  <canvas ref="topOCCanvas"></canvas>
                 </div>
               </div>
             </div>
@@ -198,7 +198,7 @@
 
               <div class="card-body">
                 <div class="chart-fixed-h mb-3" style="min-height: 420px;">
-                  <canvas ref="cOcStatusByUser"></canvas>
+                  <canvas ref="ocStatusByUserCanvas"></canvas>
                 </div>
 
                 <div class="table-responsive">
@@ -229,14 +229,14 @@
           <div class="col-12 col-xxl-6">
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">Distribución de estatus ({{ tituloSegmento }})</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cEstatusPie"></canvas></div>
+              <div class="card-body chart-fixed-h"><canvas ref="distEstatusCanvas"></canvas></div>
             </div>
           </div>
 
           <div class="col-12 col-xxl-6">
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">Distribución por Tipo de {{ tituloSegmento }}</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cTipoSolpedPie"></canvas></div>
+              <div class="card-body chart-fixed-h"><canvas ref="distTipoSolpedCanvas"></canvas></div>
             </div>
           </div>
 
@@ -251,7 +251,7 @@
               <div class="card-body chart-fixed-h">
                 <div class="row g-3">
                   <div class="col-12 col-md-12">
-                    <div class="pie-box"><canvas ref="cOcTipoSolpedMontoPie"></canvas></div>
+                    <div class="pie-box"><canvas ref="ocTipoSolpedCanvas"></canvas></div>
                   </div>
                 </div>
               </div>
@@ -260,121 +260,30 @@
 
           <div class="col-12 col-xxl-6">
             <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">Evolución diaria del gasto (mes)</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cGastoLine"></canvas></div>
-            </div>
-          </div>
-
-          <div class="col-12 col-xxl-6">
-            <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">Top aprobadores (mes)</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cTopAprobadores"></canvas></div>
+              <div class="card-body chart-fixed-h"><canvas ref="topAprobadoresCanvas"></canvas></div>
             </div>
           </div>
 
-          <div class="col-12 col-xxl-6">
+          <div class="col-12 col-xxl-12">
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">SOLPED pendientes por cotizadores (mes)</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cSolpedPendH"></canvas></div>
+              <div class="card-body chart-fixed-h"><canvas ref="pendMesCanvas"></canvas></div>
             </div>
           </div>
 
-          <div class="col-12 col-xxl-6">
-            <div class="card shadow-sm border-0">
-              <div class="card-header"><div class="fw-medium">SOLPED pendientes por cotizadores (todos los meses)</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cSolpedPendAll"></canvas></div>
-            </div>
-          </div>
 
           <div class="col-12">
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">Gasto por Contrato / CC</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cGastoContratoH"></canvas></div>
+              <div class="card-body chart-fixed-h"><canvas ref="gastoContratoCanvas"></canvas></div>
             </div>
           </div>
 
           <div class="col-12">
             <div class="card shadow-sm border-0">
               <div class="card-header"><div class="fw-medium">OC por Contrato / CC</div></div>
-              <div class="card-body chart-fixed-h"><canvas ref="cConteoContratoH"></canvas></div>
-            </div>
-          </div>
-          <div class="col-12" v-if="segmento==='empresa' || segmento==='general'">
-            <div class="card shadow-sm border-0">
-              <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                <div class="fw-medium">Top contratos por SOLPED dirigidas a editores (mes)</div>
-
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <span
-                    class="badge bg-dark-subtle text-dark-emphasis"
-                    v-if="editorContratosAggPayload?.editors?.length"
-                  >
-                    {{ editorContratosTotals.totalSolpes }} SOLPED · {{ editorContratosTotals.uniqueContratos }} contratos
-                  </span>
-
-                  <select
-                    class="form-select form-select-sm"
-                    style="min-width: 260px; max-width: 360px;"
-                    v-model="editorDirigidoASelect"
-                    :disabled="isLoading || !(editorContratosAggPayload?.editors?.length)"
-                    title="Filtrar por editor (según dirigidoA)"
-                  >
-                    <option value="">Todos los editores (dirigidoA)</option>
-                    <option
-                      v-for="u in editorContratosAggPayload.editors"
-                      :key="'ed-dir-'+u"
-                      :value="u"
-                    >
-                      {{ u }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="card-body">
-                <div class="table-responsive">
-                  <table class="table table-sm align-middle mb-0 table-sticky">
-                    <thead class="table-light">
-                      <tr>
-                        <th style="width:44px">#</th>
-                        <th style="min-width:120px;">N° Contrato</th>
-                        <th style="min-width:320px;">Nombre / Centro de costo</th>
-                        <th class="text-end" style="width:110px;">SOLPED</th>
-                        <th style="width:170px;">Peso</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      <tr v-for="(r, i) in editorContratosRows" :key="r.key">
-                        <td>{{ i + 1 }}</td>
-                        <td class="fw-semibold">{{ r.num || '—' }}</td>
-                        <td class="text-truncate" style="max-width: 720px;" :title="r.nombre || ''">
-                          {{ r.nombre || '—' }}
-                        </td>
-                        <td class="text-end fw-semibold">{{ r.count }}</td>
-                        <td>
-                          <div class="progress" style="height: 9px;">
-                            <div
-                              class="progress-bar"
-                              role="progressbar"
-                              :style="{ width: (r.pct || 0) + '%' }"
-                              :aria-valuenow="r.pct || 0"
-                              aria-valuemin="0"
-                              aria-valuemax="100"
-                            ></div>
-                          </div>
-                        </td>
-                      </tr>
-
-                      <tr v-if="!editorContratosRows.length">
-                        <td colspan="99" class="text-center text-muted py-3">
-                          Sin datos de SOLPED dirigidas a editores para el mes/filtros actuales.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <div class="card-body chart-fixed-h"><canvas ref="conteoContratoCanvas"></canvas></div>
             </div>
           </div>
 
@@ -387,21 +296,127 @@
                 </span>
               </div>
               <div class="card-body chart-fixed-h">
-                <canvas ref="cVsAprobadasSubidas"></canvas>
+                <canvas ref="vsEditorsCanvas"></canvas>
               </div>
             </div>
           </div>
-        </div>
-        <div class="col-12">
+                  <div class="col-12">
           <div class="card shadow-sm border-0">
-            <div class="card-header d-flex align-items-center justify-content-between">
-              <div class="fw-medium">Promedio de cierre de SOLPED por cotizador</div>
-              <span class="badge bg-dark-subtle text-dark-emphasis">
-                {{ cotizadorLeadPayload.rows.length }} cotizadores
-              </span>
+            <div class="card-header d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+              <div>
+                <div class="fw-medium">Promedio de cierre de SOLPED por cotizador</div>
+              </div>
+
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge bg-dark-subtle text-dark-emphasis">
+                  {{ cotizadorLeadPayload.rows.length }} cotizadores
+                </span>
+
+                <span
+                  v-if="isAdmin && cotizadorLeadPayload.missingDates?.length"
+                  class="badge text-bg-warning"
+                >
+                  {{ cotizadorLeadPayload.missingDates.length }} con fechas faltantes
+                </span>
+              </div>
             </div>
 
             <div class="card-body">
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-12 col-md-3 col-xl-2">
+                  <label class="form-label mb-1">Tipo filtro fecha</label>
+                  <select
+                    class="form-select form-select-sm"
+                    v-model="cotizadorLeadFiltroModoDraft"
+                    :disabled="isLoadingCotizadorLead"
+                  >
+                    <option value="mes">Mes</option>
+                    <option value="anio">Año</option>
+                    <option value="dia">Día</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3 col-xl-2" v-if="cotizadorLeadFiltroModoDraft === 'mes'">
+                  <label class="form-label mb-1">Mes</label>
+                  <input
+                    type="month"
+                    class="form-control form-control-sm"
+                    v-model="cotizadorLeadFiltroMesDraft"
+                    :disabled="isLoadingCotizadorLead"
+                  />
+                </div>
+
+                <div class="col-12 col-md-3 col-xl-2" v-if="cotizadorLeadFiltroModoDraft === 'anio'">
+                  <label class="form-label mb-1">Año</label>
+                  <input
+                    type="number"
+                    min="2020"
+                    max="2100"
+                    class="form-control form-control-sm"
+                    v-model="cotizadorLeadFiltroAnioDraft"
+                    :disabled="isLoadingCotizadorLead"
+                  />
+                </div>
+
+                <div class="col-12 col-md-3 col-xl-2" v-if="cotizadorLeadFiltroModoDraft === 'dia'">
+                  <label class="form-label mb-1">Día</label>
+                  <input
+                    type="date"
+                    class="form-control form-control-sm"
+                    v-model="cotizadorLeadFiltroDiaDraft"
+                    :disabled="isLoadingCotizadorLead"
+                  />
+                </div>
+
+                <div class="col-12 col-md-3 col-xl-2">
+                  <label class="form-label mb-1">Tipo SOLPED</label>
+                  <select
+                    class="form-select form-select-sm"
+                    v-model="cotizadorLeadFiltroTipoSolpedDraft"
+                    :disabled="isLoadingCotizadorLead"
+                  >
+                    <option value="">Todos</option>
+                    <option
+                      v-for="opt in tipoSolpedOptions"
+                      :key="'lead-tipo-' + opt"
+                      :value="opt"
+                    >
+                      {{ opt }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3 col-xl-2">
+                  <button
+                    class="btn btn-outline-secondary btn-sm w-100"
+                    @click="limpiarFiltrosCotizadorLead"
+                    :disabled="isLoadingCotizadorLead"
+                  >
+                    Limpiar filtros
+                  </button>
+                </div>
+
+                <div class="col-12 col-md-3 col-xl-2">
+                  <button
+                    class="btn btn-outline-primary btn-sm w-100"
+                    @click="refrescarCotizadorLeadCard"
+                    :disabled="isLoadingCotizadorLead"
+                  >
+                    <span
+                      v-if="isLoadingCotizadorLead"
+                      class="spinner-border spinner-border-sm me-1"
+                      aria-hidden="true"
+                    ></span>
+                    <i v-else class="bi bi-arrow-clockwise me-1"></i>
+                    Refrescar
+                  </button>
+                </div>
+              </div>
+
+              <div class="chart-fixed-h mb-3" style="min-height: 340px;">
+                <canvas ref="cotizadorLeadCanvas"></canvas>
+              </div>
+
               <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0 table-sticky">
                   <thead class="table-light">
@@ -423,12 +438,12 @@
                         <td class="text-end">{{ row.enProceso }}</td>
                         <td class="text-end">{{ row.total }}</td>
                         <td class="text-end">
-                        <button
-                          class="btn btn-sm btn-outline-primary"
-                          @click="toggleCotizadorDetalle(row.cotizador)"
-                        >
-                          {{ cotizadorExpandido[row.cotizador] ? 'Ocultar' : 'Ver detalle' }}
-                        </button>
+                          <button
+                            class="btn btn-sm btn-outline-primary"
+                            @click="toggleCotizadorDetalle(row.cotizador)"
+                          >
+                            {{ cotizadorExpandido[row.cotizador] ? 'Ocultar' : 'Ver detalle' }}
+                          </button>
                         </td>
                       </tr>
 
@@ -556,8 +571,56 @@
                   </tbody>
                 </table>
               </div>
+
+              <div v-if="isAdmin" class="mt-4">
+                <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                  <div class="fw-medium">SOLPED con fecha faltante</div>
+                  <span class="badge text-bg-warning">
+                    {{ cotizadorLeadPayload.missingDates?.length || 0 }} registros
+                  </span>
+                </div>
+
+                <div class="table-responsive" v-if="cotizadorLeadPayload.missingDates?.length">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>N° SOLPED</th>
+                        <th>Nombre</th>
+                        <th>Cotizador</th>
+                        <th>Origen</th>
+                        <th>Estatus</th>
+                        <th>Falta</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="m in cotizadorLeadPayload.missingDates"
+                        :key="`missing-${m.origen}-${m.id}-${m.numero_solpe}`"
+                      >
+                        <td>{{ m.numero_solpe || '—' }}</td>
+                        <td>{{ m.nombre_solped || '—' }}</td>
+                        <td>{{ m.cotizador || '—' }}</td>
+                        <td>{{ m.origen }}</td>
+                        <td>{{ m.estatus || '—' }}</td>
+                        <td>
+                          <span class="badge text-bg-danger">{{ m.missingType }}</span>
+                        </td>
+                        <td>{{ fmtFechaSolo(m.fechaInicio) }}</td>
+                        <td>{{ m.enCurso ? 'En curso' : fmtFechaSolo(m.fechaFin) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div v-else class="alert alert-light border mb-0">
+                  No hay SOLPED con fecha de inicio/fin faltante para los filtros actuales.
+                </div>
+              </div>
             </div>
           </div>
+        </div>
         </div>
         <div class="card shadow-sm border-0 mt-4">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -668,11 +731,16 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
+import { onMounted, onBeforeUnmount, ref, computed, watch, nextTick } from "vue";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/stores/firebase";
+import Chart from "chart.js/auto";
 const cotizadorLeadPayload = ref({
+  labels: [],
+  dataInicio: [],
+  dataFin: [],
   rows: [],
+  missingDates: [],
 });
 
 const cotizadorExpandido = ref({});
@@ -688,9 +756,81 @@ const OC_ESTATUS_CANON = [
   "Enviada a proveedor",
   "Rechazado",
 ];
+const isAdmin = computed(() => {
+  return ["admin", "Admin", "administrador"].includes(localStorage.getItem("role") || "");
+});
 
+
+const cotizadorLeadFiltroModo = ref("mes");
+const cotizadorLeadFiltroCampo = ref("inicio");
+const cotizadorLeadFiltroMes = ref(defMesActual());
+const cotizadorLeadFiltroAnio = ref(String(new Date().getFullYear()));
+const cotizadorLeadFiltroDia = ref(new Date().toISOString().slice(0, 10));
+const cotizadorLeadSoloCompletadas = ref(false);
+const cotizadorLeadFiltroTipoSolped = ref("");
+
+const cotizadorLeadFiltroModoDraft = ref(cotizadorLeadFiltroModo.value);
+const cotizadorLeadFiltroMesDraft = ref(cotizadorLeadFiltroMes.value);
+const cotizadorLeadFiltroAnioDraft = ref(cotizadorLeadFiltroAnio.value);
+const cotizadorLeadFiltroDiaDraft = ref(cotizadorLeadFiltroDia.value);
+const cotizadorLeadFiltroTipoSolpedDraft = ref(cotizadorLeadFiltroTipoSolped.value);
+
+function aplicarFiltrosCotizadorLead() {
+  cotizadorLeadFiltroModo.value = cotizadorLeadFiltroModoDraft.value || "mes";
+  cotizadorLeadFiltroMes.value = cotizadorLeadFiltroMesDraft.value || defMesActual();
+  cotizadorLeadFiltroAnio.value = String(
+    cotizadorLeadFiltroAnioDraft.value || new Date().getFullYear()
+  );
+  cotizadorLeadFiltroDia.value =
+    cotizadorLeadFiltroDiaDraft.value || new Date().toISOString().slice(0, 10);
+  cotizadorLeadFiltroTipoSolped.value = cotizadorLeadFiltroTipoSolpedDraft.value || "";
+}
+
+function limpiarFiltrosCotizadorLead() {
+  cotizadorLeadFiltroModoDraft.value = "mes";
+  cotizadorLeadFiltroMesDraft.value = defMesActual();
+  cotizadorLeadFiltroAnioDraft.value = String(new Date().getFullYear());
+  cotizadorLeadFiltroDiaDraft.value = new Date().toISOString().slice(0, 10);
+  cotizadorLeadFiltroTipoSolpedDraft.value = "";
+}
+function rangoDeAnio(yyyy) {
+  const y = Number(yyyy);
+  return {
+    start: new Date(y, 0, 1, 0, 0, 0, 0),
+    end: new Date(y + 1, 0, 1, 0, 0, 0, 0),
+  };
+}
+
+function rangoDeDia(yyyyMMdd) {
+  const d = normalizarFecha(yyyyMMdd);
+  return {
+    start: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0),
+    end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0),
+  };
+}
+
+function getCotizadorLeadDateRange() {
+  if (cotizadorLeadFiltroModo.value === "anio") {
+    return rangoDeAnio(cotizadorLeadFiltroAnio.value);
+  }
+
+  if (cotizadorLeadFiltroModo.value === "dia") {
+    return rangoDeDia(cotizadorLeadFiltroDia.value);
+  }
+
+  return rangoDeMes(cotizadorLeadFiltroMes.value);
+}
+
+function fechaValida(d) {
+  return d instanceof Date && !isNaN(d.getTime()) && d.getTime() > 0;
+}
 const isLoading = ref(false);
 const lastError = ref("");
+const isLoadingCotizadorLead = ref(false);
+const cotizadorLeadBaseDocs = ref({
+  solEmpresa: [],
+  solTaller: [],
+});
 const filtrosOpen = ref(false);
 const toggleFiltros = (v) => { filtrosOpen.value = !!v; };
 
@@ -708,7 +848,6 @@ function setSegmento(v) {
     scheduleReload();
   }
 }
-
 const empresasOptions = ["Xtreme Mining","Xtreme Servicio","Xtreme Hormigones","Xtreme Servicios"];
 const empresaSegmento = ref('todas');
 const filtroEmpresa = ref('');
@@ -722,7 +861,9 @@ function setEmpresaSeg(v) {
 let debounceTimer = null;
 function scheduleReload() {
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => { cargarTodo(true); }, 200);
+  debounceTimer = setTimeout(() => {
+    cargarTodo(false);
+  }, 350);
 }
 
 const filtroMes = ref(defMesActual());
@@ -769,15 +910,8 @@ const kpiCards = computed(() => ([
   { t: `Gasto total (mes)`, v: kpis.value.gastoMes, isMoney: true },
 ]));
 
-const kpiCardsExtra = computed(() => ([
-  { t: `Conversión SOLPED→OC (aprox.)`, v: kpisExtra.value.conversionPct, isPct: true, s: 'Match por número SOLPED' },
-  { t: `Lead time (prom)`, v: kpisExtra.value.leadtimePromDias, isDays: true, s: 'Desde subida hasta aprobación' },
-  { t: `Rechazo OC (mes)`, v: kpisExtra.value.rechazoPct, isPct: true, s: 'OC rechazadas / total' },
-  { t: `Comentarios (taller)`, v: kpisExtra.value.comentariosTallerMes, s: 'Solo Taller/General' },
-]));
 const topHoy = ref([]);
 
-const ocTipoAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
 const ocTipoSolpedAggPayload = ref({ labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 });
 const ocStatusByUserPayload = ref({ users: [], rows: [], datasets: [] });
 
@@ -786,41 +920,18 @@ watch(editorDirigidoASelect, (v) => {
   try { localStorage.setItem("xt_dash_editor_dirigidoA", v || ""); } catch(e) {console.log(e)}
 });
 
-const editorContratosAggPayload = ref({
+const topAprobadoresRows = ref([]);
+const topCreadoresRows = ref([]);
+const gastoContratoRows = ref([]);
+const conteoContratoRows = ref([]);
+
+const editorContratosAgg = ref({
   editors: [],
   topAll: [],
   perEditorTop: {},
   totals: { totalSolpes: 0, uniqueContratos: 0 },
 });
 
-const editorContratosRows = computed(() => {
-  const p = editorContratosAggPayload.value || {};
-  if (!editorDirigidoASelect.value) return p.topAll || [];
-  return (p.perEditorTop && p.perEditorTop[editorDirigidoASelect.value]) ? p.perEditorTop[editorDirigidoASelect.value] : [];
-});
-
-const editorContratosTotals = computed(() => {
-  return editorContratosAggPayload.value?.totals || { totalSolpes: 0, uniqueContratos: 0 };
-});
-const cTopCreadores = ref(null);
-const cTopOC = ref(null);
-const cGastoContratoH = ref(null);
-const cEstatusPie = ref(null);
-const cGastoLine = ref(null);
-const cTipoSolpedPie = ref(null);
-const cTopAprobadores = ref(null);
-const cMonedaPie = ref(null);
-const cConteoContratoH = ref(null);
-const cSolpedPendH = ref(null);
-const cSolpedPendAll = ref(null);
-const cVsAprobadasSubidas = ref(null);
-
-const cOcTipoCountPie = ref(null);
-const cOcTipoMontoPie = ref(null);
-const cOcTipoSolpedCountPie = ref(null);
-const cOcTipoSolpedMontoPie = ref(null);
-
-const cOcStatusByUser = ref(null);
 
 function fmtFechaSolo(v) {
   const d = normalizarFecha(v);
@@ -911,18 +1022,6 @@ function toggleCotizadorDetalle(nombre) {
     if (!(nombre in cotizadorDetalleFiltros.value)) cotizadorDetalleFiltros.value[nombre] = "";
   }
 }
-let charts = {
-  topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
-  tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
-  solpedPend: null, solpedPendAll: null, vsEditors: null,
-
-  ocTipoCountPie: null,
-  ocTipoMontoPie: null,
-  ocTipoSolpedCountPie: null,
-  ocTipoSolpedMontoPie: null,
-
-  ocStatusByUser: null,
-};
 
 let _lastPayloadKey = "";
 let _lastPayloadJSON = "";
@@ -932,8 +1031,8 @@ const fechaHoyLegible = computed(() => {
   return d.toLocaleDateString("es-CL", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 });
 
-onMounted(async () => { await cargarTodo(); window.addEventListener('resize', _onResize); });
-onBeforeUnmount(() => { destroyAll(); window.removeEventListener('resize', _onResize); });
+onMounted(async () => { await cargarTodo(); });
+onBeforeUnmount(() => { destroyAll();  });
 
 watch(
   [
@@ -943,9 +1042,18 @@ watch(
   () => { scheduleReload(); }
 );
 
-function onFiltroChange() {}
-function refrescar() { cargarTodo(true); }
-function _onResize(){}
+function onFiltroChange() {
+  scheduleReload();
+}
+function refrescar() {
+  const key = cacheKey();
+  const dKey = datasetKey();
+
+  try { sessionStorage.removeItem(key); } catch(e) {console.log(e)}
+  memCache.delete(dKey);
+
+  cargarTodo(true);
+}
 
 function limpiarFiltros() {
   empresaSegmento.value = 'todas';
@@ -957,6 +1065,7 @@ function limpiarFiltros() {
   filtroMonedaOC.value = "";
   filtroResponsableOC.value = "";
   filtroEstatusOC.value = "";
+  editorDirigidoASelect.value = "";
   onFiltroChange();
 }
 
@@ -994,9 +1103,29 @@ function formatearCLP(v) {
 }
 
 const CACHE_TTL_MS = 2 * 60 * 1000;
+
+const memCache = new Map();
+
+function getMemCache(key) {
+  const hit = memCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.t > CACHE_TTL_MS) {
+    memCache.delete(key);
+    return null;
+  }
+  return hit.payload;
+}
+
+function setMemCache(key, payload) {
+  memCache.set(key, {
+    t: Date.now(),
+    payload,
+  });
+}
+
 function cacheKey() {
   return [
-    "dashV13",
+    "dashV15",
     segmento.value,
     filtroMes.value || "_",
     empresaSegmento.value || "_",
@@ -1007,8 +1136,196 @@ function cacheKey() {
     filtroTipoSolped.value || "_",
     filtroMonedaOC.value || "_",
     filtroResponsableOC.value || "_",
-    filtroEstatusOC.value || "_"
+    filtroEstatusOC.value || "_",
   ].join("|");
+}
+
+function datasetKey() {
+  return [
+    "dashDatasetV2",
+    segmento.value,
+    filtroMes.value || "_",
+    empresaSegmento.value || "_",
+    filtroEmpresa.value || "_",
+    filtroContratoSel.value || "_",
+    filtroCentroCostoSel.value || "_",
+  ].join("|");
+}
+function mapDocs(snap) {
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+function getMonthRangeStrings(yyyymm) {
+  const safe = yyyymm || defMesActual();
+  const y = Number(safe.slice(0, 4));
+  const m = Number(safe.slice(5));
+  const d = new Date(y, m, 1);
+
+  return {
+    startStr: `${safe}-01`,
+    endStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`,
+  };
+}
+
+function filtrarBaseCotizadorLeadDocs(solEmpresaFuenteLead = [], solTallerFuenteLead = []) {
+  const solEmpresaFiltradasLead = (solEmpresaFuenteLead || []).filter((s) => {
+    if (filtroEmpresa.value) {
+      const emp = String(s.empresa || s.empresas || "");
+      if (
+        isExactEmpresa.value
+          ? emp !== filtroEmpresa.value
+          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))
+      ) {
+        return false;
+      }
+    }
+
+    if (
+      filtroEstatusSolped.value &&
+      _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)
+    ) {
+      return false;
+    }
+
+    if (
+      filtroTipoSolped.value &&
+      _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)
+    ) {
+      return false;
+    }
+
+    if (
+      filtroContratoSel.value &&
+      String(s.numero_contrato || s.numeroContrato || "") !== filtroContratoSel.value
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const solTallerFiltradasLead = (solTallerFuenteLead || []).filter((s) => {
+    if (
+      filtroEstatusSolped.value &&
+      _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)
+    ) {
+      return false;
+    }
+
+    if (
+      filtroTipoSolped.value &&
+      _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)
+    ) {
+      return false;
+    }
+
+    if (
+      filtroCentroCostoSel.value &&
+      String(s.centro_costo || s.centroCosto || "") !== filtroCentroCostoSel.value
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return {
+    solEmpresaFiltradasLead,
+    solTallerFiltradasLead,
+  };
+}
+
+async function cargarDocsBaseCotizadorLead() {
+  const usarMes = cotizadorLeadFiltroModo.value === "mes";
+  let solEmpresaFuenteLead = [];
+  let solTallerFuenteLead = [];
+
+  if (segmento.value === "empresa" || segmento.value === "general") {
+    if (usarMes) {
+      const { startStr, endStr } = getMonthRangeStrings(cotizadorLeadFiltroMes.value);
+
+      const snap = await getDocs(
+        query(
+          collection(db, "solpes"),
+          where("fecha", ">=", startStr),
+          where("fecha", "<", endStr),
+          orderBy("fecha", "asc")
+        )
+      );
+
+      solEmpresaFuenteLead = mapDocs(snap);
+    } else {
+      const snap = await getDocs(
+        query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(1200))
+      );
+
+      solEmpresaFuenteLead = mapDocs(snap);
+    }
+  }
+
+  if (segmento.value === "taller" || segmento.value === "general") {
+    if (usarMes) {
+      const { startStr, endStr } = getMonthRangeStrings(cotizadorLeadFiltroMes.value);
+
+      const snap = await getDocs(
+        query(
+          collection(db, "solped_taller"),
+          where("fecha", ">=", startStr),
+          where("fecha", "<", endStr),
+          orderBy("fecha", "asc")
+        )
+      );
+
+      solTallerFuenteLead = mapDocs(snap);
+    } else {
+      const snap = await getDocs(
+        query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(1200))
+      );
+
+      solTallerFuenteLead = mapDocs(snap);
+    }
+  }
+
+  return {
+    solEmpresaFuenteLead,
+    solTallerFuenteLead,
+  };
+}
+
+async function refrescarCotizadorLeadCard() {
+  isLoadingCotizadorLead.value = true;
+
+  try {
+    aplicarFiltrosCotizadorLead();
+
+    const { solEmpresaFuenteLead, solTallerFuenteLead } =
+      await cargarDocsBaseCotizadorLead();
+
+    const { solEmpresaFiltradasLead, solTallerFiltradasLead } =
+      filtrarBaseCotizadorLeadDocs(solEmpresaFuenteLead, solTallerFuenteLead);
+
+    cotizadorLeadBaseDocs.value = {
+      solEmpresa: solEmpresaFiltradasLead || [],
+      solTaller: solTallerFiltradasLead || [],
+    };
+
+    recalcularCotizadorLeadSolo();
+  } catch (err) {
+    console.error(err);
+    lastError.value =
+      err && err.message
+        ? err.message
+        : "No se pudo refrescar la card de cotizadores.";
+    isLoadingCotizadorLead.value = false;
+  }
+}
+function needsWideData() {
+  return (
+    segmento.value === "general" ||
+    cotizadorLeadFiltroModo.value === "anio" ||
+    cotizadorLeadFiltroModo.value === "dia" ||
+    cotizadorLeadFiltroCampo.value === "fin" ||
+    cotizadorLeadSoloCompletadas.value
+  );
 }
 function getCache() {
   try {
@@ -1194,7 +1511,7 @@ function fechaFinSolped(sol) {
   if (esCotizadoCompletado(sol.estatus || sol.estado || "")) {
     return normalizarFecha(sol.updated_at || sol.updatedAt || sol.fechaActualizacion);
   }
-  return new Date();
+  return null;
 }
 
 function diasEntreFechas(inicio, fin) {
@@ -1224,27 +1541,66 @@ function cotizadoresDeSolped(sol, origen = "empresa") {
   const arr = Array.isArray(sol.dirigidoA) ? sol.dirigidoA : [];
   return arr.map(x => String(x || "").trim()).filter(Boolean);
 }
-
 function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
   const map = new Map();
   const ahora = new Date();
+  const missingDates = [];
+
+  const { start: filtroStart, end: filtroEnd } = getCotizadorLeadDateRange();
 
   const pushSol = (sol, origen) => {
     const estatusRaw = sol.estatus || sol.estado || "";
     if (esSolpedRechazada(estatusRaw)) return;
 
+    const tipoSolpedActual = String(sol.tipo_solped || "").trim();
+    if (
+      cotizadorLeadFiltroTipoSolped.value &&
+      _normTxt(tipoSolpedActual) !== _normTxt(cotizadorLeadFiltroTipoSolped.value)
+    ) {
+      return;
+    }
+
     const cotizadores = cotizadoresDeSolped(sol, origen);
     if (!cotizadores.length) return;
 
     const completo = esCotizadoCompletado(estatusRaw);
-
     const inicio = fechaInicioSolped(sol, origen);
-    const fin = completo ? fechaFinSolped(sol) : ahora;
+    const finReal = completo ? fechaFinSolped(sol) : null;
 
-    if (!(inicio instanceof Date) || isNaN(inicio.getTime())) return;
-    if (!(fin instanceof Date) || isNaN(fin.getTime())) return;
+    const tieneInicio = fechaValida(inicio);
+    const tieneFin = !completo || fechaValida(finReal);
 
-    const dias = diasEntreFechas(inicio, fin);
+    if (!tieneInicio || !tieneFin) {
+      missingDates.push({
+        id: sol.id || "",
+        numero_solpe: numeroSolpedOf(sol),
+        nombre_solped: nombreSolpedOf(sol),
+        estatus: String(estatusRaw || "—"),
+        origen,
+        cotizador: cotizadores.join(", ") || "—",
+        fechaInicio: tieneInicio ? inicio : null,
+        fechaFin: tieneFin ? finReal : null,
+        enCurso: !completo,
+        missingType: !tieneInicio && !tieneFin
+          ? "Inicio y fin"
+          : (!tieneInicio ? "Inicio" : "Fin"),
+      });
+    }
+
+    if (!tieneInicio) return;
+    if (completo && !tieneFin) return;
+
+    const fechaFiltro = cotizadorLeadFiltroCampo.value === "fin"
+      ? (completo ? finReal : null)
+      : inicio;
+
+    if (!fechaValida(fechaFiltro)) return;
+    if (!(fechaFiltro >= filtroStart && fechaFiltro < filtroEnd)) return;
+
+    if (cotizadorLeadSoloCompletadas.value && !completo) return;
+
+    const finCalculo = completo ? finReal : ahora;
+    const dias = diasEntreFechas(inicio, finCalculo);
     const peso = pesoSolped(sol);
 
     const detalle = {
@@ -1256,7 +1612,7 @@ function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
       dias,
       peso,
       fechaInicio: inicio,
-      fechaFin: completo ? fin : null,
+      fechaFin: completo ? finReal : null,
       enCurso: !completo,
       empresa: sol.empresa || "",
       contrato: sol.numero_contrato || sol.centro_costo || "",
@@ -1269,6 +1625,10 @@ function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
           cotizador: cot,
           totalPeso: 0,
           totalDiasXPeso: 0,
+          totalDiasInicio: 0,
+          totalDiasFin: 0,
+          countInicio: 0,
+          countFin: 0,
           completadas: 0,
           enProceso: 0,
           total: 0,
@@ -1280,9 +1640,16 @@ function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
       row.totalPeso += peso;
       row.totalDiasXPeso += dias * peso;
       row.total += 1;
+      row.totalDiasInicio += dias;
+      row.countInicio += 1;
 
-      if (completo) row.completadas += 1;
-      else row.enProceso += 1;
+      if (completo) {
+        row.completadas += 1;
+        row.totalDiasFin += dias;
+        row.countFin += 1;
+      } else {
+        row.enProceso += 1;
+      }
 
       row.detalle.push(detalle);
     }
@@ -1295,12 +1662,12 @@ function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
     .map(r => ({
       ...r,
       promedioDiasPonderado: r.totalPeso ? (r.totalDiasXPeso / r.totalPeso) : 0,
+      promedioInicio: r.countInicio ? (r.totalDiasInicio / r.countInicio) : 0,
+      promedioFin: r.countFin ? (r.totalDiasFin / r.countFin) : 0,
       detalle: [...(r.detalle || [])].sort((a, b) => {
         const na = Number(a.numero_solpe || 0);
         const nb = Number(b.numero_solpe || 0);
-
         if (nb !== na) return nb - na;
-
         const fa = normalizarFecha(a.fechaInicio).getTime();
         const fb = normalizarFecha(b.fechaInicio).getTime();
         return fb - fa;
@@ -1308,7 +1675,64 @@ function buildCotizadorLeadAgg(solEmpresa = [], solTaller = []) {
     }))
     .sort((a, b) => b.promedioDiasPonderado - a.promedioDiasPonderado);
 
-  return { rows };
+  missingDates.sort((a, b) => {
+    const na = Number(b.numero_solpe || 0) - Number(a.numero_solpe || 0);
+    if (na !== 0) return na;
+    return String(a.cotizador || "").localeCompare(String(b.cotizador || ""), "es");
+  });
+
+  return {
+    labels: rows.map(r => r.cotizador),
+    dataInicio: rows.map(r => Number(r.promedioInicio.toFixed(1))),
+    dataFin: rows.map(r => Number(r.promedioFin.toFixed(1))),
+    rows,
+    missingDates,
+  };
+}
+function recalcularCotizadorLeadSolo() {
+  isLoadingCotizadorLead.value = true;
+
+  try {
+    const agg = buildCotizadorLeadAgg(
+      cotizadorLeadBaseDocs.value.solEmpresa || [],
+      cotizadorLeadBaseDocs.value.solTaller || []
+    );
+
+    cotizadorLeadPayload.value = {
+      labels: agg.labels || [],
+      dataInicio: agg.dataInicio || [],
+      dataFin: agg.dataFin || [],
+      rows: agg.rows || [],
+      missingDates: agg.missingDates || [],
+    };
+
+    nextTick(() => {
+      try {
+      renderOrUpdateBarChart(chartCotizadorLead, cotizadorLeadCanvas, {
+        labels: [...(cotizadorLeadPayload.value.labels || [])],
+        datasets: [
+          {
+            label: "Prom. inicio",
+            data: [...(cotizadorLeadPayload.value.dataInicio || [])],
+            borderWidth: 1,
+            maxBarThickness: 26,
+          },
+          {
+            label: "Prom. fin",
+            data: [...(cotizadorLeadPayload.value.dataFin || [])],
+            borderWidth: 1,
+            maxBarThickness: 26,
+          },
+        ],
+      });
+      } finally {
+        isLoadingCotizadorLead.value = false;
+      }
+    });
+  } catch (e) {
+    console.warn("No se pudo recalcular la card de cotizador", e);
+    isLoadingCotizadorLead.value = false;
+  }
 }
 const CATALOG_TTL_MS = 12 * 60 * 60 * 1000;
 function catKey() { return `dashCatV2:${segmento.value}`; }
@@ -1344,19 +1768,19 @@ async function cargarCatalogosRapidos() {
     const sample = [];
 
     if (segmento.value === 'empresa') {
-      const snap = await getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(1200)));
+      const snap = await getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(900)));
       snap.forEach(d => sample.push(d.data() || {}));
       contratosOptions.value = uniqSorted(sample.map(x => x.numero_contrato || x.numeroContrato || ''));
       centroCostoOptions.value = uniqSorted(sample.map(x => x.nombre_centro_costo || x.centroCostoNombre || ''));
     } else if (segmento.value === 'taller') {
-      const snap = await getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(1200)));
+      const snap = await getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(900)));
       snap.forEach(d => sample.push(d.data() || {}));
       contratosOptions.value = [];
       centroCostoOptions.value = uniqSorted(sample.map(x => x.centro_costo || x.centroCosto || x.centroCostoNombre || ''));
     } else {
       const [a, b] = await Promise.allSettled([
-        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(900))),
-        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(900))),
+        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(500))),
+        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(500))),
       ]);
       if (a.status === "fulfilled") a.value.forEach(d => sample.push(d.data() || {}));
       if (b.status === "fulfilled") b.value.forEach(d => sample.push(d.data() || {}));
@@ -1463,17 +1887,41 @@ function buildEditorContratosAgg(solList, editorsArr) {
 
 const vsEditorsPayload = ref({ labels: [], aprobadas: [], subidas: [] });
 
-function chunkArray(arr, size=10) {
-  const out = [];
-  for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
-  return out;
-}
+const topCreadoresCanvas = ref(null);
+const topOCCanvas = ref(null);
+const gastoContratoCanvas = ref(null);
+const conteoContratoCanvas = ref(null);
+const distEstatusCanvas = ref(null);
+const distTipoSolpedCanvas = ref(null);
+const topAprobadoresCanvas = ref(null);
+const pendMesCanvas = ref(null);
+const vsEditorsCanvas = ref(null);
+const ocTipoSolpedCanvas = ref(null);
+const ocStatusByUserCanvas = ref(null);
+const cotizadorLeadCanvas = ref(null);
 
-async function cargarTodo(force=false) {
+const chartTopCreadores = ref(null);
+const chartTopOC = ref(null);
+const chartGastoContrato = ref(null);
+const chartConteoContrato = ref(null);
+const chartDistEstatus = ref(null);
+const chartDistTipoSolped = ref(null);
+const chartSerieGasto = ref(null);
+const chartTopAprobadores = ref(null);
+const chartPendMes = ref(null);
+const chartPendAll = ref(null);
+const chartVsEditors = ref(null);
+const chartOcTipo = ref(null);
+const chartOcTipoSolped = ref(null);
+const chartOcStatusByUser = ref(null);
+const chartDistMoneda = ref(null);
+const chartCotizadorLead = ref(null);
+
+async function cargarTodo(force = false) {
   isLoading.value = true;
   lastError.value = "";
 
-  cargarCatalogosRapidos().catch(()=>{});
+  cargarCatalogosRapidos().catch(() => {});
 
   if (!force) {
     const hit = getCache();
@@ -1484,13 +1932,16 @@ async function cargarTodo(force=false) {
     }
   }
 
+  const dKey = datasetKey();
+  const memHit = !force ? getMemCache(dKey) : null;
+
   const { start, end } = rangoDeMes(filtroMes.value);
   const startStr = `${filtroMes.value}-01`;
   const endStr = (() => {
-    const y = Number(filtroMes.value.slice(0,4));
+    const y = Number(filtroMes.value.slice(0, 4));
     const m = Number(filtroMes.value.slice(5));
     const d = new Date(y, m, 1);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   })();
 
   try {
@@ -1503,256 +1954,295 @@ async function cargarTodo(force=false) {
     let solAllEmpresaWide = [];
     let solAllTallerWide = [];
 
-    if (segmento.value === 'empresa') {
-      const solQ = query(
-        collection(db, "solpes"),
-        where("fecha", ">=", startStr),
-        where("fecha", "<", endStr),
-        orderBy("fecha", "asc")
-      );
+    if (segmento.value === "empresa") {
+      if (memHit?.empresa) {
+        solDocsMes = memHit.empresa.solDocsMes || [];
+        ocDocsMes = memHit.empresa.ocDocsMes || [];
+        solAllForPend = memHit.empresa.solAllForPend || [];
+        solAllEmpresaWide = memHit.empresa.solAllEmpresaWide || [];
+      } else {
+        const solQ = query(
+          collection(db, "solpes"),
+          where("fecha", ">=", startStr),
+          where("fecha", "<", endStr),
+          orderBy("fecha", "asc")
+        );
 
-      const ocQ = query(
-        collection(db, "ordenes_oc"),
-        where("fechaSubida", ">=", start),
-        where("fechaSubida", "<", end),
-        orderBy("fechaSubida", "asc")
-      );
+        const ocQ = query(
+          collection(db, "ordenes_oc"),
+          where("fechaSubida", ">=", start),
+          where("fechaSubida", "<", end),
+          orderBy("fechaSubida", "asc")
+        );
 
-      const [solSnap, ocSnap, solPendSnap, solWideSnap] = await Promise.allSettled([
-        getDocs(solQ),
-        getDocs(ocQ),
-        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(2500))),
-        getDocs(query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(4000))),
-      ]);
+        const promises = [
+          getDocs(solQ),
+          getDocs(ocQ),
+          getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(600))),
+        ];
 
-      solDocsMes = solSnap.status === "fulfilled"
-        ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        if (needsWideData()) {
+          promises.push(
+            getDocs(query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(1200)))
+          );
+        }
 
-      ocDocsMes = ocSnap.status === "fulfilled"
-        ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        const results = await Promise.allSettled(promises);
 
-      solAllForPend = solPendSnap.status === "fulfilled"
-        ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        solDocsMes = results[0].status === "fulfilled" ? mapDocs(results[0].value) : [];
+        ocDocsMes = results[1].status === "fulfilled" ? mapDocs(results[1].value) : [];
+        solAllForPend = results[2]?.status === "fulfilled" ? mapDocs(results[2].value) : [];
+        solAllEmpresaWide = results[3]?.status === "fulfilled" ? mapDocs(results[3].value) : [];
 
-      solAllEmpresaWide = solWideSnap.status === "fulfilled"
-        ? solWideSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        setMemCache(dKey, {
+          empresa: {
+            solDocsMes,
+            ocDocsMes,
+            solAllForPend,
+            solAllEmpresaWide,
+          },
+        });
+      }
     }
 
-    if (segmento.value === 'taller') {
-      const solQ = query(
-        collection(db, "solped_taller"),
-        where("fecha", ">=", startStr),
-        where("fecha", "<", endStr),
-        orderBy("fecha", "asc")
-      );
+    if (segmento.value === "taller") {
+      if (memHit?.taller) {
+        solDocsMesTaller = memHit.taller.solDocsMesTaller || [];
+        ocDocsMesTaller = memHit.taller.ocDocsMesTaller || [];
+        solAllForPend = memHit.taller.solAllForPend || [];
+        solAllTallerWide = memHit.taller.solAllTallerWide || [];
+      } else {
+        const solQ = query(
+          collection(db, "solped_taller"),
+          where("fecha", ">=", startStr),
+          where("fecha", "<", endStr),
+          orderBy("fecha", "asc")
+        );
 
-      const ocQ = query(
-        collection(db, "ordenes_oc_taller"),
-        where("fechaSubida", ">=", start),
-        where("fechaSubida", "<", end),
-        orderBy("fechaSubida", "asc")
-      );
+        const ocQ = query(
+          collection(db, "ordenes_oc_taller"),
+          where("fechaSubida", ">=", start),
+          where("fechaSubida", "<", end),
+          orderBy("fechaSubida", "asc")
+        );
 
-      const [solSnap, ocSnap, solPendSnap, solWideSnap] = await Promise.allSettled([
-        getDocs(solQ),
-        getDocs(ocQ),
-        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(2500))),
-        getDocs(query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(4000))),
-      ]);
+        const promises = [
+          getDocs(solQ),
+          getDocs(ocQ),
+          getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(600))),
+        ];
 
-      solDocsMesTaller = solSnap.status === "fulfilled"
-        ? solSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        if (needsWideData()) {
+          promises.push(
+            getDocs(query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(1200)))
+          );
+        }
 
-      ocDocsMesTaller = ocSnap.status === "fulfilled"
-        ? ocSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        const results = await Promise.allSettled(promises);
 
-      solAllForPend = solPendSnap.status === "fulfilled"
-        ? solPendSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        solDocsMesTaller = results[0].status === "fulfilled" ? mapDocs(results[0].value) : [];
+        ocDocsMesTaller = results[1].status === "fulfilled" ? mapDocs(results[1].value) : [];
+        solAllForPend = results[2]?.status === "fulfilled" ? mapDocs(results[2].value) : [];
+        solAllTallerWide = results[3]?.status === "fulfilled" ? mapDocs(results[3].value) : [];
 
-      solAllTallerWide = solWideSnap.status === "fulfilled"
-        ? solWideSnap.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        setMemCache(dKey, {
+          taller: {
+            solDocsMesTaller,
+            ocDocsMesTaller,
+            solAllForPend,
+            solAllTallerWide,
+          },
+        });
+      }
     }
 
-    if (segmento.value === 'general') {
-      const solEmpQ = query(
-        collection(db, "solpes"),
-        where("fecha", ">=", startStr),
-        where("fecha", "<", endStr),
-        orderBy("fecha", "asc")
-      );
+    if (segmento.value === "general") {
+      if (memHit?.general) {
+        solDocsMes = memHit.general.solDocsMes || [];
+        solDocsMesTaller = memHit.general.solDocsMesTaller || [];
+        ocDocsMes = memHit.general.ocDocsMes || [];
+        ocDocsMesTaller = memHit.general.ocDocsMesTaller || [];
+        solAllForPend = memHit.general.solAllForPend || [];
+        solAllEmpresaWide = memHit.general.solAllEmpresaWide || [];
+        solAllTallerWide = memHit.general.solAllTallerWide || [];
+      } else {
+        const solEmpQ = query(
+          collection(db, "solpes"),
+          where("fecha", ">=", startStr),
+          where("fecha", "<", endStr),
+          orderBy("fecha", "asc")
+        );
 
-      const solTalQ = query(
-        collection(db, "solped_taller"),
-        where("fecha", ">=", startStr),
-        where("fecha", "<", endStr),
-        orderBy("fecha", "asc")
-      );
+        const solTalQ = query(
+          collection(db, "solped_taller"),
+          where("fecha", ">=", startStr),
+          where("fecha", "<", endStr),
+          orderBy("fecha", "asc")
+        );
 
-      const ocEmpQ = query(
-        collection(db, "ordenes_oc"),
-        where("fechaSubida", ">=", start),
-        where("fechaSubida", "<", end),
-        orderBy("fechaSubida", "asc")
-      );
+        const ocEmpQ = query(
+          collection(db, "ordenes_oc"),
+          where("fechaSubida", ">=", start),
+          where("fechaSubida", "<", end),
+          orderBy("fechaSubida", "asc")
+        );
 
-      const ocTalQ = query(
-        collection(db, "ordenes_oc_taller"),
-        where("fechaSubida", ">=", start),
-        where("fechaSubida", "<", end),
-        orderBy("fechaSubida", "asc")
-      );
+        const ocTalQ = query(
+          collection(db, "ordenes_oc_taller"),
+          where("fechaSubida", ">=", start),
+          where("fechaSubida", "<", end),
+          orderBy("fechaSubida", "asc")
+        );
 
-      const [solEmp, solTal, ocEmp, ocTal, pendEmp, pendTal, wideEmp, wideTal] = await Promise.allSettled([
-        getDocs(solEmpQ),
-        getDocs(solTalQ),
-        getDocs(ocEmpQ),
-        getDocs(ocTalQ),
-        getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(2500))),
-        getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(2500))),
-        getDocs(query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(4000))),
-        getDocs(query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(4000))),
-      ]);
+        const promises = [
+          getDocs(solEmpQ),
+          getDocs(solTalQ),
+          getDocs(ocEmpQ),
+          getDocs(ocTalQ),
+          getDocs(query(collection(db, "solpes"), orderBy("fecha", "desc"), limit(400))),
+          getDocs(query(collection(db, "solped_taller"), orderBy("fecha", "desc"), limit(400))),
+        ];
 
-      solDocsMes = solEmp.status === "fulfilled"
-        ? solEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        if (needsWideData()) {
+          promises.push(
+            getDocs(query(collection(db, "solpes"), orderBy("createdAt", "desc"), limit(800))),
+            getDocs(query(collection(db, "solped_taller"), orderBy("creado_en", "desc"), limit(800)))
+          );
+        }
 
-      solDocsMesTaller = solTal.status === "fulfilled"
-        ? solTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        const results = await Promise.allSettled(promises);
 
-      ocDocsMes = ocEmp.status === "fulfilled"
-        ? ocEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        solDocsMes = results[0].status === "fulfilled" ? mapDocs(results[0].value) : [];
+        solDocsMesTaller = results[1].status === "fulfilled" ? mapDocs(results[1].value) : [];
+        ocDocsMes = results[2].status === "fulfilled" ? mapDocs(results[2].value) : [];
+        ocDocsMesTaller = results[3].status === "fulfilled" ? mapDocs(results[3].value) : [];
 
-      ocDocsMesTaller = ocTal.status === "fulfilled"
-        ? ocTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        const pendA = results[4]?.status === "fulfilled" ? mapDocs(results[4].value) : [];
+        const pendB = results[5]?.status === "fulfilled" ? mapDocs(results[5].value) : [];
+        solAllForPend = [...pendA, ...pendB];
 
-      const pendA = pendEmp.status === "fulfilled"
-        ? pendEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        solAllEmpresaWide = results[6]?.status === "fulfilled" ? mapDocs(results[6].value) : [];
+        solAllTallerWide = results[7]?.status === "fulfilled" ? mapDocs(results[7].value) : [];
 
-      const pendB = pendTal.status === "fulfilled"
-        ? pendTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
-
-      solAllForPend = [...pendA, ...pendB];
-
-      solAllEmpresaWide = wideEmp.status === "fulfilled"
-        ? wideEmp.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
-
-      solAllTallerWide = wideTal.status === "fulfilled"
-        ? wideTal.value.docs.map(d => ({ id:d.id, ...d.data() }))
-        : [];
+        setMemCache(dKey, {
+          general: {
+            solDocsMes,
+            solDocsMesTaller,
+            ocDocsMes,
+            ocDocsMesTaller,
+            solAllForPend,
+            solAllEmpresaWide,
+            solAllTallerWide,
+          },
+        });
+      }
     }
 
-    const baseSolMes = (segmento.value === "empresa") ? solDocsMes
-                    : (segmento.value === "taller")  ? solDocsMesTaller
-                    : [...solDocsMes, ...solDocsMesTaller];
+    const baseSolMes =
+      segmento.value === "empresa"
+        ? solDocsMes
+        : segmento.value === "taller"
+          ? solDocsMesTaller
+          : [...solDocsMes, ...solDocsMesTaller];
 
-    const baseOCMes = (segmento.value === "empresa") ? ocDocsMes
-                  : (segmento.value === "taller")  ? ocDocsMesTaller
-                  : [...ocDocsMes, ...ocDocsMesTaller];
+    const baseOCMes =
+      segmento.value === "empresa"
+        ? ocDocsMes
+        : segmento.value === "taller"
+          ? ocDocsMesTaller
+          : [...ocDocsMes, ...ocDocsMesTaller];
 
-    monedaOptions.value = uniqSorted(baseOCMes.map(o => (o.moneda || 'CLP').toString().toUpperCase()));
-    responsableOptions.value = uniqSorted(baseOCMes.map(o => (o.responsable || '—').toString()));
+    monedaOptions.value = uniqSorted(
+      baseOCMes.map((o) => (o.moneda || "CLP").toString().toUpperCase())
+    );
+    responsableOptions.value = uniqSorted(
+      baseOCMes.map((o) => (o.responsable || "—").toString())
+    );
 
-    const solMes = baseSolMes.filter(x => {
+    const solMes = baseSolMes.filter((x) => {
       const f = x.fechaSubida || x.creado_en || x.fecha || x.createdAt;
       if (!isInRange(f, start, end)) return false;
 
-      if (segmento.value === 'empresa' && filtroEmpresa.value) {
-        const emp = String(x.empresa || x.empresas || '');
-        if (isExactEmpresa.value
-          ? (emp !== filtroEmpresa.value)
-          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+      if (segmento.value === "empresa" && filtroEmpresa.value) {
+        const emp = String(x.empresa || x.empresas || "");
+        if (
+          isExactEmpresa.value
+            ? emp !== filtroEmpresa.value
+            : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))
+        ) return false;
       }
 
-      if (segmento.value === 'empresa') {
-        if (filtroContratoSel.value && String(x.numero_contrato || x.numeroContrato || '') !== filtroContratoSel.value) return false;
-      } else if (segmento.value === 'taller') {
-        if (filtroCentroCostoSel.value && String(x.centro_costo || x.centroCosto || x.centroCostoNombre || '') !== filtroCentroCostoSel.value) return false;
+      if (segmento.value === "empresa") {
+        if (
+          filtroContratoSel.value &&
+          String(x.numero_contrato || x.numeroContrato || "") !== filtroContratoSel.value
+        ) return false;
+      } else if (segmento.value === "taller") {
+        if (
+          filtroCentroCostoSel.value &&
+          String(x.centro_costo || x.centroCosto || x.centroCostoNombre || "") !== filtroCentroCostoSel.value
+        ) return false;
       }
 
-      if (filtroEstatusSolped.value && _normTxt(x.estatus || x.estado || '') !== _normTxt(filtroEstatusSolped.value)) return false;
-      if (filtroTipoSolped.value && _normTxt(x.tipo_solped || '') !== _normTxt(filtroTipoSolped.value)) return false;
+      if (
+        filtroEstatusSolped.value &&
+        _normTxt(x.estatus || x.estado || "") !== _normTxt(filtroEstatusSolped.value)
+      ) return false;
+
+      if (
+        filtroTipoSolped.value &&
+        _normTxt(x.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)
+      ) return false;
 
       return true;
     });
 
     const solpedFiltersActive =
-      ((segmento.value === 'empresa') && (!!filtroEmpresa.value || !!filtroContratoSel.value)) ||
-      ((segmento.value === 'taller') && !!filtroCentroCostoSel.value) ||
+      ((segmento.value === "empresa") && (!!filtroEmpresa.value || !!filtroContratoSel.value)) ||
+      ((segmento.value === "taller") && !!filtroCentroCostoSel.value) ||
       !!filtroEstatusSolped.value ||
       !!filtroTipoSolped.value;
 
-    const nums = new Set();
-    for (const o of baseOCMes) ocSolpeNums(o).forEach(n => nums.add(n));
-    const numsArr = [...nums];
-
-    const solIndexDocs = [];
-    solIndexDocs.push(...baseSolMes);
-
-    async function fetchByNumero(collName) {
-      if (!numsArr.length) return;
-      const chunks = chunkArray(numsArr, 10);
-      for (const ch of chunks) {
-        try {
-          const snap = await getDocs(query(collection(db, collName), where("numero_solpe", "in", ch)));
-          snap.forEach(d => solIndexDocs.push({ id:d.id, ...d.data() }));
-        } catch (e) {
-          console.warn(`No se pudo fetchByNumero(${collName})`, e);
-          break;
-        }
-      }
-    }
-
-    if (segmento.value === "empresa") {
-      await fetchByNumero("solpes");
-    } else if (segmento.value === "taller") {
-      await fetchByNumero("solped_taller");
-    } else {
-      await Promise.allSettled([
-        fetchByNumero("solpes"),
-        fetchByNumero("solped_taller")
-      ]);
-    }
+    const solIndexDocs = [
+      ...baseSolMes,
+      ...solAllEmpresaWide,
+      ...solAllTallerWide,
+    ];
 
     const solIndexAllByNumero = buildSolIndexByNumero(solIndexDocs);
 
-    const ocFiltradas = baseOCMes.filter(x => {
+    const ocFiltradas = baseOCMes.filter((x) => {
       const f = x.fechaSubida || x.fecha || x.creado_en;
       if (!isInRange(f, start, end)) return false;
 
-      if (segmento.value === 'empresa' && filtroEmpresa.value) {
-        const emp = String(x.empresa || x.empresas || '');
-        if (isExactEmpresa.value
-          ? (emp !== filtroEmpresa.value)
-          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+      if (segmento.value === "empresa" && filtroEmpresa.value) {
+        const emp = String(x.empresa || x.empresas || "");
+        if (
+          isExactEmpresa.value
+            ? emp !== filtroEmpresa.value
+            : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))
+        ) return false;
       }
 
-      const valContrato = (x.numero_contrato || x.numeroContrato || '').toString();
-      const valCC = (x.nombre_centro_costo || x.centroCostoNombre || x.centro_costo || x.centroCosto || x.centroCostoTexto || '').toString();
+      const valContrato = (x.numero_contrato || x.numeroContrato || "").toString();
+      const valCC = (
+        x.nombre_centro_costo ||
+        x.centroCostoNombre ||
+        x.centro_costo ||
+        x.centroCosto ||
+        x.centroCostoTexto ||
+        ""
+      ).toString();
 
-      if (segmento.value === 'empresa') {
+      if (segmento.value === "empresa") {
         if (filtroContratoSel.value && valContrato && valContrato !== filtroContratoSel.value) return false;
-      } else if (segmento.value === 'taller') {
+      } else if (segmento.value === "taller") {
         if (filtroCentroCostoSel.value && valCC && valCC !== filtroCentroCostoSel.value) return false;
       }
 
-      if (filtroEstatusOC.value && _normTxt(x.estatus||'') !== _normTxt(filtroEstatusOC.value)) return false;
-      if (filtroMonedaOC.value && (x.moneda || 'CLP').toString().toUpperCase() !== filtroMonedaOC.value) return false;
-      if (filtroResponsableOC.value && (x.responsable || '—').toString() !== filtroResponsableOC.value) return false;
+      if (filtroEstatusOC.value && _normTxt(x.estatus || "") !== _normTxt(filtroEstatusOC.value)) return false;
+      if (filtroMonedaOC.value && (x.moneda || "CLP").toString().toUpperCase() !== filtroMonedaOC.value) return false;
+      if (filtroResponsableOC.value && (x.responsable || "—").toString() !== filtroResponsableOC.value) return false;
 
       if (solpedFiltersActive) {
         const ns = ocSolpeNums(x);
@@ -1768,7 +2258,7 @@ async function cargarTodo(force=false) {
           if (!ok) return false;
         } else {
           if (filtroTipoSolped.value) {
-            const t = (x.tipo_solped || x.tipoSolped || '').toString();
+            const t = (x.tipo_solped || x.tipoSolped || "").toString();
             if (!t || _normTxt(t) !== _normTxt(filtroTipoSolped.value)) return false;
           }
         }
@@ -1787,17 +2277,17 @@ async function cargarTodo(force=false) {
 
     const setSol = new Set(
       solMes
-        .map(x => Number(x.numero_solpe || x.numeroSolpe || x.numero_solped || x.numeroSolped))
+        .map((x) => Number(x.numero_solpe || x.numeroSolpe || x.numero_solped || x.numeroSolped))
         .filter(Boolean)
     );
 
     const setOcSol = new Set();
-    for (const o of ocFiltradas) ocSolpeNums(o).forEach(n => setOcSol.add(n));
+    for (const o of ocFiltradas) ocSolpeNums(o).forEach((n) => setOcSol.add(n));
 
-    const match = [...setSol].filter(n => setOcSol.has(n)).length;
+    const match = [...setSol].filter((n) => setOcSol.has(n)).length;
     const conversionPct = setSol.size ? (100 * match / setSol.size) : 0;
 
-    const toDays = (ms) => (ms / (1000*60*60*24));
+    const toDays = (ms) => ms / (1000 * 60 * 60 * 24);
     const leadTimes = [];
 
     for (const o of ocFiltradas) {
@@ -1805,7 +2295,7 @@ async function cargarTodo(force=false) {
       let fAprob = o.fechaAprobacion ? normalizarFecha(o.fechaAprobacion) : null;
 
       if (!fAprob && Array.isArray(o.historial)) {
-        const ap = o.historial.find(h => _normTxt(h.estatus||"") === "aprobado");
+        const ap = o.historial.find((h) => _normTxt(h.estatus || "") === "aprobado");
         if (ap?.fecha) fAprob = normalizarFecha(ap.fecha);
       }
 
@@ -1815,14 +2305,14 @@ async function cargarTodo(force=false) {
     }
 
     const leadtimePromDias = leadTimes.length
-      ? (leadTimes.reduce((a,b)=>a+b,0) / leadTimes.length)
+      ? leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length
       : 0;
 
-    const rechazadas = ocFiltradas.filter(o => _normTxt(o.estatus||"") === "rechazado").length;
+    const rechazadas = ocFiltradas.filter((o) => _normTxt(o.estatus || "") === "rechazado").length;
     const rechazoPct = ocFiltradas.length ? (100 * rechazadas / ocFiltradas.length) : 0;
 
     let comentariosTallerMes = 0;
-    if (segmento.value !== 'empresa') {
+    if (segmento.value !== "empresa") {
       for (const s of solMes) {
         if (Array.isArray(s.comentarios)) comentariosTallerMes += s.comentarios.length;
       }
@@ -1833,17 +2323,17 @@ async function cargarTodo(force=false) {
     const contarPor = (arr, getKey) => {
       const m = new Map();
       for (const x of arr) {
-        const k = (getKey(x) || '—').toString().trim();
+        const k = (getKey(x) || "—").toString().trim();
         if (!k) continue;
         m.set(k, (m.get(k) || 0) + 1);
       }
-      return [...m.entries()].sort((a,b) => b[1]-a[1]);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
     };
 
     const contarValores = (list) => {
       const m = new Map();
       for (const k of list) m.set(k, (m.get(k) || 0) + 1);
-      return [...m.entries()].sort((a,b) => b[1]-a[1]);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
     };
 
     const agruparSuma = (arr, getKey, getVal) => {
@@ -1853,55 +2343,74 @@ async function cargarTodo(force=false) {
         const v = Number(getVal(x) || 0);
         m.set(k, (m.get(k) || 0) + v);
       }
-      return [...m.entries()].sort((a,b) => b[1]-a[1]);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
     };
 
     const agruparConteo = (arr, getKey) => {
       const m = {};
       for (const x of arr) {
-        const k = (getKey(x) || '—').toString();
+        const k = (getKey(x) || "—").toString();
         m[k] = (m[k] || 0) + 1;
       }
       return m;
     };
 
     const topCreadores = contarPor(solMes, (x) => {
-      if (segmento.value === 'empresa') return (x.usuario || x.dirigidoA?.[0] || '—');
-      return (x.nombre_solicitante || x.usuario_sesion || x.usuario || x.dirigidoA?.[0] || '—');
+      if (segmento.value === "empresa") return x.usuario || x.dirigidoA?.[0] || "—";
+      return x.nombre_solicitante || x.usuario_sesion || x.usuario || x.dirigidoA?.[0] || "—";
     }).slice(0, 10);
 
     const mapCount = new Map();
     const mapSpend = new Map();
 
     for (const o of ocFiltradas) {
-      const resp = (o.responsable || '—').toString();
+      const resp = (o.responsable || "—").toString();
       mapCount.set(resp, (mapCount.get(resp) || 0) + 1);
       mapSpend.set(resp, (mapSpend.get(resp) || 0) + ocMonto(o));
     }
 
-    const topOCEntries = [...mapCount.entries()].sort((a,b)=> b[1]-a[1]).slice(0, 10);
+    const topOCEntries = [...mapCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
     const topOCLabels = topOCEntries.map(([k]) => k);
-    const topOCValues = topOCEntries.map(([,v]) => v);
+    const topOCValues = topOCEntries.map(([, v]) => v);
     const topOCSpends = topOCEntries.map(([k]) => mapSpend.get(k) || 0);
 
     const gastoContrato = agruparSuma(
       ocFiltradas,
-      (x) => (x.numero_contrato || x.nombre_centro_costo || x.centroCosto || x.centroCostoNombre || x.centro_costo || x.centroCostoTexto || '—').toString(),
+      (x) =>
+        (
+          x.numero_contrato ||
+          x.nombre_centro_costo ||
+          x.centroCosto ||
+          x.centroCostoNombre ||
+          x.centro_costo ||
+          x.centroCostoTexto ||
+          "—"
+        ).toString(),
       (x) => ocMonto(x)
     ).slice(0, 12);
 
     const conteoContrato = contarPor(
       ocFiltradas,
-      (x) => (x.numero_contrato || x.nombre_centro_costo || x.centroCosto || x.centroCostoNombre || x.centro_costo || x.centroCostoTexto || '—').toString()
+      (x) =>
+        (
+          x.numero_contrato ||
+          x.nombre_centro_costo ||
+          x.centroCosto ||
+          x.centroCostoNombre ||
+          x.centro_costo ||
+          x.centroCostoTexto ||
+          "—"
+        ).toString()
     ).slice(0, 12);
 
-    const distEstatus = agruparConteo(solMes, (x) => canonSolpedStatus(x.estatus || x.estado || '—'));
-    const distTipoSolped = agruparConteo(solMes, (x) => (x.tipo_solped || '—').toString());
+    const distEstatus = agruparConteo(solMes, (x) => canonSolpedStatus(x.estatus || x.estado || "—"));
+    const distTipoSolped = agruparConteo(solMes, (x) => (x.tipo_solped || "—").toString());
 
     const bucket = new Map();
     for (const o of ocFiltradas) {
       const fx = normalizarFecha(o.fechaSubida || o.fecha || o.creado_en);
-      const key = fx.toISOString().slice(0,10);
+      if (!fx) continue;
+      const key = fx.toISOString().slice(0, 10);
       bucket.set(key, (bucket.get(key) || 0) + ocMonto(o));
     }
 
@@ -1911,10 +2420,10 @@ async function cargarTodo(force=false) {
       const d = new Date(startD);
 
       while (d < endD) {
-        const k = d.toISOString().slice(0,10);
+        const k = d.toISOString().slice(0, 10);
         labels.push(k);
         values.push(bucket.get(k) || 0);
-        d.setDate(d.getDate()+1);
+        d.setDate(d.getDate() + 1);
       }
 
       return { labels, values };
@@ -1925,31 +2434,31 @@ async function cargarTodo(force=false) {
     const aprobEntries = [];
     for (const o of ocFiltradas) {
       if (Array.isArray(o.historial)) {
-        o.historial.forEach(h => {
-          const es = _normTxt(h.estatus||"");
-          if (es === "aprobado" || es === "preaprobado") aprobEntries.push(h.usuario || '—');
+        o.historial.forEach((h) => {
+          const es = _normTxt(h.estatus || "");
+          if (es === "aprobado" || es === "preaprobado") aprobEntries.push(h.usuario || "—");
         });
       }
     }
 
     const topAprobadores = contarValores(aprobEntries).slice(0, 10);
-    const distMoneda = agruparConteo(ocFiltradas, (x) => (x.moneda || 'CLP').toString().toUpperCase());
+    const distMoneda = agruparConteo(ocFiltradas, (x) => (x.moneda || "CLP").toString().toUpperCase());
 
-    const hoyList = solMes.filter(x => esHoy(x.fecha || x.creado_en || x.fechaSubida));
+    const hoyList = solMes.filter((x) => esHoy(x.fecha || x.creado_en || x.fechaSubida));
     const topHoyArr = contarPor(
-      hoyList.map(x => ({ nombre: (x.usuario || x.nombre_solicitante || x.usuario_sesion || x.dirigidoA?.[0] || '—') })),
-      (r) => (r && r.nombre) || '—'
+      hoyList.map((x) => ({ nombre: x.usuario || x.nombre_solicitante || x.usuario_sesion || x.dirigidoA?.[0] || "—" })),
+      (r) => (r && r.nombre) || "—"
     ).slice(0, 10);
 
     topHoy.value = topHoyArr.map(([nombre, cantidad]) => ({ nombre, cantidad }));
 
-    const pendientesPorDirigidoA = (solList, allowedStatuses = ['pendiente']) => {
+    const pendientesPorDirigidoA = (solList, allowedStatuses = ["pendiente"]) => {
       const allow = new Set(allowedStatuses.map(_normTxt));
-      const soloPermitidos = solList.filter(s => allow.has(_normTxt(s.estatus || s.estado || '')));
+      const soloPermitidos = solList.filter((s) => allow.has(_normTxt(s.estatus || s.estado || "")));
       const m = new Map();
 
       const add = (name) => {
-        const k = String(name || '—').trim();
+        const k = String(name || "—").trim();
         if (!k) return;
         m.set(k, (m.get(k) || 0) + 1);
       };
@@ -1957,44 +2466,44 @@ async function cargarTodo(force=false) {
       for (const s of soloPermitidos) {
         const da = s.dirigidoA;
         if (Array.isArray(da)) da.forEach(add);
-        else if (typeof da === 'string') {
-          const parts = da.split(/[,;|]/).map(v => v.trim()).filter(Boolean);
+        else if (typeof da === "string") {
+          const parts = da.split(/[,;|]/).map((v) => v.trim()).filter(Boolean);
           if (parts.length) parts.forEach(add);
           else add(da);
         }
       }
 
-      return [...m.entries()].sort((a,b)=> b[1]-a[1]);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]);
     };
 
-    const pendEntries = pendientesPorDirigidoA(solMes, ['pendiente']).slice(0, 15);
+    const pendEntries = pendientesPorDirigidoA(solMes, ["pendiente"]).slice(0, 15);
     const pendLabels = pendEntries.map(([k]) => k);
-    const pendValues = pendEntries.map(([,v]) => v);
+    const pendValues = pendEntries.map(([, v]) => v);
 
-    const pendAllEntries = pendientesPorDirigidoA(solAllForPend, ['pendiente']).slice(0, 15);
+    const pendAllEntries = pendientesPorDirigidoA(solAllForPend, ["pendiente"]).slice(0, 15);
     const pendAllLabels = pendAllEntries.map(([k]) => k);
-    const pendAllValues = pendAllEntries.map(([,v]) => v);
+    const pendAllValues = pendAllEntries.map(([, v]) => v);
 
     const aggByKey = (ocs, getKey) => {
       const mCount = new Map();
       const mMonto = new Map();
 
       for (const o of ocs) {
-        const k = String(getKey(o) || '—').trim() || '—';
+        const k = String(getKey(o) || "—").trim() || "—";
         mCount.set(k, (mCount.get(k) || 0) + 1);
         mMonto.set(k, (mMonto.get(k) || 0) + ocMonto(o));
       }
 
-      const labels = [...mCount.keys()].sort((a,b)=>a.localeCompare(b,'es'));
-      const counts = labels.map(l => mCount.get(l) || 0);
-      const montos = labels.map(l => mMonto.get(l) || 0);
+      const labels = [...mCount.keys()].sort((a, b) => a.localeCompare(b, "es"));
+      const counts = labels.map((l) => mCount.get(l) || 0);
+      const montos = labels.map((l) => mMonto.get(l) || 0);
 
       return {
         labels,
         counts,
         montos,
         totalCount: ocs.length,
-        totalMonto: montos.reduce((a,b)=>a+b,0)
+        totalMonto: montos.reduce((a, b) => a + b, 0),
       };
     };
 
@@ -2005,7 +2514,7 @@ async function cargarTodo(force=false) {
     try {
       const usersQ = query(collection(db, "Usuarios"), where("role", "in", ["editor", "Editor"]));
       const usersSnap = await getDocs(usersQ);
-      usersSnap.forEach(d => {
+      usersSnap.forEach((d) => {
         const u = d.data() || {};
         const name = (u.fullName || u.displayName || u.email || "").toString().trim();
         if (name) editorsSet.add(name);
@@ -2018,12 +2527,12 @@ async function cargarTodo(force=false) {
       editors: [],
       topAll: [],
       perEditorTop: {},
-      totals: { totalSolpes: 0, uniqueContratos: 0 }
+      totals: { totalSolpes: 0, uniqueContratos: 0 },
     };
 
     try {
-      const solEmpresaOnly = (solMes || []).filter(s =>
-        (s.numero_contrato || s.numeroContrato || s.nombre_centro_costo || s.nombreCentroCosto)
+      const solEmpresaOnly = (solMes || []).filter(
+        (s) => s.numero_contrato || s.numeroContrato || s.nombre_centro_costo || s.nombreCentroCosto
       );
 
       if (editorsSet.size) {
@@ -2055,12 +2564,12 @@ async function cargarTodo(force=false) {
     }
 
     const entriesVS = [...porResp.entries()]
-      .sort((a,b) => (b[1].aprobadas + b[1].subidas) - (a[1].aprobadas + a[1].subidas))
+      .sort((a, b) => (b[1].aprobadas + b[1].subidas) - (a[1].aprobadas + a[1].subidas))
       .slice(0, 20);
 
     const vsLabels = entriesVS.map(([k]) => k);
-    const vsAprobadas = entriesVS.map(([,v]) => v.aprobadas);
-    const vsSubidas = entriesVS.map(([,v]) => v.subidas);
+    const vsAprobadas = entriesVS.map(([, v]) => v.aprobadas);
+    const vsSubidas = entriesVS.map(([, v]) => v.subidas);
 
     const perUser = new Map();
     const perUserTotal = new Map();
@@ -2077,13 +2586,13 @@ async function cargarTodo(force=false) {
     }
 
     const usersTop = [...perUserTotal.entries()]
-      .sort((a,b) => b[1]-a[1])
-      .slice(0, 15)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
       .map(([u]) => u);
 
     const datasetsStatus = OC_ESTATUS_CANON.map((st) => ({
       label: st,
-      data: usersTop.map(u => (perUser.get(u)?.get(st) || 0)),
+      data: usersTop.map((u) => perUser.get(u)?.get(st) || 0),
       borderWidth: 1,
       maxBarThickness: 26,
     }));
@@ -2101,42 +2610,88 @@ async function cargarTodo(force=false) {
       return { user: u, counts, total };
     });
 
-    // ===== NUEVO BLOQUE: lead time ponderado por cotizador =====
-    const solEmpresaFuenteLead = (segmento.value === "taller")
-      ? []
-      : (solAllEmpresaWide.length ? solAllEmpresaWide : solDocsMes);
+    // ===== CAMBIO APLICADO PARA LA CARD DE COTIZADOR =====
+    const solEmpresaFuenteLead =
+      segmento.value === "taller"
+        ? []
+        : (solAllEmpresaWide?.length ? solAllEmpresaWide : solDocsMes);
 
-    const solTallerFuenteLead = (segmento.value === "empresa")
-      ? []
-      : (solAllTallerWide.length ? solAllTallerWide : solDocsMesTaller);
+    const solTallerFuenteLead =
+      segmento.value === "empresa"
+        ? []
+        : (solAllTallerWide?.length ? solAllTallerWide : solDocsMesTaller);
 
     const solEmpresaFiltradasLead = (solEmpresaFuenteLead || []).filter((s) => {
-      if (segmento.value !== 'taller' && filtroEmpresa.value) {
-        const emp = String(s.empresa || "");
-        if (isExactEmpresa.value
-          ? (emp !== filtroEmpresa.value)
-          : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))) return false;
+      if (filtroEmpresa.value) {
+        const emp = String(s.empresa || s.empresas || "");
+        if (
+          isExactEmpresa.value
+            ? emp !== filtroEmpresa.value
+            : !_normTxt(emp).includes(_normTxt(filtroEmpresa.value))
+        ) {
+          return false;
+        }
       }
 
-      if (filtroEstatusSolped.value && _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)) return false;
-      if (filtroTipoSolped.value && _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)) return false;
-      if (filtroContratoSel.value && String(s.numero_contrato || s.numeroContrato || "") !== filtroContratoSel.value) return false;
+      if (
+        filtroEstatusSolped.value &&
+        _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)
+      ) {
+        return false;
+      }
+
+      if (
+        filtroTipoSolped.value &&
+        _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)
+      ) {
+        return false;
+      }
+
+      if (
+        filtroContratoSel.value &&
+        String(s.numero_contrato || s.numeroContrato || "") !== filtroContratoSel.value
+      ) {
+        return false;
+      }
 
       return true;
     });
 
     const solTallerFiltradasLead = (solTallerFuenteLead || []).filter((s) => {
-      if (filtroEstatusSolped.value && _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)) return false;
-      if (filtroTipoSolped.value && _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)) return false;
-      if (filtroCentroCostoSel.value && String(s.centro_costo || s.centroCosto || "") !== filtroCentroCostoSel.value) return false;
+      if (
+        filtroEstatusSolped.value &&
+        _normTxt(s.estatus || s.estado || "") !== _normTxt(filtroEstatusSolped.value)
+      ) {
+        return false;
+      }
+
+      if (
+        filtroTipoSolped.value &&
+        _normTxt(s.tipo_solped || "") !== _normTxt(filtroTipoSolped.value)
+      ) {
+        return false;
+      }
+
+      if (
+        filtroCentroCostoSel.value &&
+        String(s.centro_costo || s.centroCosto || "") !== filtroCentroCostoSel.value
+      ) {
+        return false;
+      }
 
       return true;
     });
+
+    cotizadorLeadBaseDocs.value = {
+      solEmpresa: solEmpresaFiltradasLead || [],
+      solTaller: solTallerFiltradasLead || [],
+    };
 
     const cotizadorLeadAgg = buildCotizadorLeadAgg(
       solEmpresaFiltradasLead,
       solTallerFiltradasLead
     );
+    // ===== FIN CAMBIO CARD COTIZADOR =====
 
     const payload = {
       kpis: { ...kpis.value },
@@ -2176,271 +2731,359 @@ async function cargarTodo(force=false) {
     }
   } catch (err) {
     console.error(err);
-    lastError.value = (err && err.message)
-      ? err.message
-      : 'No se pudieron cargar las estadísticas.';
+    lastError.value =
+      err && err.message
+        ? err.message
+        : "No se pudieron cargar las estadísticas.";
   } finally {
     isLoading.value = false;
   }
 }
 
 function destroyAll() {
-  Object.values(charts).forEach(ch => { try { ch && ch.destroy && ch.destroy(); } catch(e) { console.error(e); } });
-  charts = {
-    topCread: null, topOC: null, gastoContrato: null, estatusPie: null, gastoLine: null,
-    tipoSolped: null, topAprob: null, monedaPie: null, conteoContrato: null,
-    solpedPend: null, solpedPendAll: null, vsEditors: null,
+  const allCharts = [
+    chartTopCreadores,
+    chartTopOC,
+    chartGastoContrato,
+    chartConteoContrato,
+    chartDistEstatus,
+    chartDistTipoSolped,
+    chartSerieGasto,
+    chartTopAprobadores,
+    chartPendMes,
+    chartPendAll,
+    chartVsEditors,
+    chartOcTipo,
+    chartOcTipoSolped,
+    chartOcStatusByUser,
+    chartDistMoneda,
+    chartCotizadorLead,
+  ];
 
-    ocTipoCountPie: null,
-    ocTipoMontoPie: null,
-    ocTipoSolpedCountPie: null,
-    ocTipoSolpedMontoPie: null,
+  allCharts.forEach((chartRef) => {
+    if (chartRef.value) {
+      try {
+        chartRef.value.destroy();
+      } catch (e) {
+        console.warn("No se pudo destruir chart", e);
+      }
+      chartRef.value = null;
+    }
+  });
+}
 
-    ocStatusByUser: null,
+
+function pintarDesdePayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    isLoading.value = false;
+    return;
+  }
+
+  const payloadJSON = JSON.stringify(payload);
+  if (_lastPayloadJSON === payloadJSON) {
+    isLoading.value = false;
+    return;
+  }
+
+  _lastPayloadJSON = payloadJSON;
+
+  kpis.value = payload.kpis || {
+    creadasMes: 0,
+    completadasMes: 0,
+    ocMes: 0,
+    gastoMes: 0,
+    ticketProm: 0,
   };
-}
 
-function drawBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipCb) {
-  if (!window.Chart || !canvas) return;
-  charts[key]?.destroy?.();
-  charts[key] = new window.Chart(canvas.getContext('2d'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label: dsLabel, data: values, maxBarThickness: 28, borderWidth: 1 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display:false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const base = `${dsLabel}: ${formatter ? formatter(ctx.parsed.y) : ctx.parsed.y}`;
-              const ext = extraTooltipCb ? extraTooltipCb(ctx) : '';
-              return ext ? `${base}  —  ${ext}` : base;
-            }
-          }
-        }
-      },
-      scales: {
-        y: { beginAtZero:true, ticks:{ callback: (v) => formatter ? formatter(v) : v } },
-        x: { ticks:{ autoSkip:false } }
-      }
-    }
-  });
-}
+  kpisExtra.value = payload.kpisExtra || {
+    conversionPct: 0,
+    leadtimePromDias: 0,
+    rechazoPct: 0,
+    comentariosTallerMes: 0,
+  };
 
-function drawHBar(canvas, key, labels, values, dsLabel, formatter, extraTooltipCb) {
-  if (!window.Chart || !canvas) return;
-  charts[key]?.destroy?.();
-  charts[key] = new window.Chart(canvas.getContext('2d'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label: dsLabel, data: values, maxBarThickness: 28, borderWidth: 1 }] },
-    options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend:{ display:false },
-        tooltip:{ callbacks:{ label:(ctx)=> {
-          const base = `${dsLabel}: ${formatter ? formatter(ctx.parsed.x) : ctx.parsed.x}`;
-          const ext = extraTooltipCb ? extraTooltipCb(ctx) : '';
-          return ext ? `${base}  —  ${ext}` : base;
-        }}}
-      },
-      layout: { padding: { right: 8, left: 8 } },
-      scales: {
-        x: { beginAtZero:true, ticks:{ callback:(v)=> formatter ? formatter(v) : v }},
-        y: { ticks:{ autoSkip:false, mirror:false }}
-      }
-    }
-  });
-}
+  topHoy.value = Array.isArray(payload.topHoy) ? payload.topHoy : [];
+  topCreadoresRows.value = Array.isArray(payload.topCreadores) ? payload.topCreadores : [];
+  gastoContratoRows.value = Array.isArray(payload.gastoContrato) ? payload.gastoContrato : [];
+  conteoContratoRows.value = Array.isArray(payload.conteoContrato) ? payload.conteoContrato : [];
+  topAprobadoresRows.value = Array.isArray(payload.topAprobadores) ? payload.topAprobadores : [];
 
-function drawPie(canvas, key, labels, values, valueFormatter) {
-  if (!window.Chart || !canvas) return;
-  charts[key]?.destroy?.();
+  vsEditorsPayload.value = payload.vsEditors || { labels: [], aprobadas: [], subidas: [] };
 
-  const total = values.reduce((a,b)=>a+(Number(b)||0), 0) || 0;
+  ocStatusByUserPayload.value = payload.ocStatusByUser || {
+    users: [],
+    rows: [],
+    datasets: [],
+  };
 
-  charts[key] = new window.Chart(canvas.getContext('2d'), {
-    type: 'pie',
-    data: { labels, datasets: [{ data: values }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const v = Number(ctx.parsed) || 0;
-              const pct = total ? (100 * v / total) : 0;
-              const pretty = valueFormatter ? valueFormatter(v) : v;
-              return `${ctx.label}: ${pretty} (${pct.toFixed(1)}%)`;
-            }
-          }
-        }
-      }
-    }
-  });
-}
+  ocTipoSolpedAggPayload.value = payload.ocTipoSolpedAgg || {
+    labels: [],
+    counts: [],
+    montos: [],
+    totalCount: 0,
+    totalMonto: 0,
+  };
 
-function drawLineMoney(canvas, key, labels, values, dsLabel) {
-  if (!window.Chart || !canvas) return;
-  charts[key]?.destroy?.();
-  charts[key] = new window.Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: { labels, datasets: [{ label: dsLabel, data: values, tension: 0.25, fill: false }] },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(ctx)=> `${dsLabel}: ${formatearCLP(ctx.parsed.y)}` }}} ,
-      scales:{ y:{ ticks:{ callback:(v)=> formatearCLP(v) }, beginAtZero:true } }
-    }
-  });
-}
+  cotizadorLeadPayload.value = payload.cotizadorLeadAgg || {
+    labels: [],
+    dataInicio: [],
+    dataFin: [],
+    rows: [],
+    missingDates: [],
+  };
 
-function drawGroupedBar(canvas, key, labels, series, formatters = {}) {
-  if (!window.Chart || !canvas) return;
-  charts[key]?.destroy?.();
-  charts[key] = new window.Chart(canvas.getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: series.map((s) => ({
-        label: s.label,
-        data: s.data,
-        maxBarThickness: 28,
-        borderWidth: 1
-      })),
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'top' },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const v = ctx.parsed.y;
-              const fmt = formatters[ctx.datasetIndex];
-              return `${ctx.dataset.label}: ${fmt ? fmt(v) : v}`;
-            }
-          }
-        }
-      },
-      scales: {
-        y: { beginAtZero: true, ticks: { callback: (v) => v } },
-        x: { ticks: { autoSkip: false } }
-      }
-    }
-  });
-}
-
-function drawMultiBarsByUser(canvas, key, labels, datasets) {
-  if (!window.Chart || !canvas) return;
-  charts[key]?.destroy?.();
-
-  const ds = (datasets || []).map(d => ({
-    ...d,
-    borderWidth: 1,
-    barThickness: 10,
-    maxBarThickness: 14,
-    categoryPercentage: 0.9,
-    barPercentage: 0.9,
-  }));
-
-  charts[key] = new window.Chart(canvas.getContext("2d"), {
-    type: "bar",
-    data: { labels, datasets: ds },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: "y",
-      plugins: {
-        legend: { display: true, position: "top" },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x ?? 0}` } }
-      },
-      scales: {
-        x: { beginAtZero: true, stacked: false, ticks: { precision: 0 } },
-        y: { stacked: false, ticks: { autoSkip: false } }
-      }
-    }
-  });
-}
-
-function pintarDesdePayload(p){
-  kpis.value = { ...p.kpis };
-  kpisExtra.value = { ...p.kpisExtra };
-  topHoy.value = p.topHoy || [];
-
-  ocTipoAggPayload.value = p.ocTipoAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
-  ocTipoSolpedAggPayload.value = p.ocTipoSolpedAgg || { labels: [], counts: [], montos: [], totalCount: 0, totalMonto: 0 };
-
-  ocStatusByUserPayload.value = p.ocStatusByUser || { users: [], rows: [], datasets: [] };
-  editorContratosAggPayload.value = p.editorContratosAgg || {
+  editorContratosAgg.value = payload.editorContratosAgg || {
     editors: [],
     topAll: [],
     perEditorTop: {},
     totals: { totalSolpes: 0, uniqueContratos: 0 },
   };
-  cotizadorLeadPayload.value = p.cotizadorLeadAgg || { rows: [] };
-  drawBar(cTopCreadores.value, 'topCread', (p.topCreadores||[]).map(([k])=>k), (p.topCreadores||[]).map(([,v])=>v), 'Creadas');
-  drawPie(cEstatusPie.value, 'estatusPie', Object.keys(p.distEstatus || {}), Object.values(p.distEstatus || {}));
-  drawLineMoney(cGastoLine.value, 'gastoLine', p.serieGasto.labels, p.serieGasto.values, 'Gasto diario');
-  drawHBar(cGastoContratoH.value, 'gastoContrato', p.gastoContrato.map(([k])=>k), p.gastoContrato.map(([,v])=>v), 'Gasto CLP', formatearCLP);
-  drawPie(cTipoSolpedPie.value, 'tipoSolped', Object.keys(p.distTipoSolped || {}), Object.values(p.distTipoSolped || {}));
-  drawBar(cTopAprobadores.value, 'topAprob', (p.topAprobadores||[]).map(([k])=>k), (p.topAprobadores||[]).map(([,v])=>v), 'Aprobaciones');
-  drawPie(cMonedaPie.value, 'monedaPie', Object.keys(p.distMoneda || {}), Object.values(p.distMoneda || {}));
-  drawHBar(cConteoContratoH.value, 'conteoContrato', p.conteoContrato.map(([k])=>k), p.conteoContrato.map(([,v])=>v), 'OC', null);
 
-  if (p.topOC && Array.isArray(p.topOC.labels)) {
-    drawBar(
-      cTopOC.value,
-      'topOC',
-      p.topOC.labels,
-      p.topOC.counts,
-      'OC',
-      null,
-      (ctx) => `Gasto: ${formatearCLP(p.topOC.spends[ctx.dataIndex] || 0)}`
-    );
-  }
+  nextTick(() => {
+    try {
+      renderOrUpdateBarChart(chartTopCreadores, topCreadoresCanvas, {
+        labels: topCreadoresRows.value.map(([k]) => k),
+        datasets: [{
+          label: "SOLPEDs",
+          data: topCreadoresRows.value.map(([, v]) => v),
+          borderWidth: 1,
+          maxBarThickness: 28,
+        }],
+      });
 
-  if (p.solpedPend) drawBar(cSolpedPendH.value, 'solpedPend', p.solpedPend.labels, p.solpedPend.values, 'Pendientes', null);
-  if (p.solpedPendAll) drawBar(cSolpedPendAll.value, 'solpedPendAll', p.solpedPendAll.labels, p.solpedPendAll.values, 'Pendientes', null);
+      renderOrUpdateBarChart(chartTopOC, topOCCanvas, {
+        labels: payload.topOC?.labels || [],
+        datasets: [{
+          label: "Cantidad OC",
+          data: payload.topOC?.counts || [],
+          borderWidth: 1,
+          maxBarThickness: 28,
+        }],
+      });
 
-  vsEditorsPayload.value = p.vsEditors || { labels: [], aprobadas: [], subidas: [] };
-  if (p.vsEditors && Array.isArray(p.vsEditors.labels)) {
-    drawGroupedBar(
-      cVsAprobadasSubidas.value,
-      'vsEditors',
-      p.vsEditors.labels,
-      [
-        { label: 'Cotizaciones aprobadas', data: p.vsEditors.aprobadas },
-        { label: 'Órdenes subidas', data: p.vsEditors.subidas },
-      ]
-    );
-  }
+      renderOrUpdateGroupedBarChart(chartOcStatusByUser, ocStatusByUserCanvas, {
+        labels: ocStatusByUserPayload.value.users || [],
+        datasets: Array.isArray(ocStatusByUserPayload.value.datasets)
+          ? ocStatusByUserPayload.value.datasets.map(ds => ({
+              ...ds,
+              borderWidth: 1,
+              maxBarThickness: 18,
+              categoryPercentage: 0.7,
+              barPercentage: 0.9,
+            }))
+          : [],
+      });
 
-  if (p.ocTipoAgg?.labels?.length) {
-    drawPie(cOcTipoCountPie.value, 'ocTipoCountPie', p.ocTipoAgg.labels, p.ocTipoAgg.counts);
-    drawPie(cOcTipoMontoPie.value, 'ocTipoMontoPie', p.ocTipoAgg.labels, p.ocTipoAgg.montos, formatearCLP);
-  } else {
-    charts.ocTipoCountPie?.destroy?.(); charts.ocTipoMontoPie?.destroy?.();
-  }
+      renderOrUpdateDoughnutChart(chartDistEstatus, distEstatusCanvas, {
+        labels: Object.keys(payload.distEstatus || {}),
+        datasets: [{
+          data: Object.values(payload.distEstatus || {}),
+          borderWidth: 1,
+        }],
+      });
 
-  if (p.ocTipoSolpedAgg?.labels?.length) {
-    drawPie(cOcTipoSolpedCountPie.value, 'ocTipoSolpedCountPie', p.ocTipoSolpedAgg.labels, p.ocTipoSolpedAgg.counts);
-    drawPie(cOcTipoSolpedMontoPie.value, 'ocTipoSolpedMontoPie', p.ocTipoSolpedAgg.labels, p.ocTipoSolpedAgg.montos, formatearCLP);
-  } else {
-    charts.ocTipoSolpedCountPie?.destroy?.(); charts.ocTipoSolpedMontoPie?.destroy?.();
-  }
+      renderOrUpdateDoughnutChart(chartDistTipoSolped, distTipoSolpedCanvas, {
+        labels: Object.keys(payload.distTipoSolped || {}),
+        datasets: [{
+          data: Object.values(payload.distTipoSolped || {}),
+          borderWidth: 1,
+        }],
+      });
 
-  if (p.ocStatusByUser?.users?.length && p.ocStatusByUser?.datasets?.length) {
-    drawMultiBarsByUser(
-      cOcStatusByUser.value,
-      "ocStatusByUser",
-      p.ocStatusByUser.users,
-      p.ocStatusByUser.datasets
-    );
-  } else {
-    charts.ocStatusByUser?.destroy?.();
-  }
+      renderOrUpdateDoughnutChart(chartOcTipoSolped, ocTipoSolpedCanvas, {
+        labels: ocTipoSolpedAggPayload.value.labels || [],
+        datasets: [{
+          data: ocTipoSolpedAggPayload.value.montos || [],
+          borderWidth: 1,
+        }],
+      });
+
+      renderOrUpdateBarChart(chartTopAprobadores, topAprobadoresCanvas, {
+        labels: topAprobadoresRows.value.map(([k]) => k),
+        datasets: [{
+          label: "Aprobaciones",
+          data: topAprobadoresRows.value.map(([, v]) => v),
+          borderWidth: 1,
+          maxBarThickness: 28,
+        }],
+      });
+
+      renderOrUpdateBarChart(chartPendMes, pendMesCanvas, {
+        labels: payload.solpedPend?.labels || [],
+        datasets: [{
+          label: "Pendientes mes",
+          data: payload.solpedPend?.values || [],
+          borderWidth: 1,
+          maxBarThickness: 28,
+        }],
+      });
+
+      renderOrUpdateBarChart(chartGastoContrato, gastoContratoCanvas, {
+        labels: gastoContratoRows.value.map(([k]) => k),
+        datasets: [{
+          label: "Monto",
+          data: gastoContratoRows.value.map(([, v]) => v),
+          borderWidth: 1,
+          maxBarThickness: 28,
+        }],
+      });
+
+      renderOrUpdateBarChart(chartConteoContrato, conteoContratoCanvas, {
+        labels: conteoContratoRows.value.map(([k]) => k),
+        datasets: [{
+          label: "Cantidad",
+          data: conteoContratoRows.value.map(([, v]) => v),
+          borderWidth: 1,
+          maxBarThickness: 28,
+        }],
+      });
+
+      renderOrUpdateBarChart(chartVsEditors, vsEditorsCanvas, {
+        labels: vsEditorsPayload.value.labels || [],
+        datasets: [
+          {
+            label: "Aprobadas",
+            data: vsEditorsPayload.value.aprobadas || [],
+            borderWidth: 1,
+            maxBarThickness: 24,
+          },
+          {
+            label: "Subidas proveedor",
+            data: vsEditorsPayload.value.subidas || [],
+            borderWidth: 1,
+            maxBarThickness: 24,
+          },
+        ],
+      });
+
+    renderOrUpdateBarChart(chartCotizadorLead, cotizadorLeadCanvas, {
+      labels: [...(cotizadorLeadPayload.value.labels || [])],
+      datasets: [
+        {
+          label: "Prom. inicio",
+          data: [...(cotizadorLeadPayload.value.dataInicio || [])],
+          borderWidth: 1,
+          maxBarThickness: 26,
+        },
+        {
+          label: "Prom. fin",
+          data: [...(cotizadorLeadPayload.value.dataFin || [])],
+          borderWidth: 1,
+          maxBarThickness: 26,
+        },
+      ],
+    });
+    } catch (e) {
+      console.warn("Error pintando charts", e);
+    } finally {
+      isLoading.value = false;
+    }
+  });
 }
+
+function renderOrUpdateBarChart(chartRef, canvasRef, data) {
+  if (!canvasRef.value) return;
+
+  const safeData = toPlainChartData(data);
+
+  if (chartRef.value) {
+    try {
+      chartRef.value.data.labels = [...safeData.labels];
+      chartRef.value.data.datasets = safeData.datasets.map((ds) => ({
+        ...ds,
+        data: Array.isArray(ds.data) ? [...ds.data] : [],
+      }));
+      chartRef.value.update();
+      return;
+    } catch (e) {console.log(e)
+      try { chartRef.value.destroy(); } catch(e) {console.log(e)}
+      chartRef.value = null;
+    }
+  }
+
+  chartRef.value = new Chart(canvasRef.value, {
+    type: "bar",
+    data: safeData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+    },
+  });
+}
+function toPlainChartData(data = {}) {
+  return {
+    labels: Array.isArray(data.labels) ? [...data.labels] : [],
+    datasets: Array.isArray(data.datasets)
+      ? data.datasets.map((ds) => ({
+          ...ds,
+          data: Array.isArray(ds.data) ? [...ds.data] : [],
+        }))
+      : [],
+  };
+}
+function renderOrUpdateGroupedBarChart(chartRef, canvasRef, data) {
+  if (!canvasRef.value) return;
+
+  const safeData = toPlainChartData(data);
+
+  if (chartRef.value) {
+    try {
+      chartRef.value.data.labels = [...safeData.labels];
+      chartRef.value.data.datasets = safeData.datasets.map((ds) => ({
+        ...ds,
+        data: Array.isArray(ds.data) ? [...ds.data] : [],
+      }));
+      chartRef.value.update();
+      return;
+    } catch (e) {console.log(e)
+      try { chartRef.value.destroy(); } catch(e) {console.log(e)}
+      chartRef.value = null;
+    }
+  }
+
+  chartRef.value = new Chart(canvasRef.value, {
+    type: "bar",
+    data: safeData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: false },
+        y: { stacked: false, beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+}
+function renderOrUpdateDoughnutChart(chartRef, canvasRef, data) {
+  if (!canvasRef.value) return;
+
+  const safeData = toPlainChartData(data);
+
+  if (chartRef.value) {
+    try {
+      chartRef.value.data.labels = [...safeData.labels];
+      chartRef.value.data.datasets = safeData.datasets.map((ds) => ({
+        ...ds,
+        data: Array.isArray(ds.data) ? [...ds.data] : [],
+      }));
+      chartRef.value.update();
+      return;
+    } catch (e) {
+      try { chartRef.value.destroy(); } catch {console.log(e)}
+      chartRef.value = null;
+    }
+  }
+
+  chartRef.value = new Chart(canvasRef.value, {
+    type: "doughnut",
+    data: safeData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+    },
+  });
+}
+
 </script>
 
 <style scoped>
@@ -2537,7 +3180,13 @@ select.form-select { max-width: 100%; text-overflow: ellipsis; }
   border: 1px solid rgba(0,0,0,.06);
   border-radius: 12px;
 }
+.form-check.form-switch {
+  padding-top: .35rem;
+}
 
+.alert-light.border {
+  border-radius: 12px;
+}
 .form-label-sm{
   font-size: .82rem;
   font-weight: 600;
