@@ -242,6 +242,7 @@
                           <th style="width: 60px">Ítem</th>
                           <th>Descripción</th>
                           <th class="text-center">Cant. total</th>
+                          <th class="text-center">Unidad</th>
                           <th class="text-center">Cotizado antes</th>
                           <th class="text-center">Disponible</th>
                           <th class="text-center">Estado</th>
@@ -255,12 +256,18 @@
                           <td data-label="Descripción" class="w-50">
                             <div class="fw-semibold">{{ it.descripcion || "—" }}</div>
                             <div class="small text-secondary">
-                              Código: {{ it.codigo_referencial || "SIN CÓDIGO" }} ·
-                              N° interno: {{ it.numero_interno || "SIN PATENTE" }}
+                              Código: {{ it.codigo_referencial || "SIN CÓDIGO" }}
                             </div>
                           </td>
 
-                          <td data-label="Cant. total" class="text-center">{{ it.cantidad }}</td>
+                          <td data-label="Cant. total" class="text-center">
+                            {{ formatCantidad2D(it.cantidad) }}
+                          </td>
+
+                          <td data-label="Unidad" class="text-center">
+                            {{ it.unidad || "UNIDAD" }}
+                          </td>
+
                           <td data-label="Cotizado antes" class="text-center">{{ it.cantidad_cotizada || 0 }}</td>
                           <td data-label="Disponible" class="text-center">{{ it.__max }}</td>
 
@@ -285,7 +292,7 @@
                               @input="onInputCantidad(it); clearInvalidField(`item-${it.__k}`)"
                             />
                             <div class="form-text mb-0">
-                              Total: {{ it.cantidad }} ·
+                              Total: {{ formatCantidad2D(it.cantidad) }} {{ it.unidad || "UNIDAD" }} ·
                               Cotizado antes: {{ it.cantidad_cotizada || 0 }} ·
                               Disponible: {{ it.__max }} ·
                               Restante: {{ it.__restante }}
@@ -383,14 +390,65 @@
 
                 <div class="col-12 col-md-6">
                   <label class="form-label">Aprobador sugerido</label>
-                  <input class="form-control fw-semibold" value="Alejandro Candia" readonly />
+                  <input class="form-control fw-semibold" :value="APROBADOR_FIJO" readonly />
                 </div>
               </div>
+              <div class="mb-3 mt-3">
+                <label class="form-label">Proveedor</label>
 
+                <div class="input-group">
+                  <input
+                    class="form-control"
+                    :class="{ 'is-invalid': invalidField === 'proveedor' }"
+                    :value="proveedorNombre"
+                    placeholder="Selecciona un proveedor…"
+                    readonly
+                  />
+
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    :class="{ 'btn-danger': invalidField === 'proveedor' }"
+                    @click="modalProveedorAbierto = true"
+                    aria-label="Seleccionar proveedor"
+                  >
+                    <i class="bi bi-search"></i>
+                  </button>
+
+                  <button
+                    v-if="proveedorSeleccionado"
+                    type="button"
+                    class="btn btn-outline-danger"
+                    @click="limpiarProveedorSeleccionado"
+                    aria-label="Quitar proveedor"
+                    title="Quitar proveedor"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+
+                <div class="form-text">
+                  Debes elegir un proveedor registrado en Firestore.
+                </div>
+
+                <div
+                  v-if="proveedorSeleccionado"
+                  class="provider-selected-card mt-2"
+                >
+                  <div class="provider-selected-icon">
+                    <i class="bi bi-building"></i>
+                  </div>
+
+                  <div class="flex-grow-1 minw-0">
+                    <div class="fw-semibold text-truncate">{{ proveedorNombre }}</div>
+                    <div class="small text-secondary">RUT: {{ proveedorRut }}</div>
+                  </div>
+                </div>
+              </div>
               <div class="alert alert-info d-flex align-items-start mt-3" role="alert">
                 <i class="bi bi-person-check fs-5 me-2"></i>
                 <div>
-                  <div class="fw-semibold">Aprobador sugerido: Alejandro Candia</div>
+                  <div class="fw-semibold">Aprobador sugerido: {{ APROBADOR_FIJO }}</div>
                   <div class="small">La cotización se enviará a aprobación con estatus inicial <strong>Pendiente de Aprobación</strong>.</div>
                 </div>
               </div>
@@ -803,6 +861,90 @@
 >
   <i class="bi bi-search"></i>
 </button>
+<div
+  v-if="modalProveedorAbierto"
+  class="vmodal-backdrop"
+  @click.self="modalProveedorAbierto = false"
+>
+  <div class="vmodal">
+    <div class="vmodal-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0">Selecciona Proveedor</h5>
+
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        @click="modalProveedorAbierto = false"
+      >
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="vmodal-body">
+      <div class="input-group mb-2">
+        <span class="input-group-text">
+          <i class="bi bi-search"></i>
+        </span>
+        <input
+          class="form-control"
+          placeholder="Buscar por nombre o RUT…"
+          v-model="proveedorBusqueda"
+          @input="buscarProveedores"
+          @keydown.enter.prevent="onEnterProveedor"
+        />
+      </div>
+
+      <div v-if="!(proveedorBusqueda || '').trim()" class="small text-secondary mb-2">
+        Escribe el nombre o RUT del proveedor.
+      </div>
+
+      <div v-if="proveedoresBuscando" class="text-center py-3">
+        <div class="spinner-border spinner-border-sm" role="status"></div>
+        <div class="small mt-2">Buscando proveedor…</div>
+      </div>
+
+      <div
+        v-else-if="(proveedorBusqueda || '').trim() && proveedoresResultados.length === 0"
+        class="alert alert-warning py-2 mb-0"
+      >
+        Ese proveedor aún no está agregado.
+      </div>
+
+      <div
+        v-else-if="proveedoresResultados.length"
+        class="list-group vmodal-list proveedor-list"
+      >
+        <button
+          type="button"
+          class="list-group-item list-group-item-action proveedor-item"
+          v-for="prov in proveedoresResultados"
+          :key="prov.id"
+          @click="seleccionarProveedor(prov)"
+        >
+          <div class="d-flex align-items-start gap-2">
+            <div class="provider-result-icon">
+              <i class="bi bi-building"></i>
+            </div>
+
+            <div class="flex-grow-1 minw-0 text-start">
+              <div class="fw-semibold text-truncate">{{ prov.nombre }}</div>
+              <div class="small text-secondary">RUT: {{ prov.rut || "—" }}</div>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div class="vmodal-footer d-flex justify-content-end">
+      <button
+        type="button"
+        class="btn btn-outline-secondary"
+        @click="modalProveedorAbierto = false"
+      >
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
 <div v-if="modalCrucePrecios" class="vmodal-backdrop" @click.self="cerrarCrucePrecios">
   <div class="vmodal vmodal-xxl">
     <div class="vmodal-header d-flex align-items-center justify-content-between">
@@ -859,7 +1001,7 @@
                       <div class="fw-semibold">{{ it.descripcion || "Ítem" }}</div>
                       <div class="small text-secondary">
                         Código: {{ it.codigo_referencial || "SIN CÓDIGO" }} ·
-                        N° interno: {{ it.numero_interno || "—" }} ·
+                        Cantidad: {{ formatCantidad2D(it.cantidad) }} {{ it.unidad || "UNIDAD" }} ·
                         Estado: {{ it.estado || "—" }}
                       </div>
                     </div>
@@ -906,19 +1048,35 @@
                     </div>
 
                     <div class="row g-2">
-                      <div class="col-6">
+                      <div class="col-12">
                         <label class="form-label form-label-sm">Código</label>
                         <input v-model="it.codigo_referencial" class="form-control form-control-sm" />
                       </div>
-                      <div class="col-6">
-                        <label class="form-label form-label-sm">N° interno</label>
-                        <input v-model="it.numero_interno" class="form-control form-control-sm" />
-                      </div>
                     </div>
 
-                    <div class="mt-2">
-                      <label class="form-label form-label-sm">Cantidad</label>
-                      <input v-model.number="it.cantidad" type="number" min="1" class="form-control form-control-sm" />
+                    <div class="row g-2 mt-1">
+                      <div class="col-6">
+                        <label class="form-label form-label-sm">Cantidad</label>
+                        <input
+                          :value="formatCantidad2D(it.cantidad)"
+                          type="text"
+                          inputmode="numeric"
+                          class="form-control form-control-sm"
+                          @input="it.cantidad = formatCantidad2D($event.target.value)"
+                        />
+                      </div>
+
+                      <div class="col-6">
+                        <label class="form-label form-label-sm">Unidad</label>
+                        <select v-model="it.unidad" class="form-select form-select-sm">
+                          <option value="KG">KG</option>
+                          <option value="LITROS">LITROS</option>
+                          <option value="CM">CM</option>
+                          <option value="MM">MM</option>
+                          <option value="METROS">METROS</option>
+                          <option value="UNIDAD">UNIDAD</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1029,7 +1187,7 @@
                       <div class="fw-semibold">{{ activeCruceItem.descripcion || "Ítem" }}</div>
                       <div class="small text-secondary">
                         Código: {{ activeCruceItem.codigo_referencial || "SIN CÓDIGO" }} ·
-                        N° interno: {{ activeCruceItem.numero_interno || "—" }}
+                        Cantidad total: {{ activeCruceItem.cantidadTotalDisplay || formatCantidad2D(activeCruceItem.cantidadTotal) }} {{ activeCruceItem.unidad || "UNIDAD" }}
                       </div>
                     </div>
 
@@ -1047,7 +1205,10 @@
                     <div class="row g-2 small">
                       <div class="col-6 col-md-3">
                         <div class="text-secondary">Cant. total</div>
-                        <div class="fw-semibold">{{ activeCruceItem.cantidadTotal }}</div>
+                        <div class="fw-semibold">
+                          {{ activeCruceItem.cantidadTotalDisplay || formatCantidad2D(activeCruceItem.cantidadTotal) }}
+                          {{ activeCruceItem.unidad || "UNIDAD" }}
+                        </div>
                       </div>
                       <div class="col-6 col-md-3">
                         <div class="text-secondary">Cotizado antes</div>
@@ -1259,6 +1420,8 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp,
+  startAt,
+  endAt,
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -1296,13 +1459,15 @@ const activeCruceItem = computed(() => {
 const itemsCruceBase = computed(() => {
   return (itemsSolped.value || [])
     .map((it) => {
-      const cantidad = Math.max(0, Number(it?.cantidad ?? 0));
+      const cantidadNum = parseCantidad2D(it?.cantidad ?? 1);
       const cantidadCotizada = Math.max(0, Number(it?.cantidad_cotizada ?? 0));
-      const disponible = Math.max(0, cantidad - cantidadCotizada);
+      const disponible = Math.max(0, cantidadNum - cantidadCotizada);
 
       return {
         ...it,
-        cantidad,
+        cantidad: formatCantidad2D(it?.cantidad ?? 1),
+        cantidad_num: cantidadNum,
+        unidad: normalizeUnidadPlantas(it?.unidad),
         cantidad_cotizada: cantidadCotizada,
         restante_cruce: disponible,
         uid: it.__key || `cruce-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -1316,7 +1481,13 @@ const selectedCruceItems = computed(() => {
   const all = [...itemsCruceBase.value, ...manualCruceItems.value];
   return all.filter((x) => selectedCruceKeys.value.includes(x.uid));
 });
+const onEnterProveedor = async () => {
+  await buscarProveedores();
 
+  if (proveedoresResultados.value.length === 1) {
+    seleccionarProveedor(proveedoresResultados.value[0]);
+  }
+};
 const proveedoresReutilizables = computed(() => {
   const usados = new Map();
 
@@ -1616,7 +1787,7 @@ const getCantidadItemCruce = (item) => {
 };
 
 const crearCruceManualDesdeItem = (item) => {
-  const cantidadTotal = Number(item?.cantidad ?? 0);
+  const cantidadTotal = parseCantidad2D(item?.cantidad ?? 1);
   const cotizadoAntes = Number(item?.cantidad_cotizada ?? 0);
   const maxPermitido = Math.max(0, cantidadTotal - cotizadoAntes);
 
@@ -1630,8 +1801,9 @@ const crearCruceManualDesdeItem = (item) => {
     uid: item.uid,
     descripcion: item.descripcion || "",
     codigo_referencial: item.codigo_referencial || "",
-    numero_interno: item.numero_interno || "",
+    unidad: normalizeUnidadPlantas(item?.unidad),
     cantidadTotal,
+    cantidadTotalDisplay: formatCantidad2D(item?.cantidad ?? 1),
     cotizadoAntes,
     maxPermitido,
     restante: Math.max(0, maxPermitido - cantidadInicial),
@@ -1748,7 +1920,6 @@ const syncCruceManualItems = () => {
     if (existe) {
       existe.descripcion = it.descripcion || existe.descripcion;
       existe.codigo_referencial = it.codigo_referencial || existe.codigo_referencial;
-      existe.numero_interno = it.numero_interno || existe.numero_interno;
       existe.cantidadTotal = cantidadTotal;
       existe.cotizadoAntes = cotizadoAntes;
       existe.maxPermitido = maxPermitido;
@@ -1796,8 +1967,8 @@ const agregarItemManualCruce = () => {
     item: manualCruceItems.value.length + 1,
     descripcion: "",
     codigo_referencial: "",
-    numero_interno: "",
-    cantidad: 1,
+    cantidad: "01",
+    unidad: "UNIDAD",
     estado: "pendiente",
   });
 };
@@ -2218,10 +2389,6 @@ const prettyTipo = (t) => {
   return s;
 };
 
-const clearInvalidField = (key = "") => {
-  if (invalidField.value === key) invalidField.value = "";
-};
-
 const setItemCantidadRef = (key, el) => {
   if (!key) return;
   if (el) itemCantidadRefs.value[key] = el;
@@ -2243,7 +2410,125 @@ const scrollToAndFocus = async (el) => {
     } catch(e) {console.log(e)}
   }, 250);
 };
+const normalizarRut = (v) =>
+  String(v || "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toUpperCase();
 
+const normalizarTextoBusqueda = (v) =>
+  String(v || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const clearInvalidField = (name) => {
+  if (invalidField.value === name) invalidField.value = "";
+};
+
+const limpiarProveedorSeleccionado = () => {
+  proveedorSeleccionado.value = null;
+  clearInvalidField("proveedor");
+};
+
+const seleccionarProveedor = (prov) => {
+  proveedorSeleccionado.value = {
+    id: prov.id,
+    nombre: prov.nombre || "",
+    rut: prov.rut || "",
+  };
+
+  modalProveedorAbierto.value = false;
+  proveedorBusqueda.value = "";
+  proveedoresResultados.value = [];
+  clearInvalidField("proveedor");
+};
+
+const buscarProveedores = async () => {
+  const raw = String(proveedorBusqueda.value || "").trim();
+
+  if (!raw) {
+    proveedoresResultados.value = [];
+    return;
+  }
+
+  proveedoresBuscando.value = true;
+
+  try {
+    const texto = normalizarTextoBusqueda(raw);
+    const rutPlano = normalizarRut(raw);
+    const resultadosMap = new Map();
+
+    // búsqueda por nombre con prefijo
+    try {
+      const qNombre = query(
+        collection(db, "proveedores"),
+        orderBy("nombre"),
+        startAt(raw),
+        endAt(raw + "\uf8ff"),
+        limit(8)
+      );
+
+      const snapNombre = await getDocs(qNombre);
+
+      snapNombre.forEach((d) => {
+        const data = d.data() || {};
+        resultadosMap.set(d.id, {
+          id: d.id,
+          nombre: data.nombre || "",
+          rut: data.rut || "",
+        });
+      });
+    } catch (e) {
+      console.warn("Error búsqueda por nombre:", e);
+    }
+
+    // búsqueda más flexible por nombre/rut
+    try {
+      const qBase = query(
+        collection(db, "proveedores"),
+        orderBy("nombre"),
+        limit(50)
+      );
+
+      const snapBase = await getDocs(qBase);
+
+      snapBase.forEach((d) => {
+        const data = d.data() || {};
+        const nombre = String(data.nombre || "");
+        const rut = String(data.rut || "");
+
+        const nombreNorm = normalizarTextoBusqueda(nombre);
+        const rutNorm = normalizarRut(rut);
+
+        const coincideNombre = texto && nombreNorm.includes(texto);
+        const coincideRut = rutPlano && rutNorm.includes(rutPlano);
+
+        if (coincideNombre || coincideRut) {
+          resultadosMap.set(d.id, {
+            id: d.id,
+            nombre,
+            rut,
+          });
+        }
+      });
+    } catch (e) {
+      console.warn("Error búsqueda base proveedor:", e);
+    }
+
+    proveedoresResultados.value = Array.from(resultadosMap.values()).sort((a, b) =>
+      String(a.nombre || "").localeCompare(String(b.nombre || ""), "es")
+    );
+  } catch (error) {
+    console.error("Error buscando proveedores:", error);
+    proveedoresResultados.value = [];
+    addToast("danger", "No se pudieron buscar los proveedores.");
+  } finally {
+    proveedoresBuscando.value = false;
+  }
+};
 const triggerValidationError = async ({ key, message, el }) => {
   invalidField.value = key || "";
   addToast("warning", message || "Falta completar un campo.");
@@ -2366,22 +2651,23 @@ const buildItemsCotizacionFromUI = (itemsUI = []) => {
 
   for (const it of itemsUI || []) {
     clampCantidadParaCotizar(it);
+
     const nueva = num(it.cantidad_para_cotizar, 0);
     if (nueva <= 0) continue;
 
-    const total = num(it.cantidad, 0);
+    const total = parseCantidad2D(it.cantidad ?? 1);
     const antes = num(it.cantidad_cotizada, 0);
     const st = computeEstadoItem({ total, antes, nueva });
 
     out.push({
       item: num(it.item, 0),
       descripcion: String(it.descripcion || ""),
-      cantidad: total,
+      cantidad: formatCantidad2D(it.cantidad ?? 1),
       cantidad_cotizada_antes: antes,
       cantidad_para_cotizar: nueva,
       cantidad_cotizada: st.finalCotizada,
       codigo_referencial: it.codigo_referencial || "SIN CÓDIGO",
-      numero_interno: it.numero_interno || "SIN PATENTE",
+      unidad: normalizeUnidadPlantas(it.unidad || "UNIDAD"),
       imagen_url: it.imagen_url ?? null,
       stock: num(it.stock, 0),
       estado_resultante: st.estado,
@@ -2922,7 +3208,14 @@ const eliminarArchivo = (idx) => {
   archivos.value.splice(idx, 1);
   addToast("success", "Archivo eliminado.");
 };
+const modalProveedorAbierto = ref(false);
+const proveedorBusqueda = ref("");
+const proveedoresResultados = ref([]);
+const proveedoresBuscando = ref(false);
+const proveedorSeleccionado = ref(null);
 
+const proveedorNombre = computed(() => proveedorSeleccionado.value?.nombre || "");
+const proveedorRut = computed(() => proveedorSeleccionado.value?.rut || "");
 async function actualizarSolpedPlantaAsociada(solpedId, selections, nombreUsuario, estatusInicial, numeroCotizacion) {
   if (!solpedId) return;
   if (!Array.isArray(selections) || selections.length === 0) return;
@@ -3021,7 +3314,6 @@ async function actualizarSolpedPlantaAsociada(solpedId, selections, nombreUsuari
     comentario: `Cotización enviada N° ${numeroCotizacion || "—"} desde plantas`,
   });
 }
-
 async function enviarCotizacion() {
   if (enviando.value) return;
 
@@ -3041,7 +3333,7 @@ async function enviarCotizacion() {
 
   try {
     let nombreUsuario = auth?.user?.displayName || auth?.user?.email || "Desconocido";
-    const uid = myUid.value;
+    const uid = auth?.user?.uid || "";
 
     if (uid) {
       const usnap = await getDoc(doc(db, "Usuarios", uid));
@@ -3053,10 +3345,16 @@ async function enviarCotizacion() {
 
     setBusy(true, "Enviando cotización…", "Calculando número…", 10);
 
-    const qy = query(collection(db, COT_COLLECTION), orderBy("id", "desc"), limit(1));
+    const qy = query(
+      collection(db, COT_COLLECTION),
+      orderBy("id", "desc"),
+      limit(1)
+    );
     const snap = await getDocs(qy);
     const lastId = snap.docs[0]?.data()?.id || 0;
     const newId = Number(lastId) + 1;
+
+    const comentarioFinal = (comentario.value || "").trim();
 
     const storage = getStorage();
     const subidos = [];
@@ -3067,7 +3365,12 @@ async function enviarCotizacion() {
     for (const a of archivos.value) {
       doneAdj++;
       const pct = Math.min(90, 10 + Math.round((doneAdj / totalAdj) * 80));
-      setBusy(true, "Enviando cotización…", `Subiendo adjunto ${doneAdj} de ${totalAdj}`, pct);
+      setBusy(
+        true,
+        "Enviando cotización…",
+        `Subiendo adjunto ${doneAdj} de ${totalAdj}`,
+        pct
+      );
 
       if (a?.fromSolped && a?.url) {
         subidos.push({
@@ -3086,9 +3389,9 @@ async function enviarCotizacion() {
         .replace(/[^\w.\-() ]+/g, "_")
         .slice(0, 120);
 
-      const path = `cotizaciones_plantas/${newId}/${safeName}`;
-      const fileRef = sref(storage, path);
-      const up = await uploadBytes(fileRef, a.file);
+      const path = `${COT_COLLECTION}/${newId}/${safeName}`;
+      const sRef = sref(storage, path);
+      const up = await uploadBytes(sRef, a.file);
       const url = await getDownloadURL(up.ref);
 
       subidos.push({
@@ -3103,34 +3406,33 @@ async function enviarCotizacion() {
 
     const dataToSave = {
       id: newId,
-      fechaSubida: serverTimestamp(),
       estatus: ESTATUS_COTIZACION_INICIAL,
+      fechaSubida: serverTimestamp(),
       historial: [
         {
           usuario: nombreUsuario,
           estatus: ESTATUS_COTIZACION_INICIAL,
           fecha: new Date().toISOString(),
-          comentario: (comentario.value || "").trim(),
+          comentario: comentarioFinal,
         },
       ],
       responsable: nombreUsuario,
-      comentario: (comentario.value || "").trim(),
-      aprobadorSugerido: APROBADOR_FIJO,
-      aprobadorAsignado: APROBADOR_FIJO,
+      comentario: comentarioFinal,
       moneda: monedaSeleccionada.value,
-      precioTotalConIVA: Number(precioTotalConIVA.value || 0),
+      precioTotalConIVA: precioTotalConIVA.value,
 
-      empresa: solpedSeleccionada.value?.empresa || "Xtreme Servicio",
-      tipo_flujo: "planta",
+      proveedor: proveedorSeleccionado.value?.nombre || "",
+      rutProveedor: proveedorSeleccionado.value?.rut || "",
 
+      aprobadorSugerido: APROBADOR_FIJO,
+      empresa: solpedSeleccionada.value?.empresa || "",
       solpedId: solpedSeleccionadaId.value,
-      numero_solpe: solpedSeleccionada.value?.numero_solpe || 0,
+      numero_solped: solpedSeleccionada.value?.numero_solpe || 0,
       tipo_solped: solpedSeleccionada.value?.tipo_solped || "No definido",
       numero_contrato: solpedSeleccionada.value?.numero_contrato || "",
       nombre_centro_costo: solpedSeleccionada.value?.nombre_centro_costo || "",
       nombre_solped: solpedSeleccionada.value?.nombre_solped || "",
       usuario_solped: solpedSeleccionada.value?.usuario || "",
-
       archivosStorage: subidos,
       items: itemsCotizacion,
     };
@@ -3153,7 +3455,9 @@ async function enviarCotizacion() {
     for (const a of archivos.value) {
       try {
         if (a?.previewUrl && !a?.fromSolped) URL.revokeObjectURL(a.previewUrl);
-      } catch(e) {console.log(e)}
+      } catch (e) {
+        console.log(e);
+      }
     }
 
     archivos.value = [];
@@ -3166,6 +3470,9 @@ async function enviarCotizacion() {
     precioTotalConIVA.value = 0;
     precioFormateado.value = "";
     monedaSeleccionada.value = "CLP";
+    proveedorSeleccionado.value = null;
+    proveedorBusqueda.value = "";
+    proveedoresResultados.value = [];
     invalidField.value = "";
 
     await cargarSiguienteNumero();
@@ -3186,6 +3493,27 @@ async function enviarCotizacion() {
     setTimeout(() => setBusy(false), 450);
   }
 }
+const parseCantidad2D = (value) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return 1;
+
+  const n = Number(raw.replace(/[^\d]/g, ""));
+  if (!Number.isFinite(n) || n < 1) return 1;
+
+  return Math.floor(n);
+};
+
+const formatCantidad2D = (value) => {
+  const num = parseCantidad2D(value);
+  return String(num).padStart(2, "0");
+};
+
+const unidadesValidasPlantas = ["KG", "LITROS", "CM", "MM", "METROS", "UNIDAD"];
+
+const normalizeUnidadPlantas = (value) => {
+  const u = String(value || "").trim().toUpperCase();
+  return unidadesValidasPlantas.includes(u) ? u : "UNIDAD";
+};
 watch(
   () => selectedCruceItems.value.map((x) => x.uid).join("|"),
   () => {
@@ -3312,7 +3640,49 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 10px;
 }
+.provider-selected-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
 
+.provider-selected-icon,
+.provider-result-icon {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+  color: #1d4ed8;
+  border: 1px solid rgba(29, 78, 216, 0.12);
+}
+
+.proveedor-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border-radius: 14px;
+}
+
+.proveedor-item {
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transition: all 0.18s ease;
+}
+
+.proveedor-item:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.minw-0 {
+  min-width: 0;
+}
 .toast-box {
   display: flex;
   align-items: center;

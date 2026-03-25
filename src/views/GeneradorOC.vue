@@ -368,6 +368,7 @@
                     <div class="fw-semibold">{{ solpedSeleccionada.tipo_solped }} — {{ solpedSeleccionada.nombre_solped }}</div>
                   </div>
                 </div>
+
                 <div v-if="usarSolped && itemsSolped.length" class="card mt-3">
                   <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="fw-semibold">📦 Ítems de la SOLPED</div>
@@ -507,6 +508,54 @@
                 </div>
 
                 <hr class="my-4" />
+                                  <div class="mb-3">
+                    <label class="form-label">Proveedor</label>
+
+                    <div class="input-group">
+                      <input
+                        class="form-control"
+                        :class="{ 'is-invalid': invalidField === 'proveedor' }"
+                        :value="proveedorNombre"
+                        placeholder="Selecciona un proveedor…"
+                        readonly
+                      />
+
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        :class="{ 'btn-danger': invalidField === 'proveedor' }"
+                        @click="modalProveedorAbierto = true"
+                        aria-label="Seleccionar proveedor"
+                      >
+                        <i class="bi bi-search"></i>
+                      </button>
+
+                      <button
+                        v-if="proveedorSeleccionado"
+                        type="button"
+                        class="btn btn-outline-danger"
+                        @click="limpiarProveedorSeleccionado"
+                        aria-label="Quitar proveedor"
+                        title="Quitar proveedor"
+                      >
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="proveedorSeleccionado"
+                      class="provider-selected-card mt-2"
+                    >
+                      <div class="provider-selected-icon">
+                        <i class="bi bi-building"></i>
+                      </div>
+
+                      <div class="flex-grow-1 minw-0">
+                        <div class="fw-semibold text-truncate">{{ proveedorNombre }}</div>
+                        <div class="small text-secondary">RUT: {{ proveedorRut }}</div>
+                      </div>
+                    </div>
+                  </div>
                 <div class="mb-3">
                   <label class="form-label">Centro de Costo</label>
                   <div class="input-group">
@@ -973,6 +1022,82 @@
         </div>
       </div>
     </div>
+    <div
+      v-if="modalProveedorAbierto"
+      class="vmodal-backdrop"
+      @click.self="modalProveedorAbierto = false"
+    >
+      <div class="vmodal">
+        <div class="vmodal-header">
+          <h5 class="mb-0">Selecciona Proveedor</h5>
+        </div>
+
+        <div class="vmodal-body">
+          <div class="input-group mb-2">
+            <span class="input-group-text">
+              <i class="bi bi-search"></i>
+            </span>
+            <input
+              class="form-control"
+              placeholder="Buscar por nombre o RUT…"
+              v-model="proveedorBusqueda"
+              @input="buscarProveedores"
+              @keydown.enter.prevent="onEnterProveedor"
+            />
+          </div>
+
+          <div v-if="!(proveedorBusqueda || '').trim()" class="small text-secondary mb-2">
+            Escribe el nombre o RUT del proveedor.
+          </div>
+
+          <div v-if="proveedoresBuscando" class="text-center py-3">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <div class="small mt-2">Buscando proveedor…</div>
+          </div>
+
+          <div
+            v-else-if="(proveedorBusqueda || '').trim() && proveedoresResultados.length === 0"
+            class="alert alert-warning py-2 mb-0"
+          >
+            Ese proveedor aún no está agregado.
+          </div>
+
+          <div
+            v-else-if="proveedoresResultados.length"
+            class="list-group vmodal-list proveedor-list"
+          >
+            <button
+              type="button"
+              class="list-group-item list-group-item-action proveedor-item"
+              v-for="prov in proveedoresResultados"
+              :key="prov.id"
+              @click="seleccionarProveedor(prov)"
+            >
+              <div class="d-flex align-items-start gap-2">
+                <div class="provider-result-icon">
+                  <i class="bi bi-building"></i>
+                </div>
+
+                <div class="flex-grow-1 minw-0 text-start">
+                  <div class="fw-semibold text-truncate">{{ prov.nombre }}</div>
+                  <div class="small text-secondary">RUT: {{ prov.rut || "—" }}</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="vmodal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            @click="modalProveedorAbierto = false"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="toast-stack">
       <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
         <i
@@ -1409,8 +1534,22 @@ import { ref, computed, onMounted, watch, onBeforeUnmount, reactive } from "vue"
 import { useRouter, useRoute } from "vue-router";
 import { db } from "../stores/firebase";
 import {
-  collection, getDocs, getDoc, doc, query, where, orderBy, limit, addDoc, updateDoc,
-  onSnapshot, Timestamp, serverTimestamp, runTransaction
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  query,
+  where,
+  orderBy,
+  limit,
+  addDoc,
+  updateDoc,
+  onSnapshot,
+  Timestamp,
+  serverTimestamp,
+  runTransaction,
+  startAt,
+  endAt
 } from "firebase/firestore";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "../stores/authService";
@@ -1455,6 +1594,126 @@ const normalizePlain = (s) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/\s+/g, " ");
+
+const normalizarRut = (v) =>
+  String(v || "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toUpperCase();
+
+const normalizarTextoBusqueda = (v) =>
+  String(v || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const limpiarProveedorSeleccionado = () => {
+  proveedorSeleccionado.value = null;
+};
+
+const seleccionarProveedor = (prov) => {
+  proveedorSeleccionado.value = {
+    id: prov.id,
+    nombre: prov.nombre || "",
+    rut: prov.rut || "",
+  };
+  modalProveedorAbierto.value = false;
+  proveedorBusqueda.value = "";
+  proveedoresResultados.value = [];
+  clearInvalidField?.("proveedor");
+};
+const buscarProveedores = async () => {
+  const raw = String(proveedorBusqueda.value || "").trim();
+
+  if (!raw) {
+    proveedoresResultados.value = [];
+    return;
+  }
+
+  proveedoresBuscando.value = true;
+
+  try {
+    const texto = normalizarTextoBusqueda(raw);
+    const rutPlano = normalizarRut(raw);
+
+    const resultadosMap = new Map();
+
+    try {
+      const qNombre = query(
+        collection(db, "proveedores"),
+        orderBy("nombre"),
+        startAt(raw),
+        endAt(raw + "\uf8ff"),
+        limit(8)
+      );
+
+      const snapNombre = await getDocs(qNombre);
+      snapNombre.forEach((d) => {
+        const data = d.data() || {};
+        resultadosMap.set(d.id, {
+          id: d.id,
+          nombre: data.nombre || "",
+          rut: data.rut || "",
+        });
+      });
+    } catch (e) {
+      console.warn("Búsqueda por nombre proveedor:", e);
+    }
+
+
+    try {
+      const qBase = query(
+        collection(db, "proveedores"),
+        orderBy("nombre"),
+        limit(300)
+      );
+
+      const snapBase = await getDocs(qBase);
+      snapBase.forEach((d) => {
+        const data = d.data() || {};
+        const nombre = String(data.nombre || "");
+        const rut = String(data.rut || "");
+
+        const nombreNorm = normalizarTextoBusqueda(nombre);
+        const rutNorm = normalizarRut(rut);
+
+        const coincideNombre =
+          texto && nombreNorm.includes(texto);
+
+        const coincideRut =
+          rutPlano && rutNorm.includes(rutPlano);
+
+        if (coincideNombre || coincideRut) {
+          resultadosMap.set(d.id, {
+            id: d.id,
+            nombre,
+            rut,
+          });
+        }
+      });
+    } catch (e) {
+      console.warn("Búsqueda base proveedor:", e);
+    }
+
+    proveedoresResultados.value = Array.from(resultadosMap.values())
+      .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"));
+  } catch (error) {
+    console.error("Error buscando proveedores:", error);
+    addToast("danger", "No se pudieron buscar los proveedores.");
+    proveedoresResultados.value = [];
+  } finally {
+    proveedoresBuscando.value = false;
+  }
+};
+const onEnterProveedor = async () => {
+  await buscarProveedores();
+
+  if (proveedoresResultados.value.length === 1) {
+    seleccionarProveedor(proveedoresResultados.value[0]);
+  }
+};
 
 const num = (v, def = 0) => {
   const n = Number(v);
@@ -2251,7 +2510,7 @@ const bloqueoPorAprobadas = computed(() => {
   if (!esEditor) return false;
   if (!aprobadasListo.value) return false;
   if (!aprobadasState.ok) return true;
-  return totalAprobadasDelUsuario.value >= 10;
+  return totalAprobadasDelUsuario.value >= 30;
 });
 
 const mostrarBloqueoAprobadas = computed(() => {
@@ -2259,7 +2518,7 @@ const mostrarBloqueoAprobadas = computed(() => {
   const esEditor = roleKey === "editor";
   if (!esEditor) return false;
   if (!aprobadasListo.value) return false;
-  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 10;
+  return aprobadasState.ok && totalAprobadasDelUsuario.value >= 30;
 });
 
 const enviando = ref(false);
@@ -2521,6 +2780,14 @@ const autorizacionesSolped = ref([]);
 const autorizacionSeleccionadaIndex = ref(0);
 
 const modalCentroAbierto = ref(false);
+const modalProveedorAbierto = ref(false);
+const proveedorBusqueda = ref("");
+const proveedoresResultados = ref([]);
+const proveedoresBuscando = ref(false);
+
+const proveedorSeleccionado = ref(null);
+const proveedorNombre = computed(() => proveedorSeleccionado.value?.nombre || "");
+const proveedorRut = computed(() => proveedorSeleccionado.value?.rut || "");
 const centroCosto = ref("");
 const filtroCentro = ref("");
 
@@ -2972,7 +3239,11 @@ const validarFormularioAntesDeEnviar = async () => {
     });
     return false;
   }
-
+  if (!proveedorSeleccionado.value?.nombre || !proveedorSeleccionado.value?.rut) {
+    invalidField.value = "proveedor";
+    addToast("warning", "Debes seleccionar un proveedor.");
+    return false;
+  }
   if (usarSolped.value && !solpedSeleccionadaId.value) {
     await triggerValidationError({
       key: "solped",
@@ -4181,7 +4452,8 @@ const enviarOC = async () => {
       nombre_centro_costo: centroNombre,
       moneda: monedaSeleccionada.value,
       precioTotalConIVA: precioTotalConIVA.value,
-
+      proveedor: proveedorSeleccionado.value?.nombre || "",
+      rutProveedor: proveedorSeleccionado.value?.rut || "",
       aprobadorSugerido: aprobadorAsignado.value || "",
       aprobadorBase: aprobadorMeta.base || "",
       aprobadorMotivo: aprobadorMeta.motivo || "",
@@ -4251,6 +4523,8 @@ const enviarOC = async () => {
 
     aprobadorSugerido.value = "";
     aprobadorAsignado.value = "";
+
+    proveedorSeleccionado.value = null;
 
     aprobadorMeta.base = "";
     aprobadorMeta.final = "";
@@ -4818,7 +5092,49 @@ onBeforeUnmount(() => {
   max-height: 48vh;
   overflow: auto;
 }
+.provider-selected-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
 
+.provider-selected-icon,
+.provider-result-icon {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+  color: #1d4ed8;
+  border: 1px solid rgba(29, 78, 216, 0.12);
+}
+
+.proveedor-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border-radius: 14px;
+}
+
+.proveedor-item {
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transition: all 0.18s ease;
+}
+
+.proveedor-item:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.minw-0 {
+  min-width: 0;
+}
 .cruce-table-scroll table thead th{
   position: sticky;
   top: 0;

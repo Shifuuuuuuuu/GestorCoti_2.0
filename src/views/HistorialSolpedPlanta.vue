@@ -331,7 +331,7 @@
                           <th class="d-none d-md-table-cell">Código</th>
                           <th>Cantidad</th>
                           <th>Stock</th>
-                          <th class="d-none d-lg-table-cell">N° Interno</th>
+                          <th class="d-none d-lg-table-cell">Unidad</th>
                           <th class="d-none d-md-table-cell">Prioridad</th>
                           <th class="d-none d-md-table-cell">Imagen</th>
                           <th>Estado</th>
@@ -346,7 +346,7 @@
                             <td class="d-none d-md-table-cell">{{ it.codigo_referencial || 'SIN CODIGO' }}</td>
                             <td>{{ it.cantidad ?? '—' }}</td>
                             <td>{{ it.stock ?? '—' }}</td>
-                            <td class="d-none d-lg-table-cell">{{ it.numero_interno || 'SIN PATENTE' }}</td>
+                            <td class="d-none d-lg-table-cell">{{ it.unidad || 'UNIDAD' }}</td>
                             <td class="d-none d-md-table-cell">{{ it.prioridad || '—' }}</td>
                             <td class="d-none d-md-table-cell">
                               <template v-if="it.imagen_url">

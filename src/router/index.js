@@ -50,9 +50,10 @@ const GeneradorCotizacionPlantas = () => import("../views/GeneradorCotizacionPla
 const AprobacionCotizacionesPlantas = () => import("../views/AprobacionCotizacionesPlantas.vue");
 const HistorialCotizacionesPlantas = () => import("../views/HistorialCotizacionesPlantas.vue");
 const DetalleCotizacionPlanta = () => import("../views/DetalleCotizacionPlanta.vue");
-const DetalleSolpedPlanta = () => import("../views/DetalleSolpedPlanta.vue")
-const AdminSolpedPlantas = () => import ("../views/AdminSolpedPlantas.vue")
-const AdminCotizacionPlantas = () => import ("../views/AdminCotizacionPlantas.vue")
+const DetalleSolpedPlanta = () => import("../views/DetalleSolpedPlanta.vue");
+const AdminSolpedPlantas = () => import ("../views/AdminSolpedPlantas.vue");
+const AdminCotizacionPlantas = () => import ("../views/AdminCotizacionPlantas.vue");
+const ProveedoresView = () => import("../views/ProveedoresView.vue");
 const routes = [
   { path: "/login", name: "login", component: Login, meta: { guestOnly: true } },
   { path: "/", redirect: { name: "Inicio" } },
@@ -114,6 +115,7 @@ const routes = [
   { path: "/detalle-solped-planta/:id", name: "DetalleSolpedPlanta", component: DetalleSolpedPlanta, meta: { requiresAuth: true, menuKey: "HistorialSolpedPlanta"}},
   { path: "/admin-solped-plantas", name: "AdminSolpedPlantas", component: AdminSolpedPlantas, meta: { requiresAuth: true, menuKey: "AdminSolpedPlantas"}},
   { path: "/admin-coti-plantas", name: "AdminCotizacionPlantas", component: AdminCotizacionPlantas, meta: { requiresAuth: true, menuKey: "AdminCotizacionPlantas"}},
+  { path: "/admin-proveedores", name: "ProveedoresView", component: ProveedoresView, meta: { requiresAuth: true, menuKey: "ProveedoresView" }},
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound, meta: { public: true },
 },
 ];

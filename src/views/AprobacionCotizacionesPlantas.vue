@@ -92,7 +92,7 @@
 
                       <span class="oc-pill" title="SOLPED asociada">
                         <i class="bi bi-file-earmark-text me-1"></i>
-                        <strong>SOLPED:</strong> {{ cot.numero_solpe || '—' }}
+                        <strong>SOLPED:</strong> {{ cot.numero_solped ||cot.numero_solpe ||'—' }}
                       </span>
 
                       <span class="oc-pill" title="Empresa">
@@ -114,9 +114,15 @@
                         {{ fmtMoney(cot.precioTotalConIVA, cot.moneda) }}
                       </span>
 
-                      <span class="oc-pill" title="Aprobador sugerido">
-                        <i class="bi bi-person-check me-1"></i>
-                        <strong>Aprobador:</strong> {{ cot.aprobadorAsignado || cot.aprobadorSugerido || 'Alejandro Candia' }}
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-people-fill"></i>
+                        <strong>Proveedor:</strong>
+                       {{ cot.proveedor || 'SIN INFO' }}
+                      </span>
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-person-badge"></i>
+                        <strong>Rut del Proveedor:</strong>
+                       {{ cot.rutProveedor|| 'SIN INFO' }}
                       </span>
                     </div>
                   </div>
@@ -292,8 +298,8 @@
                           <th>Descripción</th>
                           <th class="text-center">Cant.</th>
                           <th class="text-center">Cotizada</th>
+                          <th class="d-none d-sm-table-cell">Unidad</th>
                           <th class="text-center">Estado</th>
-                          <th class="d-none d-sm-table-cell">N° Interno</th>
                           <th class="d-none d-lg-table-cell">Código ref.</th>
                         </tr>
                       </thead>
@@ -306,12 +312,12 @@
                           <td class="break-any">{{ it.descripcion }}</td>
                           <td class="text-center">{{ it.cantidad ?? 0 }}</td>
                           <td class="text-center">{{ it.cantidad_cotizada ?? it.cantidad_para_cotizar ?? 0 }}</td>
+                          <td class="d-none d-sm-table-cell break-any">{{ it.unidad || 'UNIDAD' }}</td>
                           <td class="text-center">
                             <span class="badge" :class="badgeItem(it.estado_resultante || it.estado)">
                               {{ it.estado_resultante || it.estado || 'pendiente' }}
                             </span>
                           </td>
-                          <td class="d-none d-sm-table-cell break-any">{{ it.numero_interno || '—' }}</td>
                           <td class="d-none d-lg-table-cell break-any">{{ it.codigo_referencial || '—' }}</td>
                         </tr>
                       </tbody>

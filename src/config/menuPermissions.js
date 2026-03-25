@@ -176,6 +176,14 @@ export const MENU_DEFINITIONS = [
     defaultRoles: ["Admin"],
   },
   {
+    key: "ProveedoresView",
+    routeName: "ProveedoresView",
+    label: "Admin Proveedores",
+    group: "Admin",
+    icon: "bi bi-person-workspace",
+    defaultRoles: ["Admin"],
+  },
+  {
     key: "DashboardEstadisticas",
     routeName: "DashboardEstadisticas",
     label: "Dashboard",

@@ -1,73 +1,138 @@
-<!-- src/views/AdminSolpes.vue -->
-<!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <div class="admin-solpes-page">
-    <div class="container py-4">
-      <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
-        <h1 class="h4 fw-semibold mb-0">Admin · SOLPES</h1>
-        <div class="d-flex align-items-stretch gap-2 flex-wrap w-100 w-lg-auto">
-          <div class="input-group toolbar-item flex-grow-1" style="min-width: 240px; max-width: 360px;">
-            <span class="input-group-text">#</span>
-            <input
-              class="form-control"
-              placeholder="Buscar numero_solpe"
-              v-model="buscarNumero"
-              @keyup.enter="onBuscarNumero"
-            />
-            <button class="btn btn-outline-secondary" @click="onBuscarNumero" title="Buscar">
-              <i class="bi bi-search"></i>
+    <div class="container py-4 py-md-5 position-relative">
+      <!-- HERO -->
+      <section class="hero-card mb-4">
+        <div class="hero-pattern"></div>
+
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap position-relative">
+          <div>
+            <div class="hero-badge mb-2">
+              <i class="bi bi-file-earmark-text me-2"></i>
+              Gestión de SOLPED
+            </div>
+            <h1 class="hero-title mb-1">Admin · SOLPES</h1>
+            <p class="hero-subtitle mb-0">
+              Administra SOLPED, filtra por usuario, fecha y estatus, y edita sus detalles desde una vista más clara y profesional.
+            </p>
+          </div>
+
+          <div class="hero-actions d-flex align-items-stretch gap-2 flex-wrap w-100 w-xl-auto ms-xl-3">
+            <div class="search-shell minw-320">
+              <i class="bi bi-search search-icon"></i>
+              <input
+                class="search-input"
+                placeholder="Buscar numero_solpe"
+                v-model="buscarNumero"
+                @keyup.enter="onBuscarNumero"
+              />
+              <button class="search-clear" @click="onBuscarNumero" title="Buscar" type="button">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+
+            <button class="btn btn-soft-primary btn-toolbar" @click="mobileFiltersOpen = true">
+              <i class="bi bi-funnel me-1"></i> Filtros
+              <span
+                v-if="hasActiveFilters"
+                class="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-2"
+              >
+                {{ totalFiltrosActivos }}
+              </span>
             </button>
+
+            <button class="btn btn-brand btn-toolbar" @click="abrirModalNueva">
+              <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED
+            </button>
+
             <button
               v-if="busquedaActiva"
-              class="btn btn-outline-danger"
+              class="btn btn-soft-danger btn-toolbar"
               @click="limpiarBusqueda"
-              title="Limpiar búsqueda">
-              <i class="bi bi-x-lg"></i>
+              title="Limpiar búsqueda"
+            >
+              <i class="bi bi-x-lg me-1"></i> Limpiar
             </button>
           </div>
-          <button class="btn btn-outline-primary toolbar-item" @click="mobileFiltersOpen = true">
-            <i class="bi bi-funnel me-1"></i> Filtros
-            <span v-if="hasActiveFilters" class="badge bg-primary-subtle text-primary-emphasis ms-2">{{ totalFiltrosActivos }}</span>
-          </button>
-          <button class="btn btn-primary toolbar-item" @click="abrirModalNueva">
-            <i class="bi bi-plus-lg me-1"></i> Nueva SOLPED
-          </button>
         </div>
-      </div>
+      </section>
 
-      <div v-if="hasActiveFilters || busquedaActiva" class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <small class="text-secondary">Filtros activos:</small>
+      <!-- RESUMEN -->
+      <section class="stats-strip mb-4">
+        <div class="stat-pill">
+          <div class="stat-icon stat-icon-blue">
+            <i class="bi bi-list-ul"></i>
+          </div>
+          <div>
+            <div class="stat-label">Registros visibles</div>
+            <div class="stat-value">{{ rows.length }}</div>
+          </div>
+        </div>
 
-        <span v-if="filtroFecha" class="badge bg-light text-dark border">
+        <div class="stat-pill" v-if="busquedaActiva">
+          <div class="stat-icon stat-icon-emerald">
+            <i class="bi bi-search"></i>
+          </div>
+          <div>
+            <div class="stat-label">Búsqueda activa</div>
+            <div class="stat-value"># {{ buscarNumero || '—' }}</div>
+          </div>
+        </div>
+
+        <div class="stat-pill" v-if="hasActiveFilters">
+          <div class="stat-icon stat-icon-slate">
+            <i class="bi bi-funnel"></i>
+          </div>
+          <div>
+            <div class="stat-label">Filtros activos</div>
+            <div class="stat-value">{{ totalFiltrosActivos }}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILTROS ACTIVOS -->
+      <div v-if="hasActiveFilters || busquedaActiva" class="active-filters mb-3">
+        <small class="text-secondary fw-semibold">Filtros activos:</small>
+
+        <span v-if="filtroFecha" class="chip chip-slate">
           Fecha: {{ filtroFecha }}
-          <button class="btn-close btn-close-white ms-2 small" @click="filtroFecha=''; aplicarFiltros()"></button>
+          <button class="chip-x" @click="filtroFecha=''; aplicarFiltros()">×</button>
         </span>
 
-        <span v-if="filtroUsuario" class="badge bg-light text-dark border">
+        <span v-if="filtroUsuario" class="chip chip-slate">
           Usuario: {{ filtroUsuario }}
-          <button class="btn-close btn-close-white ms-2 small" @click="filtroUsuario=''; aplicarFiltros()"></button>
+          <button class="chip-x" @click="filtroUsuario=''; aplicarFiltros()">×</button>
         </span>
 
-        <span v-for="es in filtroEstatus" :key="es" class="badge bg-light text-dark border">
+        <span v-for="es in filtroEstatus" :key="es" class="chip chip-slate">
           {{ es }}
-          <button class="btn-close btn-close-white ms-2 small" @click="removeEstatus(es)"></button>
+          <button class="chip-x" @click="removeEstatus(es)">×</button>
+        </span>
+
+        <span v-if="busquedaActiva" class="chip chip-cyan">
+          Búsqueda por número activa
         </span>
 
         <button class="btn btn-link btn-sm ps-0" @click="limpiarFiltros">Limpiar todo</button>
-
-        <span v-if="busquedaActiva" class="badge bg-info-subtle text-info-emphasis">
-          Búsqueda por número activa
-        </span>
       </div>
 
-      <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">
-            Listado ({{ rows.length }} / pág.)
-            <span v-if="hasActiveFilters || busquedaActiva" class="text-secondary small ms-2">paginación desactivada</span>
+      <!-- LISTADO -->
+      <section class="list-shell">
+        <div class="list-header">
+          <div>
+            <div class="list-title">
+              Listado
+              <span v-if="!busquedaActiva && !hasActiveFilters" class="text-secondary small ms-2">
+                ({{ rows.length }} / pág.)
+              </span>
+            </div>
+            <div class="list-subtitle">
+              <span v-if="hasActiveFilters || busquedaActiva">Paginación desactivada por filtros o búsqueda.</span>
+              <span v-else>Visualiza, edita o elimina SOLPED desde el panel principal.</span>
+            </div>
           </div>
+
           <div class="d-flex d-md-none gap-2">
-            <div class="input-group input-group-sm">
+            <div class="input-group input-group-sm search-mini">
               <span class="input-group-text">#</span>
               <input class="form-control" placeholder="Buscar" v-model="buscarNumero" @keyup.enter="onBuscarNumero">
               <button class="btn btn-outline-secondary" @click="onBuscarNumero">
@@ -80,9 +145,10 @@
           </div>
         </div>
 
+        <!-- TABLA DESKTOP -->
         <div class="table-responsive d-none d-md-block">
-          <table class="table align-middle mb-0">
-            <thead class="table-light">
+          <table class="table solpes-table align-middle mb-0">
+            <thead class="table-head-pro">
               <tr>
                 <th style="width:110px;"># SOLPE</th>
                 <th class="minw-220">Centro de Costo</th>
@@ -92,41 +158,67 @@
                 <th style="width:180px;">Acciones</th>
               </tr>
             </thead>
+
             <tbody>
               <tr v-if="cargando">
-                <td colspan="6" class="text-center py-4">
-                  <div class="spinner-border" role="status"></div>
-                  <div class="small text-secondary mt-2">Cargando…</div>
+                <td colspan="6" class="text-center py-5">
+                  <div class="loading-wrap">
+                    <div class="spinner-border" role="status"></div>
+                    <div class="small text-secondary mt-3">Cargando…</div>
+                  </div>
                 </td>
               </tr>
+
               <tr v-else-if="rows.length === 0">
-                <td colspan="6" class="text-center py-4 text-secondary">
-                  Sin resultados.
+                <td colspan="6" class="text-center py-5">
+                  <div class="empty-state">
+                    <div class="empty-icon">
+                      <i class="bi bi-inbox"></i>
+                    </div>
+                    <div class="empty-title">Sin resultados</div>
+                    <div class="empty-text">
+                      Ajusta la búsqueda o los filtros para volver a ver registros.
+                    </div>
+                  </div>
                 </td>
               </tr>
+
               <tr v-else v-for="r in rows" :key="r.__id">
-                <td class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</td>
-                <td>
-                  <div class="fw-semibold text-truncate">{{ r.numero_contrato || '—' }}</div>
-                  <div class="small text-secondary text-truncate">{{ r.nombre_centro_costo || '—' }}</div>
+                <td class="fw-semibold">
+                  <div class="row-index">#{{ r.numero_solpe ?? '—' }}</div>
                 </td>
-                <td>{{ r.empresa || '—' }}</td>
+
                 <td>
-                  <span class="badge" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+                  <div class="provider-main min-w-0">
+                    <div class="provider-avatar">
+                      <i class="bi bi-building"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <div class="provider-name text-truncate">{{ r.numero_contrato || '—' }}</div>
+                      <div class="provider-address text-truncate">{{ r.nombre_centro_costo || '—' }}</div>
+                    </div>
+                  </div>
                 </td>
+
                 <td>
-                  <div class="small">{{ prettyFecha(r.fecha) }}</div>
+                  <span class="chip chip-blue">{{ r.empresa || '—' }}</span>
                 </td>
+
                 <td>
-                  <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" @click="abrirEditor(r)" title="Editar">
+                  <span class="badge status-badge" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+                </td>
+
+                <td>
+                  <div class="date-badge">{{ prettyFecha(r.fecha) }}</div>
+                </td>
+
+                <td>
+                  <div class="action-group d-inline-flex">
+                    <button class="btn action-btn action-edit" @click="abrirEditor(r)" title="Editar">
                       <i class="bi bi-pencil-square"></i>
                     </button>
-                    <button class="btn btn-outline-danger" @click="abrirConfirm(r)" title="Eliminar">
+                    <button class="btn action-btn action-delete" @click="abrirConfirm(r)" title="Eliminar">
                       <i class="bi bi-trash3"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary" @click="irADetalle(r)" title="Ver detalle">
-                      <i class="bi bi-box-arrow-up-right"></i>
                     </button>
                   </div>
                 </td>
@@ -135,7 +227,8 @@
           </table>
         </div>
 
-        <div class="d-block d-md-none">
+        <!-- MOBILE -->
+        <div class="d-block d-md-none mobile-cards">
           <div v-if="cargando" class="text-center py-4">
             <div class="spinner-border" role="status"></div>
             <div class="small text-secondary mt-2">Cargando…</div>
@@ -145,39 +238,53 @@
             Sin resultados.
           </div>
 
-          <div v-else class="list-group list-group-flush">
-            <div v-for="r in rows" :key="r.__id" class="list-group-item">
-              <div class="d-flex justify-content-between align-items-start">
+          <div v-else class="mobile-grid">
+            <article v-for="r in rows" :key="r.__id" class="solpe-mobile-card">
+              <div class="mobile-card-top">
                 <div>
-                  <div class="fw-semibold">#{{ r.numero_solpe ?? '—' }}</div>
-                  <div class="small text-secondary">{{ displayDate(r) }}</div>
+                  <div class="provider-name">#{{ r.numero_solpe ?? '—' }}</div>
+                  <div class="provider-address">{{ displayDate(r) }}</div>
                 </div>
-                <span class="badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
+
+                <span class="badge status-badge mt-1" :class="badgeClass(r.estatus)">{{ r.estatus || '—' }}</span>
               </div>
 
-              <div class="mt-2 small">
-                <div class="text-truncate"><span class="text-secondary">Centro:</span> {{ r.nombre_centro_costo || '—' }}</div>
-                <div class="text-truncate"><span class="text-secondary">Contrato:</span> {{ r.numero_contrato || '—' }}</div>
-                <div class="text-truncate"><span class="text-secondary">Empresa:</span> {{ r.empresa || '—' }}</div>
-                <div class="text-truncate" v-if="r.usuario"><span class="text-secondary">Usuario:</span> {{ r.usuario }}</div>
+              <div class="mobile-card-body">
+                <div class="mobile-info-row">
+                  <span class="mobile-info-label">Centro</span>
+                  <span class="mobile-info-value text-truncate">{{ r.nombre_centro_costo || '—' }}</span>
+                </div>
+                <div class="mobile-info-row">
+                  <span class="mobile-info-label">Contrato</span>
+                  <span class="mobile-info-value text-truncate">{{ r.numero_contrato || '—' }}</span>
+                </div>
+                <div class="mobile-info-row">
+                  <span class="mobile-info-label">Empresa</span>
+                  <span class="mobile-info-value text-truncate">{{ r.empresa || '—' }}</span>
+                </div>
+                <div class="mobile-info-row" v-if="r.usuario">
+                  <span class="mobile-info-label">Usuario</span>
+                  <span class="mobile-info-value text-truncate">{{ r.usuario }}</span>
+                </div>
               </div>
 
-              <div class="d-flex gap-2 mt-3">
-                <button class="btn btn-outline-primary btn-sm flex-fill" @click="abrirEditor(r)">
+              <div class="mobile-card-actions">
+                <button class="btn btn-soft-primary flex-fill" @click="abrirEditor(r)">
                   <i class="bi bi-pencil-square me-1"></i> Editar
                 </button>
-                <button class="btn btn-outline-secondary btn-sm flex-fill" @click="irADetalle(r)">
+                <button class="btn btn-soft-secondary flex-fill" @click="irADetalle(r)">
                   <i class="bi bi-box-arrow-up-right me-1"></i> Detalle
                 </button>
-                <button class="btn btn-outline-danger btn-sm" @click="abrirConfirm(r)">
+                <button class="btn btn-soft-danger" @click="abrirConfirm(r)">
                   <i class="bi bi-trash3"></i>
                 </button>
               </div>
-            </div>
+            </article>
           </div>
         </div>
 
-        <div class="card-footer" v-if="!busquedaActiva && !hasActiveFilters">
+        <!-- PAGINACIÓN -->
+        <div class="card-footer-pro" v-if="!busquedaActiva && !hasActiveFilters">
           <nav aria-label="Paginación">
             <ul class="pagination justify-content-center mb-0">
               <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -198,8 +305,9 @@
             </ul>
           </nav>
         </div>
-      </div>
+      </section>
 
+      <!-- TOASTS -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
           <i class="me-2" :class="t.type==='success' ? 'bi bi-check-circle-fill' : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
@@ -211,91 +319,92 @@
 
     <!-- Mobile Filters -->
     <div v-if="mobileFiltersOpen" class="offcanvas-backdrop" @click.self="mobileFiltersOpen=false">
-      <div class="offcanvas-panel">
+      <div class="offcanvas-panel offcanvas-panel-sm">
         <div class="offcanvas-header">
-          <div class="fw-semibold"><i class="bi bi-funnel me-2"></i>Filtros · SOLPES</div>
+          <div>
+            <div class="modal-kicker">Opciones</div>
+            <div class="fw-bold fs-5"><i class="bi bi-funnel me-2"></i>Filtros · SOLPES</div>
+          </div>
           <button class="btn-close" @click="mobileFiltersOpen=false" aria-label="Cerrar"></button>
         </div>
 
         <div class="offcanvas-body">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">Buscar por N° SOLPE</label>
-              <div class="input-group">
-                <span class="input-group-text">#</span>
-                <input
-                  class="form-control"
-                  placeholder="Ej: 105"
-                  v-model="buscarNumero"
-                  @keyup.enter="onBuscarNumero"
-                />
-                <button class="btn btn-outline-secondary" @click="onBuscarNumero">
-                  <i class="bi bi-search"></i>
-                </button>
-                <button
-                  v-if="busquedaActiva"
-                  class="btn btn-outline-danger"
-                  @click="limpiarBusqueda"
-                  title="Limpiar"
-                >
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              </div>
-            </div>
-
-            <div class="col-12 col-sm-6">
-              <label class="form-label">Estatus</label>
-              <select class="form-select" v-model="filtroEstatusHeader" @change="onChangeEstatusHeader">
-                <option value="">Todos</option>
-                <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
-              </select>
-            </div>
-
-            <div class="col-12 col-sm-6">
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label mb-0 fw-semibold">
-                  <i class="bi bi-person-circle me-1 text-primary"></i>
-                  Usuario
-                </label>
-
-                <span class="badge rounded-pill text-bg-light border">
-                  <i class="bi bi-people me-1"></i>
-                  {{ usuariosOpts.length }}
-                </span>
+          <div class="form-block">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Buscar por N° SOLPE</label>
+                <div class="input-group">
+                  <span class="input-group-text">#</span>
+                  <input
+                    class="form-control modern-input"
+                    placeholder="Ej: 105"
+                    v-model="buscarNumero"
+                    @keyup.enter="onBuscarNumero"
+                  />
+                  <button class="btn btn-outline-secondary" @click="onBuscarNumero">
+                    <i class="bi bi-search"></i>
+                  </button>
+                  <button
+                    v-if="busquedaActiva"
+                    class="btn btn-outline-danger"
+                    @click="limpiarBusqueda"
+                    title="Limpiar"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
               </div>
 
-              <div class="input-group">
-                <span class="input-group-text bg-white">
-                  <i class="bi bi-funnel text-muted"></i>
-                </span>
-
-                <select class="form-select" v-model="filtroUsuario">
+              <div class="col-12 col-sm-6">
+                <label class="form-label">Estatus</label>
+                <select class="form-select modern-input" v-model="filtroEstatusHeader" @change="onChangeEstatusHeader">
                   <option value="">Todos</option>
-                  <option v-for="u in usuariosOpts" :key="u" :value="u">{{ u }}</option>
+                  <option v-for="s in ESTATUS_OPC" :key="s" :value="s">{{ s }}</option>
                 </select>
-
-                <button
-                  v-if="filtroUsuario"
-                  class="btn btn-light border"
-                  type="button"
-                  @click="filtroUsuario=''"
-                  title="Limpiar usuario"
-                >
-                  <i class="bi bi-x-circle"></i>
-                </button>
               </div>
-            </div>
 
-            <div class="col-12">
-              <label class="form-label">Fecha</label>
-              <input class="form-control" type="date" v-model="filtroFecha">
+              <div class="col-12 col-sm-6">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <label class="form-label mb-0 fw-semibold">
+                    <i class="bi bi-person-circle me-1 text-primary"></i>
+                    Usuario
+                  </label>
+                  <span class="chip chip-slate">{{ usuariosOpts.length }}</span>
+                </div>
+
+                <div class="input-group">
+                  <span class="input-group-text bg-white">
+                    <i class="bi bi-funnel text-muted"></i>
+                  </span>
+
+                  <select class="form-select modern-input" v-model="filtroUsuario">
+                    <option value="">Todos</option>
+                    <option v-for="u in usuariosOpts" :key="u" :value="u">{{ u }}</option>
+                  </select>
+
+                  <button
+                    v-if="filtroUsuario"
+                    class="btn btn-light border"
+                    type="button"
+                    @click="filtroUsuario=''"
+                    title="Limpiar usuario"
+                  >
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Fecha</label>
+                <input class="form-control modern-input" type="date" v-model="filtroFecha">
+              </div>
             </div>
           </div>
         </div>
 
         <div class="offcanvas-footer d-flex justify-content-between">
-          <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
-          <button class="btn btn-primary" @click="mobileApplyFilters">Aplicar</button>
+          <button class="btn btn-soft-secondary" @click="limpiarFiltros">Limpiar</button>
+          <button class="btn btn-brand" @click="mobileApplyFilters">Aplicar</button>
         </div>
       </div>
     </div>
@@ -304,150 +413,253 @@
     <div v-if="editorAbierto" class="offcanvas-backdrop editor-backdrop" @click.self="cerrarEditor">
       <div class="offcanvas-panel editor-panel">
         <div class="offcanvas-header editor-header">
-          <div class="fw-semibold text-truncate">Editar SOLPED</div>
+          <div>
+            <div class="modal-kicker">Editar registro</div>
+            <div class="fw-bold fs-5 text-truncate">Editar SOLPED</div>
+          </div>
           <button class="btn-close" @click="cerrarEditor" aria-label="Cerrar"></button>
         </div>
 
         <div class="offcanvas-body editor-body">
-          <div class="row g-3">
-            <div class="col-12 col-sm-6 col-md-3">
-              <label class="form-label">N° SOLPE</label>
-              <input class="form-control" v-model.number="edit.numero_solpe" type="number" min="0">
-            </div>
-
-            <div class="col-12 col-sm-6 col-md-6">
-              <label class="form-label">updated_at</label>
-              <input
-                class="form-control"
-                :value="edit.updated_at_input"
-                @input="onUpdatedAtInput"
-                inputmode="numeric"
-                maxlength="19"
-                placeholder="yyyy/mm/dd hh:mm:ss"
-              >
-              <div class="form-text">
-                Escribe solo números si quieres. El formato se completa automático.
-                Ejemplo: 20260320143055 → 2026/03/20 14:30:55
+          <div class="form-block">
+            <div class="row g-3">
+              <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label">N° SOLPE</label>
+                <input class="form-control modern-input" v-model.number="edit.numero_solpe" type="number" min="0">
               </div>
-            </div>
 
-            <div class="col-12 col-md-3">
-              <label class="form-label">Empresa</label>
-              <select class="form-select" v-model="edit.empresa">
-                <option>Xtreme Servicio</option>
-                <option>Xtreme Hormigones</option>
-                <option>Xtreme Mining</option>
-              </select>
-            </div>
-
-            <div class="col-12 col-md-3">
-              <label class="form-label">Estatus</label>
-              <select class="form-select" v-model="edit.estatus">
-                <option v-for="s in ESTATUS_OPC" :key="'ed-'+s" :value="s">{{ s }}</option>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label">Centro de Costo</label>
-
-              <div class="row g-2">
-                <div class="col-12 col-md-4">
-                  <select class="form-select" v-model="selectedCentroEditKey" @change="onCentroEditKeyChange">
-                    <option value="">— Nº contrato (key) —</option>
-                    <option v-for="opt in centrosOpts" :key="'k-'+opt.key" :value="opt.key">
-                      {{ opt.key }}
-                    </option>
-                  </select>
-                  <div class="form-text">Selecciona por número/contrato.</div>
-                </div>
-
-                <div class="col-12 col-md-8">
-                  <select class="form-select" v-model="selectedCentroEditName" @change="onCentroEditNameChange">
-                    <option value="">— Nombre centro de costo —</option>
-                    <option v-for="opt in centrosOpts" :key="'n-'+opt.key" :value="opt.name">
-                      {{ opt.name }}
-                    </option>
-                  </select>
-                  <div class="form-text">Selecciona por nombre (actualiza también el contrato).</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-12 col-md-4">
-              <label class="form-label">Usuario</label>
-              <input class="form-control" v-model="edit.usuario" placeholder="Ej: ADMIN">
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label">Tipo SOLPED</label>
-              <input class="form-control" v-model="edit.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label">Nombre SOLPED</label>
-              <input class="form-control" v-model="edit.nombre_solped">
-            </div>
-
-            <div class="col-12">
-              <label class="form-label mb-1">Dirigido A</label>
-              <div class="d-flex flex-wrap gap-2">
-                <label class="form-check me-3" v-for="p in DIRIGIDO_OPCIONES" :key="p">
-                  <input class="form-check-input me-1" type="checkbox" :value="p" v-model="edit.dirigidoA">
-                  <span class="form-check-label">{{ p }}</span>
-                </label>
-              </div>
-            </div>
-            <!-- ✅ MULTI ADJUNTOS (con campos nombre/tamano/tipo/url/comentarios) -->
-            <div class="col-12">
-              <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
-
-              <div class="d-flex gap-2 flex-wrap align-items-center">
+              <div class="col-12 col-sm-6 col-md-6">
+                <label class="form-label">Fecha de Actualización</label>
                 <input
-                  ref="inputAutorizacionEditEl"
-                  id="inputAutorizacionEdit"
-                  type="file"
-                  class="d-none"
-                  multiple
-                  accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivosAutorizacionEdit"
+                  class="form-control modern-input"
+                  :value="edit.updated_at_input"
+                  @input="onUpdatedAtInput"
+                  inputmode="numeric"
+                  maxlength="19"
+                  placeholder="yyyy/mm/dd hh:mm:ss"
                 >
-                <button class="btn btn-outline-secondary" @click="abrirSelectorAutorizacionEdit">
-                  <i class="bi bi-paperclip me-1"></i> Agregar archivos
-                </button>
-
-                <span class="badge text-bg-light border" v-if="(edit.autorizaciones?.length || 0) > 0">
-                  <i class="bi bi-folder2-open me-1"></i> {{ edit.autorizaciones.length }} adjunto(s)
-                </span>
-
-                <span class="badge text-bg-warning border" v-if="archivosAutorizacionEdit.length">
-                  <i class="bi bi-cloud-upload me-1"></i> {{ archivosAutorizacionEdit.length }} para subir
-                </span>
               </div>
 
-              <div class="mt-2" v-if="(edit.autorizaciones?.length || 0) > 0">
-                <div class="small text-secondary mb-1">Actuales:</div>
-                <div class="list-group">
-                  <div class="list-group-item py-2"
-                       v-for="(a, i) in edit.autorizaciones"
-                       :key="(a.url || a.nombre || 'adj') + '-' + i">
-                    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                      <div class="d-flex align-items-center gap-2">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <div class="small">
-                          <div class="fw-semibold text-truncate" style="max-width: 520px;">
-                            {{ a.nombre || 'archivo' }}
-                          </div>
-                          <div class="text-secondary">
-                            <span v-if="a.tipo">{{ a.tipo }}</span>
-                            <span v-if="a.tamano"> · {{ prettyBytes(a.tamano) }}</span>
+              <div class="col-12 col-md-3">
+                <label class="form-label">Empresa</label>
+                <select class="form-select modern-input" v-model="edit.empresa">
+                  <option>Xtreme Servicio</option>
+                  <option>Xtreme Hormigones</option>
+                  <option>Xtreme Mining</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <label class="form-label">Estatus</label>
+                <select class="form-select modern-input" v-model="edit.estatus">
+                  <option v-for="s in ESTATUS_OPC" :key="'ed-'+s" :value="s">{{ s }}</option>
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Centro de Costo</label>
+
+                <div class="row g-2">
+                  <div class="col-12 col-md-4">
+                    <select class="form-select modern-input" v-model="selectedCentroEditKey" @change="onCentroEditKeyChange">
+                      <option value="">— Nº contrato (key) —</option>
+                      <option v-for="opt in centrosOpts" :key="'k-'+opt.key" :value="opt.key">
+                        {{ opt.key }}
+                      </option>
+                    </select>
+                    <div class="form-text">Selecciona por número/contrato.</div>
+                  </div>
+
+                  <div class="col-12 col-md-8">
+                    <select class="form-select modern-input" v-model="selectedCentroEditName" @change="onCentroEditNameChange">
+                      <option value="">— Nombre centro de costo —</option>
+                      <option v-for="opt in centrosOpts" :key="'n-'+opt.key" :value="opt.name">
+                        {{ opt.name }}
+                      </option>
+                    </select>
+                    <div class="form-text">Selecciona por nombre (actualiza también el contrato).</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label">Usuario</label>
+                <input class="form-control modern-input" v-model="edit.usuario" placeholder="Ej: ADMIN">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Tipo SOLPED</label>
+                <input class="form-control modern-input" v-model="edit.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Nombre SOLPED</label>
+                <input class="form-control modern-input" v-model="edit.nombre_solped">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label mb-1">Dirigido A</label>
+                <div class="checks-wrap">
+                  <label class="form-check me-3" v-for="p in DIRIGIDO_OPCIONES" :key="p">
+                    <input class="form-check-input me-1" type="checkbox" :value="p" v-model="edit.dirigidoA">
+                    <span class="form-check-label">{{ p }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
+
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <input
+                    ref="inputAutorizacionEditEl"
+                    id="inputAutorizacionEdit"
+                    type="file"
+                    class="d-none"
+                    multiple
+                    accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    @change="onArchivosAutorizacionEdit"
+                  >
+                  <button class="btn btn-soft-secondary" @click="abrirSelectorAutorizacionEdit">
+                    <i class="bi bi-paperclip me-1"></i> Agregar archivos
+                  </button>
+
+                  <span class="chip chip-slate" v-if="(edit.autorizaciones?.length || 0) > 0">
+                    <i class="bi bi-folder2-open me-1"></i> {{ edit.autorizaciones.length }} adjunto(s)
+                  </span>
+
+                  <span class="chip chip-cyan" v-if="archivosAutorizacionEdit.length">
+                    <i class="bi bi-cloud-upload me-1"></i> {{ archivosAutorizacionEdit.length }} para subir
+                  </span>
+                </div>
+
+                <div class="mt-2" v-if="(edit.autorizaciones?.length || 0) > 0">
+                  <div class="small text-secondary mb-1">Actuales:</div>
+                  <div class="list-group pro-list-group">
+                    <div class="list-group-item py-2"
+                         v-for="(a, i) in edit.autorizaciones"
+                         :key="(a.url || a.nombre || 'adj') + '-' + i">
+                      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <div class="d-flex align-items-center gap-2">
+                          <i class="bi bi-file-earmark-text"></i>
+                          <div class="small">
+                            <div class="fw-semibold text-truncate" style="max-width: 520px;">
+                              {{ a.nombre || 'archivo' }}
+                            </div>
+                            <div class="text-secondary">
+                              <span v-if="a.tipo">{{ a.tipo }}</span>
+                              <span v-if="a.tamano"> · {{ prettyBytes(a.tamano) }}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div class="d-flex gap-2">
-                        <a v-if="a.url" :href="a.url" target="_blank" class="btn btn-sm btn-outline-primary">
-                          <i class="bi bi-box-arrow-up-right me-1"></i> Ver
-                        </a>
-                        <button class="btn btn-sm btn-outline-danger" @click="removeAdjuntoEdit(i)">
-                          <i class="bi bi-x-lg me-1"></i> Quitar
+                        <div class="d-flex gap-2">
+                          <a v-if="a.url" :href="a.url" target="_blank" class="btn btn-sm btn-soft-primary">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Ver
+                          </a>
+                          <button class="btn btn-sm btn-soft-danger" @click="removeAdjuntoEdit(i)">
+                            <i class="bi bi-x-lg me-1"></i> Quitar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-2" v-if="archivosAutorizacionEdit.length">
+                  <div class="small text-secondary mb-1">Por subir (se agregan al guardar):</div>
+                  <div class="d-flex flex-wrap gap-2">
+                    <span class="chip chip-cyan"
+                          v-for="(f, idx) in archivosAutorizacionEdit"
+                          :key="f.name + f.size + f.lastModified">
+                      {{ f.name }}
+                      <button class="chip-x dark" @click="removePendingEdit(idx)">×</button>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Ítems -->
+              <div class="col-12">
+                <div class="section-head">
+                  <div class="fw-semibold">Ítems</div>
+                  <button class="btn btn-sm btn-soft-primary" @click="abrirModalItem()">
+                    <i class="bi bi-plus-lg me-1"></i> Agregar ítem
+                  </button>
+                </div>
+
+                <div class="table-responsive d-none d-sm-block">
+                  <table class="table table-sm align-middle mb-0 inner-table">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:60px;">Ítem</th>
+                        <th>Descripción</th>
+                        <th style="width:100px;">Cant.</th>
+                        <th style="width:110px;">Cotizada</th>
+                        <th style="width:160px;">Código ref.</th>
+                        <th style="width:140px;">Estado</th>
+                        <th style="width:140px;">Img</th>
+                        <th style="width:160px;">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="!edit.items?.length">
+                        <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
+                      </tr>
+                      <tr v-for="(it, idx) in edit.items" :key="idx">
+                        <td class="fw-semibold">{{ it.item }}</td>
+                        <td class="small">
+                          <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
+                          <div class="text-secondary text-truncate">{{ it.numero_interno || '—' }}</div>
+                        </td>
+                        <td>{{ it.cantidad ?? 0 }}</td>
+                        <td>{{ it.cantidad_cotizada ?? 0 }}</td>
+                        <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
+                        <td>{{ it.estado || '—' }}</td>
+                        <td>
+                          <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
+                          <span v-else class="text-secondary small">—</span>
+                        </td>
+                        <td>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" @click="abrirModalItem(it, idx)">
+                              <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" @click="eliminarItem(idx)">
+                              <i class="bi bi-trash3"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="d-block d-sm-none">
+                  <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
+                  <div class="list-group list-group-flush">
+                    <div v-for="(it, idx) in edit.items" :key="'m-'+idx" class="list-group-item mobile-item-card">
+                      <div class="d-flex justify-content-between">
+                        <div class="fw-semibold">Ítem {{ it.item }}</div>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
+                      </div>
+                      <div class="small mt-1 text-truncate-3"><span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}</div>
+                      <div class="small mt-1">
+                        <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
+                        <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
+                      </div>
+                      <div class="small text-truncate mt-1">
+                        <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
+                      </div>
+                      <div class="small mt-1">
+                        <span class="text-secondary">Img:</span>
+                        <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
+                        <span v-else class="text-secondary">—</span>
+                      </div>
+                      <div class="d-flex gap-2 mt-2">
+                        <button class="btn btn-outline-secondary btn-sm flex-fill" @click="abrirModalItem(it, idx)">
+                          <i class="bi bi-pencil me-1"></i> Editar
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" @click="eliminarItem(idx)">
+                          <i class="bi bi-trash3"></i>
                         </button>
                       </div>
                     </div>
@@ -455,177 +667,59 @@
                 </div>
               </div>
 
-              <div class="mt-2" v-if="archivosAutorizacionEdit.length">
-                <div class="small text-secondary mb-1">Por subir (se agregan al guardar):</div>
-                <div class="d-flex flex-wrap gap-2">
-                  <span class="badge rounded-pill text-bg-warning border"
-                        v-for="(f, idx) in archivosAutorizacionEdit"
-                        :key="f.name + f.size + f.lastModified">
-                    {{ f.name }}
-                    <button class="btn btn-sm btn-link text-dark ms-1 p-0 align-baseline" @click="removePendingEdit(idx)">×</button>
-                  </span>
+              <!-- Historial -->
+              <div class="col-12">
+                <div class="section-head">
+                  <div class="fw-semibold">Historial de Estados</div>
                 </div>
-              </div>
-            </div>
 
-            <!-- Ítems -->
-            <div class="col-12">
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <div class="fw-semibold">Ítems</div>
-                <button class="btn btn-sm btn-outline-primary" @click="abrirModalItem()">
-                  <i class="bi bi-plus-lg me-1"></i> Agregar ítem
-                </button>
-              </div>
-
-              <div class="table-responsive d-none d-sm-block">
-                <table class="table table-sm align-middle mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th style="width:60px;">Ítem</th>
-                      <th>Descripción</th>
-                      <th style="width:100px;">Cant.</th>
-                      <th style="width:110px;">Cotizada</th>
-                      <th style="width:160px;">Código ref.</th>
-                      <th style="width:140px;">Estado</th>
-                      <th style="width:140px;">Img</th>
-                      <th style="width:160px;">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="!edit.items?.length">
-                      <td colspan="8" class="text-center text-secondary">Sin ítems.</td>
-                    </tr>
-                    <tr v-for="(it, idx) in edit.items" :key="idx">
-                      <td class="fw-semibold">{{ it.item }}</td>
-                      <td class="small">
-                        <div class="fw-semibold text-truncate-2">{{ it.descripcion }}</div>
-                        <div class="text-secondary text-truncate">{{ it.numero_interno || '—' }}</div>
-                      </td>
-                      <td>{{ it.cantidad ?? 0 }}</td>
-                      <td>{{ it.cantidad_cotizada ?? 0 }}</td>
-                      <td class="text-truncate">{{ it.codigo_referencial || '—' }}</td>
-                      <td>{{ it.estado || '—' }}</td>
-                      <td>
-                        <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank" class="small">ver</a>
-                        <span v-else class="text-secondary small">—</span>
-                      </td>
-                      <td>
-                        <div class="btn-group btn-group-sm">
-                          <button class="btn btn-outline-secondary" @click="abrirModalItem(it, idx)">
-                            <i class="bi bi-pencil"></i>
-                          </button>
-                          <button class="btn btn-outline-danger" @click="eliminarItem(idx)">
-                            <i class="bi bi-trash3"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="d-block d-sm-none">
-                <div v-if="!edit.items?.length" class="text-center text-secondary py-2">Sin ítems.</div>
-                <div class="list-group list-group-flush">
-                  <div v-for="(it, idx) in edit.items" :key="'m-'+idx" class="list-group-item">
-                    <div class="d-flex justify-content-between">
-                      <div class="fw-semibold">Ítem {{ it.item }}</div>
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ it.estado || '—' }}</span>
-                    </div>
-                    <div class="small mt-1 text-truncate-3"><span class="text-secondary">Desc:</span> {{ it.descripcion || '—' }}</div>
-                    <div class="small mt-1">
-                      <span class="text-secondary">Cant.:</span> {{ it.cantidad ?? 0 }} ·
-                      <span class="text-secondary">Cotizada:</span> {{ it.cantidad_cotizada ?? 0 }}
-                    </div>
-                    <div class="small text-truncate mt-1">
-                      <span class="text-secondary">Cód. ref:</span> {{ it.codigo_referencial || '—' }}
-                    </div>
-                    <div class="small mt-1">
-                      <span class="text-secondary">Img:</span>
-                      <a v-if="it.imagen_url" :href="it.imagen_url" target="_blank">ver</a>
-                      <span v-else class="text-secondary">—</span>
-                    </div>
-                    <div class="d-flex gap-2 mt-2">
-                      <button class="btn btn-outline-secondary btn-sm flex-fill" @click="abrirModalItem(it, idx)">
-                        <i class="bi bi-pencil me-1"></i> Editar
-                      </button>
-                      <button class="btn btn-outline-danger btn-sm" @click="eliminarItem(idx)">
-                        <i class="bi bi-trash3"></i>
-                      </button>
+                <div class="list-group mb-3 pro-list-group">
+                  <div class="list-group-item" v-for="h in historialEstadosLive" :key="h.__id">
+                    <div class="row g-2 align-items-center">
+                      <div class="col-12 col-md-3 small">
+                        <strong>{{ displayTs(h.fecha) || '—' }}</strong>
+                      </div>
+                      <div class="col-12 col-md-3 small">
+                        <span class="text-secondary">Estatus:</span> {{ h.estatus || '—' }}
+                      </div>
+                      <div class="col-12 col-md-4 small">
+                        <span class="text-secondary">Comentario:</span> {{ h.comentario || '—' }}
+                      </div>
+                      <div class="col-9 col-md-1 small">
+                        <span class="text-secondary">Usuario:</span> {{ h.usuario || '—' }}
+                      </div>
+                      <div class="col-3 col-md-1 text-end">
+                        <button class="btn btn-sm btn-soft-danger" @click="eliminarHistorialDoc(h.__id)">
+                          <i class="bi bi-trash3"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            <div class="col-12 col-sm-6 col-md-6">
-              <label class="form-label">updated_at</label>
-              <input
-                class="form-control"
-                :value="edit.updated_at_input"
-                @input="onUpdatedAtInput"
-                inputmode="numeric"
-                maxlength="19"
-                placeholder="yyyy/mm/dd hh:mm:ss"
-              >
-              <div class="form-text">
-                Escribe solo números si quieres. El formato se completa automático.
-                Ejemplo: 20260320143055 → 2026/03/20 14:30:55
-              </div>
-            </div>
-            </div>
-            <!-- Historial -->
-            <div class="col-12">
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <div class="fw-semibold">Historial de Estados</div>
-              </div>
-
-              <div class="list-group mb-3">
-                <div class="list-group-item" v-for="h in historialEstadosLive" :key="h.__id">
-                  <div class="row g-2 align-items-center">
-                    <div class="col-12 col-md-3 small">
-                      <strong>{{ displayTs(h.fecha) || '—' }}</strong>
-                    </div>
-                    <div class="col-12 col-md-3 small">
-                      <span class="text-secondary">Estatus:</span> {{ h.estatus || '—' }}
-                    </div>
-                    <div class="col-12 col-md-4 small">
-                      <span class="text-secondary">Comentario:</span> {{ h.comentario || '—' }}
-                    </div>
-                    <div class="col-9 col-md-1 small">
-                      <span class="text-secondary">Usuario:</span> {{ h.usuario || '—' }}
-                    </div>
-                    <div class="col-3 col-md-1 text-end">
-                      <button class="btn btn-sm btn-outline-danger" @click="eliminarHistorialDoc(h.__id)">
-                        <i class="bi bi-trash3"></i>
-                      </button>
-                    </div>
+                  <div v-if="!historialEstadosLive.length" class="list-group-item text-secondary small">
+                    Sin historial.
                   </div>
                 </div>
-                <div v-if="!historialEstadosLive.length" class="list-group-item text-secondary small">
-                  Sin historial.
-                </div>
-              </div>
 
-              <div class="card">
-                <div class="card-body">
+                <div class="mini-card">
                   <div class="row g-2">
                     <div class="col-12 col-md-3">
                       <label class="form-label mb-1">Fecha</label>
-                      <input class="form-control form-control-sm" type="datetime-local" v-model="histForm.fechaInput">
+                      <input class="form-control form-control-sm modern-input" type="datetime-local" v-model="histForm.fechaInput">
                     </div>
                     <div class="col-12 col-md-3">
                       <label class="form-label mb-1">Estatus</label>
-                      <input class="form-control form-control-sm" v-model="histForm.estatus" placeholder="Estatus">
+                      <input class="form-control form-control-sm modern-input" v-model="histForm.estatus" placeholder="Estatus">
                     </div>
                     <div class="col-12 col-md-4">
                       <label class="form-label mb-1">Comentario</label>
-                      <input class="form-control form-control-sm" v-model="histForm.comentario" placeholder="Comentario">
+                      <input class="form-control form-control-sm modern-input" v-model="histForm.comentario" placeholder="Comentario">
                     </div>
                     <div class="col-9 col-md-1">
                       <label class="form-label mb-1">Usuario</label>
-                      <input class="form-control form-control-sm" v-model="histForm.usuario" placeholder="Usuario">
+                      <input class="form-control form-control-sm modern-input" v-model="histForm.usuario" placeholder="Usuario">
                     </div>
                     <div class="col-3 col-md-1 d-flex align-items-end justify-content-end">
-                      <button class="btn btn-sm btn-primary w-100" :disabled="guardandoHist" @click="guardarHistorial()">
+                      <button class="btn btn-sm btn-brand w-100" :disabled="guardandoHist" @click="guardarHistorial()">
                         <span v-if="guardandoHist" class="spinner-border spinner-border-sm me-1"></span>
                         Agregar
                       </button>
@@ -633,15 +727,14 @@
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
 
         <div class="offcanvas-footer editor-footer">
           <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 w-100">
-            <button class="btn btn-outline-secondary w-100 w-sm-auto" @click="cerrarEditor">Cerrar</button>
-            <button class="btn btn-primary w-100 w-sm-auto" :disabled="guardando" @click="guardarEdicion">
+            <button class="btn btn-soft-secondary w-100 w-sm-auto" @click="cerrarEditor">Cerrar</button>
+            <button class="btn btn-brand w-100 w-sm-auto" :disabled="guardando" @click="guardarEdicion">
               <span v-if="guardando" class="spinner-border spinner-border-sm me-2"></span>
               Guardar cambios
             </button>
@@ -654,126 +747,130 @@
     <div v-if="modalNueva" class="vmodal-backdrop" @click.self="cerrarModalNueva">
       <div class="vmodal">
         <div class="vmodal-header">
-          <h5 class="mb-0">Nueva SOLPED</h5>
+          <div>
+            <div class="modal-kicker">Crear registro</div>
+            <h5 class="mb-0 fw-bold">Nueva SOLPED</h5>
+          </div>
         </div>
         <div class="vmodal-body">
-          <div class="row g-3">
-            <div class="col-md-3">
-              <label class="form-label">N° SOLPE</label>
-              <input class="form-control" v-model.number="nuevo.numero_solpe" type="number" min="0">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Fecha</label>
-              <input class="form-control" type="datetime-local" v-model="nuevo.fechaInput">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Empresa</label>
-              <select class="form-select" v-model="nuevo.empresa">
-                <option>Xtreme Servicio</option>
-                <option>Xtreme Servicios</option>
-                <option>Xtreme Mining</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label">Estatus</label>
-              <select class="form-select" v-model="nuevo.estatus">
-                <option v-for="s in ESTATUS_OPC" :key="'nw-'+s" :value="s">{{ s }}</option>
-              </select>
-            </div>
+          <div class="form-block">
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label">N° SOLPE</label>
+                <input class="form-control modern-input" v-model.number="nuevo.numero_solpe" type="number" min="0">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Fecha</label>
+                <input class="form-control modern-input" type="datetime-local" v-model="nuevo.fechaInput">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Empresa</label>
+                <select class="form-select modern-input" v-model="nuevo.empresa">
+                  <option>Xtreme Servicio</option>
+                  <option>Xtreme Servicios</option>
+                  <option>Xtreme Mining</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Estatus</label>
+                <select class="form-select modern-input" v-model="nuevo.estatus">
+                  <option v-for="s in ESTATUS_OPC" :key="'nw-'+s" :value="s">{{ s }}</option>
+                </select>
+              </div>
 
-            <div class="col-12">
-              <label class="form-label">Centro de Costo</label>
+              <div class="col-12">
+                <label class="form-label">Centro de Costo</label>
 
-              <div class="row g-2">
-                <div class="col-12 col-md-4">
-                  <select class="form-select" v-model="selectedCentroNuevoKey" @change="onCentroNuevoKeyChange">
-                    <option value="">— Nº contrato (key) —</option>
-                    <option v-for="opt in centrosOpts" :key="'nk-'+opt.key" :value="opt.key">
-                      {{ opt.key }}
-                    </option>
-                  </select>
+                <div class="row g-2">
+                  <div class="col-12 col-md-4">
+                    <select class="form-select modern-input" v-model="selectedCentroNuevoKey" @change="onCentroNuevoKeyChange">
+                      <option value="">— Nº contrato (key) —</option>
+                      <option v-for="opt in centrosOpts" :key="'nk-'+opt.key" :value="opt.key">
+                        {{ opt.key }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-8">
+                    <select class="form-select modern-input" v-model="selectedCentroNuevoName" @change="onCentroNuevoNameChange">
+                      <option value="">— Nombre centro de costo —</option>
+                      <option v-for="opt in centrosOpts" :key="'nn-'+opt.key" :value="opt.name">
+                        {{ opt.name }}
+                      </option>
+                    </select>
+                  </div>
                 </div>
-                <div class="col-12 col-md-8">
-                  <select class="form-select" v-model="selectedCentroNuevoName" @change="onCentroNuevoNameChange">
-                    <option value="">— Nombre centro de costo —</option>
-                    <option v-for="opt in centrosOpts" :key="'nn-'+opt.key" :value="opt.name">
-                      {{ opt.name }}
-                    </option>
-                  </select>
+
+                <div class="form-text mt-2">
+                  Guardará: <strong>{{ nuevo.numero_contrato || '—' }}</strong> — {{ nuevo.nombre_centro_costo || '—' }}
                 </div>
               </div>
 
-              <div class="small text-secondary mt-2">
-                Guardará: <strong>{{ nuevo.numero_contrato || '—' }}</strong> — {{ nuevo.nombre_centro_costo || '—' }}
+              <div class="col-md-4">
+                <label class="form-label">Usuario</label>
+                <input class="form-control modern-input" v-model="nuevo.usuario" placeholder="ADMIN">
               </div>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label">Usuario</label>
-              <input class="form-control" v-model="nuevo.usuario" placeholder="ADMIN">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Tipo SOLPED</label>
-              <input class="form-control" v-model="nuevo.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Nombre SOLPED</label>
-              <input class="form-control" v-model="nuevo.nombre_solped">
-            </div>
-
-            <div class="col-12">
-              <label class="form-label mb-1">Dirigido A</label>
-              <div class="d-flex flex-wrap gap-2">
-                <label class="form-check me-3" v-for="p in DIRIGIDO_OPCIONES" :key="'n-'+p">
-                  <input class="form-check-input me-1" type="checkbox" :value="p" v-model="nuevo.dirigidoA">
-                  <span class="form-check-label">{{ p }}</span>
-                </label>
+              <div class="col-md-4">
+                <label class="form-label">Tipo SOLPED</label>
+                <input class="form-control modern-input" v-model="nuevo.tipo_solped" placeholder="SERVICIOS DE TERCEROS">
               </div>
-            </div>
-
-            <!-- ✅ MULTI ADJUNTOS NUEVA -->
-            <div class="col-12">
-              <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
-              <div class="d-flex gap-2 flex-wrap align-items-center">
-                <input
-                  ref="inputAutorizacionNuevoEl"
-                  id="inputAutorizacionNuevo"
-                  type="file"
-                  class="d-none"
-                  multiple
-                  accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                  @change="onArchivosAutorizacionNuevo"
-                >
-                <button class="btn btn-secondary" @click="abrirSelectorAutorizacionNuevo">
-                  <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
-                </button>
-
-                <span class="badge text-bg-warning border" v-if="archivosAutorizacionNuevo.length">
-                  {{ archivosAutorizacionNuevo.length }} seleccionado(s)
-                </span>
+              <div class="col-md-4">
+                <label class="form-label">Nombre SOLPED</label>
+                <input class="form-control modern-input" v-model="nuevo.nombre_solped">
               </div>
 
-              <div class="mt-2" v-if="archivosAutorizacionNuevo.length">
-                <div class="d-flex flex-wrap gap-2">
-                  <span class="badge rounded-pill text-bg-warning border"
-                        v-for="(f, idx) in archivosAutorizacionNuevo"
-                        :key="f.name + f.size + f.lastModified">
-                    {{ f.name }}
-                    <button class="btn btn-sm btn-link text-dark ms-1 p-0 align-baseline" @click="removePendingNuevo(idx)">×</button>
+              <div class="col-12">
+                <label class="form-label mb-1">Dirigido A</label>
+                <div class="checks-wrap">
+                  <label class="form-check me-3" v-for="p in DIRIGIDO_OPCIONES" :key="'n-'+p">
+                    <input class="form-check-input me-1" type="checkbox" :value="p" v-model="nuevo.dirigidoA">
+                    <span class="form-check-label">{{ p }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Documentos adjuntos (PDF / imagen / Excel)</label>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <input
+                    ref="inputAutorizacionNuevoEl"
+                    id="inputAutorizacionNuevo"
+                    type="file"
+                    class="d-none"
+                    multiple
+                    accept="application/pdf,image/*,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    @change="onArchivosAutorizacionNuevo"
+                  >
+                  <button class="btn btn-soft-secondary" @click="abrirSelectorAutorizacionNuevo">
+                    <i class="bi bi-paperclip me-1"></i> Seleccionar archivos
+                  </button>
+
+                  <span class="chip chip-cyan" v-if="archivosAutorizacionNuevo.length">
+                    {{ archivosAutorizacionNuevo.length }} seleccionado(s)
                   </span>
                 </div>
-              </div>
 
-              <div class="form-text mt-1">
-                Se subirán al crear la SOLPED.
+                <div class="mt-2" v-if="archivosAutorizacionNuevo.length">
+                  <div class="d-flex flex-wrap gap-2">
+                    <span class="chip chip-cyan"
+                          v-for="(f, idx) in archivosAutorizacionNuevo"
+                          :key="f.name + f.size + f.lastModified">
+                      {{ f.name }}
+                      <button class="chip-x dark" @click="removePendingNuevo(idx)">×</button>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="form-text mt-1">
+                  Se subirán al crear la SOLPED.
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <div class="vmodal-footer">
-          <button class="btn btn-secondary" @click="cerrarModalNueva">Cancelar</button>
-          <button class="btn btn-primary" :disabled="creando" @click="crearNueva">
+          <button class="btn btn-soft-secondary" @click="cerrarModalNueva">Cancelar</button>
+          <button class="btn btn-brand" :disabled="creando" @click="crearNueva">
             <span v-if="creando" class="spinner-border spinner-border-sm me-2"></span>
             Crear
           </button>
@@ -785,61 +882,66 @@
     <div v-if="modalItem" class="vmodal-backdrop" @click.self="cerrarModalItem">
       <div class="vmodal" style="max-width: 720px;">
         <div class="vmodal-header">
-          <h5 class="mb-0">{{ isEditItem ? 'Editar ítem' : 'Nuevo ítem' }}</h5>
+          <div>
+            <div class="modal-kicker">{{ isEditItem ? 'Editar ítem' : 'Nuevo ítem' }}</div>
+            <h5 class="mb-0 fw-bold">{{ isEditItem ? 'Editar ítem' : 'Nuevo ítem' }}</h5>
+          </div>
         </div>
         <div class="vmodal-body">
-          <div class="row g-3">
-            <div class="col-md-2">
-              <label class="form-label">Ítem</label>
-              <input class="form-control" v-model.number="itemForm.item" type="number" min="1" :readonly="true">
-              <div class="form-text">Autonumérico.</div>
-            </div>
-            <div class="col-md-10">
-              <label class="form-label">Descripción</label>
-              <input class="form-control" v-model="itemForm.descripcion">
-            </div>
+          <div class="form-block">
+            <div class="row g-3">
+              <div class="col-md-2">
+                <label class="form-label">Ítem</label>
+                <input class="form-control modern-input" v-model.number="itemForm.item" type="number" min="1" :readonly="true">
+                <div class="form-text">Autonumérico.</div>
+              </div>
+              <div class="col-md-10">
+                <label class="form-label">Descripción</label>
+                <input class="form-control modern-input" v-model="itemForm.descripcion">
+              </div>
 
-            <div class="col-md-3">
-              <label class="form-label">Cantidad</label>
-              <input class="form-control" v-model.number="itemForm.cantidad" type="number" min="0">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Cotizada</label>
-              <input class="form-control" v-model.number="itemForm.cantidad_cotizada" type="number" min="0">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Código ref.</label>
-              <input class="form-control" v-model="itemForm.codigo_referencial">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Estado</label>
-              <select class="form-select" v-model="itemForm.estado">
-                <option>pendiente</option>
-                <option>parcial</option>
-                <option>completado</option>
-                <option>revisión</option>
-                <option>rechazado</option>
-              </select>
-            </div>
+              <div class="col-md-3">
+                <label class="form-label">Cantidad</label>
+                <input class="form-control modern-input" v-model.number="itemForm.cantidad" type="number" min="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Cotizada</label>
+                <input class="form-control modern-input" v-model.number="itemForm.cantidad_cotizada" type="number" min="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Código ref.</label>
+                <input class="form-control modern-input" v-model="itemForm.codigo_referencial">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Estado</label>
+                <select class="form-select modern-input" v-model="itemForm.estado">
+                  <option>pendiente</option>
+                  <option>parcial</option>
+                  <option>completado</option>
+                  <option>revisión</option>
+                  <option>rechazado</option>
+                </select>
+              </div>
 
-            <div class="col-md-6">
-              <label class="form-label">N° interno</label>
-              <input class="form-control" v-model="itemForm.numero_interno" placeholder="opcional">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Subir imagen (opcional)</label>
-              <input id="inputImagenItem" type="file" class="form-control"
-                accept="image/*" @change="onImagenItem">
-              <div class="form-text">Se guarda en Storage.</div>
-              <div v-if="itemForm.imagen_url" class="small mt-1">
-                <a :href="itemForm.imagen_url" target="_blank">Ver imagen</a>
+              <div class="col-md-6">
+                <label class="form-label">N° interno</label>
+                <input class="form-control modern-input" v-model="itemForm.numero_interno" placeholder="opcional">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Subir imagen (opcional)</label>
+                <input id="inputImagenItem" type="file" class="form-control modern-input"
+                  accept="image/*" @change="onImagenItem">
+                <div class="form-text">Se guarda en Storage.</div>
+                <div v-if="itemForm.imagen_url" class="small mt-1">
+                  <a :href="itemForm.imagen_url" target="_blank">Ver imagen</a>
+                </div>
               </div>
             </div>
           </div>
         </div>
         <div class="vmodal-footer">
-          <button class="btn btn-secondary" @click="cerrarModalItem">Cancelar</button>
-          <button class="btn btn-primary" @click="guardarItemForm">
+          <button class="btn btn-soft-secondary" @click="cerrarModalItem">Cancelar</button>
+          <button class="btn btn-brand" @click="guardarItemForm">
             Guardar ítem
           </button>
         </div>
@@ -848,13 +950,14 @@
 
     <!-- Confirm Delete -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
-      <div class="vmodal" style="max-width: 520px;">
-        <div class="vmodal-header d-flex align-items-center gap-2">
+      <div class="vmodal modal-sm-pro">
+        <div class="vmodal-header d-flex align-items-center gap-3">
           <div class="confirm-icon">
             <i class="bi bi-trash3-fill"></i>
           </div>
           <div>
-            <h5 class="mb-0">Confirmar eliminación</h5>
+            <div class="modal-kicker text-danger-emphasis">Acción delicada</div>
+            <h5 class="mb-0 fw-bold">Confirmar eliminación</h5>
             <small class="text-secondary">Esta acción no se puede deshacer</small>
           </div>
           <button class="btn-close ms-auto" @click="cerrarConfirm" :disabled="eliminando"></button>
@@ -866,26 +969,33 @@
             <strong>#{{ confirmRow?.numero_solpe ?? '—' }}</strong>?
           </p>
 
-          <ul class="list-unstyled small mb-0">
-            <li><span class="text-secondary">Empresa:</span> <strong>{{ confirmRow?.empresa || '—' }}</strong></li>
-            <li><span class="text-secondary">Centro de costo:</span> <strong>{{ confirmRow?.numero_contrato || '—' }}</strong> — {{ confirmRow?.nombre_centro_costo || '—' }}</li>
-            <li><span class="text-secondary">Fecha:</span> <strong>{{ displayDate(confirmRow) }}</strong></li>
-          </ul>
+          <div class="confirm-box">
+            <div class="confirm-row">
+              <span>Empresa</span>
+              <strong>{{ confirmRow?.empresa || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Centro de costo</span>
+              <strong>{{ confirmRow?.numero_contrato || '—' }} — {{ confirmRow?.nombre_centro_costo || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Fecha</span>
+              <strong>{{ displayDate(confirmRow) }}</strong>
+            </div>
+          </div>
         </div>
 
         <div class="vmodal-footer d-flex justify-content-end gap-2">
-          <button class="btn btn-outline-secondary" @click="cerrarConfirm" :disabled="eliminando">
+          <button class="btn btn-soft-secondary" @click="cerrarConfirm" :disabled="eliminando">
             Cancelar
           </button>
-          <button class="btn btn-danger" @click="confirmarEliminar" :disabled="eliminando">
+          <button class="btn btn-danger btn-delete-strong" @click="confirmarEliminar" :disabled="eliminando">
             <span v-if="eliminando" class="spinner-border spinner-border-sm me-2"></span>
             Eliminar
           </button>
         </div>
       </div>
     </div>
-
-  </div>
 </template>
 
 <script setup>
@@ -903,7 +1013,7 @@ const ESTATUS_OPC = [
   "Pendiente",
   "Revisión",
   "Rechazado",
-  "Cotizado Parcial",
+  "Cotizado parcial",
   "Cotizado Completado",
   "OC enviada a proveedor",
 ];
@@ -1996,98 +2106,940 @@ function prettyFecha(v) {
 onMounted(() => { subscribePage(1); });
 onBeforeUnmount(() => { cleanupSubs(); });
 </script>
-
 <style scoped>
-.admin-solpes-page{
-  min-height:100vh;
-}
-.minw-220{ min-width: 220px; }
-
-.toolbar-item .form-control,
-.toolbar-item .form-select,
-.toolbar-item .btn,
-.toolbar-item .input-group-text { height: 38px; }
-
-.offcanvas-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  display: grid; place-items: end; z-index: 1080;
-}
-.offcanvas-panel{
-  width: min(860px, 100%);
-  height: 100vh;
-  box-shadow: -12px 0 32px rgba(0,0,0,.25);
-  animation: slideIn .22s ease-out;
-  display: flex; flex-direction: column;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-}
-.offcanvas-header, .offcanvas-footer{
-  padding: .9rem 1rem;
-  border-bottom: 1px solid #eee;
-}
-.offcanvas-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.offcanvas-body{
-  padding: 1rem;
-  overflow: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-@keyframes slideIn{
-  from{ transform: translateX(20px); opacity:.0; }
-  to{ transform: translateX(0); opacity:1; }
-}
-@media (max-width: 575.98px){
-  .list-group-item{ border-left: 0; border-right: 0; }
+:root {
+  color-scheme: light;
 }
 
-.vmodal-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  z-index: 1080; display: grid; place-items: center; padding: 1rem;
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.88));
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+  z-index: 1;
 }
-.vmodal{
-  width: 100%; max-width: 640px;  border-radius: .75rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  border: 1px solid rgba(0,0,0,.05);
-}
-.vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid #eee;
-}
-.vmodal-footer{ border-top: 1px solid #eee; border-bottom: 0; }
-.vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
 
-.toast-stack{
-  position: fixed; right: 16px; bottom: 16px; z-index: 1200;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.toast-box{
-  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
-}
-.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
-.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
-.btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
 
-.confirm-icon{
-  width: 38px; height: 38px;
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.hero-title {
+  font-size: clamp(1.7rem, 2vw, 2.2rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.hero-subtitle {
+  max-width: 760px;
+  color: #64748b;
+  font-size: 0.98rem;
+}
+
+.hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.stats-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  min-width: 180px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(255,255,255,0.76);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+.stat-icon-blue {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.stat-icon-slate {
+  background: rgba(71, 85, 105, 0.12);
+  color: #334155;
+}
+
+.stat-icon-emerald {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.stat-value {
+  font-size: 1.05rem;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.search-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  background: rgba(255,255,255,0.82);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+  overflow: hidden;
+}
+
+.search-shell:focus-within {
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  color: #64748b;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0 44px 0 44px;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.search-input::placeholder {
+  color: #94a3b8;
+}
+
+.search-clear {
+  position: absolute;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 0;
   border-radius: 10px;
-  display: grid; place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626);
-  color: #fff; font-size: 18px;
-  box-shadow: 0 6px 18px rgba(220,38,38,.35);
+  background: transparent;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  transition: 0.2s ease;
 }
-.table td, .table th { vertical-align: middle; }
 
-.text-truncate-2{
+.search-clear:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: #0f172a;
+}
+
+.search-mini .form-control,
+.search-mini .input-group-text,
+.search-mini .btn {
+  border-radius: 12px;
+}
+
+.minw-320 {
+  min-width: 320px;
+}
+
+.active-filters {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.list-shell {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(255,255,255,0.76);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.72);
+  backdrop-filter: blur(12px);
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.2rem 1.3rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.74));
+}
+
+.list-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.list-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.solpes-table {
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(248, 250, 252, 0.72);
+  --bs-table-hover-bg: rgba(37, 99, 235, 0.035);
+  margin: 0;
+}
+
+.table-head-pro th {
+  background: rgba(248, 250, 252, 0.92) !important;
+  color: #475569;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 1rem 1rem;
+  white-space: nowrap;
+}
+
+.solpes-table tbody td {
+  padding: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.10);
+  color: #1e293b;
+}
+
+.solpes-table tbody tr {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.solpes-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.row-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.provider-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.provider-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+
+.provider-name {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.provider-address {
+  color: #64748b;
+  font-size: 0.83rem;
+}
+
+.date-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #334155;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.status-badge {
+  border-radius: 999px;
+  padding: 0.52rem 0.78rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 34px;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.chip-blue {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.14);
+}
+
+.chip-slate {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.chip-cyan {
+  color: #0f766e;
+  background: rgba(6, 182, 212, 0.10);
+  border-color: rgba(6, 182, 212, 0.14);
+}
+
+.chip-x {
+  margin-left: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip-x.dark {
+  color: #0f172a;
+}
+
+.action-group {
+  gap: 0.45rem;
+}
+
+.action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: 0.2s ease;
+}
+
+.action-view {
+  background: rgba(51, 65, 85, 0.08);
+  color: #334155;
+}
+
+.action-view:hover {
+  background: rgba(51, 65, 85, 0.14);
+  color: #0f172a;
+}
+
+.action-edit {
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+}
+
+.action-edit:hover {
+  background: rgba(37, 99, 235, 0.16);
+  color: #1e40af;
+}
+
+.action-delete {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+}
+
+.action-delete:hover {
+  background: rgba(220, 38, 38, 0.13);
+  color: #b91c1c;
+}
+
+.mobile-cards {
+  padding: 1rem;
+}
+
+.mobile-grid {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.solpe-mobile-card {
+  border-radius: 22px;
+  padding: 1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+.mobile-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.mobile-card-body {
+  margin-top: 0.95rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mobile-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.18);
+}
+
+.mobile-info-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.mobile-info-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.mobile-info-value {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.mobile-card-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.card-footer-pro {
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.74));
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 1rem 1.1rem;
+}
+
+.pagination .page-link {
+  min-width: 36px;
+  text-align: center;
+  border-radius: 12px;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #334155;
+  box-shadow: none !important;
+}
+
+.pagination .page-item.active .page-link {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.loading-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 1rem;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: rgba(148, 163, 184, 0.10);
+  color: #64748b;
+  font-size: 1.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.empty-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.2rem;
+}
+
+.empty-text {
+  font-size: 0.9rem;
+  color: #64748b;
+  max-width: 420px;
+}
+
+.btn-toolbar {
+  min-height: 52px;
+  border-radius: 16px;
+  padding-inline: 1rem;
+  font-weight: 700;
+  border-width: 1px;
+}
+
+.btn-brand {
+  color: #fff;
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+}
+
+.btn-brand:hover,
+.btn-brand:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.btn-soft-primary {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.09);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  font-weight: 700;
+}
+
+.btn-soft-primary:hover,
+.btn-soft-primary:focus {
+  color: #1742b8;
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.btn-soft-secondary {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  font-weight: 700;
+}
+
+.btn-soft-secondary:hover,
+.btn-soft-secondary:focus {
+  color: #0f172a;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.btn-soft-danger {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  font-weight: 700;
+}
+
+.btn-soft-danger:hover,
+.btn-soft-danger:focus {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.offcanvas-backdrop,
+.vmodal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(7px);
+}
+
+.offcanvas-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(780px, 100%);
+  max-width: 95vw;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -16px 0 44px rgba(15, 23, 42, 0.22);
+  animation: slideInRight 0.24s ease;
+  border-top-left-radius: 28px;
+  border-bottom-left-radius: 28px;
+  overflow: hidden;
+}
+
+.offcanvas-panel-sm {
+  width: 420px;
+  max-width: 96vw;
+}
+
+.editor-panel {
+  width: min(980px, 100%);
+}
+
+.offcanvas-header,
+.offcanvas-footer {
+  padding: 1.15rem 1.2rem;
+  background: transparent;
+}
+
+.offcanvas-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.offcanvas-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.offcanvas-body {
+  padding: 1.15rem;
+  overflow: auto;
+  flex: 1;
+}
+
+.vmodal {
+  width: 100%;
+  max-width: 900px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.72);
+  box-shadow: 0 36px 90px rgba(15, 23, 42, 0.24);
+  animation: fadeUp 0.22s ease;
+}
+
+.modal-sm-pro {
+  max-width: 560px;
+}
+
+.vmodal-header,
+.vmodal-footer {
+  padding: 1.15rem 1.25rem;
+  background: transparent;
+}
+
+.vmodal-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vmodal-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vmodal-body {
+  padding: 1.25rem;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.modal-kicker {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+
+.form-block {
+  border-radius: 22px;
+  padding: 1rem;
+  background: rgba(255,255,255,0.62);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.modern-input {
+  min-height: 48px;
+  border-radius: 15px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,0.95);
+  box-shadow: none;
+  color: #0f172a;
+}
+
+.modern-input:focus {
+  border-color: rgba(37, 99, 235, 0.30);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+}
+
+.form-label {
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.45rem;
+}
+
+.form-text {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.checks-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.pro-list-group .list-group-item,
+.mini-card,
+.mobile-item-card {
+  border-radius: 16px !important;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255,255,255,0.86);
+  margin-bottom: 0.5rem;
+}
+
+.mini-card {
+  padding: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.confirm-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  font-size: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.confirm-box {
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  background: rgba(255,255,255,0.68);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.18);
+}
+
+.confirm-row:last-child {
+  border-bottom: 0;
+}
+
+.confirm-row span {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.confirm-row strong {
+  color: #0f172a;
+  text-align: right;
+  word-break: break-word;
+}
+
+.btn-delete-strong {
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.22);
+}
+
+.toast-stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast-box {
+  min-width: 280px;
+  max-width: 420px;
+  color: #fff;
+  border-radius: 16px;
+  padding: 0.95rem 1rem;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.toast-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.toast-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.btn-close-white {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.btn-close {
+  box-shadow: none !important;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.text-truncate-2 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.text-truncate-3{
+
+.text-truncate-3 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(28px);
+    opacity: 0.82;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .hero-card {
+    padding: 1.2rem;
+  }
+
+  .list-header {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .toast-stack {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+  }
+
+  .toast-box {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .offcanvas-panel {
+    width: 100%;
+    border-radius: 0;
+  }
+
+  .vmodal {
+    max-width: 100%;
+    border-radius: 22px;
+  }
+
+  .hero-title {
+    font-size: 1.55rem;
+  }
+
+  .stat-pill {
+    flex: 1 1 100%;
+  }
+
+  .mobile-cards {
+    padding: 0.85rem;
+  }
+
+  .vmodal-body,
+  .offcanvas-body,
+  .vmodal-header,
+  .vmodal-footer,
+  .offcanvas-header,
+  .offcanvas-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 </style>

@@ -1,42 +1,103 @@
 <!-- src/views/AdminUsuarios.vue -->
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <div class="admin-users-page">
-    <div class="container py-4 py-md-5">
-      <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
-        <h1 class="h5 h4-sm fw-semibold mb-0">Administrar usuarios</h1>
 
-        <div class="d-flex align-items-stretch gap-2 flex-wrap">
-          <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
-            <i class="bi bi-sliders2 me-1"></i><span>Filtros</span>
-          </button>
+    <div class="container py-4 py-md-5 position-relative">
+      <!-- HERO -->
+      <section class="hero-card mb-4">
+        <div class="hero-pattern"></div>
 
-          <button class="btn btn-primary" @click="abrirCrear">
-            <i class="bi bi-person-plus me-1"></i>
-            <span class="d-none d-sm-inline">Agregar usuario</span>
-            <span class="d-inline d-sm-none">Agregar</span>
-          </button>
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap position-relative">
+          <div>
+            <div class="hero-badge mb-2">
+              <i class="bi bi-people me-2"></i>
+              Gestión de usuarios
+            </div>
+            <h1 class="hero-title mb-1">Administrar usuarios</h1>
+            <p class="hero-subtitle mb-0">
+              Crea, edita y organiza usuarios, empresas, contratos y permisos de menú desde un panel más claro y profesional.
+            </p>
+          </div>
 
-          <button class="btn btn-outline-secondary" @click="cargarUsuarios">
-            <i class="bi bi-arrow-clockwise me-1"></i>
-            <span class="d-none d-sm-inline">Recargar</span>
-            <span class="d-inline d-sm-none">Reload</span>
-          </button>
+          <div class="hero-actions d-flex align-items-stretch gap-2 flex-wrap w-100 w-xl-auto ms-xl-3">
+            <button class="btn btn-soft-secondary btn-toolbar d-inline-flex d-md-none" @click="toggleFiltros(true)">
+              <i class="bi bi-sliders2 me-1"></i><span>Filtros</span>
+            </button>
+
+            <button class="btn btn-brand btn-toolbar" @click="abrirCrear">
+              <i class="bi bi-person-plus me-1"></i>
+              <span class="d-none d-sm-inline">Agregar usuario</span>
+              <span class="d-inline d-sm-none">Agregar</span>
+            </button>
+
+            <button class="btn btn-soft-primary btn-toolbar" @click="cargarUsuarios">
+              <i class="bi bi-arrow-clockwise me-1"></i>
+              <span class="d-none d-sm-inline">Recargar</span>
+              <span class="d-inline d-sm-none">Reload</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Filtros escritorio -->
-      <div class="card mb-3 d-none d-md-block">
-        <div class="card-body">
-          <div class="row g-2 align-items-end">
+      <!-- RESUMEN -->
+      <section class="stats-strip mb-4">
+        <div class="stat-pill">
+          <div class="stat-icon stat-icon-blue">
+            <i class="bi bi-people-fill"></i>
+          </div>
+          <div>
+            <div class="stat-label">Total usuarios</div>
+            <div class="stat-value">{{ usuarios.length }}</div>
+          </div>
+        </div>
+
+        <div class="stat-pill">
+          <div class="stat-icon stat-icon-slate">
+            <i class="bi bi-funnel"></i>
+          </div>
+          <div>
+            <div class="stat-label">Mostrando</div>
+            <div class="stat-value">{{ paginado.length }}</div>
+          </div>
+        </div>
+
+        <div class="stat-pill" v-if="busqueda || rolFiltro || empresaFiltro">
+          <div class="stat-icon stat-icon-emerald">
+            <i class="bi bi-search"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="stat-label">Filtros activos</div>
+            <div class="stat-value text-truncate" style="max-width: 220px;">
+              {{ busqueda || rolFiltro || empresaFiltro }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILTROS DESKTOP -->
+      <section class="filter-shell mb-4 d-none d-md-block">
+        <div class="filter-shell__header">
+          <div>
+            <div class="list-title">Filtros</div>
+            <div class="list-subtitle">
+              Busca por nombre completo y filtra por rol o empresa.
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-shell__body">
+          <div class="row g-3 align-items-end">
             <div class="col-12 col-md-5">
               <label class="form-label">Buscar por nombre completo</label>
-              <input class="form-control" v-model="busqueda" placeholder="Ej: Juan, María, etc." />
+              <div class="search-shell">
+                <i class="bi bi-search search-icon"></i>
+                <input class="search-input" v-model="busqueda" placeholder="Ej: Juan, María, etc." />
+              </div>
             </div>
 
             <div class="col-12 col-md-3">
               <label class="form-label">Filtrar por rol</label>
-              <select class="form-select" v-model="rolFiltro">
+              <select class="form-select modern-input" v-model="rolFiltro">
                 <option value="">— Todos —</option>
                 <option v-for="r in rolesDisponibles" :key="r" :value="r">{{ r }}</option>
               </select>
@@ -44,479 +105,466 @@
 
             <div class="col-12 col-md-3">
               <label class="form-label">Filtrar por empresa</label>
-              <select class="form-select" v-model="empresaFiltro">
+              <select class="form-select modern-input" v-model="empresaFiltro">
                 <option value="">— Todas —</option>
                 <option v-for="e in empresasDisponibles" :key="e" :value="e">{{ e }}</option>
               </select>
             </div>
 
             <div class="col-12 col-md-1">
-              <button class="btn btn-dark w-100" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-soft-secondary w-100 btn-toolbar" @click="limpiarFiltros">Limpiar</button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Tabla -->
-      <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">Usuarios</div>
-          <span class="badge bg-dark-subtle text-dark-emphasis">
-            {{ usuarios.length }} en total
-          </span>
+      <!-- TABLA -->
+      <section class="list-shell">
+        <div class="list-header">
+          <div>
+            <div class="list-title">Usuarios</div>
+            <div class="list-subtitle">
+              Administra cuentas, empresas, roles, contratos y permisos.
+            </div>
+          </div>
+
+          <div class="list-counter">
+            <span>{{ usuarios.length }}</span>
+          </div>
         </div>
 
-        <div class="card-body p-0">
-          <div v-if="cargando" class="p-4 text-center">
+        <div v-if="cargando" class="p-5 text-center">
+          <div class="loading-wrap">
             <div class="spinner-border" role="status"></div>
-            <div class="small mt-2">Cargando…</div>
-          </div>
-
-          <div v-else>
-            <div v-if="paginado.length === 0" class="p-4 text-center text-secondary">
-              No hay resultados con esos filtros.
-            </div>
-
-            <div class="table-responsive">
-              <table class="table table-hover table-sm align-middle mb-0">
-                <thead class="position-sticky top-0 bg-body">
-                  <tr>
-                    <th style="width:40px;"></th>
-                    <th>Nombre</th>
-                    <th class="d-none d-sm-table-cell">Email</th>
-                    <th class="d-none d-md-table-cell">Empresas</th>
-                    <th>Rol</th>
-                    <th class="d-none d-lg-table-cell">Teléfono</th>
-                    <th class="d-none d-lg-table-cell">RUT</th>
-                    <th class="d-none d-xl-table-cell">Contratos</th>
-                    <th class="d-none d-xl-table-cell">Creado</th>
-                    <th style="width: 136px;" class="text-end pe-3">Acciones</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <tr v-for="u in paginado" :key="u.uid">
-                    <td><i class="bi bi-person-circle fs-5 text-secondary"></i></td>
-
-                    <td class="fw-semibold">
-                      <div class="text-truncate" style="max-width: 200px;">{{ u.fullName || '—' }}</div>
-                      <div class="small text-secondary d-sm-none">{{ u.email || '—' }}</div>
-                      <div class="d-sm-none mt-1 d-flex flex-wrap gap-1">
-                        <span
-                          v-for="e in (u.empresas||[]).slice(0,2)"
-                          :key="u.uid + '-emp-xs-' + e"
-                          class="badge bg-primary-subtle text-primary-emphasis">
-                          {{ e }}
-                        </span>
-                        <span
-                          v-if="(u.empresas||[]).length>2"
-                          class="badge bg-dark-subtle text-dark-emphasis">
-                          +{{ (u.empresas||[]).length-2 }}
-                        </span>
-                        <span v-if="(u.empresas||[]).length===0" class="badge bg-secondary-subtle text-secondary-emphasis">—</span>
-                      </div>
-                    </td>
-
-                    <td class="d-none d-sm-table-cell">
-                      <div class="text-truncate" style="max-width: 220px;">
-                        {{ u.email || '—' }}
-                      </div>
-                    </td>
-
-                    <td class="d-none d-md-table-cell">
-                      <div class="d-flex flex-wrap gap-1">
-                        <span
-                          v-for="e in (u.empresas||[]).slice(0,2)"
-                          :key="u.uid + '-emp-' + e"
-                          class="badge bg-primary-subtle text-primary-emphasis">
-                          {{ e }}
-                        </span>
-                        <span
-                          v-if="(u.empresas||[]).length>2"
-                          class="badge bg-dark-subtle text-dark-emphasis">
-                          +{{ (u.empresas||[]).length-2 }}
-                        </span>
-                        <span v-if="(u.empresas||[]).length===0" class="badge bg-secondary-subtle text-secondary-emphasis">—</span>
-                      </div>
-                    </td>
-
-                    <td>
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                        {{ u.role || '—' }}
-                      </span>
-                      <div class="small text-secondary mt-1"
-                           v-if="(u.menuPerms?.allow?.length || 0) > 0 || (u.menuPerms?.deny?.length || 0) > 0">
-                        <span class="me-2" v-if="(u.menuPerms?.allow?.length || 0) > 0">
-                          <i class="bi bi-shield-check me-1"></i>Permitido: {{ u.menuPerms.allow.length }}
-                        </span>
-                        <span v-if="(u.menuPerms?.deny?.length || 0) > 0">
-                          <i class="bi bi-shield-x me-1"></i>Denegado: {{ u.menuPerms.deny.length }}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td class="d-none d-lg-table-cell">{{ fmtPhone(u.phone) }}</td>
-                    <td class="d-none d-lg-table-cell">{{ u.rut || '—' }}</td>
-
-                    <td class="d-none d-xl-table-cell">
-                      <div v-if="(u.centrosAsignados||[]).length===0" class="text-secondary small">—</div>
-                      <div v-else class="d-flex flex-wrap gap-1">
-                        <span
-                          v-for="k in u.centrosAsignados.slice(0,3)"
-                          :key="u.uid+'-'+k"
-                          class="badge rounded-pill bg-info-subtle text-info-emphasis">
-                          {{ nombreContrato(k) }}
-                        </span>
-                        <span v-if="u.centrosAsignados.length>3" class="badge rounded-pill bg-dark-subtle text-dark-emphasis">
-                          +{{ u.centrosAsignados.length-3 }}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td class="small text-secondary d-none d-xl-table-cell">{{ fmtFecha(u.createdAt) }}</td>
-
-                    <td class="text-end pe-3">
-                      <div class="btn-group btn-group-sm d-none d-md-inline-flex">
-                        <button class="btn btn-outline-primary" @click="abrirEditar(u)">Editar</button>
-                        <button
-                          class="btn btn-outline-danger"
-                          @click="abrirConfirm(u)"
-                          :disabled="accionando && uidEnAccion===u.uid">
-                          <span v-if="accionando && uidEnAccion===u.uid" class="spinner-border spinner-border-sm me-2"></span>
-                          Eliminar
-                        </button>
-                      </div>
-
-                      <div class="d-inline-flex d-md-none gap-1">
-                        <button class="btn btn-outline-primary btn-sm" @click="abrirEditar(u)" title="Editar">
-                          <i class="bi bi-pencil-square"></i>
-                        </button>
-                        <button
-                          class="btn btn-outline-danger btn-sm"
-                          @click="abrirConfirm(u)"
-                          :disabled="accionando && uidEnAccion===u.uid"
-                          title="Eliminar">
-                          <span v-if="accionando && uidEnAccion===u.uid" class="spinner-border spinner-border-sm"></span>
-                          <i v-else class="bi bi-trash3"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-
-              </table>
-            </div>
-
-            <div class="card-footer">
-              <nav class="overflow-auto">
-                <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
-                  <li class="page-item" :class="{disabled: paginaActual===1}">
-                    <button class="page-link" @click="goToPage(paginaActual-1)" aria-label="Anterior">«</button>
-                  </li>
-                  <li
-                    v-for="n in visiblePages"
-                    :key="'pg-'+n"
-                    class="page-item"
-                    :class="{active: paginaActual===n}">
-                    <button class="page-link" @click="goToPage(n)">{{ n }}</button>
-                  </li>
-                  <li class="page-item" :class="{disabled: paginaActual===totalPaginas}">
-                    <button class="page-link" @click="goToPage(paginaActual+1)" aria-label="Siguiente">»</button>
-                  </li>
-                </ul>
-              </nav>
-            </div>
-
+            <div class="small mt-3 text-secondary">Cargando…</div>
           </div>
         </div>
-      </div>
+
+        <div v-else>
+          <div v-if="paginado.length === 0" class="p-5 text-center">
+            <div class="empty-state">
+              <div class="empty-icon">
+                <i class="bi bi-inbox"></i>
+              </div>
+              <div class="empty-title">No hay resultados con esos filtros</div>
+              <div class="empty-text">
+                Ajusta los filtros para volver a ver resultados.
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive" v-else>
+            <table class="table users-table align-middle mb-0">
+              <thead class="position-sticky top-0 table-head-pro">
+                <tr>
+                  <th style="width:48px;"></th>
+                  <th>Nombre</th>
+                  <th class="d-none d-sm-table-cell">Email</th>
+                  <th>Rol</th>
+                  <th class="d-none d-lg-table-cell">RUT</th>
+                  <th style="width: 136px;" class="text-end pe-3">Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr v-for="u in paginado" :key="u.uid">
+                  <td>
+                    <div class="row-icon">
+                      <i class="bi bi-person"></i>
+                    </div>
+                  </td>
+
+                  <td class="fw-semibold">
+                    <div class="provider-main min-w-0">
+                      <div class="provider-avatar">
+                        {{ (u.fullName || u.email || 'U').charAt(0).toUpperCase() }}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="provider-name text-truncate" style="max-width: 200px;">
+                          {{ u.fullName || '—' }}
+                        </div>
+                        <div class="provider-address d-sm-none text-truncate">
+                          {{ u.email || '—' }}
+                        </div>
+                        <div class="d-sm-none mt-1 d-flex flex-wrap gap-1">
+                          <span
+                            v-for="e in (u.empresas||[]).slice(0,2)"
+                            :key="u.uid + '-emp-xs-' + e"
+                            class="chip chip-blue">
+                            {{ e }}
+                          </span>
+                          <span
+                            v-if="(u.empresas||[]).length>2"
+                            class="chip chip-slate">
+                            +{{ (u.empresas||[]).length-2 }}
+                          </span>
+                          <span v-if="(u.empresas||[]).length===0" class="chip chip-slate">—</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="d-none d-sm-table-cell">
+                    <div class="data-inline">
+                      <i class="bi bi-envelope"></i>
+                      <span class="text-truncate" style="max-width: 220px;">{{ u.email || '—' }}</span>
+                    </div>
+                  </td>
+
+                  <td>
+                    <span class="chip chip-slate">
+                      {{ u.role || '—' }}
+                    </span>
+                    <div
+                      class="small text-secondary mt-1"
+                      v-if="(u.menuPerms?.allow?.length || 0) > 0 || (u.menuPerms?.deny?.length || 0) > 0">
+                      <span class="me-2" v-if="(u.menuPerms?.allow?.length || 0) > 0">
+                        <i class="bi bi-shield-check me-1"></i>Permitido: {{ u.menuPerms.allow.length }}
+                      </span>
+                      <span v-if="(u.menuPerms?.deny?.length || 0) > 0">
+                        <i class="bi bi-shield-x me-1"></i>Denegado: {{ u.menuPerms.deny.length }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="d-none d-lg-table-cell">{{ u.rut || '—' }}</td>
+                  <td class="text-end pe-3">
+                    <div class="action-group d-none d-md-inline-flex">
+                      <button class="btn action-btn action-edit" @click="abrirEditar(u)" title="Editar">
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button
+                        class="btn action-btn action-delete"
+                        @click="abrirConfirm(u)"
+                        :disabled="accionando && uidEnAccion===u.uid"
+                        title="Eliminar">
+                        <span v-if="accionando && uidEnAccion===u.uid" class="spinner-border spinner-border-sm"></span>
+                        <i v-else class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+
+                    <div class="d-inline-flex d-md-none gap-1">
+                      <button class="btn action-btn action-edit btn-sm" @click="abrirEditar(u)" title="Editar">
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button
+                        class="btn action-btn action-delete btn-sm"
+                        @click="abrirConfirm(u)"
+                        :disabled="accionando && uidEnAccion===u.uid"
+                        title="Eliminar">
+                        <span v-if="accionando && uidEnAccion===u.uid" class="spinner-border spinner-border-sm"></span>
+                        <i v-else class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card-footer-pro">
+            <nav class="overflow-auto">
+              <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
+                <li class="page-item" :class="{disabled: paginaActual===1}">
+                  <button class="page-link" @click="goToPage(paginaActual-1)" aria-label="Anterior">«</button>
+                </li>
+                <li
+                  v-for="n in visiblePages"
+                  :key="'pg-'+n"
+                  class="page-item"
+                  :class="{active: paginaActual===n}">
+                  <button class="page-link" @click="goToPage(n)">{{ n }}</button>
+                </li>
+                <li class="page-item" :class="{disabled: paginaActual===totalPaginas}">
+                  <button class="page-link" @click="goToPage(paginaActual+1)" aria-label="Siguiente">»</button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </section>
 
       <!-- Offcanvas crear/editar -->
       <div v-if="offOpen" class="offcanvas-backdrop" @click.self="cerrarOff">
         <div class="offcanvas-panel">
           <div class="offcanvas-header">
-            <h5 class="mb-0">{{ esEdicion ? 'Editar usuario' : 'Crear usuario' }}</h5>
+            <div>
+              <div class="modal-kicker">{{ esEdicion ? 'Editar registro' : 'Nuevo registro' }}</div>
+              <div class="fw-bold fs-5 text-truncate">{{ esEdicion ? 'Editar usuario' : 'Crear usuario' }}</div>
+            </div>
             <button class="btn-close" @click="cerrarOff"></button>
           </div>
 
           <div class="offcanvas-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">Nombre completo</label>
-                <input class="form-control" v-model="form.fullName" placeholder="Ej: Juan Pérez" />
-              </div>
-
-              <div class="col-12">
-                <label class="form-label">Email (Auth & Firestore)</label>
-                <input class="form-control" type="email" v-model="form.email" placeholder="email@dominio.com" />
-              </div>
-
-              <!-- ✅ Password show/hide -->
-              <div class="col-12" v-if="!esEdicion">
-                <label class="form-label">Contraseña (solo para crear en Auth)</label>
-                <div class="input-group">
-                  <input
-                    class="form-control"
-                    :type="showPassword ? 'text' : 'password'"
-                    v-model="form.password"
-                    placeholder="Mín. 6 caracteres"
-                    autocomplete="new-password"
-                  />
-                  <button class="btn btn-outline-secondary" type="button" @click="showPassword = !showPassword">
-                    <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
-                  </button>
-                </div>
-                <div class="form-text">No se guarda en Firestore.</div>
-              </div>
-
-              <!-- ✅ Teléfono CL -->
-              <div class="col-12 col-sm-6">
-                <label class="form-label">Teléfono (Celular CL)</label>
-                <input
-                  class="form-control"
-                  type="tel"
-                  inputmode="numeric"
-                  autocomplete="tel"
-                  :class="phoneClass"
-                  :value="form.phone"
-                  @input="onPhoneInput"
-                  placeholder="+56 9 1234 5678"
-                />
-                <div v-if="phoneStatus === false" class="invalid-feedback d-block">
-                  Teléfono inválido. Usa formato CL: +56 9 1234 5678.
-                </div>
-                <div v-else class="form-text">
-                  Se normaliza a E.164: <strong>{{ phoneE164 || '—' }}</strong>
-                </div>
-              </div>
-
-              <!-- ✅ RUT con formato + validación -->
-              <div class="col-12 col-sm-6">
-                <label class="form-label">RUT</label>
-                <input
-                  class="form-control"
-                  inputmode="text"
-                  autocomplete="off"
-                  :class="rutClass"
-                  :value="form.rut"
-                  @input="onRutInput"
-                  placeholder="12.345.678-5"
-                />
-                <div v-if="rutStatus === false" class="invalid-feedback d-block">
-                  RUT inválido (DV no coincide).
-                </div>
-              </div>
-
-              <div class="col-12">
-                <div class="d-flex align-items-center justify-content-between">
-                  <label class="form-label mb-0">Empresas</label>
-                  <small class="text-secondary">{{ form.empresas.length }} seleccionada(s)</small>
+            <div class="form-block">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Nombre completo</label>
+                  <input class="form-control modern-input" v-model="form.fullName" placeholder="Ej: Juan Pérez" />
                 </div>
 
-                <div v-if="form.empresas.length" class="d-flex flex-wrap gap-1 mb-2">
-                  <span
-                    v-for="e in form.empresas"
-                    :key="'sel-emp-'+e"
-                    class="badge rounded-pill bg-primary-subtle text-primary-emphasis">
-                    {{ e }}
-                    <button class="btn btn-sm btn-link text-primary ms-1 p-0 align-baseline"
-                            @click="quitarEmpresa(e)">×</button>
-                  </span>
+                <div class="col-12">
+                  <label class="form-label">Email (Auth & Firestore)</label>
+                  <input class="form-control modern-input" type="email" v-model="form.email" placeholder="email@dominio.com" />
                 </div>
 
-                <div class="input-group input-group-sm mb-2">
-                  <span class="input-group-text"><i class="bi bi-buildings"></i></span>
-                  <button class="btn btn-outline-secondary" @click="seleccionarTodasEmpresas">Todas</button>
-                  <button class="btn btn-outline-secondary" @click="limpiarEmpresas">Limpiar</button>
-                </div>
-
-                <div class="empresa-box">
-                  <label
-                    v-for="e in empresasDisponibles"
-                    :key="'emp-'+e"
-                    class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                <div class="col-12" v-if="!esEdicion">
+                  <label class="form-label">Contraseña (solo para crear en Auth)</label>
+                  <div class="input-group">
                     <input
-                      class="form-check-input"
-                      type="checkbox"
-                      :value="e"
-                      :checked="form.empresas.includes(e)"
-                      @change="toggleEmpresa(e, $event.target.checked)" />
-                    <span class="small fw-semibold">{{ e }}</span>
-                  </label>
-                </div>
-              </div>
-
-              <div class="col-12">
-                <label class="form-label">Rol</label>
-                <select class="form-select" :value="form.role" @change="onRoleChange">
-                  <option value="">— Selecciona —</option>
-                  <option v-for="r in rolesDisponibles" :key="'role-'+r" :value="r">{{ r }}</option>
-                </select>
-              </div>
-
-              <!-- (todo tu bloque de permisos + contratos igual que antes) -->
-              <!-- ===== PERMISOS MENU ===== -->
-              <div class="col-12">
-                <div class="d-flex align-items-center justify-content-between">
-                  <label class="form-label mb-0">Permisos de menú</label>
-                  <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-secondary" @click="limpiarPermisosMenu">
-                      Limpiar
+                      class="form-control modern-input"
+                      :type="showPassword ? 'text' : 'password'"
+                      v-model="form.password"
+                      placeholder="Mín. 6 caracteres"
+                      autocomplete="new-password"
+                    />
+                    <button class="btn btn-soft-secondary" type="button" @click="showPassword = !showPassword">
+                      <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
                     </button>
                   </div>
+                  <div class="form-text">No se guarda en Firestore.</div>
                 </div>
 
-                <div class="row g-2">
-                  <div class="col-12 col-lg-6">
-                    <div class="perm-card">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="fw-semibold">
-                          <i class="bi bi-shield-check me-1"></i> Permitido
-                          <span class="badge bg-success-subtle text-success-emphasis ms-2">{{ form.menuPerms.allow.length }}</span>
-                        </div>
-                      </div>
-
-                      <div v-if="form.menuPerms.allow.length" class="d-flex flex-wrap gap-1 mb-2">
-                        <span v-for="k in form.menuPerms.allow" :key="'allow-chip-'+k"
-                              class="badge rounded-pill bg-success-subtle text-success-emphasis">
-                          {{ labelFromKey(k) }}
-                          <button class="btn btn-sm btn-link text-success ms-1 p-0 align-baseline" @click="removeAllow(k)">×</button>
-                        </span>
-                      </div>
-
-                      <div class="input-group input-group-sm mb-2">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input class="form-control" v-model="permSearchAllow" placeholder="Buscar..." />
-                        <button class="btn btn-outline-success" type="button" @click="selectAllAllow">
-                          <i class="bi bi-check2-square me-1"></i>Todos
-                        </button>
-                        <button class="btn btn-outline-secondary" type="button" @click="seleccionarAllowBasico">Básico</button>
-                      </div>
-
-                      <div class="perm-box">
-                        <template v-for="g in permGroups" :key="'g-allow-'+g">
-                          <div class="perm-group-title">{{ g }}</div>
-                          <label
-                            v-for="p in permsAllowFilteredByGroup(g)"
-                            :key="'allow-'+p.key"
-                            class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
-                            <input
-                              class="form-check-input"
-                              type="checkbox"
-                              :checked="form.menuPerms.allow.includes(p.key)"
-                              @change="toggleAllow(p.key, $event.target.checked)" />
-                            <span class="small">
-                              <strong>{{ p.label }}</strong>
-                              <span class="text-secondary ms-1">({{ p.key }})</span>
-                            </span>
-                          </label>
-                        </template>
-                      </div>
-
-                      <div class="form-text mt-1">
-                        Si agregas algo acá, el usuario quedará limitado a estas rutas.
-                      </div>
-                    </div>
+                <div class="col-12 col-sm-6">
+                  <label class="form-label">Teléfono (Celular CL)</label>
+                  <input
+                    class="form-control modern-input"
+                    type="tel"
+                    inputmode="numeric"
+                    autocomplete="tel"
+                    :class="phoneClass"
+                    :value="form.phone"
+                    @input="onPhoneInput"
+                    placeholder="+56 9 1234 5678"
+                  />
+                  <div v-if="phoneStatus === false" class="invalid-feedback d-block">
+                    Teléfono inválido. Usa formato CL: +56 9 1234 5678.
                   </div>
-
-                  <div class="col-12 col-lg-6">
-                    <div class="perm-card">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="fw-semibold">
-                          <i class="bi bi-shield-x me-1"></i> Denegado
-                          <span class="badge bg-danger-subtle text-danger-emphasis ms-2">{{ form.menuPerms.deny.length }}</span>
-                        </div>
-                      </div>
-
-                      <div v-if="form.menuPerms.deny.length" class="d-flex flex-wrap gap-1 mb-2">
-                        <span v-for="k in form.menuPerms.deny" :key="'deny-chip-'+k"
-                              class="badge rounded-pill bg-danger-subtle text-danger-emphasis">
-                          {{ labelFromKey(k) }}
-                          <button class="btn btn-sm btn-link text-danger ms-1 p-0 align-baseline" @click="removeDeny(k)">×</button>
-                        </span>
-                      </div>
-
-                      <div class="input-group input-group-sm mb-2">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input class="form-control" v-model="permSearchDeny" placeholder="Buscar..." />
-                        <button class="btn btn-outline-danger" type="button" @click="selectAllDeny">
-                          <i class="bi bi-x-square me-1"></i>Todos
-                        </button>
-                        <button class="btn btn-outline-secondary" type="button" @click="limpiarDeny">Vaciar</button>
-                      </div>
-
-                      <div class="perm-box">
-                        <template v-for="g in permGroups" :key="'g-deny-'+g">
-                          <div class="perm-group-title">{{ g }}</div>
-                          <label
-                            v-for="p in permsDenyFilteredByGroup(g)"
-                            :key="'deny-'+p.key"
-                            class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
-                            <input
-                              class="form-check-input"
-                              type="checkbox"
-                              :checked="form.menuPerms.deny.includes(p.key)"
-                              @change="toggleDeny(p.key, $event.target.checked)" />
-                            <span class="small">
-                              <strong>{{ p.label }}</strong>
-                              <span class="text-secondary ms-1">({{ p.key }})</span>
-                            </span>
-                          </label>
-                        </template>
-                      </div>
-
-                    </div>
+                  <div v-else class="form-text">
+                    Se normaliza a E.164: <strong>{{ phoneE164 || '—' }}</strong>
                   </div>
                 </div>
-              </div>
 
-              <!-- ===== CONTRATOS ===== -->
-              <div class="col-12">
-                <div class="d-flex align-items-center justify-content-between">
-                  <label class="form-label mb-0">Contratos asignados</label>
-                  <small class="text-secondary">
-                    {{ form.centrosAsignados.length }} seleccionado(s)
-                  </small>
+                <div class="col-12 col-sm-6">
+                  <label class="form-label">RUT</label>
+                  <input
+                    class="form-control modern-input"
+                    inputmode="text"
+                    autocomplete="off"
+                    :class="rutClass"
+                    :value="form.rut"
+                    @input="onRutInput"
+                    placeholder="12.345.678-5"
+                  />
+                  <div v-if="rutStatus === false" class="invalid-feedback d-block">
+                    RUT inválido (DV no coincide).
+                  </div>
                 </div>
 
-                <div v-if="form.centrosAsignados.length" class="d-flex flex-wrap gap-1 mb-2">
-                  <span
-                    v-for="k in form.centrosAsignados"
-                    :key="'sel-'+k"
-                    class="badge rounded-pill bg-info-subtle text-info-emphasis">
-                    {{ nombreContrato(k) }}
-                    <button class="btn btn-sm btn-link text-info ms-1 p-0 align-baseline"
-                            @click="quitarContrato(k)">×</button>
-                  </span>
-                </div>
+                <div class="col-12">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <label class="form-label mb-0">Empresas</label>
+                    <small class="text-secondary">{{ form.empresas.length }} seleccionada(s)</small>
+                  </div>
 
-                <div class="input-group input-group-sm mb-2">
-                  <span class="input-group-text"><i class="bi bi-search"></i></span>
-                  <input class="form-control" v-model="ccSearch" placeholder="Buscar contrato por nombre o código..." />
-                  <button class="btn btn-outline-secondary" @click="seleccionarTodosVisibles">Todos</button>
-                  <button class="btn btn-outline-secondary" @click="limpiarSeleccion">Limpiar</button>
-                </div>
-
-                <div class="contratos-box">
-                  <label
-                    v-for="cc in ccFiltrados"
-                    :key="cc.key"
-                    class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      :value="cc.key"
-                      :checked="form.centrosAsignados.includes(cc.key)"
-                      @change="toggleContrato(cc.key, $event.target.checked)" />
-                    <span class="small">
-                      <strong>{{ cc.key }}</strong> — {{ cc.label }}
+                  <div v-if="form.empresas.length" class="d-flex flex-wrap gap-1 mb-2">
+                    <span
+                      v-for="e in form.empresas"
+                      :key="'sel-emp-'+e"
+                      class="chip chip-blue">
+                      {{ e }}
+                      <button class="btn btn-sm btn-link text-primary ms-1 p-0 align-baseline" @click="quitarEmpresa(e)">×</button>
                     </span>
-                  </label>
-                  <div v-if="ccFiltrados.length===0" class="text-secondary small py-2">Sin resultados.</div>
+                  </div>
+
+                  <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text"><i class="bi bi-buildings"></i></span>
+                    <button class="btn btn-outline-secondary" @click="seleccionarTodasEmpresas">Todas</button>
+                    <button class="btn btn-outline-secondary" @click="limpiarEmpresas">Limpiar</button>
+                  </div>
+
+                  <div class="empresa-box">
+                    <label
+                      v-for="e in empresasDisponibles"
+                      :key="'emp-'+e"
+                      class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        :value="e"
+                        :checked="form.empresas.includes(e)"
+                        @change="toggleEmpresa(e, $event.target.checked)" />
+                      <span class="small fw-semibold">{{ e }}</span>
+                    </label>
+                  </div>
                 </div>
 
-                <div class="form-text mt-1">
-                  Si no asignas contratos, el usuario verá <em>todos</em> (no recomendado).
+                <div class="col-12">
+                  <label class="form-label">Rol</label>
+                  <select class="form-select modern-input" :value="form.role" @change="onRoleChange">
+                    <option value="">— Selecciona —</option>
+                    <option v-for="r in rolesDisponibles" :key="'role-'+r" :value="r">{{ r }}</option>
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <label class="form-label mb-0">Permisos de menú</label>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-sm btn-outline-secondary" @click="limpiarPermisosMenu">
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                      <div class="perm-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                          <div class="fw-semibold">
+                            <i class="bi bi-shield-check me-1"></i> Permitido
+                            <span class="badge bg-success-subtle text-success-emphasis ms-2">{{ form.menuPerms.allow.length }}</span>
+                          </div>
+                        </div>
+
+                        <div v-if="form.menuPerms.allow.length" class="d-flex flex-wrap gap-1 mb-2">
+                          <span v-for="k in form.menuPerms.allow" :key="'allow-chip-'+k"
+                                class="chip chip-emerald">
+                            {{ labelFromKey(k) }}
+                            <button class="btn btn-sm btn-link text-success ms-1 p-0 align-baseline" @click="removeAllow(k)">×</button>
+                          </span>
+                        </div>
+
+                        <div class="input-group input-group-sm mb-2">
+                          <span class="input-group-text"><i class="bi bi-search"></i></span>
+                          <input class="form-control" v-model="permSearchAllow" placeholder="Buscar..." />
+                          <button class="btn btn-outline-success" type="button" @click="selectAllAllow">
+                            <i class="bi bi-check2-square me-1"></i>Todos
+                          </button>
+                          <button class="btn btn-outline-secondary" type="button" @click="seleccionarAllowBasico">Básico</button>
+                        </div>
+
+                        <div class="perm-box">
+                          <template v-for="g in permGroups" :key="'g-allow-'+g">
+                            <div class="perm-group-title">{{ g }}</div>
+                            <label
+                              v-for="p in permsAllowFilteredByGroup(g)"
+                              :key="'allow-'+p.key"
+                              class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                :checked="form.menuPerms.allow.includes(p.key)"
+                                @change="toggleAllow(p.key, $event.target.checked)" />
+                              <span class="small">
+                                <strong>{{ p.label }}</strong>
+                                <span class="text-secondary ms-1">({{ p.key }})</span>
+                              </span>
+                            </label>
+                          </template>
+                        </div>
+
+                        <div class="form-text mt-1">
+                          Si agregas algo acá, el usuario quedará limitado a estas rutas.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6">
+                      <div class="perm-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                          <div class="fw-semibold">
+                            <i class="bi bi-shield-x me-1"></i> Denegado
+                            <span class="badge bg-danger-subtle text-danger-emphasis ms-2">{{ form.menuPerms.deny.length }}</span>
+                          </div>
+                        </div>
+
+                        <div v-if="form.menuPerms.deny.length" class="d-flex flex-wrap gap-1 mb-2">
+                          <span v-for="k in form.menuPerms.deny" :key="'deny-chip-'+k"
+                                class="chip chip-danger">
+                            {{ labelFromKey(k) }}
+                            <button class="btn btn-sm btn-link text-danger ms-1 p-0 align-baseline" @click="removeDeny(k)">×</button>
+                          </span>
+                        </div>
+
+                        <div class="input-group input-group-sm mb-2">
+                          <span class="input-group-text"><i class="bi bi-search"></i></span>
+                          <input class="form-control" v-model="permSearchDeny" placeholder="Buscar..." />
+                          <button class="btn btn-outline-danger" type="button" @click="selectAllDeny">
+                            <i class="bi bi-x-square me-1"></i>Todos
+                          </button>
+                          <button class="btn btn-outline-secondary" type="button" @click="limpiarDeny">Vaciar</button>
+                        </div>
+
+                        <div class="perm-box">
+                          <template v-for="g in permGroups" :key="'g-deny-'+g">
+                            <div class="perm-group-title">{{ g }}</div>
+                            <label
+                              v-for="p in permsDenyFilteredByGroup(g)"
+                              :key="'deny-'+p.key"
+                              class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                              <input
+                                class="form-check-input"
+                                type="checkbox"
+                                :checked="form.menuPerms.deny.includes(p.key)"
+                                @change="toggleDeny(p.key, $event.target.checked)" />
+                              <span class="small">
+                                <strong>{{ p.label }}</strong>
+                                <span class="text-secondary ms-1">({{ p.key }})</span>
+                              </span>
+                            </label>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <label class="form-label mb-0">Contratos asignados</label>
+                    <small class="text-secondary">
+                      {{ form.centrosAsignados.length }} seleccionado(s)
+                    </small>
+                  </div>
+
+                  <div v-if="form.centrosAsignados.length" class="d-flex flex-wrap gap-1 mb-2">
+                    <span
+                      v-for="k in form.centrosAsignados"
+                      :key="'sel-'+k"
+                      class="chip chip-cyan">
+                      {{ nombreContrato(k) }}
+                      <button class="btn btn-sm btn-link text-info ms-1 p-0 align-baseline" @click="quitarContrato(k)">×</button>
+                    </span>
+                  </div>
+
+                  <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input class="form-control" v-model="ccSearch" placeholder="Buscar contrato por nombre o código..." />
+                    <button class="btn btn-outline-secondary" @click="seleccionarTodosVisibles">Todos</button>
+                    <button class="btn btn-outline-secondary" @click="limpiarSeleccion">Limpiar</button>
+                  </div>
+
+                  <div class="contratos-box">
+                    <label
+                      v-for="cc in ccFiltrados"
+                      :key="cc.key"
+                      class="form-check form-check-sm d-flex align-items-center gap-2 py-1">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        :value="cc.key"
+                        :checked="form.centrosAsignados.includes(cc.key)"
+                        @change="toggleContrato(cc.key, $event.target.checked)" />
+                      <span class="small">
+                        <strong>{{ cc.key }}</strong> — {{ cc.label }}
+                      </span>
+                    </label>
+                    <div v-if="ccFiltrados.length===0" class="text-secondary small py-2">Sin resultados.</div>
+                  </div>
+
+                  <div class="form-text mt-1">
+                    Si no asignas contratos, el usuario verá <em>todos</em> (no recomendado).
+                  </div>
                 </div>
               </div>
             </div>
@@ -524,18 +572,18 @@
 
           <div class="offcanvas-footer">
             <div class="d-flex flex-wrap gap-2 justify-content-end">
-              <button class="btn btn-secondary" @click="cerrarOff">Cancelar</button>
+              <button class="btn btn-soft-secondary" @click="cerrarOff">Cancelar</button>
 
               <button
                 v-if="esEdicion"
-                class="btn btn-outline-primary"
+                class="btn btn-soft-primary"
                 :disabled="accionandoContratos"
                 @click="guardarSoloFirestore">
                 <span v-if="accionandoContratos" class="spinner-border spinner-border-sm me-2"></span>
                 Guardar (solo Firestore)
               </button>
 
-              <button class="btn btn-primary" :disabled="accionando" @click="guardar">
+              <button class="btn btn-brand" :disabled="accionando" @click="guardar">
                 <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
                 {{ esEdicion ? 'Guardar cambios' : 'Crear usuario' }}
               </button>
@@ -548,35 +596,40 @@
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
-            <h5 class="mb-0"><i class="bi bi-sliders2 me-2"></i>Filtros</h5>
+            <div>
+              <div class="modal-kicker">Opciones</div>
+              <div class="fw-bold fs-5"><i class="bi bi-sliders2 me-2"></i>Filtros</div>
+            </div>
             <button class="btn-close" @click="toggleFiltros(false)"></button>
           </div>
           <div class="offcanvas-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">Buscar por nombre completo</label>
-                <input class="form-control" v-model="busqueda" placeholder="Ej: Juan, María, etc." />
-              </div>
-              <div class="col-12">
-                <label class="form-label">Filtrar por rol</label>
-                <select class="form-select" v-model="rolFiltro">
-                  <option value="">— Todos —</option>
-                  <option v-for="r in rolesDisponibles" :key="r" :value="r">{{ r }}</option>
-                </select>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Filtrar por empresa</label>
-                <select class="form-select" v-model="empresaFiltro">
-                  <option value="">— Todas —</option>
-                  <option v-for="e in empresasDisponibles" :key="e" :value="e">{{ e }}</option>
-                </select>
+            <div class="form-block">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Buscar por nombre completo</label>
+                  <input class="form-control modern-input" v-model="busqueda" placeholder="Ej: Juan, María, etc." />
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Filtrar por rol</label>
+                  <select class="form-select modern-input" v-model="rolFiltro">
+                    <option value="">— Todos —</option>
+                    <option v-for="r in rolesDisponibles" :key="r" :value="r">{{ r }}</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Filtrar por empresa</label>
+                  <select class="form-select modern-input" v-model="empresaFiltro">
+                    <option value="">— Todas —</option>
+                    <option v-for="e in empresasDisponibles" :key="e" :value="e">{{ e }}</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
           <div class="offcanvas-footer">
             <div class="d-flex gap-2 justify-content-between w-100">
-              <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
-              <button class="btn btn-primary" @click="toggleFiltros(false)">Aplicar</button>
+              <button class="btn btn-soft-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-brand" @click="toggleFiltros(false)">Aplicar</button>
             </div>
           </div>
         </div>
@@ -592,18 +645,18 @@
           <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
         </div>
       </div>
-
     </div>
 
     <!-- Confirm modal -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
-      <div class="vmodal" style="max-width: 520px;">
-        <div class="vmodal-header d-flex align-items-center gap-2">
+      <div class="vmodal modal-sm-pro">
+        <div class="vmodal-header d-flex align-items-center gap-3">
           <div class="confirm-icon">
             <i class="bi bi-trash3-fill"></i>
           </div>
           <div>
-            <h5 class="mb-0">Confirmar eliminación</h5>
+            <div class="modal-kicker text-danger-emphasis">Acción delicada</div>
+            <h5 class="mb-0 fw-bold">Confirmar eliminación</h5>
             <small class="text-secondary">Esta acción no se puede deshacer</small>
           </div>
           <button class="btn-close ms-auto" @click="cerrarConfirm" :disabled="eliminando"></button>
@@ -614,31 +667,41 @@
             ¿Seguro que quieres eliminar al usuario
             <strong>{{ confirmRow?.fullName || confirmRow?.email || '—' }}</strong>?
           </p>
-          <ul class="list-unstyled small mb-0">
-            <li><span class="text-secondary">Email:</span> <strong>{{ confirmRow?.email || '—' }}</strong></li>
-            <li>
-              <span class="text-secondary">Empresas:</span>
+          <div class="confirm-box">
+            <div class="confirm-row">
+              <span>Email</span>
+              <strong>{{ confirmRow?.email || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Empresas</span>
               <strong>{{ (confirmRow?.empresas||[]).join(', ') || '—' }}</strong>
-            </li>
-            <li><span class="text-secondary">Rol:</span> <strong>{{ confirmRow?.role || '—' }}</strong></li>
-            <li><span class="text-secondary">Teléfono:</span> <strong>{{ fmtPhone(confirmRow?.phone) }}</strong></li>
-            <li><span class="text-secondary">RUT:</span> <strong>{{ confirmRow?.rut || '—' }}</strong></li>
-          </ul>
+            </div>
+            <div class="confirm-row">
+              <span>Rol</span>
+              <strong>{{ confirmRow?.role || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Teléfono</span>
+              <strong>{{ fmtPhone(confirmRow?.phone) }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>RUT</span>
+              <strong>{{ confirmRow?.rut || '—' }}</strong>
+            </div>
+          </div>
         </div>
 
         <div class="vmodal-footer d-flex justify-content-end gap-2">
-          <button class="btn btn-outline-secondary" @click="cerrarConfirm" :disabled="eliminando">
+          <button class="btn btn-soft-secondary" @click="cerrarConfirm" :disabled="eliminando">
             Cancelar
           </button>
-          <button class="btn btn-danger" @click="confirmarEliminar" :disabled="eliminando">
+          <button class="btn btn-danger btn-delete-strong" @click="confirmarEliminar" :disabled="eliminando">
             <span v-if="eliminando" class="spinner-border spinner-border-sm me-2"></span>
             Eliminar
           </button>
         </div>
       </div>
     </div>
-
-  </div>
 </template>
 
 <script setup>
@@ -669,7 +732,7 @@ const centrosCosto = {
   "29207": "CONTRATO 29207 MINERIA",
   "23302": "CONTRATO 23302",
   "SANJOAQUIN": "SERVICIO PLANTA DE ÁRIDOS SAN JOAQUÍN",
-  "CANECHE": "CONTRATO TALLER CANECHE",
+  "CANECHE": "PLANTA CANECHE",
   "30-10-11": "GCIA. SERV. OBRA PAVIMENTACION RT CONTRATO FAM",
   "10-10-20": "TALLER SAN BERNARDO",
   "31155": "DIVISION ANDINA 4600031155",
@@ -682,7 +745,6 @@ const centrosCosto = {
   "SAN_BERNARDO": "PLANTA SAN BERNANDO",
   "ARIDO_NOS": "PLANTA DE ÁRIDO NOS",
   "OLIVAR": "PLANTA OLIVAR",
-  "CANECHE": "PLANTA CANECHE",
   "COLON": "PLANTA COLÓN",
   "AGUA_DULCE": "PLANTA AGUA DULCE",
   "ESMERALDA": "PLANTA ESMERALDA",
@@ -726,7 +788,6 @@ const onRoleChange = (ev) => {
   const role = ev?.target?.value ?? "";
   form.value.role = role;
 
-  // solo autocompletar cuando se está creando
   if (!esEdicion.value) {
     aplicarPlantillaRol(role);
   }
@@ -885,7 +946,6 @@ const accionando = ref(false);
 const accionandoContratos = ref(false);
 const uidEnAccion = ref(null);
 
-
 const toggleEmpresa = (empresa, checked) => {
   const arr = [...(form.value.empresas || [])];
   const i = arr.indexOf(empresa);
@@ -993,14 +1053,6 @@ const addToast = (type, text, timeout=2800) => {
   setTimeout(()=>closeToast(id), timeout);
 };
 const closeToast = (id) => { toasts.value = toasts.value.filter(t=>t.id!==id); };
-
-const fmtFecha = (f) => {
-  try {
-    const d = f?.toDate ? f.toDate() : (f instanceof Date ? f : (f ? new Date(f) : null));
-    if (!d) return '—';
-    return d.toLocaleString('es-CL', { dateStyle:'short', timeStyle:'short' });
-  } catch { return '—'; }
-};
 
 const mapFunctionsError = (e) => {
   const code = e?.code || '';
@@ -1358,132 +1410,856 @@ async function confirmarEliminar(){
 </script>
 
 <style scoped>
-.admin-users-page{ min-height:100vh; }
-
-@media (min-width: 576px){
-  .h4-sm{ font-size: 1.35rem; }
+:root {
+  color-scheme: light;
 }
 
-.offcanvas-backdrop{
-  position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center;
-  background: rgba(0,0,0,.45);
-}
-.offcanvas-panel{
-  position: fixed; right: 0; top: 0; bottom: 0;
-  width: 620px; max-width: 95vw;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  display: flex; flex-direction: column;
-  box-shadow: -10px 0 40px rgba(0,0,0,.25);
-  border-top-left-radius:.75rem; border-bottom-left-radius:.75rem;
-  animation: slideIn .18s ease-out both;
-}
-.offcanvas-panel-sm{ width: 420px; max-width: 96vw; }
-
-@media (max-width: 576px){
-  .offcanvas-panel{ width: 100vw; max-width: 100vw; border-radius: 0; }
-  .offcanvas-panel-sm{ width: 100vw; max-width: 100vw; border-radius: 0; }
+.glow-1 {
+  width: 280px;
+  height: 280px;
+  top: -60px;
+  right: -40px;
+  background: rgba(37, 99, 235, 0.12);
 }
 
-@keyframes slideIn { from{ transform: translateX(20px); opacity:0 } to{ transform:none; opacity:1 } }
-
-.offcanvas-header, .offcanvas-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
-}
-.offcanvas-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
-.offcanvas-body{ padding: 1rem; overflow: auto; }
-
-.empresa-box{
-  max-height: 140px;
-  overflow: auto;
-  border: 1px solid var(--bs-border-color);
-  border-radius: .5rem;
-  padding: .35rem .5rem;
-  background: var(--bs-secondary-bg);
-}
-.contratos-box{
-  max-height: 260px;
-  overflow: auto;
-  border: 1px solid var(--bs-border-color);
-  border-radius: .5rem;
-  padding: .35rem .5rem;
-  background: var(--bs-secondary-bg);
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.88));
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+  z-index: 1;
 }
 
-.perm-card{
-  border: 1px solid var(--bs-border-color);
-  border-radius: .75rem;
-  padding: .75rem;
-  background: var(--bs-body-bg);
-}
-.perm-box{
-  max-height: 260px;
-  overflow: auto;
-  border: 1px solid var(--bs-border-color);
-  border-radius: .5rem;
-  padding: .35rem .5rem;
-  background: var(--bs-secondary-bg);
-}
-.perm-group-title{
-  font-size: .78rem;
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: var(--bs-secondary-color);
-  margin-top: .35rem;
-  padding-top: .35rem;
-  border-top: 1px dashed var(--bs-border-color);
+  border: 1px solid rgba(37, 99, 235, 0.12);
 }
-.perm-group-title:first-child{
+
+.hero-title {
+  font-size: clamp(1.7rem, 2vw, 2.2rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.hero-subtitle {
+  max-width: 760px;
+  color: #64748b;
+  font-size: 0.98rem;
+}
+
+.hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.stats-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  min-width: 180px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(255,255,255,0.76);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+.stat-icon-blue {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.stat-icon-slate {
+  background: rgba(71, 85, 105, 0.12);
+  color: #334155;
+}
+
+.stat-icon-emerald {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.stat-value {
+  font-size: 1.05rem;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.filter-shell,
+.list-shell {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(255,255,255,0.76);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.72);
+  backdrop-filter: blur(12px);
+}
+
+.filter-shell__header,
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.2rem 1.3rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.74));
+}
+
+.filter-shell__body {
+  padding: 1.2rem 1.3rem;
+}
+
+.list-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.list-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.list-counter {
+  min-width: 52px;
+  height: 52px;
+  padding: 0 0.9rem;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-weight: 800;
+  font-size: 1rem;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+}
+
+.search-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  background: rgba(255,255,255,0.82);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+  overflow: hidden;
+}
+
+.search-shell:focus-within {
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  color: #64748b;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0 16px 0 44px;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.search-input::placeholder {
+  color: #94a3b8;
+}
+
+.btn-toolbar {
+  min-height: 52px;
+  border-radius: 16px;
+  padding-inline: 1rem;
+  font-weight: 700;
+  border-width: 1px;
+}
+
+.btn-brand {
+  color: #fff;
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+}
+
+.btn-brand:hover,
+.btn-brand:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.btn-soft-primary {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.09);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  font-weight: 700;
+}
+
+.btn-soft-primary:hover,
+.btn-soft-primary:focus {
+  color: #1742b8;
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.btn-soft-secondary {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  font-weight: 700;
+}
+
+.btn-soft-secondary:hover,
+.btn-soft-secondary:focus {
+  color: #0f172a;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.users-table {
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(248, 250, 252, 0.72);
+  --bs-table-hover-bg: rgba(37, 99, 235, 0.035);
+  margin: 0;
+}
+
+.table-head-pro th {
+  background: rgba(248, 250, 252, 0.92) !important;
+  color: #475569;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 1rem 1rem;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.users-table tbody td {
+  padding: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.10);
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.users-table tbody tr {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.users-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.row-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-size: 1rem;
+}
+
+.provider-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.provider-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+
+.provider-name {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.provider-address {
+  color: #64748b;
+  font-size: 0.83rem;
+}
+
+.data-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.data-inline i {
+  color: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.chip-blue {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.14);
+}
+
+.chip-slate {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.chip-cyan {
+  color: #0f766e;
+  background: rgba(6, 182, 212, 0.10);
+  border-color: rgba(6, 182, 212, 0.14);
+}
+
+.chip-emerald {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.10);
+  border-color: rgba(16, 185, 129, 0.18);
+}
+
+.chip-danger {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.16);
+}
+
+.action-group {
+  gap: 0.45rem;
+}
+
+.action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: 0.2s ease;
+}
+
+.action-edit {
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+}
+
+.action-edit:hover {
+  background: rgba(37, 99, 235, 0.16);
+  color: #1e40af;
+}
+
+.action-delete {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+}
+
+.action-delete:hover {
+  background: rgba(220, 38, 38, 0.13);
+  color: #b91c1c;
+}
+
+.card-footer-pro {
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.74));
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 1rem 1.1rem;
+}
+
+.pagination .page-link {
+  min-width: 36px;
+  text-align: center;
+  border-radius: 12px;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #334155;
+  box-shadow: none !important;
+}
+
+.pagination .page-item.active .page-link {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.loading-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 1rem;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: rgba(148, 163, 184, 0.10);
+  color: #64748b;
+  font-size: 1.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.empty-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.2rem;
+}
+
+.empty-text {
+  font-size: 0.9rem;
+  color: #64748b;
+  max-width: 420px;
+}
+
+.offcanvas-backdrop,
+.vmodal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(7px);
+}
+
+.offcanvas-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(780px, 100%);
+  max-width: 95vw;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -16px 0 44px rgba(15, 23, 42, 0.22);
+  animation: slideInRight 0.24s ease;
+  border-top-left-radius: 28px;
+  border-bottom-left-radius: 28px;
+  overflow: hidden;
+}
+
+.offcanvas-panel-sm {
+  width: 420px;
+  max-width: 96vw;
+}
+
+.offcanvas-header,
+.offcanvas-footer {
+  padding: 1.15rem 1.2rem;
+  background: transparent;
+}
+
+.offcanvas-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.offcanvas-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.offcanvas-body {
+  padding: 1.15rem;
+  overflow: auto;
+  flex: 1;
+}
+
+.vmodal {
+  width: 100%;
+  max-width: 900px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.72);
+  box-shadow: 0 36px 90px rgba(15, 23, 42, 0.24);
+  animation: fadeUp 0.22s ease;
+}
+
+.modal-sm-pro {
+  max-width: 560px;
+}
+
+.vmodal-header,
+.vmodal-footer {
+  padding: 1.15rem 1.25rem;
+  background: transparent;
+}
+
+.vmodal-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vmodal-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vmodal-body {
+  padding: 1.25rem;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.modal-kicker {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+
+.form-block {
+  border-radius: 22px;
+  padding: 1rem;
+  background: rgba(255,255,255,0.62);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.modern-input {
+  min-height: 48px;
+  border-radius: 15px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,0.95);
+  box-shadow: none;
+  color: #0f172a;
+}
+
+.modern-input:focus {
+  border-color: rgba(37, 99, 235, 0.30);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+}
+
+.form-label {
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.45rem;
+}
+
+.form-text {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.empresa-box,
+.contratos-box,
+.perm-box {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  padding: 0.5rem 0.65rem;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.empresa-box {
+  max-height: 140px;
+}
+
+.perm-card {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  padding: 0.85rem;
+  background: rgba(255,255,255,0.68);
+}
+
+.perm-group-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed rgba(148, 163, 184, 0.18);
+}
+
+.perm-group-title:first-child {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
 }
 
-.vmodal-backdrop{
-  position: fixed; inset: 0; background: rgba(0,0,0,.45);
-  z-index: 1090; display: grid; place-items: center; padding: 1rem;
-}
-.vmodal{
-  width: 100%; max-width: 700px; border-radius: .75rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25);
-  overflow: hidden; background: var(--bs-body-bg); color: var(--bs-body-color);
-}
-.vmodal-header, .vmodal-footer{
-  padding: .9rem 1rem; border-bottom: 1px solid var(--bs-border-color);
-}
-.vmodal-footer{ border-top: 1px solid var(--bs-border-color); border-bottom: 0; }
-.vmodal-body{ padding: 1rem; max-height: 65vh; overflow: auto; }
-
-.toast-stack{
-  position: fixed; right: 12px; bottom: 12px; z-index: 1200;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.toast-box{
-  display: flex; align-items: center; padding: .6rem .8rem; border-radius: .5rem; color: #fff;
-  min-width: 240px; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
-}
-.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
-.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
-.btn-close-white{ filter: invert(1) grayscale(100%) brightness(200%); }
-
-.confirm-icon{
-  width: 38px; height: 38px; border-radius: 10px;
-  display: grid; place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626);
-  color: #fff; font-size: 18px;
-  box-shadow: 0 6px 18px rgba(220,38,38,.35);
+.confirm-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  font-size: 1.1rem;
+  flex: 0 0 auto;
 }
 
-.table td, .table th{ vertical-align: middle; }
-.table-responsive thead th{
-  z-index: 1;
-  border-bottom: 1px solid var(--bs-border-color);
+.confirm-box {
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  background: rgba(255,255,255,0.68);
+  border: 1px solid rgba(148, 163, 184, 0.14);
 }
-.pagination .page-link{ min-width: 34px; text-align:center; }
 
-@media (max-width: 576px){
-  thead th:first-child, tbody td:first-child{ width: 34px !important; }
-  td .text-truncate{ max-width: 180px; }
-  .offcanvas-body .row.g-3{ row-gap: .75rem; }
+.confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.18);
+}
+
+.confirm-row:last-child {
+  border-bottom: 0;
+}
+
+.confirm-row span {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.confirm-row strong {
+  color: #0f172a;
+  text-align: right;
+  word-break: break-word;
+}
+
+.btn-delete-strong {
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.22);
+}
+
+.toast-stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast-box {
+  min-width: 280px;
+  max-width: 420px;
+  color: #fff;
+  border-radius: 16px;
+  padding: 0.95rem 1rem;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.toast-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.toast-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.btn-close-white {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.btn-close {
+  box-shadow: none !important;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.table td, .table th {
+  vertical-align: middle;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(28px);
+    opacity: 0.82;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .hero-card {
+    padding: 1.2rem;
+  }
+
+  .list-header,
+  .filter-shell__header,
+  .filter-shell__body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .toast-stack {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+  }
+
+  .toast-box {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .offcanvas-panel {
+    width: 100%;
+    border-radius: 0;
+  }
+
+  .vmodal {
+    max-width: 100%;
+    border-radius: 22px;
+  }
+
+  .hero-title {
+    font-size: 1.55rem;
+  }
+
+  .stat-pill {
+    flex: 1 1 100%;
+  }
+
+  .vmodal-body,
+  .offcanvas-body,
+  .vmodal-header,
+  .vmodal-footer,
+  .offcanvas-header,
+  .offcanvas-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .offcanvas-panel,
+  .offcanvas-panel-sm {
+    width: 100vw;
+    max-width: 100vw;
+    border-radius: 0;
+  }
+
+  thead th:first-child,
+  tbody td:first-child {
+    width: 48px !important;
+  }
+
+  td .text-truncate {
+    max-width: 180px;
+  }
+
+  .offcanvas-body .row.g-3 {
+    row-gap: 0.75rem;
+  }
 }
 </style>

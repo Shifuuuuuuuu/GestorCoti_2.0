@@ -103,11 +103,15 @@
                         <strong>Total:</strong>
                         {{ (oc.precioTotalConIVA ?? 0).toLocaleString('es-CL') }}
                       </span>
-
                       <span class="oc-pill" title="Monto homologado para aprobación">
-                        <i class="bi bi-calculator me-1"></i>
-                        <strong>Evalúa en CLP:</strong>
-                        {{ getMontoHomologadoCLP(oc.precioTotalConIVA, oc.moneda).toLocaleString('es-CL') }}
+                        <i class="bi bi-people-fill"></i>
+                        <strong>Proveedor:</strong>
+                       {{ oc.proveedor || 'SIN INFO' }}
+                      </span>
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-person-badge"></i>
+                        <strong>Rut del Proveedor:</strong>
+                       {{ oc.rutProveedor|| 'SIN INFO' }}
                       </span>
                     </div>
                   </div>

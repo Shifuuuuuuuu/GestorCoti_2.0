@@ -136,12 +136,13 @@
                           <input
                             type="number"
                             min="1"
-                            step="1"
+                            step="10"
                             class="form-control"
                             v-model.number="form.dias_estimados_gestion"
-                            placeholder="Ej: 3"
+                            placeholder="Ej: 7"
                             required
                           />
+                          <div class="form-text">Se autocompleta según prioridad, pero puedes editarlo.</div>
                         </div>
 
                         <div class="col-12 col-md-4">
@@ -479,8 +480,8 @@
                   <th>Descripción</th>
                   <th style="width: 160px">Código</th>
                   <th style="width: 120px">Cantidad</th>
+                  <th style="width: 140px">Unidad</th>
                   <th style="width: 120px">Stock</th>
-                  <th style="width: 180px">N° Interno / Patente</th>
                   <th style="width: 130px">Prioridad</th>
                   <th style="width: 180px">Imagen</th>
                   <th style="width: 110px">Acciones</th>
@@ -575,20 +576,26 @@
                     />
                   </td>
 
-                  <td :data-label="'Stock'">
-                    <input type="number" min="0" class="form-control form-control-sm" v-model.number="item.stock" placeholder="0" />
+                  <td :data-label="'Unidad'">
+                    <select class="form-select form-select-sm" v-model="item.unidad">
+                      <option value="KG">KG</option>
+                      <option value="LITROS">LITROS</option>
+                      <option value="CM">CM</option>
+                      <option value="MM">MM</option>
+                      <option value="METROS">METROS</option>
+                      <option value="UNIDAD">UNIDAD</option>
+                    </select>
                   </td>
 
-                  <td :data-label="'N° Interno / Patente'">
+                  <td :data-label="'Stock'">
                     <input
+                      type="number"
+                      min="0"
                       class="form-control form-control-sm"
-                      v-model="item.numero_interno"
-                      @blur="onNumeroInternoBlur(i)"
-                      @input="item.numero_interno = (item.numero_interno || '').toUpperCase()"
-                      placeholder="ABC-123"
+                      v-model.number="item.stock"
+                      placeholder="0"
                     />
                   </td>
-
                   <td :data-label="'Prioridad'">
                     <select class="form-select form-select-sm" v-model="item.prioridad">
                       <option value="ALTA">ALTA</option>
@@ -812,7 +819,7 @@ export default {
       nombre_solped: "",
       tipo_solped: "",
       prioridad_solped: "MEDIA",
-      dias_estimados_gestion: 1,
+      dias_estimados_gestion: 10,
       dirigidoA: [],
       numero_contrato: "",
       nombre_centro_costo: "",
@@ -1210,9 +1217,7 @@ export default {
       if (/^cod(igo)?|^code\b/.test(s)) return "codigo";
       if (/^cant(idad)?|^qty\b|solicitada/.test(s)) return "cantidad";
       if (/^stock|existenc/.test(s)) return "stock";
-      if (/(n|num|numero)\s*interno/.test(s)) return "numero_interno";
-      if (/patente|placa/.test(s)) return "numero_interno";
-      if (/interno\/?patente|n°\s*interno/.test(s)) return "numero_interno";
+      if (/^unidad|um\b|u\.m\b|medida/.test(s)) return "unidad";
       if (/^prioridad|prio\b/.test(s)) return "prioridad";
       return s;
     };
@@ -1222,8 +1227,8 @@ const descargarPlantillaItems = () => {
       "DESCRIPCIÓN",
       "CÓDIGO",
       "CANTIDAD",
+      "UNIDAD",
       "STOCK",
-      "N° INTERNO / PATENTE",
       "PRIORIDAD"
     ]];
 
@@ -1234,8 +1239,8 @@ const descargarPlantillaItems = () => {
       { wch: 40 },
       { wch: 20 },
       { wch: 12 },
+      { wch: 14 },
       { wch: 12 },
-      { wch: 24 },
       { wch: 14 }
     ];
 
@@ -1290,8 +1295,8 @@ const descargarPlantillaItems = () => {
         descripcion: headersRaw.findIndex((h) => h === "descripcion"),
         codigo: headersRaw.findIndex((h) => h === "codigo"),
         cantidad: headersRaw.findIndex((h) => h === "cantidad"),
+        unidad: headersRaw.findIndex((h) => h === "unidad"),
         stock: headersRaw.findIndex((h) => h === "stock"),
-        numero_interno: headersRaw.findIndex((h) => h === "numero_interno"),
         prioridad: headersRaw.findIndex((h) => h === "prioridad")
       };
 
@@ -1303,18 +1308,21 @@ const descargarPlantillaItems = () => {
         const codigo = String(get(idx.codigo) || "").trim();
         const cantidad = Number(String(get(idx.cantidad) || "").toString().replace(",", "."));
         const stock = Number(String(get(idx.stock) || "").toString().replace(",", "."));
-        const numero_interno = String(get(idx.numero_interno) || "").trim();
+        const unidadRaw = String(get(idx.unidad) || "").trim().toUpperCase();
         const prioridad = String(get(idx.prioridad) || "").trim().toUpperCase();
 
-        const vacia = !descripcion && !codigo && !numero_interno && !cantidad && !stock;
+        const unidadesValidas = ["KG", "LITROS", "CM", "MM", "METROS", "UNIDAD"];
+        const unidad = unidadesValidas.includes(unidadRaw) ? unidadRaw : "UNIDAD";
+
+        const vacia = !descripcion && !codigo && !cantidad && !stock;
         if (vacia) continue;
 
         data.push({
           descripcion,
           codigo,
           cantidad: isNaN(cantidad) ? null : cantidad,
+          unidad,
           stock: isNaN(stock) ? null : stock,
-          numero_interno,
           prioridad: ["ALTA", "MEDIA", "BAJA"].includes(prioridad) ? prioridad : "MEDIA"
         });
       }
@@ -1351,12 +1359,14 @@ const descargarPlantillaItems = () => {
         for (const obj of objetos) {
           const desc = (obj.descripcion || "").toString().toUpperCase();
           const cod = (obj.codigo || "").toString().toUpperCase();
-          const nro = (obj.numero_interno || "").toString().toUpperCase();
+          const unidad = ["KG", "LITROS", "CM", "MM", "METROS", "UNIDAD"].includes((obj.unidad || "").toUpperCase())
+            ? (obj.unidad || "").toUpperCase()
+            : "UNIDAD";
           const cant = obj.cantidad != null && obj.cantidad !== "" ? Number(obj.cantidad) : null;
           const stk = obj.stock != null && obj.stock !== "" ? Number(obj.stock) : null;
           const prioridad = ["ALTA", "MEDIA", "BAJA"].includes(obj.prioridad) ? obj.prioridad : "MEDIA";
 
-          if (!desc && !nro) {
+          if (!desc) {
             importProgreso.procesados++;
             continue;
           }
@@ -1372,10 +1382,10 @@ const descargarPlantillaItems = () => {
             id: nid,
             descripcion: desc,
             codigo_referencial: cod,
-            cantidad: isNaN(cant) ? 1 : Math.max(1, Math.floor(cant)),
+            cantidad: formatCantidad(isNaN(cant) ? 1 : Math.max(1, Math.floor(cant))),
             cantidadInput: formatCantidad(isNaN(cant) ? 1 : Math.max(1, Math.floor(cant))),
+            unidad,
             stock: isNaN(stk) ? null : stk,
-            numero_interno: nro,
             prioridad,
             imagen_url: ""
           });
@@ -1506,17 +1516,19 @@ const descargarPlantillaItems = () => {
         form.nombre_centro_costo = draft.nombre_centro_costo || "";
         form.tipo_solped = draft.tipo_solped || "";
         form.prioridad_solped = draft.prioridad_solped || "MEDIA";
-        form.dias_estimados_gestion = Number(draft.dias_estimados_gestion || 1);
+        form.dias_estimados_gestion = Number(
+          draft.dias_estimados_gestion || getDiasPorPrioridad(draft.prioridad_solped || "MEDIA")
+        );
         form.nombre_solped = (draft.nombre_solped || "").toUpperCase();
         form.dirigidoA = Array.isArray(draft.dirigidoA) ? draft.dirigidoA.slice(0) : [];
         form.items = (draft.items || []).map((it, idx) => ({
           id: idx + 1,
           descripcion: (it.descripcion || "").toUpperCase(),
           codigo_referencial: (it.codigo_referencial || "").toUpperCase(),
-          cantidad: Number(it.cantidad || 1),
+          cantidad: formatCantidad(it.cantidad || 1),
           cantidadInput: formatCantidad(it.cantidad || 1),
+          unidad: it.unidad || "UNIDAD",
           stock: Number(it.stock || 0),
-          numero_interno: (it.numero_interno || "").toUpperCase(),
           prioridad: it.prioridad || "MEDIA",
           imagen_url: it.imagen_url || ""
         }));
@@ -1525,6 +1537,7 @@ const descargarPlantillaItems = () => {
         await cargarNumeroSolpedDesdeCounter();
         asegurarContratoPermitido();
         subscribeCotizadoresEmpresa(form.empresa);
+        aplicarDiasPorPrioridad();
       } catch (e) {
         console.error("No se pudo aplicar el borrador:", e);
         addToast("danger", "No se pudo aplicar el borrador.");
@@ -1565,7 +1578,7 @@ const descargarPlantillaItems = () => {
         nombre_solped: form.nombre_solped || "",
         tipo_solped: form.tipo_solped || "",
         prioridad_solped: form.prioridad_solped || "MEDIA",
-        dias_estimados_gestion: Number(form.dias_estimados_gestion || 1),
+        dias_estimados_gestion: Number(form.dias_estimados_gestion || 10),
         dirigidoA: Array.isArray(form.dirigidoA) ? form.dirigidoA : [],
         numero_contrato: form.numero_contrato || "",
         nombre_centro_costo: form.nombre_centro_costo || "",
@@ -1574,9 +1587,9 @@ const descargarPlantillaItems = () => {
           id: it.id,
           descripcion: it.descripcion,
           codigo_referencial: it.codigo_referencial,
-          cantidad: it.cantidad,
+          cantidad: formatCantidad(it.cantidadInput ?? it.cantidad ?? 1),
+          unidad: it.unidad || "UNIDAD",
           stock: it.stock,
-          numero_interno: it.numero_interno,
           prioridad: it.prioridad || "MEDIA",
           imagen_url: it.imagen_url
         })),
@@ -1598,6 +1611,26 @@ const descargarPlantillaItems = () => {
       const num = parseCantidad(value);
       return String(num).padStart(2, "0");
     };
+    const getDiasPorPrioridad = (prioridad) => {
+      const p = String(prioridad || "").toUpperCase();
+      if (p === "ALTA") return 7;
+      if (p === "MEDIA") return 10;
+      if (p === "BAJA") return 14;
+      return 10;
+    };
+
+    const aplicarDiasPorPrioridad = (forzar = false) => {
+      const diasActuales = Number(form.dias_estimados_gestion || 0);
+      const diasPorPrioridad = getDiasPorPrioridad(form.prioridad_solped);
+
+      if (
+        forzar ||
+        !diasActuales ||
+        [1, 7, 10, 14].includes(diasActuales)
+      ) {
+        form.dias_estimados_gestion = diasPorPrioridad;
+      }
+    };
     const applySerialized = (raw) => {
       try {
         const data = JSON.parse(raw || "{}");
@@ -1607,21 +1640,24 @@ const descargarPlantillaItems = () => {
         form.nombre_centro_costo = data.nombre_centro_costo || "";
         form.tipo_solped = data.tipo_solped || "";
         form.prioridad_solped = data.prioridad_solped || "MEDIA";
-        form.dias_estimados_gestion = Number(data.dias_estimados_gestion || 1);
+        form.dias_estimados_gestion = Number(
+          data.dias_estimados_gestion || getDiasPorPrioridad(data.prioridad_solped || "MEDIA")
+        );
         form.nombre_solped = (data.nombre_solped || "").toUpperCase();
         form.dirigidoA = Array.isArray(data.dirigidoA) ? data.dirigidoA : [];
         form.autorizaciones = Array.isArray(data.autorizaciones) ? data.autorizaciones : [];
 
+        form.items =
         form.items =
           Array.isArray(data.items) && data.items.length
             ? data.items.map((it, i) => ({
                 id: it.id ?? i + 1,
                 descripcion: (it.descripcion || "").toUpperCase(),
                 codigo_referencial: (it.codigo_referencial || "").toUpperCase(),
-                cantidad: Number(it.cantidad || 1),
+                cantidad: formatCantidad(it.cantidad || 1),
                 cantidadInput: formatCantidad(it.cantidad || 1),
+                unidad: it.unidad || "UNIDAD",
                 stock: Number(it.stock || 0),
-                numero_interno: (it.numero_interno || "").toUpperCase(),
                 prioridad: it.prioridad || "MEDIA",
                 imagen_url: it.imagen_url || ""
               }))
@@ -1630,6 +1666,7 @@ const descargarPlantillaItems = () => {
 
         setNow();
         asegurarContratoPermitido();
+        aplicarDiasPorPrioridad();
         subscribeCotizadoresEmpresa(form.empresa);
       } catch (e) {
         console.error("No se pudo parsear borrador local:", e);
@@ -1649,7 +1686,7 @@ const descargarPlantillaItems = () => {
           (it) =>
             (it?.descripcion && it.descripcion.trim() !== "") ||
             (it?.numero_interno && it.numero_interno.trim() !== "") ||
-            Number(it?.cantidad || 0) > 0 ||
+            parseCantidad(it?.cantidadInput ?? it?.cantidad ?? 1) > 0 ||
             Number(it?.stock || 0) > 0 ||
             (it?.codigo_referencial && it.codigo_referencial.trim() !== "") ||
             (it?.imagen_url && it.imagen_url.trim() !== "")
@@ -1746,7 +1783,20 @@ const descargarPlantillaItems = () => {
 
     watch(form, () => scheduleLocalSave(), { deep: true });
     watch(uid, () => scheduleLocalSave());
-
+    watch(
+      () => form.prioridad_solped,
+      () => {
+        form.dias_estimados_gestion = getDiasPorPrioridad(form.prioridad_solped);
+      },
+      { immediate: true }
+    );
+    watch(
+      () => form.prioridad_solped,
+      () => {
+        aplicarDiasPorPrioridad(true);
+      },
+      { immediate: true }
+    );
     const SUG_MIN_LEN = 2;
     const SUG_DELAY = 180;
 
@@ -2181,10 +2231,10 @@ const descargarPlantillaItems = () => {
         id: nid,
         descripcion: "",
         codigo_referencial: "",
-        cantidad: 1,
+        cantidad: "01",
         cantidadInput: "01",
+        unidad: "UNIDAD",
         stock: null,
-        numero_interno: "",
         prioridad: "MEDIA",
         imagen_url: ""
       });
@@ -2247,9 +2297,6 @@ const descargarPlantillaItems = () => {
       if (!form.dirigidoA?.length) return "Debes seleccionar al menos un cotizador.";
       if (!form.items?.length) return "Debes agregar al menos un ítem.";
       for (const it of form.items) {
-        if (!it.descripcion?.trim() || !it.numero_interno?.trim()) {
-          return "Cada ítem debe tener Descripción y N° Interno/Patente.";
-        }
         if (!it.prioridad) {
           return "Cada ítem debe tener prioridad.";
         }
@@ -2287,7 +2334,7 @@ const descargarPlantillaItems = () => {
           nombre_solped: (form.nombre_solped || "").toUpperCase(),
           tipo_solped: form.tipo_solped,
           prioridad_solped: form.prioridad_solped || "MEDIA",
-          dias_estimados_gestion: Number(form.dias_estimados_gestion || 1),
+          dias_estimados_gestion: Number(form.dias_estimados_gestion || 10),
           dirigidoA: form.dirigidoA,
           numero_contrato: form.numero_contrato,
           nombre_centro_costo: form.nombre_centro_costo || "",
@@ -2309,9 +2356,9 @@ const descargarPlantillaItems = () => {
             item: idx + 1,
             descripcion: (it.descripcion || "").toUpperCase(),
             codigo_referencial: (it.codigo_referencial || "SIN CÓDIGO").toUpperCase(),
-            cantidad: Number(it.cantidad || 0),
+            cantidad: formatCantidad(it.cantidadInput ?? it.cantidad ?? 1),
+            unidad: it.unidad || "UNIDAD",
             stock: Number(it.stock || 0),
-            numero_interno: (it.numero_interno || "SIN PATENTE").toUpperCase(),
             prioridad: it.prioridad || "MEDIA",
             imagen_url: it.imagen_url || null,
             estado: "pendiente"
@@ -2387,7 +2434,7 @@ const descargarPlantillaItems = () => {
       form.nombre_solped = "";
       form.tipo_solped = "";
       form.prioridad_solped = "MEDIA";
-      form.dias_estimados_gestion = 1;
+      form.dias_estimados_gestion = getDiasPorPrioridad("MEDIA");
       form.dirigidoA = [];
       form.numero_contrato = "";
       form.nombre_centro_costo = "";
@@ -2553,7 +2600,7 @@ const descargarPlantillaItems = () => {
       clearEquiposSearch,
       copiarEquipo,
       normEq,
-
+      aplicarDiasPorPrioridad,
       isDragging,
       uploadingAdjuntos,
       totalProgress,

@@ -235,10 +235,13 @@
                     </div>
 
                     <div class="col-12 col-md-4">
-                      <div class="small text-secondary">Aprobador</div>
-                      <div class="fw-semibold">{{ cot.aprobadorAsignado || cot.aprobadorSugerido || 'Alejandro Candia' }}</div>
+                      <div class="small text-secondary">Proveedor</div>
+                      <div class="fw-semibold">{{ cot.proveedor || 'SIN INFO' }}</div>
                     </div>
-
+                    <div class="col-12 col-md-4">
+                      <div class="small text-secondary">Rut del Proveedor</div>
+                      <div class="fw-semibold">{{ cot.rutProveedor || 'SIN INFO'}}</div>
+                    </div>
                     <div class="col-12">
                       <div class="small text-secondary">Comentario</div>
                       <div class="border rounded p-2">{{ cot.comentario || '—' }}</div>
@@ -250,7 +253,7 @@
                     <span class="small text-secondary">Vinculado a SOLPED de plantas</span>
 
                     <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                      N° {{ cot.numero_solpe ?? '—' }}
+                      N° {{ cot.numero_solpe || cot.numero_solped || '—' }}
                     </span>
 
                     <button

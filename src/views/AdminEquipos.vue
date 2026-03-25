@@ -2,321 +2,410 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="equipos-admin-page">
-    <div class="container py-4 py-md-5">
+    <div class="page-glow glow-1"></div>
+    <div class="page-glow glow-2"></div>
 
-      <div class="page-hero mb-4">
-        <div class="page-hero__content">
-          <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
-            <div>
-              <div class="page-eyebrow mb-2">
-                <i class="bi bi-truck me-2"></i>
-                Gestión operativa
-              </div>
-              <h1 class="h5 h4-sm fw-semibold mb-1">Administrar equipos</h1>
-              <p class="page-subtitle mb-0">
-                Gestiona equipos, importa información desde Excel y revisa registros incompletos.
-              </p>
+    <div class="container py-4 py-md-5 position-relative">
+
+      <!-- HERO -->
+      <section class="hero-card mb-4">
+        <div class="hero-pattern"></div>
+
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap position-relative">
+          <div>
+            <div class="hero-badge mb-2">
+              <i class="bi bi-truck me-2"></i>
+              Gestión operativa
             </div>
 
-            <div class="d-flex align-items-stretch gap-2 flex-wrap">
-              <button class="btn btn-outline-secondary d-inline-flex d-md-none" @click="toggleFiltros(true)">
-                <i class="bi bi-sliders2 me-1"></i> Filtros
-              </button>
+            <h1 class="hero-title mb-1">Administrar equipos</h1>
+            <p class="hero-subtitle mb-0">
+              Gestiona equipos, importa información desde Excel y revisa registros incompletos de forma clara y ordenada.
+            </p>
+          </div>
 
-              <button class="btn btn-primary hero-btn" @click="abrirCrear">
-                <i class="bi bi-plus-lg me-1"></i>
-                <span class="d-none d-sm-inline">Agregar equipo</span>
-                <span class="d-inline d-sm-none">Agregar</span>
-              </button>
+          <div class="hero-actions d-flex align-items-stretch gap-2 flex-wrap w-100 w-xl-auto ms-xl-3">
+            <button class="btn btn-soft-secondary btn-toolbar d-inline-flex d-md-none" @click="toggleFiltros(true)">
+              <i class="bi bi-sliders2 me-1"></i> Filtros
+            </button>
 
-              <button
-                class="btn btn-outline-success hero-btn"
-                @click="exportarExcelFaltantes"
-                :disabled="cargando || !equipos.length"
-              >
-                <i class="bi bi-download me-1"></i>
-                <span class="d-none d-sm-inline">Excel faltantes</span>
-                <span class="d-inline d-sm-none">Faltantes</span>
-              </button>
+            <button class="btn btn-brand btn-toolbar" @click="abrirCrear">
+              <i class="bi bi-plus-lg me-1"></i>
+              <span class="d-none d-sm-inline">Agregar equipo</span>
+              <span class="d-inline d-sm-none">Agregar</span>
+            </button>
 
-              <button class="btn btn-outline-secondary hero-btn" @click="cargarEquipos">
-                <i class="bi bi-arrow-clockwise me-1"></i>
-                <span class="d-none d-sm-inline">Recargar</span>
-                <span class="d-inline d-sm-none">Reload</span>
-              </button>
+            <button
+              class="btn btn-soft-emerald btn-toolbar"
+              @click="exportarExcelFaltantes"
+              :disabled="cargando || !equipos.length"
+            >
+              <i class="bi bi-download me-1"></i>
+              <span class="d-none d-sm-inline">Excel faltantes</span>
+              <span class="d-inline d-sm-none">Faltantes</span>
+            </button>
 
-              <input ref="fileInput" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onFilePicked">
+            <button class="btn btn-soft-primary btn-toolbar" @click="cargarEquipos">
+              <i class="bi bi-arrow-clockwise me-1"></i>
+              <span class="d-none d-sm-inline">Recargar</span>
+              <span class="d-inline d-sm-none">Reload</span>
+            </button>
 
-              <button class="btn btn-success hero-btn" @click="pedirArchivo" :disabled="importando">
-                <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i>
-                <span class="d-none d-sm-inline">{{ importando ? 'Importando…' : 'Importar Excel' }}</span>
-                <span class="d-inline d-sm-none">{{ importando ? 'Import…' : 'Excel' }}</span>
-              </button>
-            </div>
+            <input ref="fileInput" type="file" class="d-none" accept=".xlsx,.xls,.csv" @change="onFilePicked">
+
+            <button class="btn btn-emerald btn-toolbar" @click="pedirArchivo" :disabled="importando">
+              <span v-if="importando" class="spinner-border spinner-border-sm me-2"></span>
+              <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+              <span class="d-none d-sm-inline">{{ importando ? 'Importando…' : 'Importar Excel' }}</span>
+              <span class="d-inline d-sm-none">{{ importando ? 'Import…' : 'Excel' }}</span>
+            </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div v-if="importando" class="import-card mb-3">
-        <div class="d-flex align-items-center">
-          <div class="me-3 spinner-border spinner-border-sm" role="status"></div>
+      <!-- IMPORTANDO -->
+      <div v-if="importando" class="import-card mb-4">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="import-icon">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+          </div>
+
           <div class="flex-grow-1">
-            <div class="fw-semibold">{{ importMsg }}</div>
+            <div class="fw-bold text-dark">{{ importMsg }}</div>
             <div class="progress progress-pro mt-2">
               <div class="progress-bar" role="progressbar" :style="{ width: importPct + '%' }"></div>
             </div>
-            <div class="small text-secondary mt-1">{{ importPct }}%</div>
+            <div class="small text-secondary mt-2">{{ importPct }}%</div>
           </div>
         </div>
       </div>
 
-      <div class="filter-card mb-3 d-none d-md-block">
-        <div class="card-body">
-          <div class="row g-2 align-items-end">
+      <!-- RESUMEN -->
+      <section class="stats-strip mb-4">
+        <div class="stat-pill">
+          <div class="stat-icon stat-icon-blue">
+            <i class="bi bi-truck-front"></i>
+          </div>
+          <div>
+            <div class="stat-label">Total equipos</div>
+            <div class="stat-value">{{ equipos.length }}</div>
+          </div>
+        </div>
+
+        <div class="stat-pill">
+          <div class="stat-icon stat-icon-slate">
+            <i class="bi bi-funnel"></i>
+          </div>
+          <div>
+            <div class="stat-label">Mostrando</div>
+            <div class="stat-value">{{ paginado.length }}</div>
+          </div>
+        </div>
+
+        <div class="stat-pill" v-if="busqueda || filtroClasificacion">
+          <div class="stat-icon stat-icon-emerald">
+            <i class="bi bi-search"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="stat-label">Filtros activos</div>
+            <div class="stat-value text-truncate" style="max-width: 240px;">
+              {{ filtroClasificacion || busqueda }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILTROS DESKTOP -->
+      <section class="filter-shell mb-4 d-none d-md-block">
+        <div class="filter-shell__header">
+          <div>
+            <div class="list-title">Filtros</div>
+            <div class="list-subtitle">
+              Busca por texto libre o acota por clasificación.
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-shell__body">
+          <div class="row g-3 align-items-end">
             <div class="col-12 col-md-6">
               <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
-              <div class="input-icon-wrap">
-                <i class="bi bi-search input-icon"></i>
+              <div class="search-shell">
+                <i class="bi bi-search search-icon"></i>
                 <input
-                  class="form-control form-control-pro"
+                  class="search-input"
                   v-model="busqueda"
-                  placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
+                  placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03"
+                />
               </div>
             </div>
 
             <div class="col-12 col-md-4">
               <label class="form-label">Filtrar por Clasificación</label>
-              <select class="form-select form-control-pro" v-model="filtroClasificacion">
+              <select class="form-select modern-input" v-model="filtroClasificacion">
                 <option value="">— Todas —</option>
                 <option v-for="c in clasificacionesOrdenadas" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
 
             <div class="col-12 col-md-2">
-              <button class="btn btn-outline-secondary w-100" @click="limpiarFiltros">
+              <button class="btn btn-soft-secondary w-100 btn-toolbar" @click="limpiarFiltros">
                 <i class="bi bi-eraser me-1"></i> Limpiar
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="main-card card">
-        <div class="card-header card-header-pro d-flex align-items-center justify-content-between">
-          <div class="fw-semibold d-flex align-items-center">
-            <i class="bi bi-list-ul me-2 text-secondary"></i>
-            Equipos
+      <!-- TABLA -->
+      <section class="list-shell">
+        <div class="list-header">
+          <div>
+            <div class="list-title d-flex align-items-center">
+              <i class="bi bi-list-ul me-2 text-secondary"></i>
+              Equipos
+            </div>
+            <div class="list-subtitle">
+              Revisa, edita o elimina registros desde el listado principal.
+            </div>
           </div>
-          <span class="badge badge-counter">{{ equipos.length }} en total</span>
+
+          <div class="list-counter">
+            <span>{{ equipos.length }}</span>
+          </div>
         </div>
 
-        <div class="card-body p-0">
-          <div v-if="cargando" class="p-4 text-center">
+        <div v-if="cargando" class="p-5 text-center">
+          <div class="loading-wrap">
             <div class="spinner-border" role="status"></div>
-            <div class="small mt-2 text-secondary">Cargando…</div>
-          </div>
-
-          <div v-else>
-            <div v-if="paginado.length === 0" class="p-4 text-center text-secondary">
-              No hay resultados con esos filtros.
-            </div>
-
-            <div v-else class="table-responsive">
-              <table class="table table-hover table-sm align-middle mb-0 equipos-table">
-                <thead class="position-sticky top-0 table-head-pro">
-                  <tr>
-                    <th style="width:34px;"></th>
-                    <th style="min-width:120px;">Código</th>
-                    <th style="min-width:120px;">N° Interno</th>
-                    <th class="d-none d-md-table-cell" style="min-width:140px;">N° Motor</th>
-                    <th>Equipo</th>
-                    <th class="d-none d-md-table-cell">Marca / Modelo</th>
-                    <th class="d-none d-lg-table-cell">Clasificación</th>
-                    <th class="d-none d-xl-table-cell">Tipo</th>
-                    <th class="text-center d-none d-xl-table-cell">Año</th>
-                    <th class="d-none d-xl-table-cell">Localización</th>
-                    <th class="text-end pe-3" style="width:160px;">Acciones</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <tr v-for="e in paginado" :key="e.__id">
-                    <td><i class="bi bi-truck-front text-secondary"></i></td>
-
-                    <td class="fw-semibold text-nowrap">
-                      <div class="text-truncate" style="max-width:120px;">{{ e.codigo || '—' }}</div>
-                      <div class="small text-secondary d-md-none mt-1">
-                        <div class="d-flex flex-wrap gap-2">
-                          <span><strong>Int:</strong> {{ e.numero_interno || '—' }}</span>
-                          <span><strong>Motor:</strong> {{ e.numero_motor || '—' }}</span>
-                        </div>
-                        <div class="mt-1">
-                          <span class="me-2">{{ e.marca || '—' }}</span>
-                          <span v-if="e.modelo">/ {{ e.modelo }}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td class="text-nowrap">
-                      <span class="badge bg-primary-subtle text-primary-emphasis">
-                        {{ e.numero_interno || '—' }}
-                      </span>
-                    </td>
-
-                    <td class="small d-none d-md-table-cell">
-                      <span class="badge bg-info-subtle text-info-emphasis">
-                        {{ e.numero_motor || '—' }}
-                      </span>
-                    </td>
-
-                    <td class="small">
-                      <div class="text-truncate" style="max-width:240px;">{{ e.equipo || '—' }}</div>
-                      <div class="small text-secondary d-lg-none">
-                        <span v-if="e.clasificacion1">{{ e.clasificacion1 }}</span>
-                      </div>
-                    </td>
-
-                    <td class="small d-none d-md-table-cell">
-                      {{ e.marca || '—' }}<span v-if="e.modelo"> / {{ e.modelo }}</span>
-                    </td>
-
-                    <td class="d-none d-lg-table-cell">
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                        {{ e.clasificacion1 || '—' }}
-                      </span>
-                    </td>
-
-                    <td class="small d-none d-xl-table-cell">{{ e.tipo_equipo || '—' }}</td>
-                    <td class="text-center d-none d-xl-table-cell">{{ e.ano ?? '—' }}</td>
-                    <td class="small d-none d-xl-table-cell">{{ e.localizacion || '—' }}</td>
-
-                    <td class="text-end pe-3">
-                      <div class="btn-group btn-group-sm d-none d-md-inline-flex">
-                        <button class="btn btn-outline-primary" @click="abrirEditar(e)">Editar</button>
-                        <button
-                          class="btn btn-outline-danger"
-                          :disabled="accionando && idEnAccion===e.__id"
-                          @click="abrirConfirm(e)"
-                        >
-                          <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm me-2"></span>
-                          Eliminar
-                        </button>
-                      </div>
-
-                      <div class="d-inline-flex d-md-none gap-1">
-                        <button class="btn btn-outline-primary btn-sm" @click="abrirEditar(e)" title="Editar">
-                          <i class="bi bi-pencil-square"></i>
-                        </button>
-                        <button
-                          class="btn btn-outline-danger btn-sm"
-                          :disabled="accionando && idEnAccion===e.__id"
-                          @click="abrirConfirm(e)"
-                          title="Eliminar"
-                        >
-                          <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm"></span>
-                          <i v-else class="bi bi-trash3"></i>
-                        </button>
-                      </div>
-
-                      <div class="small text-secondary mt-1 d-none d-md-block" v-if="e.creado || e.actualizado">
-                        <span v-if="e.creado">Creado: {{ fmtFecha(e.creado) }}</span>
-                        <span v-if="e.actualizado"> · Act.: {{ fmtFecha(e.actualizado) }}</span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="card-footer card-footer-pro">
-              <nav class="overflow-auto">
-                <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
-                  <li class="page-item" :class="{disabled: paginaActual===1}">
-                    <button class="page-link" @click="goToPage(paginaActual-1)" aria-label="Anterior">«</button>
-                  </li>
-                  <li v-for="n in visiblePages" :key="'pg-'+n" class="page-item" :class="{active: paginaActual===n}">
-                    <button class="page-link" @click="goToPage(n)">{{ n }}</button>
-                  </li>
-                  <li class="page-item" :class="{disabled: paginaActual===totalPaginas}">
-                    <button class="page-link" @click="goToPage(paginaActual+1)" aria-label="Siguiente">»</button>
-                  </li>
-                </ul>
-              </nav>
-            </div>
-
+            <div class="small mt-3 text-secondary">Cargando…</div>
           </div>
         </div>
-      </div>
 
+        <div v-else>
+          <div v-if="paginado.length === 0" class="p-5 text-center">
+            <div class="empty-state">
+              <div class="empty-icon">
+                <i class="bi bi-inbox"></i>
+              </div>
+              <div class="empty-title">No hay resultados con esos filtros</div>
+              <div class="empty-text">
+                Ajusta la búsqueda o limpia los filtros para volver a ver resultados.
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="table-responsive">
+            <table class="table equipos-table align-middle mb-0">
+              <thead class="position-sticky top-0 table-head-pro">
+                <tr>
+                  <th style="width: 48px;"></th>
+                  <th style="min-width: 130px;">Código</th>
+                  <th style="min-width: 130px;">N° Interno</th>
+                  <th class="d-none d-md-table-cell" style="min-width: 150px;">N° Motor</th>
+                  <th style="min-width: 220px;">Equipo</th>
+                  <th class="d-none d-md-table-cell" style="min-width: 180px;">Marca / Modelo</th>
+                  <th class="text-end pe-3" style="width: 190px;">Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr v-for="e in paginado" :key="e.__id">
+                  <td>
+                    <div class="row-icon">
+                      <i class="bi bi-truck-front"></i>
+                    </div>
+                  </td>
+
+                  <td class="fw-semibold text-nowrap">
+                    <div class="provider-name text-truncate" style="max-width: 120px;">
+                      {{ e.codigo || '—' }}
+                    </div>
+
+                    <div class="small text-secondary d-md-none mt-1">
+                      <div class="d-flex flex-wrap gap-2">
+                        <span><strong>Int:</strong> {{ e.numero_interno || '—' }}</span>
+                        <span><strong>Motor:</strong> {{ e.numero_motor || '—' }}</span>
+                      </div>
+                      <div class="mt-1">
+                        <span class="me-2">{{ e.marca || '—' }}</span>
+                        <span v-if="e.modelo">/ {{ e.modelo }}</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="text-nowrap">
+                    <span class="chip chip-blue">
+                      {{ e.numero_interno || '—' }}
+                    </span>
+                  </td>
+
+                  <td class="small d-none d-md-table-cell">
+                    <span class="chip chip-cyan">
+                      {{ e.numero_motor || '—' }}
+                    </span>
+                  </td>
+
+                  <td class="small">
+                    <div class="provider-main min-w-0">
+                      <div class="provider-avatar">
+                        {{ (e.equipo || 'E').charAt(0).toUpperCase() }}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="provider-name text-truncate" style="max-width: 240px;">
+                          {{ e.equipo || '—' }}
+                        </div>
+                        <div class="provider-address text-truncate d-lg-none">
+                          <span v-if="e.clasificacion1">{{ e.clasificacion1 }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="small d-none d-md-table-cell">
+                    <div class="data-inline">
+                      <i class="bi bi-wrench-adjustable-circle"></i>
+                      <span>{{ e.marca || '—' }}<span v-if="e.modelo"> / {{ e.modelo }}</span></span>
+                    </div>
+                  </td>
+
+                  <td class="text-end pe-3">
+                    <div class="action-group d-none d-md-inline-flex">
+                      <button class="btn action-btn action-edit" @click="abrirEditar(e)" title="Editar">
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button
+                        class="btn action-btn action-delete"
+                        :disabled="accionando && idEnAccion===e.__id"
+                        @click="abrirConfirm(e)"
+                        title="Eliminar"
+                      >
+                        <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm"></span>
+                        <i v-else class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+
+                    <div class="d-inline-flex d-md-none gap-1">
+                      <button class="btn action-btn action-edit btn-sm" @click="abrirEditar(e)" title="Editar">
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button
+                        class="btn action-btn action-delete btn-sm"
+                        :disabled="accionando && idEnAccion===e.__id"
+                        @click="abrirConfirm(e)"
+                        title="Eliminar"
+                      >
+                        <span v-if="accionando && idEnAccion===e.__id" class="spinner-border spinner-border-sm"></span>
+                        <i v-else class="bi bi-trash3"></i>
+                      </button>
+                    </div>
+
+                    <div class="audit-mini mt-2 d-none d-md-block" v-if="e.creado || e.actualizado">
+                      <span v-if="e.creado">Creado: {{ fmtFecha(e.creado) }}</span>
+                      <span v-if="e.actualizado"> · Act.: {{ fmtFecha(e.actualizado) }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card-footer-pro">
+            <nav class="overflow-auto">
+              <ul class="pagination pagination-sm justify-content-center mb-0 flex-wrap gap-1">
+                <li class="page-item" :class="{disabled: paginaActual===1}">
+                  <button class="page-link" @click="goToPage(paginaActual-1)" aria-label="Anterior">«</button>
+                </li>
+
+                <li v-for="n in visiblePages" :key="'pg-'+n" class="page-item" :class="{active: paginaActual===n}">
+                  <button class="page-link" @click="goToPage(n)">{{ n }}</button>
+                </li>
+
+                <li class="page-item" :class="{disabled: paginaActual===totalPaginas}">
+                  <button class="page-link" @click="goToPage(paginaActual+1)" aria-label="Siguiente">»</button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- OFFCANVAS FORM -->
       <div v-if="offOpen" class="offcanvas-backdrop" @click.self="cerrarOff">
         <div class="offcanvas-panel">
           <div class="offcanvas-header">
-            <h5 class="mb-0">{{ esEdicion ? 'Editar equipo' : 'Agregar equipo' }}</h5>
+            <div>
+              <div class="modal-kicker">{{ esEdicion ? 'Editar registro' : 'Nuevo registro' }}</div>
+              <div class="fw-bold fs-5 text-truncate">
+                {{ esEdicion ? 'Editar equipo' : 'Agregar equipo' }}
+              </div>
+            </div>
             <button class="btn-close" @click="cerrarOff"></button>
           </div>
 
           <div class="offcanvas-body">
-            <div class="row g-3">
-              <div class="col-12 col-md-6">
-                <label class="form-label">Código</label>
-                <input class="form-control form-control-pro" v-model="form.codigo" placeholder="Ej: JK-2864" />
-              </div>
+            <div class="form-block">
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Código</label>
+                  <input class="form-control modern-input" v-model="form.codigo" placeholder="Ej: JK-2864" />
+                </div>
 
-              <div class="col-12 col-md-6">
-                <label class="form-label">N° Interno</label>
-                <input class="form-control form-control-pro" v-model="form.numero_interno" placeholder="Ej: GE-456" />
-              </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">N° Interno</label>
+                  <input class="form-control modern-input" v-model="form.numero_interno" placeholder="Ej: GE-456" />
+                </div>
 
-              <div class="col-12">
-                <label class="form-label">N° Motor</label>
-                <input class="form-control form-control-pro" v-model="form.numero_motor" placeholder="Ej: QS213-03" />
-              </div>
+                <div class="col-12">
+                  <label class="form-label">N° Motor</label>
+                  <input class="form-control modern-input" v-model="form.numero_motor" placeholder="Ej: QS213-03" />
+                </div>
 
-              <div class="col-12 col-md-6">
-                <label class="form-label">Año</label>
-                <input class="form-control form-control-pro" type="number" v-model.number="form.ano" min="1900" max="2100" />
-              </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Año</label>
+                  <input class="form-control modern-input" type="number" v-model.number="form.ano" min="1900" max="2100" />
+                </div>
 
-              <div class="col-12">
-                <label class="form-label">Equipo</label>
-                <input class="form-control form-control-pro" v-model="form.equipo" placeholder="Descripción del equipo" />
-              </div>
+                <div class="col-12">
+                  <label class="form-label">Equipo</label>
+                  <input class="form-control modern-input" v-model="form.equipo" placeholder="Descripción del equipo" />
+                </div>
 
-              <div class="col-12 col-md-6">
-                <label class="form-label">Marca</label>
-                <input class="form-control form-control-pro" v-model="form.marca" placeholder="RANDON" />
-              </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Marca</label>
+                  <input class="form-control modern-input" v-model="form.marca" placeholder="RANDON" />
+                </div>
 
-              <div class="col-12 col-md-6">
-                <label class="form-label">Modelo</label>
-                <input class="form-control form-control-pro" v-model="form.modelo" placeholder="SRLTV0327" />
-              </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Modelo</label>
+                  <input class="form-control modern-input" v-model="form.modelo" placeholder="SRLTV0327" />
+                </div>
 
-              <div class="col-12">
-                <label class="form-label">Clasificación</label>
-                <input class="form-control form-control-pro" v-model="form.clasificacion1" placeholder="SEMI REMOLQUE SILO" />
-              </div>
+                <div class="col-12">
+                  <label class="form-label">Clasificación</label>
+                  <input class="form-control modern-input" v-model="form.clasificacion1" placeholder="SEMI REMOLQUE SILO" />
+                </div>
 
-              <div class="col-12">
-                <label class="form-label">Tipo de equipo</label>
-                <input class="form-control form-control-pro" v-model="form.tipo_equipo" placeholder="SEMI REMOLQUE SILO" />
-              </div>
+                <div class="col-12">
+                  <label class="form-label">Tipo de equipo</label>
+                  <input class="form-control modern-input" v-model="form.tipo_equipo" placeholder="SEMI REMOLQUE SILO" />
+                </div>
 
-              <div class="col-12">
-                <label class="form-label">N° Chasis</label>
-                <input class="form-control form-control-pro" v-model="form.numero_chasis" placeholder="9ADH0973BCM343474" />
-              </div>
+                <div class="col-12">
+                  <label class="form-label">N° Chasis</label>
+                  <input class="form-control modern-input" v-model="form.numero_chasis" placeholder="9ADH0973BCM343474" />
+                </div>
 
-              <div class="col-12">
-                <label class="form-label">Localización</label>
-                <input class="form-control form-control-pro" v-model="form.localizacion" placeholder="22368 DET\\ CANECHE" />
-              </div>
+                <div class="col-12">
+                  <label class="form-label">Localización</label>
+                  <input class="form-control modern-input" v-model="form.localizacion" placeholder="22368 DET\\ CANECHE" />
+                </div>
 
-              <div class="col-12" v-if="esEdicion && (form.creado || form.actualizado)">
-                <div class="audit-info small text-secondary">
-                  <div v-if="form.creado">Creado: {{ fmtFecha(form.creado) }}</div>
-                  <div v-if="form.actualizado">Actualizado: {{ fmtFecha(form.actualizado) }}</div>
+                <div class="col-12" v-if="esEdicion && (form.creado || form.actualizado)">
+                  <div class="audit-info">
+                    <div v-if="form.creado">Creado: {{ fmtFecha(form.creado) }}</div>
+                    <div v-if="form.actualizado">Actualizado: {{ fmtFecha(form.actualizado) }}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -324,8 +413,8 @@
 
           <div class="offcanvas-footer">
             <div class="d-flex flex-wrap gap-2 justify-content-end">
-              <button class="btn btn-outline-secondary" @click="cerrarOff">Cancelar</button>
-              <button class="btn btn-primary" :disabled="accionando" @click="guardar">
+              <button class="btn btn-soft-secondary" @click="cerrarOff">Cancelar</button>
+              <button class="btn btn-brand" :disabled="accionando" @click="guardar">
                 <span v-if="accionando" class="spinner-border spinner-border-sm me-2"></span>
                 {{ esEdicion ? 'Guardar cambios' : 'Crear equipo' }}
               </button>
@@ -334,42 +423,54 @@
         </div>
       </div>
 
+      <!-- OFFCANVAS FILTROS MOBILE -->
       <div v-if="filtrosOpen" class="offcanvas-backdrop" @click.self="toggleFiltros(false)">
         <div class="offcanvas-panel offcanvas-panel-sm">
           <div class="offcanvas-header">
-            <h5 class="mb-0"><i class="bi bi-sliders2 me-2"></i>Filtros</h5>
+            <div>
+              <div class="modal-kicker">Opciones</div>
+              <div class="fw-bold fs-5"><i class="bi bi-sliders2 me-2"></i>Filtros</div>
+            </div>
             <button class="btn-close" @click="toggleFiltros(false)"></button>
           </div>
-          <div class="offcanvas-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
-                <input class="form-control form-control-pro" v-model="busqueda" placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
-              </div>
 
-              <div class="col-12">
-                <label class="form-label">Filtrar por Clasificación</label>
-                <select class="form-select form-control-pro" v-model="filtroClasificacion">
-                  <option value="">— Todas —</option>
-                  <option v-for="c in clasificacionesOrdenadas" :key="c" :value="c">{{ c }}</option>
-                </select>
+          <div class="offcanvas-body">
+            <div class="form-block">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Buscar (equipo, marca, código, interno, motor)</label>
+                  <input class="form-control modern-input" v-model="busqueda" placeholder="Ej: SILO, RANDON, JK-2864, GE-456, QS213-03" />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label">Filtrar por Clasificación</label>
+                  <select class="form-select modern-input" v-model="filtroClasificacion">
+                    <option value="">— Todas —</option>
+                    <option v-for="c in clasificacionesOrdenadas" :key="c" :value="c">{{ c }}</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
+
           <div class="offcanvas-footer">
             <div class="d-flex gap-2 justify-content-between w-100">
-              <button class="btn btn-outline-secondary" @click="limpiarFiltros">Limpiar</button>
-              <button class="btn btn-primary" @click="toggleFiltros(false)">Aplicar</button>
+              <button class="btn btn-soft-secondary" @click="limpiarFiltros">Limpiar</button>
+              <button class="btn btn-brand" @click="toggleFiltros(false)">Aplicar</button>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- TOASTS -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
-          <i class="me-2"
-             :class="t.type==='success' ? 'bi bi-check-circle-fill'
-                    : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"></i>
+          <i
+            class="me-2"
+            :class="t.type==='success'
+              ? 'bi bi-check-circle-fill'
+              : (t.type==='warning' ? 'bi bi-exclamation-triangle-fill' : 'bi bi-x-circle-fill')"
+          ></i>
           <span class="me-3">{{ t.text }}</span>
           <button class="btn-close btn-close-white ms-auto" @click="closeToast(t.id)"></button>
         </div>
@@ -377,14 +478,16 @@
 
     </div>
 
+    <!-- MODAL ELIMINAR -->
     <div v-if="confirmOpen" class="vmodal-backdrop" @click.self="cerrarConfirm">
-      <div class="vmodal" style="max-width: 520px;">
-        <div class="vmodal-header d-flex align-items-center gap-2">
+      <div class="vmodal modal-sm-pro">
+        <div class="vmodal-header d-flex align-items-center gap-3">
           <div class="confirm-icon">
             <i class="bi bi-trash3-fill"></i>
           </div>
           <div>
-            <h5 class="mb-0">Confirmar eliminación</h5>
+            <div class="modal-kicker text-danger-emphasis">Acción delicada</div>
+            <h5 class="mb-0 fw-bold">Confirmar eliminación</h5>
             <small class="text-secondary">Esta acción no se puede deshacer</small>
           </div>
           <button class="btn-close ms-auto" @click="cerrarConfirm" :disabled="eliminando"></button>
@@ -395,22 +498,42 @@
             ¿Seguro que quieres eliminar el equipo
             <strong>{{ confirmRow?.codigo || confirmRow?.equipo || '—' }}</strong>?
           </p>
-          <ul class="list-unstyled small mb-0">
-            <li><span class="text-secondary">Código:</span> <strong>{{ confirmRow?.codigo || '—' }}</strong></li>
-            <li><span class="text-secondary">N° Interno:</span> <strong>{{ confirmRow?.numero_interno || '—' }}</strong></li>
-            <li><span class="text-secondary">N° Motor:</span> <strong>{{ confirmRow?.numero_motor || '—' }}</strong></li>
-            <li><span class="text-secondary">Equipo:</span> <strong>{{ confirmRow?.equipo || '—' }}</strong></li>
-            <li><span class="text-secondary">Marca/Modelo:</span>
-              <strong>{{ confirmRow?.marca || '—' }} <span v-if="confirmRow?.modelo">/ {{ confirmRow?.modelo }}</span></strong>
-            </li>
-            <li><span class="text-secondary">Clasificación:</span> <strong>{{ confirmRow?.clasificacion1 || '—' }}</strong></li>
-            <li><span class="text-secondary">Localización:</span> <strong>{{ confirmRow?.localizacion || '—' }}</strong></li>
-          </ul>
+
+          <div class="confirm-box">
+            <div class="confirm-row">
+              <span>Código</span>
+              <strong>{{ confirmRow?.codigo || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>N° Interno</span>
+              <strong>{{ confirmRow?.numero_interno || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>N° Motor</span>
+              <strong>{{ confirmRow?.numero_motor || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Equipo</span>
+              <strong>{{ confirmRow?.equipo || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Marca / Modelo</span>
+              <strong>{{ confirmRow?.marca || '—' }}<span v-if="confirmRow?.modelo"> / {{ confirmRow?.modelo }}</span></strong>
+            </div>
+            <div class="confirm-row">
+              <span>Clasificación</span>
+              <strong>{{ confirmRow?.clasificacion1 || '—' }}</strong>
+            </div>
+            <div class="confirm-row">
+              <span>Localización</span>
+              <strong>{{ confirmRow?.localizacion || '—' }}</strong>
+            </div>
+          </div>
         </div>
 
         <div class="vmodal-footer d-flex justify-content-end gap-2">
-          <button class="btn btn-outline-secondary" @click="cerrarConfirm" :disabled="eliminando">Cancelar</button>
-          <button class="btn btn-danger" @click="confirmarEliminar" :disabled="eliminando">
+          <button class="btn btn-soft-secondary" @click="cerrarConfirm" :disabled="eliminando">Cancelar</button>
+          <button class="btn btn-danger btn-delete-strong" @click="confirmarEliminar" :disabled="eliminando">
             <span v-if="eliminando" class="spinner-border spinner-border-sm me-2"></span>
             Eliminar
           </button>
@@ -530,10 +653,6 @@ const esCampoVacio = (valor: any, key?: string) => {
 const valorParaExcel = (v: any) => {
   if (v === null || v === undefined) return '';
   return String(v);
-};
-
-const setSheetCols = (ws: XLSX.WorkSheet, widths: number[]) => {
-  ws['!cols'] = widths.map((w) => ({ wch: w }));
 };
 
 const exportarExcelFaltantes = () => {
@@ -1102,329 +1221,874 @@ async function importarExcel(file: File){
 </script>
 
 <style scoped>
-.equipos-admin-page{
-  min-height:100vh;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+:root {
+  color-scheme: light;
 }
 
-@media (min-width: 576px){
-  .h4-sm{ font-size: 1.35rem; }
-}
-
-/* HERO */
-.page-hero{
-  border: 1px solid var(--bs-border-color);
-  border-radius: 22px;
-  background: var(--bs-tertiary-bg);
-  box-shadow: 0 16px 34px rgba(0,0,0,.05);
-}
-
-.page-hero__content{
-  padding: 1.35rem 1.4rem;
-}
-
-.page-eyebrow{
-  display:inline-flex;
-  align-items:center;
-  padding:.42rem .82rem;
-  border-radius:999px;
-  background: var(--bs-secondary-bg);
-  border:1px solid var(--bs-border-color);
-  color: var(--bs-secondary-color, var(--bs-body-color));
-  font-size:.82rem;
-  font-weight:700;
-}
-
-.page-subtitle{
-  color: var(--bs-secondary-color, #6c757d);
-  max-width: 760px;
-}
-
-.hero-btn{
-  border-radius: 12px;
-}
-
-/* CARDS */
-.filter-card,
-.main-card{
-  border: 1px solid var(--bs-border-color);
-  border-radius: 20px;
-  background: var(--bs-body-bg);
-  box-shadow: 0 12px 28px rgba(0,0,0,.04);
-}
-
-.card-header-pro{
-  background: var(--bs-tertiary-bg);
-  border-bottom: 1px solid var(--bs-border-color);
-  border-top-left-radius: 20px !important;
-  border-top-right-radius: 20px !important;
-  padding: 1rem 1.1rem;
-}
-
-.card-footer-pro{
-  background: var(--bs-tertiary-bg);
-  border-top: 1px solid var(--bs-border-color);
-  border-bottom-left-radius: 20px !important;
-  border-bottom-right-radius: 20px !important;
-}
-
-.badge-counter{
-  background: var(--bs-secondary-bg);
-  color: var(--bs-body-color);
-  border: 1px solid var(--bs-border-color);
-  font-weight: 700;
-  border-radius: 999px;
-  padding: .5rem .8rem;
-}
-
-.import-card{
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 18px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.04);
-  padding: 1rem 1.1rem;
-}
-
-.audit-info{
-  background: var(--bs-tertiary-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 12px;
-  padding: .75rem .9rem;
-}
-
-/* FORM */
-.form-control-pro{
-  min-height: 46px;
-  border-radius: 14px;
-  border: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  box-shadow: none;
-}
-
-.form-control-pro:focus{
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 .22rem rgba(var(--bs-primary-rgb), .12);
-}
-
-.input-icon-wrap{
-  position: relative;
-}
-.input-icon{
+.page-glow {
   position: absolute;
-  left: .9rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--bs-secondary-color, #6c757d);
-  z-index: 2;
-}
-.input-icon-wrap .form-control{
-  padding-left: 2.5rem;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* TABLE */
-.equipos-table th,
-.equipos-table td{
-  vertical-align: middle;
-  border-color: var(--bs-border-color);
-  background: transparent;
-  color: var(--bs-body-color);
+.glow-1 {
+  width: 280px;
+  height: 280px;
+  top: -60px;
+  right: -40px;
+  background: rgba(37, 99, 235, 0.12);
 }
 
-.equipos-table tbody tr{
-  transition: background-color .18s ease, transform .18s ease;
+.glow-2 {
+  width: 240px;
+  height: 240px;
+  left: -80px;
+  bottom: 80px;
+  background: rgba(16, 185, 129, 0.10);
 }
 
-.equipos-table tbody tr:hover{
-  background: color-mix(in srgb, var(--bs-tertiary-bg) 72%, transparent);
-}
-
-.table-head-pro th{
-  background: var(--bs-tertiary-bg) !important;
-  border-bottom: 1px solid var(--bs-border-color);
-  color: var(--bs-secondary-color, #6c757d);
-  font-size: .84rem;
-  font-weight: 800;
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.88));
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
   z-index: 1;
 }
 
-.table td .badge{
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.hero-title {
+  font-size: clamp(1.7rem, 2vw, 2.2rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.hero-subtitle {
+  max-width: 760px;
+  color: #64748b;
+  font-size: 0.98rem;
+}
+
+.hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.stats-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  min-width: 180px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.78);
+  border: 1px solid rgba(255,255,255,0.76);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+.stat-icon-blue {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.stat-icon-slate {
+  background: rgba(71, 85, 105, 0.12);
+  color: #334155;
+}
+
+.stat-icon-emerald {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: #64748b;
   font-weight: 700;
 }
 
-/* OFFCANVAS */
-.offcanvas-backdrop{
+.stat-value {
+  font-size: 1.05rem;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.filter-shell,
+.list-shell {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(255,255,255,0.76);
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.72);
+  backdrop-filter: blur(12px);
+}
+
+.filter-shell__header,
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.2rem 1.3rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.74));
+}
+
+.filter-shell__body {
+  padding: 1.2rem 1.3rem;
+}
+
+.list-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.list-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.list-counter {
+  min-width: 52px;
+  height: 52px;
+  padding: 0 0.9rem;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-weight: 800;
+  font-size: 1rem;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+}
+
+.search-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  background: rgba(255,255,255,0.82);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+  overflow: hidden;
+}
+
+.search-shell:focus-within {
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  color: #64748b;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0 16px 0 44px;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.search-input::placeholder {
+  color: #94a3b8;
+}
+
+.btn-toolbar {
+  min-height: 52px;
+  border-radius: 16px;
+  padding-inline: 1rem;
+  font-weight: 700;
+  border-width: 1px;
+}
+
+.btn-brand {
+  color: #fff;
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+}
+
+.btn-brand:hover,
+.btn-brand:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.btn-emerald {
+  color: #fff;
+  border: none;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.25);
+}
+
+.btn-emerald:hover,
+.btn-emerald:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.btn-soft-primary {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.09);
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  font-weight: 700;
+}
+
+.btn-soft-primary:hover,
+.btn-soft-primary:focus {
+  color: #1742b8;
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.btn-soft-secondary {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  font-weight: 700;
+}
+
+.btn-soft-secondary:hover,
+.btn-soft-secondary:focus {
+  color: #0f172a;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.btn-soft-emerald {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.10);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  font-weight: 700;
+}
+
+.btn-soft-emerald:hover,
+.btn-soft-emerald:focus {
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.import-card {
+  position: relative;
+  z-index: 1;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(255,255,255,0.76);
+  border-radius: 24px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+  padding: 1rem 1.1rem;
+}
+
+.import-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.progress-pro {
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.equipos-table {
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(248, 250, 252, 0.72);
+  --bs-table-hover-bg: rgba(37, 99, 235, 0.035);
+  margin: 0;
+}
+
+.table-head-pro th {
+  background: rgba(248, 250, 252, 0.92) !important;
+  color: #475569;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 1rem 1rem;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.equipos-table tbody td {
+  padding: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.10);
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.equipos-table tbody tr {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.equipos-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.row-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-size: 1rem;
+}
+
+.provider-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.provider-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+
+.provider-name {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.provider-address {
+  color: #64748b;
+  font-size: 0.83rem;
+}
+
+.data-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.data-inline i {
+  color: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.chip-blue {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.14);
+}
+
+.chip-cyan {
+  color: #0f766e;
+  background: rgba(6, 182, 212, 0.10);
+  border-color: rgba(6, 182, 212, 0.14);
+}
+
+.chip-slate {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.action-group {
+  gap: 0.45rem;
+}
+
+.action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: 0.2s ease;
+}
+
+.action-edit {
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+}
+
+.action-edit:hover {
+  background: rgba(37, 99, 235, 0.16);
+  color: #1e40af;
+}
+
+.action-delete {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+}
+
+.action-delete:hover {
+  background: rgba(220, 38, 38, 0.13);
+  color: #b91c1c;
+}
+
+.audit-mini {
+  font-size: 0.76rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.card-footer-pro {
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.74));
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 1rem 1.1rem;
+}
+
+.pagination .page-link {
+  min-width: 36px;
+  text-align: center;
+  border-radius: 12px;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #334155;
+  box-shadow: none !important;
+}
+
+.pagination .page-item.active .page-link {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.loading-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 1rem;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: rgba(148, 163, 184, 0.10);
+  color: #64748b;
+  font-size: 1.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.empty-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.2rem;
+}
+
+.empty-text {
+  font-size: 0.9rem;
+  color: #64748b;
+  max-width: 420px;
+}
+
+.offcanvas-backdrop,
+.vmodal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1080;
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(7px);
 }
 
-.offcanvas-panel{
+.offcanvas-panel {
   position: fixed;
   right: 0;
   top: 0;
   bottom: 0;
-  width: 560px;
+  width: min(780px, 100%);
   max-width: 95vw;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 40px rgba(0,0,0,.25);
-  border-top-left-radius:.95rem;
-  border-bottom-left-radius:.95rem;
-  animation: slideIn .18s ease-out both;
+  box-shadow: -16px 0 44px rgba(15, 23, 42, 0.22);
+  animation: slideInRight 0.24s ease;
+  border-top-left-radius: 28px;
+  border-bottom-left-radius: 28px;
+  overflow: hidden;
 }
 
-.offcanvas-panel-sm{
+.offcanvas-panel-sm {
   width: 420px;
   max-width: 96vw;
 }
 
-@keyframes slideIn {
-  from{ transform: translateX(20px); opacity: 0; }
-  to{ transform:none; opacity:1; }
-}
-
 .offcanvas-header,
-.offcanvas-footer{
-  padding: .95rem 1rem;
-  border-bottom: 1px solid var(--bs-border-color);
-  background: var(--bs-tertiary-bg);
+.offcanvas-footer {
+  padding: 1.15rem 1.2rem;
+  background: transparent;
 }
 
-.offcanvas-footer{
-  border-top: 1px solid var(--bs-border-color);
-  border-bottom: 0;
+.offcanvas-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.offcanvas-body{
-  padding: 1rem;
+.offcanvas-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.offcanvas-body {
+  padding: 1.15rem;
   overflow: auto;
-  background: var(--bs-body-bg);
+  flex: 1;
 }
 
-/* MODAL */
-.vmodal-backdrop{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  z-index: 1090;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-}
-
-.vmodal{
+.vmodal {
   width: 100%;
-  max-width: 700px;
-  border-radius: .95rem;
-  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  max-width: 900px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 28px;
   overflow: hidden;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  border: 1px solid var(--bs-border-color);
+  border: 1px solid rgba(255,255,255,0.72);
+  box-shadow: 0 36px 90px rgba(15, 23, 42, 0.24);
+  animation: fadeUp 0.22s ease;
+}
+
+.modal-sm-pro {
+  max-width: 560px;
 }
 
 .vmodal-header,
-.vmodal-footer{
-  padding: .95rem 1rem;
-  border-bottom: 1px solid var(--bs-border-color);
-  background: var(--bs-tertiary-bg);
+.vmodal-footer {
+  padding: 1.15rem 1.25rem;
+  background: transparent;
 }
 
-.vmodal-footer{
-  border-top: 1px solid var(--bs-border-color);
+.vmodal-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vmodal-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vmodal-body {
+  padding: 1.25rem;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.modal-kicker {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+
+.form-block {
+  border-radius: 22px;
+  padding: 1rem;
+  background: rgba(255,255,255,0.62);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.modern-input {
+  min-height: 48px;
+  border-radius: 15px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,0.95);
+  box-shadow: none;
+  color: #0f172a;
+}
+
+.modern-input:focus {
+  border-color: rgba(37, 99, 235, 0.30);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+}
+
+.form-label {
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.45rem;
+}
+
+.audit-info {
+  background: rgba(255,255,255,0.68);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.confirm-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  font-size: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.confirm-box {
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  background: rgba(255,255,255,0.68);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.18);
+}
+
+.confirm-row:last-child {
   border-bottom: 0;
 }
 
-.vmodal-body{
-  padding: 1rem;
-  max-height: 65vh;
-  overflow: auto;
-  background: var(--bs-body-bg);
+.confirm-row span {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
-.confirm-icon{
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg,#ef4444,#dc2626);
-  color: #fff;
-  font-size: 18px;
-  box-shadow: 0 6px 18px rgba(220,38,38,.35);
+.confirm-row strong {
+  color: #0f172a;
+  text-align: right;
+  word-break: break-word;
 }
 
-/* TOASTS */
-.toast-stack{
+.btn-delete-strong {
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.22);
+}
+
+.toast-stack {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
-  z-index: 1200;
+  top: 20px;
+  right: 20px;
+  z-index: 3000;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.toast-box{
+.toast-box {
+  min-width: 280px;
+  max-width: 420px;
+  color: #fff;
+  border-radius: 16px;
+  padding: 0.95rem 1rem;
   display: flex;
   align-items: center;
-  padding: .6rem .8rem;
-  border-radius: .7rem;
-  color: #fff;
-  min-width: 240px;
-  max-width: 360px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
 }
 
-.toast-success{ background: linear-gradient(135deg,#22c55e,#16a34a); }
-.toast-warning{ background: linear-gradient(135deg,#f59e0b,#d97706); }
-.toast-danger{  background: linear-gradient(135deg,#ef4444,#dc2626); }
+.toast-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
 
-.btn-close-white{
+.toast-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.toast-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.btn-close-white {
   filter: invert(1) grayscale(100%) brightness(200%);
 }
 
-/* PAGINATION */
-.pagination .page-link{
-  min-width: 34px;
-  text-align:center;
-  border-radius: 10px;
+.min-w-0 {
+  min-width: 0;
 }
 
-.progress-pro{
-  height: 8px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--bs-secondary-bg);
+.btn-close {
+  box-shadow: none !important;
 }
 
-.progress-bar{
-  background: #16a34a;
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-@media (max-width: 576px){
-  thead th:first-child,
-  tbody td:first-child{ width: 34px !important; }
+@keyframes slideInRight {
+  from {
+    transform: translateX(28px);
+    opacity: 0.82;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 
-  td .text-truncate{ max-width: 180px; }
+@media (max-width: 991.98px) {
+  .hero-card {
+    padding: 1.2rem;
+  }
 
-  .page-hero__content{
+  .list-header,
+  .filter-shell__header,
+  .filter-shell__body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .toast-stack {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+  }
+
+  .toast-box {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .offcanvas-panel {
+    width: 100%;
+    border-radius: 0;
+  }
+
+  .vmodal {
+    max-width: 100%;
+    border-radius: 22px;
+  }
+
+  .hero-title {
+    font-size: 1.55rem;
+  }
+
+  .stat-pill {
+    flex: 1 1 100%;
+  }
+
+  .vmodal-body,
+  .offcanvas-body,
+  .vmodal-header,
+  .vmodal-footer,
+  .offcanvas-header,
+  .offcanvas-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero-card {
     padding: 1rem;
   }
 
-  .card-header-pro,
-  .card-footer-pro{
-    padding-left: .95rem;
-    padding-right: .95rem;
+  .table-head-pro th:first-child,
+  .equipos-table tbody td:first-child {
+    width: 48px !important;
   }
 }
 </style>

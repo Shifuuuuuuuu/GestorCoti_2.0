@@ -311,9 +311,9 @@
                 <div class="fw-semibold">{{ docData.tipo_solped || "Sin SOLPED" }}</div>
               </div>
 
-              <div class="col-12 col-md-4" v-if="docData.numero_solpe != null">
+              <div class="col-12 col-md-4">
                 <div class="small text-secondary">N° SOLPED</div>
-                <div class="fw-semibold">{{ docData.numero_solpe }}</div>
+                <div class="fw-semibold">{{ docData.numero_solpe || docData.numero_solped }}</div>
               </div>
 
               <div class="col-12 col-md-4" v-if="docData.nombre_solped">
@@ -343,7 +343,7 @@
                     <th class="text-center" style="width: 130px">Cotizada antes</th>
                     <th class="text-center" style="width: 110px">A cotizar</th>
                     <th class="text-center" style="width: 110px">Total</th>
-                    <th style="width: 160px">N° interno</th>
+                    <th style="width: 160px">Unidad</th>
                     <th style="width: 140px">Estado resultado</th>
                   </tr>
                 </thead>
@@ -358,7 +358,7 @@
                     <td class="text-center">{{ it.cantidad_cotizada_antes ?? "—" }}</td>
                     <td class="text-center">{{ it.cantidad_para_cotizar ?? "—" }}</td>
                     <td class="text-center">{{ it.cantidad_cotizada ?? "—" }}</td>
-                    <td>{{ it.numero_interno || "—" }}</td>
+                    <td>{{ it.unidad || "UNIDAD" }}</td>
                     <td>
                       <span class="badge" :class="itemEstadoBadge(it.estado_resultante || it.estado)">
                         {{ it.estado_resultante || it.estado || "—" }}

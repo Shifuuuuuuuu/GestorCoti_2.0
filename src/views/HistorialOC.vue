@@ -230,6 +230,14 @@
                       <div class="small text-secondary">Total con IVA</div>
                       <div class="fw-semibold">{{ fmtMoneda(oc.precioTotalConIVA, oc.moneda) }}</div>
                     </div>
+                    <div class="col-12 col-md-4">
+                      <div class="small text-secondary">Proveedor</div>
+                      <div class="fw-semibold">{{ oc.proveedor || 'SIN INFO' }}</div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                      <div class="small text-secondary">Rut del Proveedor</div>
+                      <div class="fw-semibold">{{ oc.rutProveedor || 'SIN INFO'}}</div>
+                    </div>
 
                     <div class="col-12">
                       <div class="small text-secondary">Comentario</div>

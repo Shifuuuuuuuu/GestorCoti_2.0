@@ -95,8 +95,12 @@
               </div>
 
               <div class="col-12 col-md-6" v-if="docData.tipo_flujo">
-                <div class="small text-secondary">Tipo flujo</div>
-                <div class="fw-semibold">{{ docData.tipo_flujo }}</div>
+                <div class="small text-secondary">Prioridad</div>
+                <div class="fw-semibold">{{ docData.prioridad_solped }}</div>
+              </div>
+              <div class="col-12 col-md-6" v-if="docData.tipo_flujo">
+                <div class="small text-secondary">Días de Gestionar</div>
+                <div class="fw-semibold">{{ docData.dias_estimados_gestion}}</div>
               </div>
 
               <div class="col-12 col-md-6" v-if="docData.comentario">
@@ -281,7 +285,7 @@
                     <th style="width:64px;">Ítem</th>
                     <th>Descripción</th>
                     <th>Código ref.</th>
-                    <th>N° interno</th>
+                    <th>Unidad</th>
                     <th class="text-center" style="width:100px;">Cant.</th>
                     <th class="text-center" style="width:100px;">Cotizada</th>
                     <th style="width:130px;">Estado</th>
@@ -294,7 +298,7 @@
                     <td class="text-secondary">{{ it.item ?? "—" }}</td>
                     <td class="fw-semibold">{{ it.descripcion || "—" }}</td>
                     <td>{{ it.codigo_referencial || "—" }}</td>
-                    <td>{{ it.numero_interno || "—" }}</td>
+                    <td>{{ it.unidad || "UNIDAD" }}</td>
                     <td class="text-center">{{ it.cantidad ?? 0 }}</td>
                     <td class="text-center">{{ it.cantidad_cotizada ?? 0 }}</td>
                     <td>

@@ -87,6 +87,16 @@
                         <i class="bi bi-calculator me-1"></i>
                         <strong>Evalúa en CLP:</strong> {{ formatMoneyCL(ocMontoHomologadoCLP(oc)) }}
                       </span>
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-people-fill"></i>
+                        <strong>Proveedor:</strong>
+                       {{ oc.proveedor || 'SIN INFO' }}
+                      </span>
+                      <span class="oc-pill" title="Monto homologado para aprobación">
+                        <i class="bi bi-person-badge"></i>
+                        <strong>Rut del Proveedor:</strong>
+                       {{ oc.rutProveedor|| 'SIN INFO' }}
+                      </span>
                     </div>
                   </div>
 
