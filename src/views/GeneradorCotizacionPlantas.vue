@@ -2468,7 +2468,7 @@ const buscarProveedores = async () => {
         orderBy("nombre"),
         startAt(raw),
         endAt(raw + "\uf8ff"),
-        limit(8)
+        limit(600)
       );
 
       const snapNombre = await getDocs(qNombre);
@@ -2484,13 +2484,11 @@ const buscarProveedores = async () => {
     } catch (e) {
       console.warn("Error búsqueda por nombre:", e);
     }
-
-    // búsqueda más flexible por nombre/rut
     try {
       const qBase = query(
         collection(db, "proveedores"),
         orderBy("nombre"),
-        limit(50)
+        limit(600)
       );
 
       const snapBase = await getDocs(qBase);

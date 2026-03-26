@@ -45,7 +45,10 @@
             <button class="btn btn-soft-primary btn-toolbar" @click="cargarProveedores">
               <i class="bi bi-arrow-clockwise me-1"></i> Recargar
             </button>
-
+            <button class="btn btn-soft-danger btn-toolbar" @click="verificarDuplicados">
+              <i class="bi bi-shield-check me-1"></i>
+              Verificar repetidos
+            </button>
             <button class="btn btn-soft-success btn-toolbar" @click="abrirSelectorExcel" :disabled="cargandoExcel">
               <span v-if="cargandoExcel" class="spinner-border spinner-border-sm me-2"></span>
               <i v-else class="bi bi-file-earmark-excel me-1"></i>
@@ -84,9 +87,12 @@
             </button>
           </div>
 
-          <div class="d-flex gap-2 w-100">
+          <div class="d-flex gap-2 w-100 flex-wrap">
             <button class="btn btn-soft-primary flex-fill btn-toolbar" @click="cargarProveedores">
               <i class="bi bi-arrow-clockwise me-1"></i> Recargar
+            </button>
+            <button class="btn btn-soft-warning flex-fill btn-toolbar" @click="verificarDuplicados">
+              <i class="bi bi-shield-check me-1"></i> Repetidos
             </button>
             <button class="btn btn-soft-success flex-fill btn-toolbar" @click="abrirSelectorExcel" :disabled="cargandoExcel">
               <span v-if="cargandoExcel" class="spinner-border spinner-border-sm me-2"></span>
@@ -191,9 +197,9 @@
                 </td>
               </tr>
 
-              <tr v-else v-for="(r, index) in rowsFiltradas" :key="r.__id">
+              <tr v-else v-for="(r, index) in rowsPaginadas" :key="r.__id">
                 <td>
-                  <div class="row-index">{{ index + 1 }}</div>
+                  <div class="row-index">{{ inicioConteo + index }}</div>
                 </td>
 
                 <td>
@@ -280,7 +286,7 @@
           </div>
 
           <div v-else class="mobile-grid">
-            <article v-for="r in rowsFiltradas" :key="r.__id" class="provider-mobile-card">
+            <article v-for="r in rowsPaginadas" :key="r.__id" class="provider-mobile-card">
               <div class="mobile-card-top">
                 <div class="provider-main min-w-0">
                   <div class="provider-avatar">
@@ -325,7 +331,53 @@
           </div>
         </div>
       </section>
+      <div class="list-pagination" v-if="!cargando && rowsFiltradas.length">
+        <div class="pagination-left">
+          <span class="pagination-label">Mostrar</span>
 
+          <select
+            class="form-select pagination-select"
+            v-model.number="porPagina"
+            @change="cambiarPorPagina"
+          >
+            <option v-for="n in opcionesPorPagina" :key="n" :value="n">
+              {{ n }}
+            </option>
+          </select>
+
+          <span class="pagination-label">por página</span>
+        </div>
+
+        <div class="pagination-center">
+          <span class="pagination-summary">
+            Mostrando {{ inicioConteo }} a {{ finConteo }} de {{ rowsFiltradas.length }}
+          </span>
+        </div>
+
+        <div class="pagination-right">
+          <button
+            class="btn btn-soft-secondary btn-sm"
+            @click="irPaginaAnterior"
+            :disabled="paginaActualAjustada <= 1"
+          >
+            <i class="bi bi-chevron-left me-1"></i>
+            Anterior
+          </button>
+
+          <span class="page-chip">
+            Página {{ paginaActualAjustada }} de {{ totalPaginas }}
+          </span>
+
+          <button
+            class="btn btn-soft-secondary btn-sm"
+            @click="irPaginaSiguiente"
+            :disabled="paginaActualAjustada >= totalPaginas"
+          >
+            Siguiente
+            <i class="bi bi-chevron-right ms-1"></i>
+          </button>
+        </div>
+      </div>
       <!-- TOASTS -->
       <div class="toast-stack">
         <div v-for="t in toasts" :key="t.id" class="toast-box" :class="`toast-${t.type}`">
@@ -356,7 +408,7 @@
         <div class="vmodal-body">
           <div class="form-block">
             <div class="row g-3">
-              <div class="col-12 col-md-8">
+              <div class="col-12 col-md-12">
                 <label class="form-label">Nombre proveedor *</label>
                 <input
                   class="form-control modern-input"
@@ -364,7 +416,14 @@
                   placeholder="Ej: Comercial Xtreme SpA"
                 />
               </div>
-
+              <div class="col-12 col-md-8">
+                <label class="form-label">Nombre pila / abreviatura</label>
+                <input
+                  class="form-control modern-input"
+                  v-model="nuevo.nombre_pila"
+                  placeholder="Ej: KAUFMANN"
+                />
+              </div>
               <div class="col-12 col-md-4">
                 <label class="form-label">RUT *</label>
                 <input
@@ -404,7 +463,7 @@
         <div class="offcanvas-body">
           <div class="form-block">
             <div class="row g-3">
-              <div class="col-12 col-md-8">
+              <div class="col-12 col-md-12">
                 <label class="form-label">Nombre proveedor *</label>
                 <input
                   class="form-control modern-input"
@@ -412,7 +471,14 @@
                   placeholder="Nombre proveedor"
                 />
               </div>
-
+              <div class="col-12 col-md-8">
+                <label class="form-label">Nombre pila / abreviatura</label>
+                <input
+                  class="form-control modern-input"
+                  v-model="edit.nombre_pila"
+                  placeholder="Ej: KAUFMANN"
+                />
+              </div>
               <div class="col-12 col-md-4">
                 <label class="form-label">RUT *</label>
                 <input
@@ -547,11 +613,118 @@
         </div>
       </div>
     </div>
+    <!-- MODAL DUPLICADOS -->
+    <div v-if="modalDuplicados" class="vmodal-backdrop" @click.self="cerrarModalDuplicados">
+      <div class="vmodal" style="max-width: 1100px;">
+        <div class="vmodal-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+          <div>
+            <div class="modal-kicker">Validación</div>
+            <h5 class="mb-0 fw-bold">Proveedores repetidos por RUT</h5>
+            <small class="text-secondary">
+              Se conserva el primero y puedes eliminar los demás directamente.
+            </small>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap">
+            <button
+              class="btn btn-soft-danger"
+              @click="eliminarTodosLosDuplicados"
+              :disabled="eliminandoDuplicados || !duplicados.length"
+            >
+              <span v-if="eliminandoDuplicados" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="bi bi-trash3 me-1"></i>
+              Eliminar todos los duplicados
+            </button>
+
+            <button class="btn btn-soft-secondary" @click="cerrarModalDuplicados" :disabled="eliminandoDuplicados">
+              Cerrar
+            </button>
+          </div>
+        </div>
+
+        <div class="vmodal-body">
+          <div v-if="!duplicados.length" class="empty-state py-4">
+            <div class="empty-icon">
+              <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="empty-title">No hay repetidos</div>
+            <div class="empty-text">
+              No se encontraron proveedores duplicados por RUT.
+            </div>
+          </div>
+
+          <div v-else class="duplicate-groups">
+            <div v-for="grupo in duplicados" :key="grupo.rutKey" class="duplicate-group-card">
+              <div class="duplicate-group-head">
+                <div>
+                  <div class="duplicate-title">RUT: {{ grupo.rut }}</div>
+                  <div class="duplicate-subtitle">
+                    {{ grupo.total }} registros encontrados
+                  </div>
+                </div>
+
+                <button
+                  class="btn btn-soft-danger btn-sm"
+                  @click="eliminarDuplicadosDeGrupo(grupo)"
+                  :disabled="eliminandoDuplicados"
+                >
+                  <i class="bi bi-trash3 me-1"></i>
+                  Eliminar duplicados del grupo
+                </button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table providers-table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Conservar</th>
+                      <th>Nombre</th>
+                      <th>Nombre pila</th>
+                      <th>RUT</th>
+                      <th>Creado</th>
+                      <th style="width: 120px;">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in grupo.items" :key="item.__id">
+                      <td>
+                        <span v-if="item.__id === grupo.keepId" class="badge text-bg-success">SE CONSERVA</span>
+                        <span v-else class="badge text-bg-warning">DUPLICADO</span>
+                      </td>
+                      <td>{{ item.nombre || "—" }}</td>
+                      <td>{{ item.nombre_pila || "—" }}</td>
+                      <td>{{ item.rut || "—" }}</td>
+                      <td>{{ prettyTS(item.createdAt) }}</td>
+                      <td>
+                        <button
+                          v-if="item.__id !== grupo.keepId"
+                          class="btn btn-soft-danger btn-sm"
+                          @click="eliminarProveedorDuplicado(item.__id)"
+                          :disabled="eliminandoDuplicados"
+                        >
+                          <i class="bi bi-trash3"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="vmodal-footer">
+          <button class="btn btn-soft-secondary" @click="cerrarModalDuplicados" :disabled="eliminandoDuplicados">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import * as XLSX from "xlsx";
 import { db } from "@/stores/firebase";
 import {
@@ -577,6 +750,9 @@ let unsubList = null;
 const buscarTexto = ref("");
 const excelInput = ref(null);
 
+const porPagina = ref(10);
+const paginaActual = ref(1);
+const opcionesPorPagina = [10, 20, 30, 40, 50];
 const modalNuevo = ref(false);
 const creando = ref(false);
 
@@ -591,12 +767,15 @@ const detalle = ref({});
 const confirmOpen = ref(false);
 const confirmRow = ref(null);
 const eliminando = ref(false);
-
+const modalDuplicados = ref(false);
+const duplicados = ref([]);
+const eliminandoDuplicados = ref(false);
 const toasts = ref([]);
 
 const nuevoBase = () => ({
   nombre: "",
   rut: "",
+  nombre_pila: "",
 });
 
 const nuevo = ref(nuevoBase());
@@ -636,6 +815,13 @@ function normalizarTexto(v) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
+}
+
+function normalizarNombrePila(v) {
+  return String(v || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
 }
 
 function cleanRut(value) {
@@ -741,8 +927,211 @@ const rowsFiltradas = computed(() => {
   });
 });
 
+const totalPaginas = computed(() => {
+  const total = rowsFiltradas.value.length;
+  return Math.max(1, Math.ceil(total / porPagina.value));
+});
+
+const paginaActualAjustada = computed(() => {
+  return Math.min(paginaActual.value, totalPaginas.value);
+});
+
+const rowsPaginadas = computed(() => {
+  const page = paginaActualAjustada.value;
+  const inicio = (page - 1) * porPagina.value;
+  const fin = inicio + porPagina.value;
+  return rowsFiltradas.value.slice(inicio, fin);
+});
+watch(buscarTexto, () => {
+  paginaActual.value = 1;
+});
+
+watch(rowsFiltradas, () => {
+  if (paginaActual.value > totalPaginas.value) {
+    paginaActual.value = totalPaginas.value;
+  }
+});
+const inicioConteo = computed(() => {
+  if (!rowsFiltradas.value.length) return 0;
+  return (paginaActualAjustada.value - 1) * porPagina.value + 1;
+});
+
+const finConteo = computed(() => {
+  if (!rowsFiltradas.value.length) return 0;
+  return Math.min(paginaActualAjustada.value * porPagina.value, rowsFiltradas.value.length);
+});
+function agruparDuplicadosPorRut(lista = []) {
+  const mapa = new Map();
+
+  for (const item of lista) {
+    const rutKey = cleanRut(item?.rut);
+    if (!rutKey) continue;
+
+    if (!mapa.has(rutKey)) {
+      mapa.set(rutKey, []);
+    }
+
+    mapa.get(rutKey).push(item);
+  }
+
+  const grupos = [];
+
+  for (const [rutKey, items] of mapa.entries()) {
+    if (items.length > 1) {
+      const ordenados = [...items].sort((a, b) => {
+        const fa = a?.createdAt?.seconds || 0;
+        const fb = b?.createdAt?.seconds || 0;
+        return fa - fb;
+      });
+
+      grupos.push({
+        rutKey,
+        rut: formatRut(rutKey),
+        total: ordenados.length,
+        keepId: ordenados[0].__id,
+        items: ordenados,
+      });
+    }
+  }
+
+  grupos.sort((a, b) => a.rut.localeCompare(b.rut, "es"));
+  return grupos;
+}
+
+function verificarDuplicados() {
+  const encontrados = agruparDuplicadosPorRut(rows.value);
+  duplicados.value = encontrados;
+  modalDuplicados.value = true;
+
+  if (!encontrados.length) {
+    addToast("success", "No se encontraron proveedores repetidos por RUT.");
+  } else {
+    addToast("warning", `Se encontraron ${encontrados.length} grupos de proveedores repetidos.`);
+  }
+}
+
+function cerrarModalDuplicados() {
+  if (eliminandoDuplicados.value) return;
+  modalDuplicados.value = false;
+}
+
+async function eliminarProveedorDuplicado(rowId) {
+  try {
+    if (!rowId) return;
+
+    eliminandoDuplicados.value = true;
+    await deleteDoc(doc(db, "proveedores", rowId));
+
+    addToast("success", "Proveedor duplicado eliminado.");
+    duplicados.value = agruparDuplicadosPorRut(
+      rows.value.filter((r) => r.__id !== rowId)
+    );
+  } catch (error) {
+    console.error(error);
+    addToast("danger", "No se pudo eliminar el duplicado.");
+  } finally {
+    eliminandoDuplicados.value = false;
+  }
+}
+
+async function eliminarDuplicadosDeGrupo(grupo) {
+  try {
+    if (!grupo?.items?.length) return;
+
+    const idsAEliminar = grupo.items
+      .filter((item) => item.__id !== grupo.keepId)
+      .map((item) => item.__id);
+
+    if (!idsAEliminar.length) {
+      addToast("warning", "Ese grupo no tiene duplicados para eliminar.");
+      return;
+    }
+
+    eliminandoDuplicados.value = true;
+
+    const batch = writeBatch(db);
+    idsAEliminar.forEach((id) => {
+      batch.delete(doc(db, "proveedores", id));
+    });
+
+    await batch.commit();
+
+    addToast("success", `Se eliminaron ${idsAEliminar.length} duplicados del RUT ${grupo.rut}.`);
+
+    duplicados.value = agruparDuplicadosPorRut(
+      rows.value.filter((r) => !idsAEliminar.includes(r.__id))
+    );
+  } catch (error) {
+    console.error(error);
+    addToast("danger", "No se pudieron eliminar los duplicados del grupo.");
+  } finally {
+    eliminandoDuplicados.value = false;
+  }
+}
+
+async function eliminarTodosLosDuplicados() {
+  try {
+    const grupos = agruparDuplicadosPorRut(rows.value);
+    if (!grupos.length) {
+      addToast("success", "No hay duplicados por eliminar.");
+      return;
+    }
+
+    const idsAEliminar = grupos.flatMap((grupo) =>
+      grupo.items
+        .filter((item) => item.__id !== grupo.keepId)
+        .map((item) => item.__id)
+    );
+
+    if (!idsAEliminar.length) {
+      addToast("warning", "No se encontraron duplicados eliminables.");
+      return;
+    }
+
+    eliminandoDuplicados.value = true;
+
+    const chunkSize = 450;
+    for (let i = 0; i < idsAEliminar.length; i += chunkSize) {
+      const chunk = idsAEliminar.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+
+      chunk.forEach((id) => {
+        batch.delete(doc(db, "proveedores", id));
+      });
+
+      await batch.commit();
+    }
+
+    addToast("success", `Se eliminaron ${idsAEliminar.length} registros duplicados.`);
+
+    duplicados.value = [];
+    modalDuplicados.value = false;
+  } catch (error) {
+    console.error(error);
+    addToast("danger", "No se pudieron eliminar todos los duplicados.");
+  } finally {
+    eliminandoDuplicados.value = false;
+  }
+}
 function limpiarBusqueda() {
   buscarTexto.value = "";
+  paginaActual.value = 1;
+}
+
+function irPaginaAnterior() {
+  if (paginaActual.value > 1) {
+    paginaActual.value--;
+  }
+}
+
+function irPaginaSiguiente() {
+  if (paginaActual.value < totalPaginas.value) {
+    paginaActual.value++;
+  }
+}
+
+function cambiarPorPagina() {
+  paginaActual.value = 1;
 }
 
 function abrirModalNuevo() {
@@ -788,6 +1177,7 @@ async function crearProveedor() {
     await addDoc(collection(db, "proveedores"), {
       nombre: nuevo.value.nombre.trim(),
       rut: nuevo.value.rut.trim(),
+      nombre_pila: normalizarNombrePila(nuevo.value.nombre_pila || ""),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -807,6 +1197,7 @@ function abrirEditor(row) {
   edit.value = {
     nombre: row.nombre || "",
     rut: row.rut || "",
+    nombre_pila: row.nombre_pila || "",
     createdAt: row.createdAt || null,
     updatedAt: row.updatedAt || null,
   };
@@ -857,6 +1248,7 @@ async function guardarEdicion() {
     await updateDoc(doc(db, "proveedores", seleccion.value.__id), {
       nombre: edit.value.nombre.trim(),
       rut: edit.value.rut.trim(),
+      nombre_pila: normalizarNombrePila(edit.value.nombre_pila || ""),
       updatedAt: serverTimestamp(),
     });
 
@@ -926,6 +1318,7 @@ function valorFilaPorLlaves(row, llaves = []) {
 
 function extraerProveedorDesdeFila(row) {
   const rut = valorFilaPorLlaves(row, ["rut"]);
+
   const nombre = valorFilaPorLlaves(row, [
     "nombre",
     "proveedor",
@@ -934,9 +1327,21 @@ function extraerProveedorDesdeFila(row) {
     "razón social",
   ]);
 
+  const nombrePila = valorFilaPorLlaves(row, [
+    "nombre_pila",
+    "nombre pila",
+    "abreviatura",
+    "alias",
+    "nombre corto",
+    "nombre_corto",
+    "sigla",
+    "marca",
+  ]);
+
   return {
     rut: formatRut(String(rut || "").trim()),
     nombre: String(nombre || "").trim(),
+    nombre_pila: normalizarNombrePila(nombrePila),
   };
 }
 
@@ -964,7 +1369,6 @@ async function procesarExcel(event) {
       return;
     }
 
-    // Opción 2: NO validar dígito verificador
     const proveedoresPreparados = jsonRows
       .map(extraerProveedorDesdeFila)
       .filter((item) => item.nombre && item.rut);
@@ -984,17 +1388,34 @@ async function procesarExcel(event) {
 
     const rutsArchivo = new Set();
     const finales = [];
+    let repetidosBD = 0;
+    let repetidosArchivo = 0;
+    let invalidos = 0;
 
     for (const item of proveedoresPreparados) {
       const rutLimpio = cleanRut(item.rut);
-      if (!rutLimpio) continue;
-      if (rutsExistentes.has(rutLimpio)) continue;
-      if (rutsArchivo.has(rutLimpio)) continue;
+
+      if (!rutLimpio || !item.nombre?.trim()) {
+        invalidos++;
+        continue;
+      }
+
+      if (rutsExistentes.has(rutLimpio)) {
+        repetidosBD++;
+        continue;
+      }
+
+      if (rutsArchivo.has(rutLimpio)) {
+        repetidosArchivo++;
+        continue;
+      }
 
       rutsArchivo.add(rutLimpio);
+
       finales.push({
         nombre: item.nombre.trim(),
         rut: formatRut(item.rut),
+        nombre_pila: normalizarNombrePila(item.nombre_pila || ""),
       });
     }
 
@@ -1014,6 +1435,7 @@ async function procesarExcel(event) {
         batch.set(ref, {
           nombre: item.nombre,
           rut: item.rut,
+          nombre_pila: item.nombre_pila || "",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -1022,7 +1444,11 @@ async function procesarExcel(event) {
       await batch.commit();
     }
 
-    addToast("success", `Carga masiva completada. Se agregaron ${finales.length} proveedores.`);
+    addToast(
+      "success",
+      `Carga masiva completada. Agregados: ${finales.length}. Repetidos en BD: ${repetidosBD}. Repetidos en archivo: ${repetidosArchivo}. Inválidos: ${invalidos}.`,
+      5000
+    );
   } catch (error) {
     console.error(error);
     addToast("danger", "No se pudo procesar el archivo Excel.");
@@ -1955,7 +2381,53 @@ onBeforeUnmount(() => {
   .stat-pill {
     flex: 1 1 100%;
   }
+.btn-soft-warning {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.20);
+  font-weight: 700;
+}
 
+.btn-soft-warning:hover,
+.btn-soft-warning:focus {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.duplicate-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.duplicate-group-card {
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.86);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+}
+
+.duplicate-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1rem 0.85rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(248,250,252,0.88));
+}
+
+.duplicate-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.duplicate-subtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+}
   .mobile-cards {
     padding: 0.85rem;
   }
@@ -1972,6 +2444,87 @@ onBeforeUnmount(() => {
 
   .detalle-hero {
     align-items: flex-start;
+  }
+}
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.2rem 1.2rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(248,250,252,0.84));
+}
+
+.pagination-left,
+.pagination-center,
+.pagination-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pagination-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.pagination-select {
+  width: 92px;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255,255,255,0.95);
+  box-shadow: none;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pagination-select:focus {
+  border-color: rgba(37, 99, 235, 0.30);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+}
+
+.pagination-summary {
+  font-size: 0.9rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+.page-chip {
+  min-height: 38px;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 767.98px) {
+  .list-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination-left,
+  .pagination-center,
+  .pagination-right {
+    justify-content: center;
+  }
+
+  .pagination-right {
+    width: 100%;
+  }
+
+  .pagination-right .btn {
+    flex: 1 1 0;
   }
 }
 </style>
